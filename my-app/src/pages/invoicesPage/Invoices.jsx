@@ -194,6 +194,26 @@ export default function Invoices() {
     // fetchInvoicesData();
     setInvoices(initialData);
   }, []);
+    // fetch invoices
+    useEffect(() => {
+      const fetchInvoicesData = async () => {
+        const accessToken = localStorage.getItem("access_token");
+        if (!accessToken) return;
+        try {
+          const response = await fetch("http://127.0.0.1:5000/invoice/", {
+            method: "GET",
+            headers: { Authorization: `Bearer ${accessToken}` },
+          });
+          // if (!response.ok) return;
+          const data = await response.json();
+          setInvoices(initialData);
+        } catch (err) {
+          console.error("Error fetching user data:", err);
+        }
+      };
+      fetchInvoicesData();
+    }, []);
+  
 
   // open edit modal
   const openInvoice = (id) => {

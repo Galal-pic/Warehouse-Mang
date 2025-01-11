@@ -1,5 +1,5 @@
 import styles from "./Mechanisms.module.css";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   DataGrid,
   GridToolbarContainer,
@@ -54,24 +54,30 @@ const CustomPagination = ({ page, count, onChange }) => {
   );
 };
 export default function Mechanisms() {
-  const [initialItems, setInitialItems] = useState([
-    {
-      name: "الميكانيزم الاول",
-      description: "A",
-    },
-    {
-      name: "الميكانيزم الثاني",
-      description: "B",
-    },
-    {
-      name: "الميكانيزم الثالث",
-      description: "C",
-    },
-    {
-      name: "الميكانيزم الرابع",
-      description: "D",
-    },
-  ]);
+  const [initialItems, setInitialItems] = useState([]);
+
+  // fetch invoices
+  const fetchItemsData = async () => {
+    const accessToken = localStorage.getItem("access_token");
+    if (!accessToken) return;
+    try {
+      const response = await fetch("http://127.0.0.1:5000/mechanism/", {
+        method: "GET",
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const data = await response.json();
+      const updatedItems = data.map((item) => ({
+        ...item,
+        id: item.name,
+      }));
+      setInitialItems(updatedItems);
+    } catch (err) {
+      console.error("Error fetching user data:", err);
+    }
+  };
+  useEffect(() => {
+    fetchItemsData();
+  }, []);
 
   // collors
   const primaryColor = getComputedStyle(
@@ -111,7 +117,7 @@ export default function Mechanisms() {
     description: "",
   });
   const [errors, setErrors] = useState({});
-  const handleAddItem = () => {
+  const handleAddItem = async () => {
     const newErrors = {};
 
     if (newItem.name.trim() === "") {
@@ -126,19 +132,37 @@ export default function Mechanisms() {
       return;
     }
 
-    setInitialItems([...initialItems, newItem]);
-    const itemWithoutId = { ...newItem };
-    delete itemWithoutId.id;
-    console.log(itemWithoutId);
-    setNewItem({
-      name: "",
-      description: "",
-    });
-    setErrors({});
-    setOpenDialog(false);
-    setOpenSnackbar(true);
-    setSnackbarMessage("تمت اضافة الميكانيزم");
-    setSnackBarType("success");
+    try {
+      const accessToken = localStorage.getItem("access_token");
+
+      const response = await fetch("http://127.0.0.1:5000/mechanism/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(newItem),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to create invoice");
+      }
+      await fetchItemsData();
+      setNewItem({
+        name: "",
+        description: "",
+      });
+      setErrors({});
+      setOpenDialog(false);
+      setOpenSnackbar(true);
+      setSnackbarMessage("تمت اضافة الميكانيزم");
+      setSnackBarType("success");
+    } catch (error) {
+      console.error("Error creating invoice:", error);
+      setOpenSnackbar(true);
+      setSnackbarMessage(error.message || "خطأ في إضافة الماكينة");
+      setSnackBarType("error");
+    }
   };
 
   // toolbar
@@ -237,6 +261,36 @@ export default function Mechanisms() {
     setOpenSnackbar(true);
     setSnackbarMessage("تم تعديل الميكانيزم");
     setSnackBarType("success");
+    // const accessToken = localStorage.getItem("access_token");
+    // try {
+    //   const response = await fetch(
+    //     `http://127.0.0.1:5000/machine/${editingItem.id}`,
+    //     {
+    //       method: "PUT",
+    //       headers: {
+    //         "Content-Type": "application/json",
+    //         Authorization: `Bearer ${accessToken}`,
+    //       },
+    //       body: JSON.stringify(editingItem),
+    //     }
+    //   );
+
+    //   if (!response.ok) {
+    //     throw new Error(`Failed to update user: ${response.status}`);
+    //   }
+    //   await fetchItemsData();
+    // setSelectedItem(editingItem);
+    // setEditingItem(null);
+    // setIsEditingItem(false);
+    // setOpenSnackbar(true);
+    // setSnackbarMessage("تم تعديل الميكانيزم");
+    // setSnackBarType("success");
+    // } catch (error) {
+    //   console.error("Error updating user:", error);
+    //   setOpenSnackbar(true);
+    //   setSnackbarMessage("خطأ في تحديث الماكينة");
+    //   setSnackBarType("error");
+    // }
   };
 
   // columns
@@ -361,10 +415,39 @@ export default function Mechanisms() {
 
   // delete
   const handleDelete = (id) => {
+    const isConfirmed = window.confirm(
+      "Are you sure you want to delete this user?"
+    );
+    if (!isConfirmed) return;
     setInitialItems((prev) => prev.filter((item) => item.id !== id));
     setOpenSnackbar(true);
     setSnackbarMessage("تم حذف الميكانيزم");
     setSnackBarType("success");
+    // const accessToken = localStorage.getItem("access_token");
+
+    // try {
+    //   const response = await fetch(`http://127.0.0.1:5000/mechanism/${id}`, {
+    //     method: "DELETE",
+    //     headers: {
+    //       Authorization: `Bearer ${accessToken}`,
+    //     },
+    //   });
+
+    //   if (!response.ok) {
+    //     const errorData = await response.json();
+    //     throw new Error(errorData.message || "Failed to delete user");
+    //   }
+
+    //   setInitialItems((prev) => prev.filter((item) => item.id !== id));
+    //   setOpenSnackbar(true);
+    //   setSnackbarMessage("تم حذف الماكينة");
+    //   setSnackBarType("success");
+    // } catch (error) {
+    //   console.error("Error deleting user:", error);
+    //   setOpenSnackbar(true);
+    //   setSnackbarMessage("خطأ في حذف الماكينة");
+    //   setSnackBarType("error");
+    // }
   };
 
   return (

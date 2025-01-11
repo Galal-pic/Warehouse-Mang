@@ -40,39 +40,35 @@ export default function Header() {
   const [logged] = useAuth();
   useEffect(() => {
     const fetchUserData = async () => {
-      if (logged) {
-        const accessToken = localStorage.getItem("access_token");
+      const accessToken = localStorage.getItem("access_token");
 
-        if (!accessToken) {
-          console.error("No access token found.");
-          return;
+      if (!accessToken) {
+        console.error("No access token found.");
+        return;
+      }
+
+      try {
+        const response = await fetch("http://127.0.0.1:5000/auth/user", {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch user data: ${response.statusText}`);
         }
 
-        try {
-          const response = await fetch("http://127.0.0.1:5000/auth/user", {
-            method: "GET",
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-            },
-          });
-
-          if (!response.ok) {
-            throw new Error(
-              `Failed to fetch user data: ${response.statusText}`
-            );
-          }
-
-          const data = await response.json();
-          setUser(data);
-          return data;
-        } catch (err) {
-          console.error("Error fetching user data:", err);
-        }
+        const data = await response.json();
+        setUser(data);
+        return data;
+      } catch (err) {
+        console.error("Error fetching user data:", err);
       }
     };
 
     fetchUserData();
-  }, [logged]);
+  }, [setUser]);
 
   // selected link
   const [selectedLink, setSelectedLink] = useState("");
