@@ -1,43 +1,42 @@
 import React, { useState } from "react";
-import {
-  Box,
-  Button,
-  TextField,
-  Paper,
-  InputAdornment,
-  IconButton,
-} from "@mui/material";
-import Visibility from "@mui/icons-material/Visibility";
-import VisibilityOff from "@mui/icons-material/VisibilityOff";
+import { Box, Button, Paper } from "@mui/material";
 import styles from "./Login.module.css";
 import { useNavigate } from "react-router-dom";
-import { login, useAuth } from "../../context/AuthContext";
+import { login } from "../../context/AuthContext";
 import { motion } from "framer-motion";
 import logo from "./logo.png";
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
+import SnackBar from "../../components/snackBar/SnackBar";
+import { CustomTextField } from "../../components/customTextField/CustomTextField";
 
 const Login = () => {
   const [name, setName] = useState("");
   const [nameError, setNameError] = useState("");
   const [password, setPassword] = useState("");
   const [passwordError, setPasswordError] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+  const [openSnackbar, setOpenSnackbar] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState("");
   const navigate = useNavigate();
 
-  const handleClickShowPassword = () => {
-    setShowPassword((prev) => !prev);
+  // Handle close snack
+  const handleCloseSnackbar = () => {
+    setOpenSnackbar(false);
   };
 
-  const handleSubmit = (e) => {
+  // Handle login
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setNameError("");
     setPasswordError("");
+    setSnackbarMessage(""); // Reset snackbar message
 
+    // Input validation
     if (!name) {
-      setNameError("Name is required");
+      setNameError("يرجى ادخال الاسم");
       return;
     }
     if (!password) {
-      setPasswordError("Password is required");
+      setPasswordError("يرجى ادخال كلمة المرور");
       return;
     }
 
@@ -46,30 +45,36 @@ const Login = () => {
       password: password,
     };
 
-    fetch("http://127.0.0.1:5000/auth/login", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(dataToSend),
-    })
-      .then((response) => {
-        if (response.ok) {
-          return response.json();
-        } else {
-          throw new Error("Network response was not ok");
-        }
-      })
-      .then((data) => {
-        localStorage.setItem("access_token", data.access_token);
-        navigate("/users");
-
-        login(data);
-      })
-      .catch((error) => {
-        console.error("Error:", error);
+    try {
+      const response = await fetch("http://127.0.0.1:5000/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(dataToSend),
       });
+
+      if (!response.ok) {
+        setSnackbarMessage(
+          "فشل تسجيل الدخول. يرجى التحقق من البيانات الخاصة بك."
+        );
+        setOpenSnackbar(true);
+        throw new Error("Network response was not ok");
+      }
+
+      const data = await response.json();
+      localStorage.setItem("access_token", data.access_token);
+      navigate("/users");
+      login(data); // Assuming login is a context or state function
+    } catch (error) {
+      console.error("Error:", error);
+      setSnackbarMessage(
+        "اسم المستخدم أو كلمة المرور خاطئة، يرجى المحاولة مرة أخرى"
+      );
+      setOpenSnackbar(true);
+    }
   };
+
   return (
     <div className={styles.container}>
       <div className={styles.boxText}>
@@ -97,57 +102,35 @@ const Login = () => {
         }}
         className={styles.boxForm}
       >
+        {/* login part */}
         <motion.div
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ type: "spring", stiffness: 100, damping: 25 }}
         >
           <Paper className={styles.paper}>
+            <LockOutlinedIcon className={styles.icon} />
             <h2 className={styles.subTitle}>Login</h2>
             <Box component="form" className={styles.textFields}>
-              {/* Email Field */}
-              <TextField
-                label="Name"
-                variant="outlined"
-                required
+              {/* Name Field */}
+              <CustomTextField
+                label="الاسم"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                setValue={setName}
+                valueError={nameError}
                 className={styles.textField}
-                error={!!nameError}
-                helperText={nameError}
               />
+
               {/* Password Field */}
-              <TextField
-                label="Password"
-                type={showPassword ? "text" : "password"}
-                variant="outlined"
-                required
+              <CustomTextField
+                label="كلمة المرور"
+                type={"password"}
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                setValue={setPassword}
+                valueError={passwordError}
                 className={styles.textField}
-                error={!!passwordError}
-                helperText={passwordError}
-                slotProps={{
-                  input: {
-                    endAdornment: (
-                      <InputAdornment position="end">
-                        <IconButton
-                          onClick={handleClickShowPassword}
-                          edge="end"
-                          className={styles.iconVisibility}
-                        >
-                          {showPassword ? <Visibility /> : <VisibilityOff />}
-                        </IconButton>
-                      </InputAdornment>
-                    ),
-                  },
-                }}
               />
-              {/* {formError && (
-                <p style={{ color: "red", textAlign: "center" }}>
-                  Please, Try again
-                </p>
-              )} */}
+
               {/* Submit Button */}
               <Button
                 type="submit"
@@ -155,11 +138,19 @@ const Login = () => {
                 className={styles.btn}
                 onClick={handleSubmit}
               >
-                Sign In
+                تسجيل الدخول
               </Button>
             </Box>
           </Paper>
         </motion.div>
+
+        {/* Snackbar */}
+        <SnackBar
+          open={openSnackbar}
+          message={snackbarMessage}
+          type="error"
+          onClose={handleCloseSnackbar}
+        />
       </Box>
     </div>
   );

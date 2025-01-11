@@ -1,3 +1,398 @@
-.container{
-    padding-top: 72px;
+:root {
+    --main_color: black;
+    --blue_color: #1976d2;
 }
+
+/* General Container Styling */
+.container {
+    width: 90%;
+    padding: 100px 0 10px;
+    margin: auto;
+}
+
+/* Header Styling */
+.head {
+    font-size: 2rem;
+    margin-bottom: 20px;
+}
+
+/* DataGrid Header Styling */
+.headerCell {
+    background-color: #1976d2;
+    font-weight: bold !important;
+    font-size: 1rem;
+    color: white;
+}
+
+/* Action Buttons Styling */
+.iconBtn {
+    font-size: 1.8rem;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: 0.2s;
+    border: 2px solid var(--secondary-color);
+    background-color: transparent;
+}
+
+.iconBtn:hover {
+    background-color: #dddddd82;
+}
+
+/* Buttons Styling */
+.btn {
+    font-size: 1.8rem;
+    cursor: pointer;
+    border-radius: 2px;
+    padding: 10px 30px;
+    transition: 0.2s;
+    border: 2px solid var(--secondary-color);
+    background-color: var(--blue-color);
+    color: #fff;
+    margin: 10px 0;
+}
+
+.btn:hover {
+    background-color: var(--secondary-color);
+    color: #000;
+}
+
+/* Responsive Styling */
+@media (max-width: 992px) {
+    .container {
+        width: 650px;
+    }
+
+    .inputContainer {
+        flex-direction: column-reverse;
+    }
+}
+
+@media (max-width: 662px) {
+    .container {
+        width: 100%;
+    }
+}
+
+/* Main container */
+.mainBox {
+    padding: 40px;
+    width: 90%;
+    margin: auto;
+    margin-top: 100px;
+}
+
+/* Operation Type Selection */
+.operationTypeSelection {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 20px;
+}
+
+.operationTypeLabel {
+    margin-bottom: 20px;
+    font-size: 1.4rem;
+    color: #1976d2;
+    font-weight: bold;
+}
+
+.operationTypeFormControl {
+    margin: 10px;
+    width: 250px;
+    margin: auto !important;
+    border: 2px solid #1976d2 !important;
+    border-radius: 6px;
+    background-color: white;
+}
+
+.operationTypeSelect {
+    font-weight: bold !important;
+    font-size: 20px !important;
+}
+
+/* Outer Box */
+.outerBox {
+    direction: rtl;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+/* Printable Box */
+.printableBox {
+    border: 1px solid #ddd;
+    padding: 10px 35px;
+    overflow-y: auto !important;
+}
+
+/* Header Section */
+.headerSection {
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
+    justify-content: space-between;
+    direction: rtl;
+}
+
+.logoBox {
+    flex: 1;
+}
+
+.logoImage {
+    width: 250px;
+}
+
+.operationTypeBox {
+    text-align: center;
+    flex: 1;
+    line-height: 2.4;
+}
+
+.operationTypeText {
+    font-weight: bold;
+    color: #333;
+    font-size: 1.4rem;
+}
+
+.operationTypeName {
+    font-size: 20px;
+    color: #555;
+    font-weight: bold;
+}
+
+.infoBox {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+}
+
+.infoItem {
+    display: flex;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.infoLabel {
+    font-weight: bold;
+    color: #555;
+}
+
+.infoValue {
+    margin-right: 5px;
+    font-weight: 400;
+    color: #999090;
+}
+
+.warehouseBox {
+    display: flex;
+    justify-content: flex-start;
+    margin-bottom: 20px;
+
+}
+
+.warehouseText {
+    border: 1px solid #ddd;
+    padding: 5px 20px;
+    border-radius: 5px;
+    background-color: white;
+
+}
+
+/* Table Section */
+.tableSection {}
+
+.customTable {
+    border: 1px solid #b2b0b0 !important;
+    margin-bottom: 30px;
+    background-color: white;
+
+}
+
+.tableRow {
+    /* Table row styles */
+}
+
+.tableCell {
+    border: 1px solid #b2b0b0 !important;
+    padding: 12px;
+    text-align: center;
+    background-color: #ddd;
+    font-weight: bold;
+
+}
+
+.tableCellRow {
+    width: auto;
+    text-align: center;
+}
+
+.tableInputCell {
+    /* Styles for input cells */
+    padding: 0 !important;
+}
+
+.cellInput {
+    border: none;
+    outline: none;
+    width: 100%;
+}
+
+.addIcon {
+    cursor: pointer;
+}
+
+.clearIcon {
+    padding: 3px;
+    border-radius: 50%;
+    width: 30px;
+    position: absolute;
+    right: -30px;
+    top: 50%;
+    transform: translateY(-50%);
+    background-color: transparent;
+    border: none;
+    color: #d32f2f;
+    cursor: pointer;
+    transition: 0.3s;
+
+}
+
+.clearIcon:hover {
+    background-color: #dddddd41;
+}
+
+/* Total Amount Section */
+.totalAmountSection {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 10px;
+    direction: rtl;
+
+}
+
+.totalAmountBox {
+    padding: 8px 16px;
+    border-radius: 8px;
+    display: flex;
+    gap: 10px;
+    background-color: white;
+    border: 1px solid #ddd;
+
+}
+
+.totalAmountLabel {
+    font-size: 1rem;
+    font-weight: 600;
+    text-align: center;
+}
+
+.totalAmountValue {
+    margin-left: 10px;
+    font-size: 1rem;
+    font-weight: 400;
+    color: #1976d2;
+}
+
+/* Comment Field */
+.commentFieldBox {
+    margin-top: 20px !important;
+    text-align: center;
+    border: 1px #ddd solid;
+    padding: 20px 0;
+}
+
+.commentTextField {
+    width: 100%;
+    border-radius: 8px;
+}
+
+/* Information Section */
+.infoSection {
+    margin-top: 30px;
+    display: flex;
+    justify-content: space-around;
+    direction: rtl;
+}
+
+.infoItemBox {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex: 1;
+    text-align: center;
+}
+
+.infoLabel {
+    font-weight: bold;
+    color: #555;
+}
+
+.infoValue {
+    color: #555;
+}
+
+.infoInput {
+    border: none;
+    outline: none;
+    height: 40px;
+    text-align: center;
+    width: calc(100% - 100px);
+    margin: auto;
+    min-width: 100px;
+}
+
+/* Buttons Section */
+.buttonsSection {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 30%;
+    margin-top: 30px;
+}
+
+.infoBtn {
+    padding: 0px 24px !important;
+    border-radius: 12px !important;
+    font-weight: bold !important;
+    flex: 1;
+    font-size: 1.5rem !important;
+}
+
+.addCommentButton {
+    background-color: #4caf50 !important;
+}
+
+.addCommentButton:hover {
+    background-color: #45a049 !important;
+}
+
+.cancelCommentButton {
+    border-color: #e57373 !important;
+}
+
+.cancelCommentButton:hover {
+    border-color: #d32f2f !important;
+}
+
+.saveButton {
+    background-color: #1976d2 !important;
+}
+
+.saveButton:hover {
+    background-color: #1565c0 !important;
+}
+
+.printButton {
+    background-color: #00bcd4 !important;
+}
+
+.printButton:hover {
+    background-color: #0097a7 !important;
+}
+
+/* Snackbar */
+.snackbar {
+    z-index: 99999999999999999999999999999999999999 !important;
+}
+
+.alert {}

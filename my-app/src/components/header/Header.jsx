@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import styles from "./Header.module.css";
-import logo from "./logo.png";
+import logo from "./test.png";
 import { useAuth, logout } from "../../context/AuthContext";
 import { Button, Typography } from "@mui/material";
 import { Link, useNavigate } from "react-router-dom";
@@ -11,27 +11,33 @@ import ListItem from "@mui/material/ListItem";
 import ListItemButton from "@mui/material/ListItemButton";
 import ListItemText from "@mui/material/ListItemText";
 import MenuIcon from "@mui/icons-material/Menu";
-import { jwtDecode } from "jwt-decode";
+import "../../colors.css";
+import { useLocation } from "react-router-dom";
 
+// liks
 const links = [
   {
-    text: "Users",
-    href: "/users",
+    text: "أخرى",
+    href: "/others",
   },
   {
-    text: "Create Invoice",
+    text: "الفواتير",
+    href: "/invoices",
+  },
+  {
+    text: "إنشاء فاتورة",
     href: "/createinvoice",
   },
   {
-    text: "Invoices",
-    href: "/invoices",
+    text: "الموظفين",
+    href: "/users",
   },
 ];
 
 export default function Header() {
-  const [user, setUser] = useState({})
-  const [logged] = useAuth();  // Assuming `useAuth` returns logged status
-
+  // get user data
+  const [user, setUser] = useState({});
+  const [logged] = useAuth();
   useEffect(() => {
     const fetchUserData = async () => {
       if (logged) {
@@ -51,12 +57,14 @@ export default function Header() {
           });
 
           if (!response.ok) {
-            throw new Error(`Failed to fetch user data: ${response.statusText}`);
+            throw new Error(
+              `Failed to fetch user data: ${response.statusText}`
+            );
           }
 
           const data = await response.json();
-          setUser(data); // Store the user data
-          return data; // Return the user data if needed
+          setUser(data);
+          return data;
         } catch (err) {
           console.error("Error fetching user data:", err);
         }
@@ -64,17 +72,20 @@ export default function Header() {
     };
 
     fetchUserData();
-  }, [logged]);  // Add `logged` as a dependency to re-fetch when login status changes
+  }, [logged]);
 
-
-
-
-  const [selectedLink, setSelectedLink] = useState("/users"); // لإدارة الرابط المختار
+  // selected link
+  const [selectedLink, setSelectedLink] = useState("");
+  const location = useLocation();
+  useEffect(() => {
+    setSelectedLink(location.pathname);
+  }, [location]);
   const handleLinkClick = (href) => {
-    setSelectedLink(href); // تحديث الرابط المختار
-    navigate(href); // الانتقال للرابط
+    setSelectedLink(href);
+    navigate(href);
   };
 
+  // logOut
   const navigate = useNavigate();
   const handleLogout = async () => {
     logout();
@@ -82,8 +93,8 @@ export default function Header() {
     localStorage.clear();
   };
 
+  // drawer
   const [state, setState] = useState(false);
-
   const toggleDrawer = (open) => (event) => {
     if (
       event &&
@@ -95,17 +106,37 @@ export default function Header() {
     setState(open);
   };
 
+  // get colos
+  const primaryColor = getComputedStyle(
+    document.documentElement
+  ).getPropertyValue("--primary-color");
+
   return (
     <div className={styles.header}>
-      {/* NavBar */}
-      <Link to="/users">
-        <img src={logo} alt="" className={styles.logo} />
-      </Link>
+      {/* logo */}
+      <div
+        style={{ justifyContent: "flex-start" }}
+        className={styles.logoContainer}
+      >
+        <Link to="/users">
+          <img
+            style={{ justifyContent: "flex-start" }}
+            src={logo}
+            alt=""
+            className={styles.logo}
+          />
+        </Link>
+      </div>
+
+      {/* links */}
       <div
         style={{
           display: "flex",
           justifyContent: "space-around",
           gap: "50px",
+          flex: 1,
+          transition: "0.2s",
+          height: "100%",
         }}
       >
         {links.map((link) => (
@@ -113,17 +144,24 @@ export default function Header() {
             key={link.text}
             style={{
               listStyle: "none",
+              alignItems: "center",
+              display: "flex",
+              transition: "0.2s",
+              borderBottom:
+                selectedLink === link.href
+                  ? "3px solid white"
+                  : `3px solid ${primaryColor}`,
             }}
           >
             <Link
+              to={link.href}
               style={{
                 textDecoration: "none",
-                color: selectedLink === link.href ? "#1976d2" : "black",
-                fontSize: "20px",
-                fontWeight: "bold",
-                marginRight: "20px",
+                color: selectedLink === link.href ? "white" : "#ccc",
+                marginRight: "10px",
+                margin: "auto",
+                fontWeight: selectedLink === link.href ? "bold" : "",
               }}
-              to={link.href}
               onClick={() => handleLinkClick(link.href)}
             >
               {link.text}
@@ -133,11 +171,15 @@ export default function Header() {
       </div>
 
       {/* Drawer icon */}
-      <Button onClick={toggleDrawer(true)} className={styles.drawerButton}>
+      <Button
+        sx={{ flex: 1, justifyContent: "flex-end" }}
+        onClick={toggleDrawer(true)}
+        className={styles.drawerButton}
+      >
         <MenuIcon
           sx={{
             fontSize: "50px",
-            color: "black",
+            color: "white",
           }}
         />
       </Button>
@@ -158,6 +200,7 @@ export default function Header() {
             backgroundColor: "#f7f7f7",
             height: "100vh",
             padding: 2,
+            direction: "rtl",
           }}
           role="presentation"
           onClick={toggleDrawer(false)}
@@ -167,6 +210,7 @@ export default function Header() {
             sx={{
               display: "flex",
               flexDirection: "column",
+              justifyContent: "center",
             }}
           >
             {/* User Information */}
@@ -181,16 +225,22 @@ export default function Header() {
                   cursor: "context-menu",
                   display: "flex",
                   gap: 1,
+                  textAlign: "right",
+                  fontSize: "1.5rem",
                 }}
               >
-                <Typography variant="h6" sx={{ fontWeight: "bold" }}>
-                  Name:
+                <Typography
+                  variant="h6"
+                  sx={{ fontWeight: "bold", fontSize: "1.5rem" }}
+                >
+                  الاسم:
                 </Typography>
                 <ListItemText
-                  primary={user.username}
-                  sx={{
-                    color: "#555",
-                  }}
+                  primary={
+                    <Typography sx={{ color: "#555", fontSize: "1.5rem" }}>
+                      {user.username}
+                    </Typography>
+                  }
                 />
               </ListItemButton>
             </ListItem>
@@ -205,16 +255,20 @@ export default function Header() {
                   cursor: "context-menu",
                   display: "flex",
                   gap: 1,
+                  textAlign: "right",
+                  fontSize: "1.5rem",
                 }}
               >
                 <Typography variant="h6" sx={{ fontWeight: "bold" }}>
-                  Phone:
+                  الوظيقة:
                 </Typography>
+
                 <ListItemText
-                  primary={user.job_name}
-                  sx={{
-                    color: "#555",
-                  }}
+                  primary={
+                    <Typography sx={{ color: "#555", fontSize: "1.5rem" }}>
+                      {user.job_name}
+                    </Typography>
+                  }
                 />
               </ListItemButton>
             </ListItem>
@@ -242,7 +296,7 @@ export default function Header() {
                     },
                   }}
                 >
-                  Logout
+                  تسجيل الخروج
                 </Button>
               </ListItemButton>
             </ListItem>

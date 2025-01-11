@@ -1,3 +1,7 @@
+:root {
+    --main_color: black;
+    --blue_color: #1976d2;
+}
 /* General Container Styling */
 .container {
     width: 80%;
@@ -26,10 +30,11 @@
     border-radius: 2px;
     transition: 0.2s;
     border: 2px solid var(--secondary-color);
+    background-color: transparent;
 }
 
 .iconBtn:hover {
-    background-color: var(--secondary-color);
+    background-color: #dddddd82;
 }
 
 /* Buttons Styling */

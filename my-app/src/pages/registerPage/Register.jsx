@@ -1,46 +1,47 @@
 import React, { useState } from "react";
-import {
-  Box,
-  Button,
-  TextField,
-  Paper,
-  InputAdornment,
-  IconButton,
-  Snackbar,
-  Slide,
-} from "@mui/material";
-import Visibility from "@mui/icons-material/Visibility";
-import VisibilityOff from "@mui/icons-material/VisibilityOff";
+import { Box, Button, Paper, IconButton } from "@mui/material";
+import ArrowBackOutlinedIcon from "@mui/icons-material/ArrowBackOutlined";
 import styles from "./Register.module.css";
+import { useNavigate } from "react-router-dom";
+import CustomSelectField from "../../components/customSelectField/CustomSelectField";
+import SnackBar from "../../components/snackBar/SnackBar";
+import { CustomTextField } from "../../components/customTextField/CustomTextField";
 
 export default function Register() {
+  // requires
   const [username, setUserName] = useState("");
-  const [jobName, setJobName] = useState("");
+  const [job, setJob] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [formError, setFormError] = useState("");
+
+  // errors
   const [nameError, setNameError] = useState("");
   const [phoneError, setPhoneError] = useState("");
   const [jobError, setJobError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [confirmPasswordError, setConfirmPasswordError] = useState("");
+
+  // snackbar
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
-
-  const validatePhone = (phone) => {
-    const phoneRegex = /^[0-9]+$/;
-    return phoneRegex.test(phone);
+  const [snackBarType, setSnackBarType] = useState("");
+  // Handle close snack
+  const handleCloseSnackbar = () => {
+    setOpenSnackbar(false);
   };
 
-  const handleClickShowPassword = () => {
-    setShowPassword((prev) => !prev);
-  };
+  // navigation
+  const navigate = useNavigate();
+
+  // select field options
+  const jobs = [
+    { value: "موظف", label: "موظف" },
+    { value: "مدير", label: "مدير" },
+  ];
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    setFormError("");
     setNameError("");
     setPhoneError("");
     setJobError("");
@@ -48,45 +49,42 @@ export default function Register() {
     setConfirmPasswordError("");
 
     if (!username) {
-      setNameError("Name is required");
+      setNameError("يرجى ادخال الاسم");
       return;
     } else if (username.length > 80) {
-      setNameError("Name cannot be longer than 80 characters");
+      setNameError("الاسم لا يمكن أن يكون أطول من 80 حرفًا");
       return;
     }
 
     if (!phoneNumber) {
-      setPhoneError("Phone number is required");
+      setPhoneError("يرجى ادخال رقم الهاتف");
       return;
-    } else if (!validatePhone(phoneNumber)) {
-      setPhoneError("Invalid phone number");
+    } else if (!/^[0-9]+$/.test(phoneNumber)) {
+      setPhoneError("رقم الهاتف غير صالح");
       return;
     } else if (phoneNumber.length > 20) {
-      setPhoneError("Phone number cannot be longer than 20 digits");
+      setPhoneError("رقم الهاتف لا يمكن أن يتجاوز 20 رقمًا");
       return;
     }
 
-    if (!jobName) {
-      setJobError("Job name is required");
-      return;
-    } else if (jobName.length > 100) {
-      setJobError("Job name cannot be longer than 100 characters");
+    if (!job) {
+      setJobError("يرجى ادخال اسم الوظيفة");
       return;
     }
 
     if (!password) {
-      setPasswordError("Password is required");
+      setPasswordError("يرجى ادخال كلمة المرور");
       return;
     } else if (password.length < 6 || password.length > 120) {
-      setPasswordError("Password must be between 6 and 120 characters");
+      setPasswordError("يجب أن تتراوح كلمة المرور بين 6 و 120 حرفًا");
       return;
     }
 
     if (!confirmPassword) {
-      setConfirmPasswordError("Confirm password is required");
+      setConfirmPasswordError("يرجى تأكيد كلمة المرور");
       return;
     } else if (password !== confirmPassword) {
-      setConfirmPasswordError("Passwords do not match");
+      setConfirmPasswordError("كلمات المرور غير متطابقة");
       return;
     }
 
@@ -94,7 +92,7 @@ export default function Register() {
       username,
       password,
       phone_number: phoneNumber,
-      job_name: jobName,
+      job_name: job,
     };
 
     fetch("http://127.0.0.1:5000/auth/register", {
@@ -105,46 +103,43 @@ export default function Register() {
       body: JSON.stringify(dataToSend),
     })
       .then((response) => {
+        if (response.status === 400) {
+          response.json().then((data) => {
+            setOpenSnackbar(true);
+            setSnackBarType("info");
+            setSnackbarMessage("الموظف موجود بالفعل");
+          });
+        }
+        console.log("Response status:", response.status);
+
+        if (response.status === 201) {
+          response.json().then((data) => {
+            navigate("/users");
+          });
+        }
+
         if (response.ok) {
           return response.json();
         } else {
           return response.json().then((data) => {
-            throw new Error(data.message || "Network response was not ok");
+            throw new Error(data.message || "الاستجابة من الشبكة لم تكن صحيحة");
           });
         }
       })
       .then((data) => {
-        setSnackbarMessage(data.message || "User registered successfully");
+        setSnackbarMessage("تم تسجيل الموظف بنجاح");
+        setSnackBarType("success");
         setOpenSnackbar(true);
       })
       .catch((error) => {
-        setSnackbarMessage(
-          error.message || "Registration failed. Please try again."
-        );
+        setSnackbarMessage("فشل التسجيل. يرجى المحاولة مرة أخرى.");
         setOpenSnackbar(true);
         console.error("Error:", error);
       });
   };
 
-  // Custom Slide transition
-  function SlideTransition(props) {
-    return (
-      <Slide
-        {...props}
-        direction="up"
-        sx={{
-          backgroundColor: "white",
-          color: "#1976d2",
-        }}
-      />
-    );
-  }
-  // Close Snackbar
-  const handleCloseSnackbar = (event, reason) => {
-    if (reason === "clickaway") {
-      return;
-    }
-    setOpenSnackbar(false);
+  const handleBack = () => {
+    navigate(-1);
   };
 
   return (
@@ -156,87 +151,61 @@ export default function Register() {
         className={styles.boxForm}
       >
         <Paper className={styles.paper}>
-          <h2 className={styles.subTitle}>Register</h2>
+          <IconButton className={styles.iconBtn} onClick={handleBack}>
+            <ArrowBackOutlinedIcon className={styles.arrow} />
+          </IconButton>
+          <h2 className={styles.subTitle}>التسجيل</h2>
           <Box
             component="form"
             onSubmit={handleSubmit}
             className={styles.textFields}
           >
             {/* Name Field */}
-            <TextField
-              label="Name"
-              variant="outlined"
-              required
+            <CustomTextField
+              label="الاسم"
               value={username}
-              onChange={(e) => setUserName(e.target.value)}
+              setValue={setUserName}
+              valueError={nameError}
               className={styles.textField}
-              error={!!nameError}
-              helperText={nameError}
-            />
-            {/* Phone Field */}
-            <TextField
-              label="Phone Number"
-              variant="outlined"
-              required
-              value={phoneNumber}
-              onChange={(e) => setPhoneNumber(e.target.value)}
-              className={styles.textField}
-              error={!!phoneError}
-              helperText={phoneError}
             />
 
-            {/* Job Field */}
-            <TextField
-              label="Job Name"
-              variant="outlined"
-              required
-              value={jobName}
-              onChange={(e) => setJobName(e.target.value)}
+            {/* Phone Field */}
+            <CustomTextField
+              label="رقم الهاتف"
+              value={phoneNumber}
+              setValue={setPhoneNumber}
+              valueError={phoneError}
               className={styles.textField}
+            />
+
+            {/* job Field */}
+            <CustomSelectField
+              label="اختر الوظيفة"
+              value={job}
+              setValue={setJob}
+              options={jobs}
               error={!!jobError}
-              helperText={jobError}
             />
+
             {/* Password Field */}
-            <TextField
-              label="Password"
-              type={showPassword ? "text" : "password"}
-              variant="outlined"
-              required
+            <CustomTextField
+              label="كلمة المرور"
+              type={"password"}
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              setValue={setPassword}
+              valueError={passwordError}
               className={styles.textField}
-              error={!!passwordError}
-              helperText={passwordError}
-              slotProps={{
-                input: {
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton
-                        onClick={handleClickShowPassword}
-                        edge="end"
-                        className={styles.iconVisibility}
-                      >
-                        {showPassword ? <Visibility /> : <VisibilityOff />}
-                      </IconButton>
-                    </InputAdornment>
-                  ),
-                },
-              }}
             />
-            <TextField
-              label="Confirm Password"
-              type={showPassword ? "text" : "password"}
-              variant="outlined"
-              required
+
+            {/* Confirm Password Field */}
+            <CustomTextField
+              label="تأكيد كلمة المرور"
+              type={"password"}
               value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
+              setValue={setConfirmPassword}
+              valueError={confirmPasswordError}
               className={styles.textField}
-              error={!!confirmPasswordError}
-              helperText={confirmPasswordError}
             />
-            {formError && (
-              <p style={{ color: "red", textAlign: "center" }}>{formError}</p>
-            )}
           </Box>
           {/* Submit Button */}
           <Button
@@ -245,17 +214,16 @@ export default function Register() {
             className={styles.btn}
             onClick={handleSubmit}
           >
-            Create User
+            إضافة موظف
           </Button>
         </Paper>
       </Box>
 
-      <Snackbar
+      <SnackBar
         open={openSnackbar}
-        onClose={handleCloseSnackbar}
-        TransitionComponent={SlideTransition}
         message={snackbarMessage}
-        autoHideDuration={3000}
+        type={snackBarType}
+        onClose={handleCloseSnackbar}
       />
     </div>
   );

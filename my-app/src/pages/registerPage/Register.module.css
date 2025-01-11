@@ -18,6 +18,7 @@
 
 .boxForm {
     width: 60% !important;
+    direction: rtl !important;
 
 }
 
@@ -28,6 +29,15 @@
     color: var(--main_color) !important;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2) !important;
     padding: 0 20px !important;
+    position: relative;
+}
+.iconBtn{
+    position: absolute !important;
+    left: 10px !important;
+    top: 10px !important;
+}
+.arrow{
+    font-size: 40px !important;
 }
 
 

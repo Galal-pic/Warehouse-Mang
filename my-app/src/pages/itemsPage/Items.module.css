@@ -1,0 +1,36 @@
+@import url('../../colors.css');
+
+.container {
+    width: 80%;
+    margin: auto;
+    padding: 100px 0 10px;
+
+}
+
+.title {
+    /* background-color: var(--primary-color); */
+    color: var(--primary-color);
+    /* color: white; */
+    padding: 5px 100px 10px;
+    display: inline;
+    border-radius: 30px;
+}
+
+
+
+.headerCell {
+    background-color: var(--primary-color);
+    font-weight: bold !important;
+    font-size: 1.5rem;
+    color: white;
+}
+
+.iconBtn {
+    font-size: 1.8rem;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: 0.2s;
+    border: 2px solid var(--secondary-color);
+    background-color: transparent;
+    color: var(--primary-color);
+}

@@ -42,12 +42,17 @@
     padding: 0 20px !important;
 }
 
+.icon{
+    color: var(--blue_color);
+    font-size: 3rem !important;
+    margin-top: 20px !important;
+}
 
 .subTitle {
-    padding: 40px 0 10px;
     font-size: 30px;
     font-weight: 400;
     color: var(--main_color);
+    margin: 0;
 }
 
 .textFields {

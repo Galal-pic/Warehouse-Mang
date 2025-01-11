@@ -11,6 +11,10 @@ import {
 import Users from "./pages/usersPage/Users";
 import CreateInvoice from "./pages/createInvoicePage/CreateInvoice";
 import Invoices from "./pages/invoicesPage/Invoices";
+import Items from "./pages/itemsPage/Items";
+import Machines from "./pages/machinesPage/Machines";
+import Mechanisms from "./pages/mechanismsPage/Mechanisms";
+import Others from "./pages/othersPage/Others";
 
 function App() {
   return (
@@ -29,6 +33,10 @@ function App() {
                   <Route path="/users" element={<Users />} />
                   <Route path="/createinvoice" element={<CreateInvoice />} />
                   <Route path="/invoices" element={<Invoices />} />
+                  <Route path="/others" element={<Others />} />
+                  <Route path="/others/items" element={<Items />} />
+                  <Route path="/others/machines" element={<Machines />} />
+                  <Route path="/others/mechanisms" element={<Mechanisms />} />
                 </Routes>
               </>
             }
