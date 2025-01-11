@@ -54,24 +54,7 @@ const CustomPagination = ({ page, count, onChange }) => {
   );
 };
 export default function Machines() {
-  const [initialItems, setInitialItems] = useState([
-    {
-      name: "الماكينة الاولى",
-      description: "ماكينة A",
-    },
-    {
-      name: "الماكينة الثانية",
-      description: "ماكينة B",
-    },
-    {
-      name: "الماكينة الثالثة",
-      description: "ماكينة C",
-    },
-    {
-      name: "الماكينة الرابعة",
-      description: "ماكينة D",
-    },
-  ]);
+  const [initialItems, setInitialItems] = useState([]);
 
   // fetch invoices
   const fetchItemsData = async () => {
