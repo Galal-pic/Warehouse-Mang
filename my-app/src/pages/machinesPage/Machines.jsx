@@ -1,5 +1,5 @@
 import styles from "./Machines.module.css";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   DataGrid,
   GridToolbarContainer,
@@ -54,24 +54,30 @@ const CustomPagination = ({ page, count, onChange }) => {
   );
 };
 export default function Machines() {
-  const [initialItems, setInitialItems] = useState([
-    {
-      name: "الماكينة الاولى",
-      description: "ماكينة A",
-    },
-    {
-      name: "الماكينة الثانية",
-      description: "ماكينة B",
-    },
-    {
-      name: "الماكينة الثالثة",
-      description: "ماكينة C",
-    },
-    {
-      name: "الماكينة الرابعة",
-      description: "ماكينة D",
-    },
-  ]);
+  const [initialItems, setInitialItems] = useState([]);
+
+  // fetch invoices
+  const fetchItemsData = async () => {
+    const accessToken = localStorage.getItem("access_token");
+    if (!accessToken) return;
+    try {
+      const response = await fetch("http://127.0.0.1:5000/machine/", {
+        method: "GET",
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const data = await response.json();
+      const updatedItems = data.map((item) => ({
+        ...item,
+        id: item.name,
+      }));
+      setInitialItems(updatedItems);
+    } catch (err) {
+      console.error("Error fetching user data:", err);
+    }
+  };
+  useEffect(() => {
+    fetchItemsData();
+  }, []);
 
   // collors
   const primaryColor = getComputedStyle(
@@ -111,7 +117,7 @@ export default function Machines() {
     description: "",
   });
   const [errors, setErrors] = useState({});
-  const handleAddItem = () => {
+  const handleAddItem = async () => {
     const newErrors = {};
 
     if (newItem.name.trim() === "") {
@@ -126,19 +132,37 @@ export default function Machines() {
       return;
     }
 
-    setInitialItems([...initialItems, newItem]);
-    const itemWithoutId = { ...newItem };
-    delete itemWithoutId.id;
-    console.log(itemWithoutId);
-    setNewItem({
-      name: "",
-      description: "",
-    });
-    setErrors({});
-    setOpenDialog(false);
-    setOpenSnackbar(true);
-    setSnackbarMessage("تمت اضافة الماكينة");
-    setSnackBarType("success");
+    try {
+      const accessToken = localStorage.getItem("access_token");
+
+      const response = await fetch("http://127.0.0.1:5000/machine/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(newItem),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to create invoice");
+      }
+      await fetchItemsData();
+      setNewItem({
+        name: "",
+        description: "",
+      });
+      setErrors({});
+      setOpenDialog(false);
+      setOpenSnackbar(true);
+      setSnackbarMessage("تمت اضافة الماكينة");
+      setSnackBarType("success");
+    } catch (error) {
+      console.error("Error creating invoice:", error);
+      setOpenSnackbar(true);
+      setSnackbarMessage(error.message || "خطأ في إضافة الماكينة");
+      setSnackBarType("error");
+    }
   };
 
   // toolbar
@@ -208,7 +232,7 @@ export default function Machines() {
   const [isEditingItem, setIsEditingItem] = useState(false);
   const [editingItem, setEditingItem] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
-  const handleSave = () => {
+  const handleSave = async () => {
     const hasEmptyValues = Object.values(editingItem).some((value) => {
       if (typeof value === "string") {
         return value.trim() === "";
@@ -237,6 +261,38 @@ export default function Machines() {
     setOpenSnackbar(true);
     setSnackbarMessage("تم تعديل الماكينة");
     setSnackBarType("success");
+
+    // const accessToken = localStorage.getItem("access_token");
+    // try {
+    //   const response = await fetch(
+    //     `http://127.0.0.1:5000/machine/${editingItem.id}`,
+    //     {
+    //       method: "PUT",
+    //       headers: {
+    //         "Content-Type": "application/json",
+    //         Authorization: `Bearer ${accessToken}`,
+    //       },
+    //       body: JSON.stringify(editingItem),
+    //     }
+    //   );
+
+    //   if (!response.ok) {
+    //     throw new Error(`Failed to update user: ${response.status}`);
+    //   }
+    //   await fetchItemsData();
+
+    //   setSelectedItem(editingItem);
+    //   setEditingItem(null);
+    //   setIsEditingItem(false);
+    //   setOpenSnackbar(true);
+    //   setSnackbarMessage("تم تعديل الماكينة");
+    //   setSnackBarType("success");
+    // } catch (error) {
+    //   console.error("Error updating user:", error);
+    //   setOpenSnackbar(true);
+    //   setSnackbarMessage("خطأ في تحديث الماكينة");
+    //   setSnackBarType("error");
+    // }
   };
 
   // columns
@@ -360,11 +416,40 @@ export default function Machines() {
   ];
 
   // delete
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
+    const isConfirmed = window.confirm(
+      "Are you sure you want to delete this user?"
+    );
+    if (!isConfirmed) return;
     setInitialItems((prev) => prev.filter((item) => item.id !== id));
     setOpenSnackbar(true);
     setSnackbarMessage("تم حذف الماكينة");
     setSnackBarType("success");
+    // const accessToken = localStorage.getItem("access_token");
+
+    // try {
+    //   const response = await fetch(`http://127.0.0.1:5000/machine/${id}`, {
+    //     method: "DELETE",
+    //     headers: {
+    //       Authorization: `Bearer ${accessToken}`,
+    //     },
+    //   });
+
+    //   if (!response.ok) {
+    //     const errorData = await response.json();
+    //     throw new Error(errorData.message || "Failed to delete user");
+    //   }
+
+    //   setInitialItems((prev) => prev.filter((item) => item.id !== id));
+    //   setOpenSnackbar(true);
+    //   setSnackbarMessage("تم حذف الماكينة");
+    //   setSnackBarType("success");
+    // } catch (error) {
+    //   console.error("Error deleting user:", error);
+    //   setOpenSnackbar(true);
+    //   setSnackbarMessage("خطأ في حذف الماكينة");
+    //   setSnackBarType("error");
+    // }
   };
 
   return (
@@ -461,7 +546,7 @@ export default function Machines() {
                 color: errors.name ? "#d32f2f" : "#555",
               }}
             >
-              الاسم 
+              الاسم
             </label>
             <input
               type="text"
@@ -506,7 +591,7 @@ export default function Machines() {
                 color: errors.description ? "#d32f2f" : "#555",
               }}
             >
-              الوصف 
+              الوصف
             </label>
             <input
               type="text"

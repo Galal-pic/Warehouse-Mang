@@ -29,36 +29,8 @@ import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import LaunchIcon from "@mui/icons-material/Launch";
 import logo from "./logo.png";
 import AddIcon from "@mui/icons-material/Add";
+import "../../colors.css";
 
-function CustomToolbar() {
-  return (
-    <GridToolbarContainer>
-      <GridToolbarQuickFilter
-        sx={{
-          direction: "rtl",
-          width: "35%",
-          "& .MuiInputBase-root": {
-            borderRadius: "8px",
-            border: "2px solid #1976d2",
-            padding: "8px 16px",
-            boxShadow: "none",
-          },
-          "& .MuiInputBase-root:hover": {
-            outline: "none",
-          },
-          "& .MuiSvgIcon-root": {
-            color: "#1976d2",
-            fontSize: "1.5rem",
-            marginLeft: "8px",
-          },
-          overflow: "hidden",
-          margin: "auto",
-        }}
-        placeholder="ابحث هنا..."
-      />
-    </GridToolbarContainer>
-  );
-}
 const CustomPagination = ({ page, count, onChange }) => {
   const handlePageChange = (event, value) => {
     onChange({ page: value - 1 });
@@ -96,6 +68,42 @@ export default function Invoices() {
     { name: "item 3", parcode: "789" },
     { name: "item 4", parcode: "1234" },
   ];
+
+  // collors
+  const primaryColor = getComputedStyle(
+    document.documentElement
+  ).getPropertyValue("--primary-color");
+
+  // custom toolbar
+  function CustomToolbar() {
+    return (
+      <GridToolbarContainer>
+        <GridToolbarQuickFilter
+          sx={{
+            direction: "rtl",
+            width: "35%",
+            "& .MuiInputBase-root": {
+              borderRadius: "8px",
+              border: `2px solid ${primaryColor}`,
+              padding: "8px 16px",
+              boxShadow: "none",
+            },
+            "& .MuiInputBase-root:hover": {
+              outline: "none",
+            },
+            "& .MuiSvgIcon-root": {
+              color: `${primaryColor}`,
+              fontSize: "1.5rem",
+              marginLeft: "8px",
+            },
+            overflow: "hidden",
+            margin: "auto",
+          }}
+          placeholder="ابحث هنا..."
+        />
+      </GridToolbarContainer>
+    );
+  }
 
   // Fetch data from API
   const fetchData = async (url, method = "GET", body = null) => {
@@ -193,6 +201,25 @@ export default function Invoices() {
     // };
     // fetchInvoicesData();
     setInvoices(initialData);
+  }, []);
+  // fetch invoices
+  useEffect(() => {
+    const fetchInvoicesData = async () => {
+      const accessToken = localStorage.getItem("access_token");
+      if (!accessToken) return;
+      try {
+        const response = await fetch("http://127.0.0.1:5000/invoice/", {
+          method: "GET",
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        // if (!response.ok) return;
+        const data = await response.json();
+        setInvoices(initialData);
+      } catch (err) {
+        console.error("Error fetching user data:", err);
+      }
+    };
+    fetchInvoicesData();
   }, []);
 
   // open edit modal
@@ -499,6 +526,19 @@ export default function Invoices() {
                 : "outlined"
             }
             onClick={() => setOperationType(type === "كل الفواتير" ? "" : type)}
+            sx={{
+              backgroundColor:
+                operationType === type ||
+                (type === "كل الفواتير" && operationType === "")
+                  ? primaryColor
+                  : "",
+              border: `1px solid ${primaryColor}`,
+              color:
+                operationType === type ||
+                (type === "كل الفواتير" && operationType === "")
+                  ? "white"
+                  : primaryColor,
+            }}
           >
             {type}
           </Button>

@@ -1,5 +1,5 @@
 import styles from "./Items.module.css";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   DataGrid,
   GridToolbarContainer,
@@ -60,92 +60,30 @@ const CustomPagination = ({ page, count, onChange }) => {
   );
 };
 export default function Items() {
-  const [initialItems, setInitialItems] = useState([
-    {
-      item_name: "العنصر الاول",
-      item_bar: "123",
-      locations: [
-        {
-          location: "في المخزن الاول في الرف الثانى العلوى",
-          price_unit: 500,
-          quantity: 1000,
-        },
-        {
-          location: "في المخزن الثانى في الرف الثانى العلوى",
-          price_unit: 600,
-          quantity: 800,
-        },
-        {
-          location: "في المخزن الثالث في الرف الثانى العلوى",
-          price_unit: 700,
-          quantity: 600,
-        },
-      ],
-    },
-    {
-      item_name: "العنصر الثانى",
-      item_bar: "456",
-      locations: [
-        {
-          location: "في المخزن الاول في الرف الثانى العلوى",
-          price_unit: 550,
-          quantity: 1100,
-        },
-        {
-          location: "في المخزن الثانى في الرف الثانى العلوى",
-          price_unit: 650,
-          quantity: 850,
-        },
-        {
-          location: "في المخزن الثالث في الرف الثانى العلوى",
-          price_unit: 750,
-          quantity: 650,
-        },
-      ],
-    },
-    {
-      item_name: "العنصر الثالث",
-      item_bar: "456",
-      locations: [
-        {
-          location: "في المخزن الاول في الرف الثانى العلوى",
-          price_unit: 550,
-          quantity: 1100,
-        },
-        {
-          location: "في المخزن الثانى في الرف الثانى العلوى",
-          price_unit: 650,
-          quantity: 850,
-        },
-        {
-          location: "في المخزن الثالث في الرف الثانى العلوى",
-          price_unit: 750,
-          quantity: 650,
-        },
-      ],
-    },
-    {
-      item_name: "العنصر الرابع",
-      item_bar: "456",
-      locations: [
-        {
-          location: "في المخزن الاول في الرف الثانى العلوى",
-          price_unit: 550,
-          quantity: 1100,
-        },
-        {
-          location: "في المخزن الثانى في الرف الثانى العلوى",
-          price_unit: 650,
-          quantity: 850,
-        },
-        {
-          location: "في المخزن الثالث في الرف الثانى العلوى",
-          price_unit: 750,
-          quantity: 650,
-        },
-      ],
-    },
-  ]);
+  const [initialItems, setInitialItems] = useState([]);
+
+  // fetch invoices
+  const fetchItemsData = async () => {
+    const accessToken = localStorage.getItem("access_token");
+    if (!accessToken) return;
+    try {
+      const response = await fetch("http://127.0.0.1:5000/warehouse/", {
+        method: "GET",
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const data = await response.json();
+      const updatedItems = data.map((item) => ({
+        ...item,
+        id: item.item_id,
+      }));
+      setInitialItems(updatedItems);
+    } catch (err) {
+      console.error("Error fetching user data:", err);
+    }
+  };
+  useEffect(() => {
+    fetchItemsData();
+  }, []);
 
   // collors
   const primaryColor = getComputedStyle(
@@ -174,11 +112,6 @@ export default function Items() {
   // dialog
   const [openDialog, setOpenDialog] = useState(false);
 
-  // create id
-  initialItems.forEach((row) => {
-    row.id = row.item_name;
-  });
-
   // add item
   const [newItem, setNewItem] = useState({
     item_name: "",
@@ -192,7 +125,8 @@ export default function Items() {
     ],
   });
   const [errors, setErrors] = useState({});
-  const handleAddItem = () => {
+
+  const handleAddItem = async () => {
     const newErrors = {};
 
     if (newItem.item_name.trim() === "") {
@@ -233,26 +167,44 @@ export default function Items() {
       return;
     }
 
-    setInitialItems([...initialItems, newItem]);
-    const itemWithoutId = { ...newItem };
-    delete itemWithoutId.id;
-    console.log(itemWithoutId);
-    setNewItem({
-      item_name: "",
-      item_bar: "",
-      locations: [
-        {
-          location: "",
-          price_unit: 0,
-          quantity: 0,
+    try {
+      const accessToken = localStorage.getItem("access_token");
+
+      const response = await fetch("http://127.0.0.1:5000/warehouse/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
         },
-      ],
-    });
-    setErrors({});
-    setOpenDialog(false);
-    setOpenSnackbar(true);
-    setSnackbarMessage("تمت اضافة المنتج");
-    setSnackBarType("success");
+        body: JSON.stringify(newItem),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to create invoice");
+      }
+      await fetchItemsData();
+      setNewItem({
+        item_name: "",
+        item_bar: "",
+        locations: [
+          {
+            location: "",
+            price_unit: 0,
+            quantity: 0,
+          },
+        ],
+      });
+      setErrors({});
+      setOpenDialog(false);
+      setOpenSnackbar(true);
+      setSnackbarMessage("تمت اضافة المنتج");
+      setSnackBarType("success");
+    } catch (error) {
+      console.error("Error creating invoice:", error);
+      setOpenSnackbar(true);
+      setSnackbarMessage(error.message || "خطأ في إضافة المنتج");
+      setSnackBarType("error");
+    }
   };
 
   // toolbar
@@ -356,14 +308,41 @@ export default function Items() {
     { field: "item_bar", headerName: "الرمز", width: 200, flex: 1 },
 
     { field: "item_name", headerName: "اسم المنتج", width: 100, flex: 1 },
+    { field: "id", headerName: "#", width: 100, flex: 1 },
   ];
 
   // delete
-  const handleDelete = (id) => {
-    setInitialItems((prev) => prev.filter((item) => item.id !== id));
-    setOpenSnackbar(true);
-    setSnackbarMessage("تم حذف المنتج");
-    setSnackBarType("success");
+  const handleDelete = async (id) => {
+    console.log(id);
+    const isConfirmed = window.confirm(
+      "Are you sure you want to delete this user?"
+    );
+    if (!isConfirmed) return;
+    const accessToken = localStorage.getItem("access_token");
+
+    try {
+      const response = await fetch(`http://127.0.0.1:5000/warehouse/${id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to delete user");
+      }
+
+      setInitialItems((prev) => prev.filter((item) => item.id !== id));
+      setOpenSnackbar(true);
+      setSnackbarMessage("تم حذف المنتج");
+      setSnackBarType("success");
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      setOpenSnackbar(true);
+      setSnackbarMessage("خطأ في حذف العنصر");
+      setSnackBarType("error");
+    }
   };
 
   // modal
@@ -383,15 +362,19 @@ export default function Items() {
   // edit
   const [isEditingItem, setIsEditingItem] = useState(false);
   const [editingItem, setEditingItem] = useState(false);
-  const handleSave = () => {
+  const handleSave = async () => {
     const hasEmptyValues = Object.values(editingItem).some((value) => {
       if (Array.isArray(value)) {
         return value.some(
           (location) =>
-            !location.location || !location.price_unit || !location.quantity
+            !location.location ||
+            location.price_unit === null ||
+            location.price_unit === undefined ||
+            location.quantity === null ||
+            location.quantity === undefined
         );
       }
-      return !value;
+      return value === null || value === undefined || value === "";
     });
 
     if (hasEmptyValues) {
@@ -406,21 +389,44 @@ export default function Items() {
       setIsEditingItem(false);
       return;
     }
-    setInitialItems(
-      initialItems.map((i) => (i.id === editingItem.id ? editingItem : i))
-    );
-    setSelectedItem(editingItem);
-    setEditingItem(null);
-    setIsEditingItem(false);
-
     const itemWithoutId = { ...editingItem };
     delete itemWithoutId.id;
-
-    setOpenSnackbar(true);
-    setSnackbarMessage("تم تعديل المنتج");
-    setSnackBarType("success");
-
     console.log(itemWithoutId);
+
+    const accessToken = localStorage.getItem("access_token");
+    console.log(editingItem.id);
+
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:5000/warehouse/${editingItem.id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify(itemWithoutId),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to update user: ${response.status}`);
+      }
+      await fetchItemsData();
+
+      setSelectedItem(editingItem);
+      setEditingItem(null);
+      setIsEditingItem(false);
+
+      setOpenSnackbar(true);
+      setSnackbarMessage("تم تعديل المنتج");
+      setSnackBarType("success");
+    } catch (error) {
+      console.error("Error updating user:", error);
+      setOpenSnackbar(true);
+      setSnackbarMessage("خطأ في تحديث المنتج");
+      setSnackBarType("error");
+    }
   };
 
   return (
@@ -679,16 +685,14 @@ export default function Items() {
             <input
               type="number"
               min="0"
-              value={newItem.locations[0]?.quantity || ""}
-              onInput={(e) => {
-                if (e.target.value < 0) {
-                  e.target.value = 0;
-                }
-              }}
+              value={newItem.locations[0]?.quantity ?? ""}
               onChange={(e) => {
-                const newQuantity = Math.max(0, Number(e.target.value));
+                const value =
+                  e.target.value === ""
+                    ? ""
+                    : Math.max(0, Number(e.target.value));
                 const updatedLocations = [...newItem.locations];
-                updatedLocations[0].quantity = newQuantity;
+                updatedLocations[0].quantity = value;
                 setNewItem({ ...newItem, locations: updatedLocations });
               }}
               style={{
@@ -707,6 +711,7 @@ export default function Items() {
               onFocus={(e) => (e.target.style.borderColor = "#1976d2")}
               onBlur={(e) => (e.target.style.borderColor = "#ccc")}
             />
+
             {errors?.locations?.[0]?.quantity && (
               <span
                 style={{
@@ -737,11 +742,14 @@ export default function Items() {
             <input
               type="number"
               min="0"
-              value={newItem.locations[0]?.price_unit || ""}
+              value={newItem.locations[0]?.price_unit ?? ""}
               onChange={(e) => {
-                const newPriceUnit = Math.max(0, Number(e.target.value));
+                const value =
+                  e.target.value === ""
+                    ? ""
+                    : Math.max(0, Number(e.target.value));
                 const updatedLocations = [...newItem.locations];
-                updatedLocations[0].price_unit = newPriceUnit;
+                updatedLocations[0].price_unit = value;
                 setNewItem({ ...newItem, locations: updatedLocations });
               }}
               style={{
@@ -760,6 +768,7 @@ export default function Items() {
               onFocus={(e) => (e.target.style.borderColor = "#1976d2")}
               onBlur={(e) => (e.target.style.borderColor = "#ccc")}
             />
+
             {errors?.locations?.[0]?.price_unit && (
               <span
                 style={{
@@ -1124,29 +1133,32 @@ export default function Items() {
                                 type="number"
                                 min="0"
                                 value={
-                                  editingItem.locations[index]?.quantity || ""
+                                  editingItem.locations[index]?.quantity !==
+                                  undefined
+                                    ? editingItem.locations[index].quantity
+                                    : ""
                                 }
                                 onInput={(e) => {
-                                  if (e.target.value < 0) {
+                                  if (Number(e.target.value) < 0) {
                                     e.target.value = 0;
                                   }
                                 }}
                                 onChange={(e) => {
-                                  const newQuantity = Math.max(
-                                    0,
-                                    Number(e.target.value)
-                                  );
-                                  const updatedLocations = [
-                                    ...editingItem.locations,
-                                  ];
-                                  updatedLocations[index] = {
-                                    ...updatedLocations[index],
-                                    quantity: newQuantity,
-                                  };
-                                  setEditingItem({
-                                    ...editingItem,
-                                    locations: updatedLocations,
-                                  });
+                                  const newQuantity = Number(e.target.value);
+
+                                  if (!isNaN(newQuantity) && newQuantity >= 0) {
+                                    const updatedLocations = [
+                                      ...editingItem.locations,
+                                    ];
+                                    updatedLocations[index] = {
+                                      ...updatedLocations[index],
+                                      quantity: newQuantity,
+                                    };
+                                    setEditingItem({
+                                      ...editingItem,
+                                      locations: updatedLocations,
+                                    });
+                                  }
                                 }}
                                 style={{
                                   width: "100%",
@@ -1185,29 +1197,34 @@ export default function Items() {
                                 type="number"
                                 min="0"
                                 value={
-                                  editingItem.locations[index]?.price_unit || ""
+                                  editingItem.locations[index]?.price_unit !==
+                                  undefined
+                                    ? editingItem.locations[index].price_unit
+                                    : ""
                                 }
                                 onInput={(e) => {
-                                  if (e.target.value < 0) {
+                                  if (Number(e.target.value) < 0) {
                                     e.target.value = 0;
                                   }
                                 }}
                                 onChange={(e) => {
-                                  const newPriceUnit = Math.max(
-                                    0,
-                                    Number(e.target.value)
-                                  );
-                                  const updatedLocations = [
-                                    ...editingItem.locations,
-                                  ];
-                                  updatedLocations[index] = {
-                                    ...updatedLocations[index],
-                                    price_unit: newPriceUnit,
-                                  };
-                                  setEditingItem({
-                                    ...editingItem,
-                                    locations: updatedLocations,
-                                  });
+                                  const newPriceUnit = Number(e.target.value);
+                                  if (
+                                    !isNaN(newPriceUnit) &&
+                                    newPriceUnit >= 0
+                                  ) {
+                                    const updatedLocations = [
+                                      ...editingItem.locations,
+                                    ];
+                                    updatedLocations[index] = {
+                                      ...updatedLocations[index],
+                                      price_unit: newPriceUnit,
+                                    };
+                                    setEditingItem({
+                                      ...editingItem,
+                                      locations: updatedLocations,
+                                    });
+                                  }
                                 }}
                                 style={{
                                   width: "100%",
