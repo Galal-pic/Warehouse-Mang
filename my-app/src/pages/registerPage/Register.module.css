@@ -1,0 +1,78 @@
+:root {
+    --main_color: black;
+    --blue_color: #1976d2;
+}
+
+.container {
+    background-position: center;
+    background-size: cover;
+    width: 100%;
+    height: 100vh;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 20px;
+    flex-direction: row;
+    gap: 7px;
+}
+
+.boxForm {
+    width: 60% !important;
+
+}
+
+.paper {
+
+    padding: 4px;
+    border-radius: 12px !important;
+    color: var(--main_color) !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2) !important;
+    padding: 0 20px !important;
+}
+
+
+.subTitle {
+    padding: 40px 0 10px;
+    font-size: 30px;
+    font-weight: 400;
+    color: var(--main_color);
+}
+
+.textFields {
+    margin: 15px 0;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 2px;
+    justify-content: center;
+    gap: 15px;
+}
+
+.textField {
+    min-width: 300px !important;
+}
+
+.iconVisibility {
+    color: var(--main_color) !important;
+}
+
+.btn {
+    margin: 10px 0 20px !important;
+    padding: 9px !important;
+    font-weight: bold !important;
+    background-color: var(--blue_color) !important;
+    width: 15rem;
+}
+
+
+@media (max-width: 768px) {
+    .container {
+        justify-content: center;
+        flex-direction: column;
+        gap: 0px;
+    }
+
+    .boxForm {
+        width: 100% !important;
+    }
+}

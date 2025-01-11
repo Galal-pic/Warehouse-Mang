@@ -1,0 +1,108 @@
+:root {
+    --main_color: black;
+    --blue_color: #1976d2;
+}
+
+.container {
+    background-position: center;
+    background-size: cover;
+    width: 100%;
+    height: 100vh;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 20px;
+    flex-direction: row;
+    gap: 7px;
+    overflow: hidden;
+}
+
+.boxText {}
+
+.logo {
+    height: 200px;
+    padding-right: 40px;
+}
+
+.title {
+    font-weight: bold !important;
+    font-size: 3rem !important;
+    color: var(--blue_color);
+}
+
+
+.boxForm {}
+
+.paper {
+
+    padding: 4px;
+    border-radius: 12px !important;
+    color: var(--main_color) !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2) !important;
+    padding: 0 20px !important;
+}
+
+
+.subTitle {
+    padding: 40px 0 10px;
+    font-size: 30px;
+    font-weight: 400;
+    color: var(--main_color);
+}
+
+.textFields {
+    margin: 15px 0;
+    padding-bottom: 5px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.textField {
+    margin-bottom: 10px !important;
+}
+
+.iconVisibility {
+    color: var(--main_color) !important;
+}
+
+.btn {
+
+    margin: 0 0 10px 0 !important;
+    padding: 9px !important;
+    font-weight: bold !important;
+    background-color: var(--blue_color) !important
+}
+
+
+@media (max-width: 900px) {
+    .container {
+        justify-content: center;
+        flex-direction: column;
+        gap: 10px;
+        padding-bottom: 70px;
+
+    }
+
+    .boxText {
+        padding: 0 20px;
+    }
+
+    .logo {
+        height: 150px;
+    }
+
+
+    .title {
+        font-size: 2.1rem !important;
+        text-align: center;
+        padding: 0;
+        margin: 0;
+
+    }
+
+    .text {
+        text-align: center;
+    }
+
+}

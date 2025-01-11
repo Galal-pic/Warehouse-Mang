@@ -1,0 +1,52 @@
+.header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 72px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    background-color: #f7f7f7;
+    z-index: 9999999;
+
+
+}
+
+.logo {
+    height: 70px;
+}
+
+.main-content {
+    margin-top: 80px;
+    padding: 20px;
+}
+
+.header a {
+    text-decoration: none;
+    color: black;
+    font-size: 20px;
+    margin-right: 20px;
+    transition: color 0.3s ease;
+}
+
+.header a:hover {
+    color: #1976d2;
+}
+
+.selected {
+    color: #1976d2;
+    font-weight: bold;
+}
+
+@media (max-width: 768px) {
+    .header {
+        height: 60px;
+    }
+
+    .logo {
+        height: 55px;
+    }
+
+}
