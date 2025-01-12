@@ -16,11 +16,13 @@ invoice_ns = Namespace('invoice', description='Invoice operations')
 
 # Models for API documentation
 machine_model = machine_ns.model('Machine', {
+    "id": fields.Integer(required=True),
     'name': fields.String(required=True),
     'description': fields.String(required=False),
 })
 
 mechanism_model = mechanism_ns.model('Mechanism', {
+    "id": fields.Integer(required=True),
     'name': fields.String(required=True),
     'description': fields.String(required=False),
 })
@@ -34,7 +36,7 @@ item_location_model = item_location_ns.model('ItemLocation', {
 
 # Warehouse Model
 warehouse_model = warehouse_ns.model('Warehouse', {
-    'item_id': fields.Integer(readonly=True),
+    'id': fields.Integer(required=True),
     'item_name': fields.String(required=True, description='Name of the warehouse item'),
     'item_bar': fields.String(required=True, description='Barcode of the warehouse item'),
     'locations': fields.List(fields.Nested(item_location_model), description='List of locations for the item')
@@ -46,18 +48,19 @@ invoice_item_model = invoice_ns.model('InvoiceItem', {
     'barcode': fields.String(required=True),
     'quantity': fields.Integer(required=True),
     'location': fields.String(required=True),
-    'total_price': fields.Float(required=True),#pre unit
+    'total_price': fields.Float(required=True),  # pre unit
     'description': fields.String(required=False),
 })
 
 # Invoice Model
 invoice_model = invoice_ns.model('Invoice', {
+    'id': fields.Integer(required=True),
     'type': fields.String(required=True),
     'client_name': fields.String(required=False),
     'Warehouse_manager': fields.String(required=False),
     'total_amount': fields.Float(required=False),
     'employee_name': fields.String(required=True),
-    'machine_name':fields.String(required=True),
+    'machine_name': fields.String(required=True),
     'mechanism_name': fields.String(required=True),
     'items': fields.List(fields.Nested(invoice_item_model)),
 })
@@ -72,14 +75,14 @@ class MachineList(Resource):
         machines = Machine.query.all()
         return machines
 
-    @machine_ns.expect(machine_model)
+    # @machine_ns.expect(machine_model)
     @machine_ns.marshal_with(machine_model)
     @jwt_required()
     def post(self):
         """Create a new machine"""
         data = machine_ns.payload
-        if Machine.query.filter_by(name = data['name']).first():
-            return machine_ns.abort(400,"Machine already exists")
+        if Machine.query.filter_by(name=data['name']).first():
+            return machine_ns.abort(400, "Machine already exists")
 
         new_machine = Machine(
             name=data["name"],
@@ -98,7 +101,7 @@ class MachineDetail(Resource):
         machine = Machine.query.get_or_404(machine_id)
         return machine
 
-    @machine_ns.expect(machine_model)
+    # @machine_ns.expect(machine_model)
     @machine_ns.marshal_with(machine_model)
     @jwt_required()
     def put(self, machine_id):
@@ -130,14 +133,14 @@ class MechanismList(Resource):
         mechanisms = Mechanism.query.all()
         return mechanisms
 
-    @mechanism_ns.expect(mechanism_model)
+    # @mechanism_ns.expect(mechanism_model)
     @mechanism_ns.marshal_with(mechanism_model)
     @jwt_required()
     def post(self):
         """Create a new mechanism"""
         data = mechanism_ns.payload
-        if Mechanism.query.filter_by(name = data['name']).first():
-            return mechanism_ns.abort(400,"Mechanism already exists")
+        if Mechanism.query.filter_by(name=data['name']).first():
+            return mechanism_ns.abort(400, "Mechanism already exists")
 
         new_mechanism = Mechanism(
             name=data["name"],
@@ -156,7 +159,7 @@ class MechanismDetail(Resource):
         mechanism = Mechanism.query.get_or_404(mechanism_id)
         return mechanism
 
-    @mechanism_ns.expect(mechanism_model)
+    # @mechanism_ns.expect(mechanism_model)
     @mechanism_ns.marshal_with(mechanism_model)
     @jwt_required()
     def put(self, mechanism_id):
@@ -191,10 +194,11 @@ class WarehouseList(Resource):
         for item in warehouse_items:
             # Get all locations for the current warehouse item
             locations = ItemLocations.query.filter_by(item_id=item.id).all()
+            
 
             # Prepare the response for this item
             item_data = {
-                "item_id":item.id,
+                "id": item.id,  # Include the id field
                 "item_name": item.item_name,
                 "item_bar": item.item_bar,
                 "locations": [
@@ -210,7 +214,7 @@ class WarehouseList(Resource):
 
         return result, 200
 
-    @warehouse_ns.expect(warehouse_model)
+    # @warehouse_ns.expect(warehouse_model)
     @warehouse_ns.marshal_with(warehouse_model)
     @jwt_required()
     def post(self):
@@ -246,6 +250,7 @@ class WarehouseList(Resource):
 
             # Prepare the response
             response = {
+                "id": existing_item.id,  # Include the id field
                 "item_name": existing_item.item_name,
                 "item_bar": existing_item.item_bar,
                 "locations": [
@@ -278,6 +283,7 @@ class WarehouseList(Resource):
 
             # Prepare the response
             response = {
+                "id": new_item.id,  # Include the id field
                 "item_name": new_item.item_name,
                 "item_bar": new_item.item_bar,
                 "locations": [
@@ -301,6 +307,7 @@ class WarehouseDetail(Resource):
 
         # Prepare the response
         response = {
+            "id": item.id,  # Include the id field
             "item_name": item.item_name,
             "item_bar": item.item_bar,
             "locations": [
@@ -314,7 +321,7 @@ class WarehouseDetail(Resource):
         }
         return response, 200
 
-    @warehouse_ns.expect(warehouse_model)
+    # @warehouse_ns.expect(warehouse_model)
     @warehouse_ns.marshal_with(warehouse_model)
     @jwt_required()
     def put(self, item_id):
@@ -325,6 +332,17 @@ class WarehouseDetail(Resource):
         # Update warehouse item fields
         item.item_name = data["item_name"]
         item.item_bar = data["item_bar"]
+
+        # Get existing locations for the item
+        existing_locations = ItemLocations.query.filter_by(item_id=item.id).all()
+
+        # Create a set of incoming locations for easy comparison
+        incoming_locations = {loc_data["location"] for loc_data in data["locations"]}
+
+        # Delete locations that are not in the incoming data
+        for existing_loc in existing_locations:
+            if existing_loc.location not in incoming_locations:
+                db.session.delete(existing_loc)
 
         # Update or add locations
         for loc_data in data["locations"]:
@@ -351,6 +369,7 @@ class WarehouseDetail(Resource):
 
         # Prepare the response
         response = {
+            "id": item.id,  # Include the id field
             "item_name": item.item_name,
             "item_bar": item.item_bar,
             "locations": [
@@ -378,75 +397,53 @@ class WarehouseDetail(Resource):
 
         return {"message": "Warehouse item and its locations deleted successfully"}, 200
 
-# Item Location Endpoints
-# @item_location_ns.route('/')
-# class ItemLocationList(Resource):
-#     @item_location_ns.marshal_list_with(item_location_model)
-#     @jwt_required()
-#     def get(self):
-#         """Get all item locations"""
-#         item_locations = ItemLocations.query.all()
-#         return item_locations
-
-#     @item_location_ns.expect(item_location_model)
-#     @item_location_ns.marshal_with(item_location_model)
-#     @jwt_required()
-#     def post(self):
-#         """Create a new item location"""
-#         data = item_location_ns.payload
-
-#         new_location = ItemLocations(
-#             item_id=data["item_id"],
-#             location=data["location"],
-#             price_unit=data["price_unit"],
-#             quantity=data["quantity"]
-#         )
-#         db.session.add(new_location)
-#         db.session.commit()
-#         return new_location, 201
-
-# @item_location_ns.route('/<int:item_id>/<string:location>')
-# class ItemLocationDetail(Resource):
-#     @item_location_ns.marshal_with(item_location_model)
-#     @jwt_required()
-#     def get(self, item_id, location):
-#         """Get an item location by item ID and location"""
-#         item_location = ItemLocations.query.filter_by(item_id=item_id, location=location).first_or_404()
-#         return item_location
-
-#     @item_location_ns.expect(item_location_model)
-#     @item_location_ns.marshal_with(item_location_model)
-#     @jwt_required()
-#     def put(self, item_id, location):
-#         """Update an item location"""
-#         data = item_location_ns.payload
-#         item_location = ItemLocations.query.filter_by(item_id=item_id, location=location).first_or_404()
-
-#         item_location.price_unit = data["price_unit"]
-#         item_location.quantity = data["quantity"]
-
-#         db.session.commit()
-#         return item_location
-
-#     @jwt_required()
-#     def delete(self, item_id, location):
-#         """Delete an item location"""
-#         item_location = ItemLocations.query.filter_by(item_id=item_id, location=location).first_or_404()
-#         db.session.delete(item_location)
-#         db.session.commit()
-#         return {"message": "Item location deleted successfully"}, 200
-
 # Invoice Endpoints
 @invoice_ns.route('/')
 class InvoiceList(Resource):
     @invoice_ns.marshal_list_with(invoice_model)
     @jwt_required()
     def get(self):
-        """Get all invoices"""
+        """Get all invoices with related machine, mechanism, and item data"""
+        # Fetch all invoices
         invoices = Invoice.query.all()
-        return invoices
 
-    @invoice_ns.expect(invoice_model)
+        # Prepare the response data
+        result = []
+        for invoice in invoices:
+            # Fetch related machine and mechanism data
+            machine = Machine.query.get(invoice.machine_id) if invoice.machine_id else None
+            mechanism = Mechanism.query.get(invoice.mechanism_id) if invoice.mechanism_id else None
+
+            # Fetch related items data
+            items = InvoiceItem.query.filter_by(invoice_id=invoice.id).all()
+            print('------------',items)
+            # Serialize the invoice with related data
+            invoice_data = {
+                "id": invoice.id,
+                "type": invoice.type,
+                "client_name": invoice.client_name,
+                "Warehouse_manager": invoice.Warehouse_manager,
+                "total_amount": invoice.total_amount,
+                "employee_name": invoice.employee_name,
+                "machine_name": machine.name if machine else None,
+                "mechanism_name": mechanism.name if mechanism else None,
+                "items": [
+                    {
+                        "item_name": Warehouse.query.get(item.item_id).item_name,
+                        "barcode":  Warehouse.query.get(item.item_id).item_name,
+                        "quantity": item.quantity,
+                        "location": item.location,
+                        "total_price": item.total_price,
+                        "description": item.description
+                    }
+                    for item in items
+                ]
+            }
+            result.append(invoice_data)
+
+        return result
+
+    # @invoice_ns.expect(invoice_model)
     @invoice_ns.marshal_with(invoice_model)
     @jwt_required()
     def post(self):
@@ -463,9 +460,9 @@ class InvoiceList(Resource):
 
         if not machine or not mechanism:
             invoice_ns.abort(404, "Machine or Mechanism not found")
-        
-        if data['type']=='صرف':
-            Sales_Operations(data, machine, mechanism,employee,machine_ns,warehouse_ns,invoice_ns,mechanism_ns,item_location_ns)
+
+        if data['type'] == 'صرف':
+            Sales_Operations(data, machine, mechanism, employee, machine_ns, warehouse_ns, invoice_ns, mechanism_ns, item_location_ns)
 
         # Create the invoice
         new_invoice = Invoice(
@@ -481,18 +478,19 @@ class InvoiceList(Resource):
 
         # Add invoice items
         for item_data in data["items"]:
-            # Look up the warehouse item by ID
-            warehouse_item = Warehouse.query.filter_by(item_name = item_data["item_name"]).first()
-            item_details = ItemLocations.query.filter_by(item_id = warehouse_item.id,location =item_data['location']).first()
-            if not warehouse_item or not item_details :
-                invoice_ns.abort(404, f"Item with ID '{item_data['item_name']}' not found in warehouse")                
+            # Look up the warehouse item by name
+            warehouse_item = Warehouse.query.filter_by(item_name=item_data["item_name"]).first()
+            item_details = ItemLocations.query.filter_by(item_id=warehouse_item.id, location=item_data['location']).first()
+            if not warehouse_item or not item_details:
+                invoice_ns.abort(404, f"Item with name '{item_data['item_name']}' or location '{item_data['location']}' not found in warehouse")
+
             # Create the invoice item
             new_item = InvoiceItem(
                 invoice=new_invoice,  # Link to the invoice
                 warehouse=warehouse_item,  # Link to the warehouse item
                 quantity=item_data["quantity"],
                 location=item_data["location"],
-                total_price=item_data['total_price'],  # Calculate total price
+                total_price=item_data['total_price'],  # Use the provided total price
                 description=item_data.get("description"),
             )
 
@@ -514,7 +512,7 @@ class InvoiceDetail(Resource):
         invoice = Invoice.query.get_or_404(invoice_id)
         return invoice
 
-    @invoice_ns.expect(invoice_model)
+    # @invoice_ns.expect(invoice_model)
     @invoice_ns.marshal_with(invoice_model)
     @jwt_required()
     def put(self, invoice_id):

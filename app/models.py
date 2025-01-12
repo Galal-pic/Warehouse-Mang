@@ -71,7 +71,7 @@ class Warehouse(db.Model):
     __tablename__ = 'warehouse'
     id = db.Column(db.Integer, primary_key=True)  # Item ID
     item_name = db.Column(db.String(120), nullable=False, index=True, unique=True)
-    item_bar = db.Column(db.String(100), nullable=False, unique=True)  # Barcode
+    item_name = db.Column(db.String(100), nullable=False, unique=True)  # Barcode
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
