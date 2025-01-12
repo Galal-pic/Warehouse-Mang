@@ -66,11 +66,8 @@ export default function Mechanisms() {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
       const data = await response.json();
-      const updatedItems = data.map((item) => ({
-        ...item,
-        id: item.name,
-      }));
-      setInitialItems(updatedItems);
+
+      setInitialItems(data);
     } catch (err) {
       console.error("Error fetching user data:", err);
     }
@@ -105,11 +102,6 @@ export default function Mechanisms() {
 
   // dialog
   const [openDialog, setOpenDialog] = useState(false);
-
-  // create id
-  initialItems.forEach((row) => {
-    row.id = row.name;
-  });
 
   // add item
   const [newItem, setNewItem] = useState({
@@ -232,7 +224,8 @@ export default function Mechanisms() {
   const [isEditingItem, setIsEditingItem] = useState(false);
   const [editingItem, setEditingItem] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
-  const handleSave = () => {
+  const handleSave = async (id) => {
+    console.log(id)
     const hasEmptyValues = Object.values(editingItem).some((value) => {
       if (typeof value === "string") {
         return value.trim() === "";
@@ -251,46 +244,36 @@ export default function Mechanisms() {
       setIsEditingItem(false);
       return;
     }
-    setInitialItems(
-      initialItems.map((i) => (i.id === editingItem.id ? editingItem : i))
-    );
-    console.log(editingItem);
-    setSelectedItem(editingItem);
-    setEditingItem(null);
-    setIsEditingItem(false);
-    setOpenSnackbar(true);
-    setSnackbarMessage("تم تعديل الميكانيزم");
-    setSnackBarType("success");
-    // const accessToken = localStorage.getItem("access_token");
-    // try {
-    //   const response = await fetch(
-    //     `http://127.0.0.1:5000/machine/${editingItem.id}`,
-    //     {
-    //       method: "PUT",
-    //       headers: {
-    //         "Content-Type": "application/json",
-    //         Authorization: `Bearer ${accessToken}`,
-    //       },
-    //       body: JSON.stringify(editingItem),
-    //     }
-    //   );
+    const accessToken = localStorage.getItem("access_token");
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:5000/mechanism/${id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify(editingItem),
+        }
+      );
 
-    //   if (!response.ok) {
-    //     throw new Error(`Failed to update user: ${response.status}`);
-    //   }
-    //   await fetchItemsData();
-    // setSelectedItem(editingItem);
-    // setEditingItem(null);
-    // setIsEditingItem(false);
-    // setOpenSnackbar(true);
-    // setSnackbarMessage("تم تعديل الميكانيزم");
-    // setSnackBarType("success");
-    // } catch (error) {
-    //   console.error("Error updating user:", error);
-    //   setOpenSnackbar(true);
-    //   setSnackbarMessage("خطأ في تحديث الماكينة");
-    //   setSnackBarType("error");
-    // }
+      if (!response.ok) {
+        throw new Error(`Failed to update user: ${response.status}`);
+      }
+      await fetchItemsData();
+      setSelectedItem(editingItem);
+      setEditingItem(null);
+      setIsEditingItem(false);
+      setOpenSnackbar(true);
+      setSnackbarMessage("تم تعديل الميكانيزم");
+      setSnackBarType("success");
+    } catch (error) {
+      console.error("Error updating user:", error);
+      setOpenSnackbar(true);
+      setSnackbarMessage("خطأ في تحديث الماكينة");
+      setSnackBarType("error");
+    }
   };
 
   // columns
@@ -303,7 +286,7 @@ export default function Mechanisms() {
           return (
             <>
               <div>
-                <button className={styles.iconBtn} onClick={() => handleSave()}>
+                <button className={styles.iconBtn} onClick={() => handleSave(params.id)}>
                   <SaveIcon />
                 </button>
                 <button
@@ -414,40 +397,99 @@ export default function Mechanisms() {
   ];
 
   // delete
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     const isConfirmed = window.confirm(
       "Are you sure you want to delete this user?"
     );
     if (!isConfirmed) return;
-    setInitialItems((prev) => prev.filter((item) => item.id !== id));
-    setOpenSnackbar(true);
-    setSnackbarMessage("تم حذف الميكانيزم");
-    setSnackBarType("success");
-    // const accessToken = localStorage.getItem("access_token");
 
-    // try {
-    //   const response = await fetch(`http://127.0.0.1:5000/mechanism/${id}`, {
-    //     method: "DELETE",
-    //     headers: {
-    //       Authorization: `Bearer ${accessToken}`,
-    //     },
-    //   });
+    const accessToken = localStorage.getItem("access_token");
 
-    //   if (!response.ok) {
-    //     const errorData = await response.json();
-    //     throw new Error(errorData.message || "Failed to delete user");
-    //   }
+    try {
+      const response = await fetch(`http://127.0.0.1:5000/mechanism/${id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
 
-    //   setInitialItems((prev) => prev.filter((item) => item.id !== id));
-    //   setOpenSnackbar(true);
-    //   setSnackbarMessage("تم حذف الماكينة");
-    //   setSnackBarType("success");
-    // } catch (error) {
-    //   console.error("Error deleting user:", error);
-    //   setOpenSnackbar(true);
-    //   setSnackbarMessage("خطأ في حذف الماكينة");
-    //   setSnackBarType("error");
-    // }
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to delete user");
+      }
+
+      setInitialItems((prev) => prev.filter((item) => item.id !== id));
+      setOpenSnackbar(true);
+      setSnackbarMessage("تم حذف الميكانيزم");
+      setSnackBarType("success");
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      setOpenSnackbar(true);
+      setSnackbarMessage("خطأ في حذف الميكانيزم");
+      setSnackBarType("error");
+    }
+  };
+
+  const localeText = {
+    toolbarColumns: "الأعمدة",
+    toolbarFilters: "التصفية",
+    toolbarDensity: "الكثافة",
+    toolbarExport: "تصدير",
+    columnMenuSortAsc: "ترتيب تصاعدي",
+    columnMenuSortDesc: "ترتيب تنازلي",
+    columnMenuFilter: "تصفية",
+    columnMenuHideColumn: "إخفاء العمود",
+    columnMenuUnsort: "إلغاء الترتيب",
+    filterPanelOperator: "الشرط",
+    filterPanelValue: "القيمة",
+    filterOperatorContains: "يحتوي على",
+    filterOperatorEquals: "يساوي",
+    filterOperatorStartsWith: "يبدأ بـ",
+    filterOperatorEndsWith: "ينتهي بـ",
+    filterOperatorIsEmpty: "فارغ",
+    filterOperatorIsNotEmpty: "غير فارغ",
+    columnMenuManageColumns: "إدارة الأعمدة",
+    columnMenuShowColumns: "إظهار الأعمدة",
+    toolbarDensityCompact: "مضغوط",
+    toolbarDensityStandard: "عادي",
+    toolbarDensityComfortable: "مريح",
+    toolbarExportCSV: "تصدير إلى CSV",
+    toolbarExportPrint: "طباعة",
+    noRowsLabel: "لا توجد بيانات",
+    noResultsOverlayLabel: "لا توجد نتائج",
+    columnMenuShowHideAllColumns: "إظهار/إخفاء الكل",
+    columnMenuResetColumns: "إعادة تعيين الأعمدة",
+    filterOperatorDoesNotContain: "لا يحتوي على",
+    filterOperatorDoesNotEqual: "لا يساوي",
+    filterOperatorIsAnyOf: "أي من",
+    filterPanelColumns: "الأعمدة",
+    filterPanelInputPlaceholder: "أدخل القيمة",
+    filterPanelInputLabel: "قيمة التصفية",
+    filterOperatorIs: "هو",
+    filterOperatorIsNot: "ليس",
+    toolbarExportExcel: "تصدير إلى Excel",
+    errorOverlayDefaultLabel: "حدث خطأ.",
+    footerRowSelected: (count) => ``,
+    footerTotalRows: "إجمالي الصفوف:",
+    footerTotalVisibleRows: (visibleCount, totalCount) =>
+      `${visibleCount} من ${totalCount}`,
+    filterPanelDeleteIconLabel: "حذف",
+    filterPanelAddFilter: "إضافة تصفية",
+    filterPanelDeleteFilter: "حذف التصفية",
+    loadingOverlay: "جارٍ التحميل...",
+    columnMenuReset: "إعادة تعيين",
+    footerPaginationRowsPerPage: "عدد الصفوف في الصفحة:",
+    paginationLabelDisplayedRows: ({ from, to, count }) =>
+      `${from} - ${to} من ${count}`,
+
+    filterOperatorIsAny: "أي",
+    filterOperatorIsTrue: "نعم",
+    filterOperatorIsFalse: "لا",
+    filterValueAny: "أي",
+    filterValueTrue: "نعم",
+    filterValueFalse: "لا",
+    toolbarColumnsLabel: "إدارة الأعمدة",
+    toolbarResetColumns: "إعادة تعيين",
   };
 
   return (
@@ -466,6 +508,7 @@ export default function Mechanisms() {
           headerAlign: "center",
           headerClassName: styles.headerCell,
         }))}
+        localeText={localeText}
         slots={{
           pagination: CustomPagination,
           toolbar: CustomToolbar,
@@ -482,6 +525,10 @@ export default function Mechanisms() {
         onPaginationModelChange={handlePageChange}
         disableVirtualization={false}
         sx={{
+          "& .MuiDataGrid-filterIcon, & .MuiDataGrid-sortIcon, & .MuiDataGrid-menuIconButton":
+            {
+              color: "white",
+            },
           "& .MuiDataGrid-toolbarContainer": {
             paddingBottom: "10px",
             display: "flex",
