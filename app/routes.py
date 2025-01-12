@@ -220,7 +220,6 @@ class WarehouseList(Resource):
     def post(self):
         """Create a new warehouse item"""
         data = warehouse_ns.payload
-
         # Check if item with the same name or barcode already exists
         existing_item = (Warehouse.query.filter_by(item_name=data['item_name']).first()) or (Warehouse.query.filter_by(item_bar=data['item_bar']).first())
 
