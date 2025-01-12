@@ -313,7 +313,6 @@ export default function Items() {
 
   // delete
   const handleDelete = async (id) => {
-    console.log(id);
     const isConfirmed = window.confirm(
       "Are you sure you want to delete this user?"
     );
@@ -429,6 +428,68 @@ export default function Items() {
     }
   };
 
+  const localeText = {
+    toolbarColumns: "الأعمدة",
+    toolbarFilters: "التصفية",
+    toolbarDensity: "الكثافة",
+    toolbarExport: "تصدير",
+    columnMenuSortAsc: "ترتيب تصاعدي",
+    columnMenuSortDesc: "ترتيب تنازلي",
+    columnMenuFilter: "تصفية",
+    columnMenuHideColumn: "إخفاء العمود",
+    columnMenuUnsort: "إلغاء الترتيب",
+    filterPanelOperator: "الشرط",
+    filterPanelValue: "القيمة",
+    filterOperatorContains: "يحتوي على",
+    filterOperatorEquals: "يساوي",
+    filterOperatorStartsWith: "يبدأ بـ",
+    filterOperatorEndsWith: "ينتهي بـ",
+    filterOperatorIsEmpty: "فارغ",
+    filterOperatorIsNotEmpty: "غير فارغ",
+    columnMenuManageColumns: "إدارة الأعمدة",
+    columnMenuShowColumns: "إظهار الأعمدة",
+    toolbarDensityCompact: "مضغوط",
+    toolbarDensityStandard: "عادي",
+    toolbarDensityComfortable: "مريح",
+    toolbarExportCSV: "تصدير إلى CSV",
+    toolbarExportPrint: "طباعة",
+    noRowsLabel: "لا توجد بيانات",
+    noResultsOverlayLabel: "لا توجد نتائج",
+    columnMenuShowHideAllColumns: "إظهار/إخفاء الكل",
+    columnMenuResetColumns: "إعادة تعيين الأعمدة",
+    filterOperatorDoesNotContain: "لا يحتوي على",
+    filterOperatorDoesNotEqual: "لا يساوي",
+    filterOperatorIsAnyOf: "أي من",
+    filterPanelColumns: "الأعمدة",
+    filterPanelInputPlaceholder: "أدخل القيمة",
+    filterPanelInputLabel: "قيمة التصفية",
+    filterOperatorIs: "هو",
+    filterOperatorIsNot: "ليس",
+    toolbarExportExcel: "تصدير إلى Excel",
+    errorOverlayDefaultLabel: "حدث خطأ.",
+    footerRowSelected: (count) => `${count} صفوف محددة`,
+    footerTotalRows: "إجمالي الصفوف:",
+    footerTotalVisibleRows: (visibleCount, totalCount) =>
+      `${visibleCount} من ${totalCount}`,
+    filterPanelDeleteIconLabel: "حذف",
+    filterPanelAddFilter: "إضافة تصفية",
+    filterPanelDeleteFilter: "حذف التصفية",
+    loadingOverlay: "جارٍ التحميل...",
+    columnMenuReset: "إعادة تعيين",
+    footerPaginationRowsPerPage: "عدد الصفوف في الصفحة:",
+    paginationLabelDisplayedRows: ({ from, to, count }) =>
+      `${from} - ${to} من ${count}`,
+
+    filterOperatorIsAny: "أي",
+    filterOperatorIsTrue: "نعم",
+    filterOperatorIsFalse: "لا",
+    filterValueAny: "أي",
+    filterValueTrue: "نعم",
+    filterValueFalse: "لا",
+    toolbarColumnsLabel: "إدارة الأعمدة",
+    toolbarResetColumns: "إعادة تعيين",
+  };
+
   return (
     <div className={styles.container}>
       {/* title */}
@@ -445,6 +506,7 @@ export default function Items() {
           headerAlign: "center",
           headerClassName: styles.headerCell,
         }))}
+        localeText={localeText}
         slots={{
           pagination: CustomPagination,
           toolbar: CustomToolbar,
@@ -461,6 +523,10 @@ export default function Items() {
         onPaginationModelChange={handlePageChange}
         disableVirtualization={false}
         sx={{
+          "& .MuiDataGrid-filterIcon, & .MuiDataGrid-sortIcon, & .MuiDataGrid-menuIconButton":
+            {
+              color: "white",
+            },
           "& .MuiDataGrid-toolbarContainer": {
             paddingBottom: "10px",
             display: "flex",

@@ -30,6 +30,7 @@ import LaunchIcon from "@mui/icons-material/Launch";
 import logo from "./logo.png";
 import AddIcon from "@mui/icons-material/Add";
 import "../../colors.css";
+import SnackBar from "../../components/snackBar/SnackBar";
 
 const CustomPagination = ({ page, count, onChange }) => {
   const handlePageChange = (event, value) => {
@@ -69,6 +70,15 @@ export default function Invoices() {
     { name: "item 4", parcode: "1234" },
   ];
 
+  // snackbar
+  const [openSnackbar, setOpenSnackbar] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [snackBarType, setSnackBarType] = useState("");
+  // Handle close snack
+  const handleCloseSnackbar = () => {
+    setOpenSnackbar(false);
+  };
+
   // collors
   const primaryColor = getComputedStyle(
     document.documentElement
@@ -105,121 +115,23 @@ export default function Invoices() {
     );
   }
 
-  // Fetch data from API
-  const fetchData = async (url, method = "GET", body = null) => {
+  // fetch invoices
+  const fetchItemsData = async () => {
+    const accessToken = localStorage.getItem("access_token");
+    if (!accessToken) return;
     try {
-      const response = await fetch(url, {
-        method,
-        body: body ? JSON.stringify(body) : null,
+      const response = await fetch("http://127.0.0.1:5000/invoice/", {
+        method: "GET",
+        headers: { Authorization: `Bearer ${accessToken}` },
       });
-      if (!response.ok) throw new Error("حدث خطأ أثناء العملية");
-      return await response.json();
-    } catch (error) {
-      throw error;
+      const data = await response.json();
+      setInvoices(data);
+    } catch (err) {
+      console.error("Error fetching user data:", err);
     }
   };
-
-  //fake data
-  const initialData = [
-    {
-      id: 1,
-      type: "اضافه",
-      machine_name: "آلة التغليف",
-      mechanism: "آلية التغليف التلقائي",
-      client_name: "شركة التقنية",
-      Warehouse: "المخزن الاول",
-      Warehouse_manager: "علي محمود",
-      total_amount: 5000,
-      Employee_Name: "محمد أحمد",
-      date: "1/7/2025",
-      time: "04:09 PM",
-      items: [
-        {
-          name: "جهاز كمبيوتر",
-          item_bar: "123456",
-          quantity: 1,
-          price: 1200,
-          total_price: 3600,
-          description: "جهاز كمبيوتر مكتبي",
-        },
-        {
-          name: "طابعة",
-          item_bar: "654321",
-          quantity: 2,
-          price: 700,
-          total_price: 1400,
-          description: "طابعة ليزر",
-        },
-      ],
-      comment: "أنا تعليق",
-      note: "تم تعديل هذه الفاتوره في 1 يناير من سنة 2023",
-    },
-    {
-      id: 2,
-      type: "صرف",
-      machine_name: "آلة الطباعة",
-      mechanism: "آلية الطباعة السريعة",
-      client_name: "شركة المستقبل",
-      Warehouse: "المخزن الاول",
-      Warehouse_manager: "سعيد عمر",
-      Employee_Name: "خالد سعيد",
-      date: "1/8/2025",
-      time: "10:15 AM",
-      items: [
-        {
-          name: "ماسح ضوئي",
-          item_bar: "987654",
-          quantity: 3,
-          description: "ماسح ضوئي عالي الجودة",
-        },
-        {
-          name: "شاشة عرض",
-          item_bar: "789456",
-          quantity: 2,
-          description: "شاشة عرض LED",
-        },
-      ],
-      comment: "تعليق جديد",
-      note: "",
-    },
-    // بقية البيانات...
-  ];
-
-  // fetch invoices
   useEffect(() => {
-    // const fetchInvoicesData = async () => {
-    //   try {
-    //     const data = await fetchData(`http://localhost:3001/users`, "GET");
-    //     const updatedData = data.map((invoice, index) => ({
-    //       ...invoice,
-    //       rowNumber: index + 1,
-    //     }));
-    //     setInvoices(updatedData);
-    //   } catch (error) {
-    //     console.error("Error fetching data:", error);
-    //   }
-    // };
-    // fetchInvoicesData();
-    setInvoices(initialData);
-  }, []);
-  // fetch invoices
-  useEffect(() => {
-    const fetchInvoicesData = async () => {
-      const accessToken = localStorage.getItem("access_token");
-      if (!accessToken) return;
-      try {
-        const response = await fetch("http://127.0.0.1:5000/invoice/", {
-          method: "GET",
-          headers: { Authorization: `Bearer ${accessToken}` },
-        });
-        // if (!response.ok) return;
-        const data = await response.json();
-        setInvoices(initialData);
-      } catch (err) {
-        console.error("Error fetching user data:", err);
-      }
-    };
-    fetchInvoicesData();
+    fetchItemsData();
   }, []);
 
   // open edit modal
@@ -274,17 +186,17 @@ export default function Invoices() {
       ),
     },
     { flex: 1, field: "itemsNames", headerName: "أسماء العناصر" },
-    { flex: 1, field: "Employee_Name", headerName: "اسم الموظف" },
+    { flex: 1, field: "mechanism_name", headerName: "الميكانيزم" },
+    { flex: 1, field: "machine_name", headerName: "الماكينة" },
+    { flex: 1, field: "employee_name", headerName: "اسم الموظف" },
     { flex: 1, field: "Warehouse_manager", headerName: "مدير المخزن" },
     { flex: 1, field: "client_name", headerName: "اسم العميل" },
-    { flex: 1, field: "mechanism", headerName: "الميكانيزم" },
-    { flex: 1, field: "machine_name", headerName: "الماكينة" },
-    { flex: 1, field: "time", headerName: "وقت اصدار الفاتورة" },
-    {
-      flex: 1,
-      field: "date",
-      headerName: "تاريخ اصدار الفاتورة",
-    },
+    // { flex: 1, field: "time", headerName: "وقت اصدار الفاتورة" },
+    // {
+    //   flex: 1,
+    //   field: "date",
+    //   headerName: "تاريخ اصدار الفاتورة",
+    // },
     { flex: 1, field: "type", headerName: "نوع العملية" },
     { field: "id", headerName: "#" },
   ];
@@ -329,7 +241,7 @@ export default function Invoices() {
     filterOperatorIsNot: "ليس",
     toolbarExportExcel: "تصدير إلى Excel",
     errorOverlayDefaultLabel: "حدث خطأ.",
-    footerRowSelected: (count) => `${count} صفوف محددة`,
+    footerRowSelected: (count) => ``,
     footerTotalRows: "إجمالي الصفوف:",
     footerTotalVisibleRows: (visibleCount, totalCount) =>
       `${visibleCount} من ${totalCount}`,
@@ -370,8 +282,8 @@ export default function Invoices() {
     setEditingInvoice(invoice);
     setIsEditingInvoice(true);
   };
-  const handleSave = () => {
-    const currentDate = new Date().toLocaleDateString();
+  const handleSave = async () => {
+    // const currentDate = new Date().toLocaleDateString();
     const updatedItems = editingInvoice.items.map((item) => {
       const quantity = parseFloat(item.quantity || 0);
 
@@ -393,21 +305,74 @@ export default function Invoices() {
     const updatedInvoice = {
       ...editingInvoice,
       items: updatedItems,
-      note: `تم تعديل هذه الفاتورة بتاريخ ${currentDate}`,
+      // note: `تم تعديل هذه الفاتورة بتاريخ ${currentDate}`,
     };
-    setInvoices((prev) =>
-      prev.map((invoice) =>
-        invoice.id === updatedInvoice.id ? updatedInvoice : invoice
-      )
-    );
-    setSelectedInvoice(updatedInvoice);
-    console.log("Updated selectedInvoice:", updatedInvoice);
-    setEditingInvoice(null);
-    setIsEditingInvoice(false);
+
+    const accessToken = localStorage.getItem("access_token");
+
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:5000/warehouse/${editingInvoice.id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify(updatedInvoice),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to update user: ${response.status}`);
+      }
+      await fetchItemsData();
+      setSelectedInvoice(updatedInvoice);
+      console.log("Updated selectedInvoice:", updatedInvoice);
+      setEditingInvoice(null);
+      setIsEditingInvoice(false);
+
+      setOpenSnackbar(true);
+      setSnackbarMessage("تم تعديل الفاتورة");
+      setSnackBarType("success");
+    } catch (error) {
+      console.error("Error updating user:", error);
+      setOpenSnackbar(true);
+      setSnackbarMessage("خطأ في تحديث الفاتورة");
+      setSnackBarType("error");
+    }
   };
-  const handleDelete = (id) => {
-    setInvoices((prev) => prev.filter((invoice) => invoice.id !== id));
-    setSelectedInvoice(null);
+  const handleDelete = async (id) => {
+    console.log(id);
+    const isConfirmed = window.confirm(
+      "Are you sure you want to delete this user?"
+    );
+    if (!isConfirmed) return;
+    const accessToken = localStorage.getItem("access_token");
+
+    try {
+      const response = await fetch(`http://127.0.0.1:5000/invoice/${id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to delete user");
+      }
+      setInvoices((prev) => prev.filter((invoice) => invoice.id !== id));
+      setSelectedInvoice(null);
+      setOpenSnackbar(true);
+      setSnackbarMessage("تم حذف الفاتورة");
+      setSnackBarType("success");
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      setOpenSnackbar(true);
+      setSnackbarMessage("خطأ في حذف الفاتورة");
+      setSnackBarType("error");
+    }
   };
   const handleDeleteItem = (id, itemIndex) => {
     setInvoices((prevInvoices) => {
@@ -576,6 +541,10 @@ export default function Invoices() {
         onPaginationModelChange={handlePageChange}
         disableVirtualization={false}
         sx={{
+          "& .MuiDataGrid-filterIcon, & .MuiDataGrid-sortIcon, & .MuiDataGrid-menuIconButton":
+            {
+              color: "white",
+            },
           "& .MuiDataGrid-toolbarContainer": {
             paddingBottom: "10px",
             display: "flex",
@@ -732,7 +701,7 @@ export default function Invoices() {
                     <Box className={styles.infoLabel}>رقم السند:</Box>
                     <Box className={styles.infoValue}>{selectedInvoice.id}</Box>
                   </Box>
-                  <Box className={styles.infoItem}>
+                  {/* <Box className={styles.infoItem}>
                     <Box className={styles.infoLabel}>التاريخ</Box>
                     <Box className={styles.infoValue}>
                       {selectedInvoice.date}
@@ -743,11 +712,11 @@ export default function Invoices() {
                     <Box className={styles.infoValue}>
                       {selectedInvoice.time}
                     </Box>
-                  </Box>
+                  </Box> */}
                 </Box>
               </Box>
               {/* Warehouse */}
-              <Box className={styles.warehouseBox}>
+              {/* <Box className={styles.warehouseBox}>
                 {isEditingInvoice ? (
                   <select
                     value={editingInvoice.Warehouse}
@@ -776,7 +745,7 @@ export default function Invoices() {
                     {selectedInvoice.Warehouse}
                   </Box>
                 )}
-              </Box>
+              </Box> */}
               {/* table Manager */}
               <Box className={styles.tableSection} sx={{ direction: "rtl" }}>
                 <Table
@@ -827,11 +796,11 @@ export default function Invoices() {
                         {isEditingInvoice ? (
                           <input
                             type="text"
-                            value={editingInvoice.mechanism}
+                            value={editingInvoice.mechanism_name}
                             onChange={(e) =>
                               setEditingInvoice({
                                 ...editingInvoice,
-                                mechanism: e.target.value,
+                                mechanism_name: e.target.value,
                               })
                             }
                             style={{
@@ -844,7 +813,7 @@ export default function Invoices() {
                             }}
                           />
                         ) : (
-                          selectedInvoice.mechanism
+                          selectedInvoice.mechanism_name
                         )}
                       </TableCell>
                     </TableRow>
@@ -1011,7 +980,7 @@ export default function Invoices() {
                           ""
                         ) : (
                           <>
-                            <TableCell className={styles.tableCellRow}>
+                            {/* <TableCell className={styles.tableCellRow}>
                               {isEditingInvoice ? (
                                 <input
                                   style={{
@@ -1064,7 +1033,7 @@ export default function Invoices() {
                               ) : (
                                 row.price
                               )}
-                            </TableCell>
+                            </TableCell> */}
                             <TableCell className={styles.tableCellRow}>
                               {isEditingInvoice
                                 ? editingInvoice.items[index]?.total_price
@@ -1124,7 +1093,7 @@ export default function Invoices() {
                 </Box>
               )}
               {/* comment */}
-              <Box className={styles.commentFieldBox}>
+              {/* <Box className={styles.commentFieldBox}>
                 {isEditingInvoice ? (
                   <input
                     style={{
@@ -1147,9 +1116,9 @@ export default function Invoices() {
                 ) : (
                   selectedInvoice.comment
                 )}
-              </Box>
+              </Box> */}
               {/* note */}
-              {selectedInvoice.note === "" ? (
+              {/* {selectedInvoice.note === "" ? (
                 ""
               ) : (
                 <Box className={styles.commentFieldBox}>
@@ -1178,7 +1147,7 @@ export default function Invoices() {
                     selectedInvoice.note
                   )}
                 </Box>
-              )}
+              )} */}
               {/* info */}
               <Box className={styles.infoSection}>
                 <Box className={styles.infoItemBox}>
@@ -1196,16 +1165,16 @@ export default function Invoices() {
                           padding: "10px",
                         }}
                         type="text"
-                        value={editingInvoice.Employee_Name}
+                        value={editingInvoice.employee_name}
                         onChange={(e) =>
                           setEditingInvoice({
                             ...editingInvoice,
-                            Employee_Name: e.target.value,
+                            employee_name: e.target.value,
                           })
                         }
                       />
                     ) : (
-                      selectedInvoice.Employee_Name
+                      selectedInvoice.employee_name
                     )}
                   </Box>
                 </Box>
@@ -1281,6 +1250,14 @@ export default function Invoices() {
           </Box>
         </Box>
       </Modal>
+
+      {/* Snackbar */}
+      <SnackBar
+        open={openSnackbar}
+        message={snackbarMessage}
+        type={snackBarType}
+        onClose={handleCloseSnackbar}
+      />
     </div>
   );
 }
