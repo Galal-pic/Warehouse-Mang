@@ -415,7 +415,6 @@ class InvoiceList(Resource):
 
             # Fetch related items data
             items = InvoiceItem.query.filter_by(invoice_id=invoice.id).all()
-            print('------------',items)
             # Serialize the invoice with related data
             invoice_data = {
                 "id": invoice.id,
@@ -509,9 +508,39 @@ class InvoiceDetail(Resource):
     def get(self, invoice_id):
         """Get an invoice by ID"""
         invoice = Invoice.query.get_or_404(invoice_id)
-        return invoice
+        # Fetch related machine and mechanism data
+        machine = Machine.query.get(invoice.machine_id) if invoice.machine_id else None
+        mechanism = Mechanism.query.get(invoice.mechanism_id) if invoice.mechanism_id else None
+        # Fetch related items data
+        items = InvoiceItem.query.filter_by(invoice_id=invoice.id).all()
+        # Serialize the invoice with related data
+        invoice_data = {
+            "id": invoice.id,
+            "type": invoice.type,
+            "client_name": invoice.client_name,
+            "warehouse_manager": invoice.Warehouse_manager,
+            "total_amount": invoice.total_amount,
+            "employee_name": invoice.employee_name,
+            "employee_id": invoice.employee_id,
+            "machine_name": machine.name if machine else None,
+            "mechanism_name": mechanism.name if mechanism else None,
+            "items": [
+                {
+                    "item_name": Warehouse.query.get(item.item_id).item_name,
+                    "barcode":  Warehouse.query.get(item.item_id).item_name,
+                    "quantity": item.quantity,
+                    "location": item.location,
+                    "total_price": item.total_price,
+                    "description": item.description
+                }
+                for item in items
+            ]
+        }
+        return invoice_data
 
     # @invoice_ns.expect(invoice_model)
+@invoice_ns.route('/<int:invoice_id>')
+class InvoiceDetail(Resource):
     @invoice_ns.marshal_with(invoice_model)
     @jwt_required()
     def put(self, invoice_id):
@@ -519,43 +548,71 @@ class InvoiceDetail(Resource):
         data = invoice_ns.payload
         invoice = Invoice.query.get_or_404(invoice_id)
 
+        # Fetch the machine and mechanism by name
+        machine = Machine.query.filter_by(name=data["machine_name"]).first()
+        mechanism = Mechanism.query.filter_by(name=data["mechanism_name"]).first()
+
+        if not machine or not mechanism:
+            invoice_ns.abort(404, "Machine or Mechanism not found")
+
         # Update invoice fields
         invoice.type = data["type"]
         invoice.client_name = data.get("client_name")
         invoice.Warehouse_manager = data.get("Warehouse_manager")
         invoice.total_amount = data.get("total_amount")
         invoice.employee_name = data["employee_name"]
-        invoice.employee_id = data["employee_id"]
-        invoice.machine_id = data.get("machine_id")
-        invoice.mechanism_id = data.get("mechanism_id")
+        invoice.machine_id = machine.id
+        invoice.mechanism_id = mechanism.id
+
+        # Get existing items in the invoice
+        existing_items = { (item.item_id, item.location): item for item in invoice.items }
+
+        # Track items to keep (those present in the payload)
+        items_to_keep = set()
 
         # Update or add items
         for item_data in data["items"]:
-            if "id" in item_data:  # Update existing item
-                item = InvoiceItem.query.get(item_data["id"])
-                if item:
-                    item.quantity = item_data["quantity"]
-                    item.location = item_data["location"]
-                    item.total_price = item_data["quantity"] * item.warehouse.price_unit
-                    item.description = item_data.get("description")
-            else:  # Add new item
-                warehouse_item = Warehouse.query.get(item_data["item_id"])
-                if not warehouse_item:
-                    invoice_ns.abort(404, f"Item with ID '{item_data['item_id']}' not found in warehouse")
+            # Fetch the warehouse item by name
+            warehouse_item = Warehouse.query.filter_by(item_name=item_data["item_name"]).first()
+            if not warehouse_item:
+                invoice_ns.abort(404, f"Item with name '{item_data['item_name']}' not found in warehouse")
 
+            # Fetch the item location details
+            item_location = ItemLocations.query.filter_by(item_id=warehouse_item.id, location=item_data["location"]).first()
+            if not item_location:
+                invoice_ns.abort(404, f"Item location '{item_data['location']}' not found for item '{item_data['item_name']}'")
+
+            # Check if the item already exists in the invoice
+            key = (warehouse_item.id, item_data["location"])
+            if key in existing_items:
+                # Update existing item
+                existing_item = existing_items[key]
+                existing_item.quantity = item_data["quantity"]
+                existing_item.total_price = item_data["quantity"] * item_location.price_unit
+                existing_item.description = item_data.get("description")
+            else:
+                # Add new item
                 new_item = InvoiceItem(
-                    invoice=invoice,
-                    warehouse=warehouse_item,
+                    invoice_id=invoice.id,
+                    item_id=warehouse_item.id,
                     quantity=item_data["quantity"],
                     location=item_data["location"],
-                    total_price=item_data["quantity"] * warehouse_item.price_unit,
+                    total_price=item_data["quantity"] * item_location.price_unit,
                     description=item_data.get("description"),
                 )
                 db.session.add(new_item)
 
+            # Mark this item as "to keep"
+            items_to_keep.add(key)
+
+        # Delete items that are not in the payload
+        for key, item in existing_items.items():
+            if key not in items_to_keep:
+                db.session.delete(item)
+
         db.session.commit()
         return invoice
-
+        
     @jwt_required()
     def delete(self, invoice_id):
         """Delete an invoice"""
