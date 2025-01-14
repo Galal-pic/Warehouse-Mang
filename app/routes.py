@@ -62,6 +62,7 @@ invoice_model = invoice_ns.model('Invoice', {
     'employee_name': fields.String(required=True),
     'machine_name': fields.String(required=True),
     'mechanism_name': fields.String(required=True),
+    "created_at":fields.String(required=False),
     'items': fields.List(fields.Nested(invoice_item_model)),
 })
 
@@ -425,10 +426,11 @@ class InvoiceList(Resource):
                 "employee_name": invoice.employee_name,
                 "machine_name": machine.name if machine else None,
                 "mechanism_name": mechanism.name if mechanism else None,
+                "created_at":invoice.created_at,
                 "items": [
                     {
                         "item_name": Warehouse.query.get(item.item_id).item_name,
-                        "barcode":  Warehouse.query.get(item.item_id).item_name,
+                        "barcode":  Warehouse.query.get(item.item_id).item_bar,
                         "quantity": item.quantity,
                         "location": item.location,
                         "total_price": item.total_price,
@@ -518,16 +520,17 @@ class InvoiceDetail(Resource):
             "id": invoice.id,
             "type": invoice.type,
             "client_name": invoice.client_name,
-            "warehouse_manager": invoice.Warehouse_manager,
+            "Warehouse_manager": invoice.Warehouse_manager,
             "total_amount": invoice.total_amount,
             "employee_name": invoice.employee_name,
             "employee_id": invoice.employee_id,
             "machine_name": machine.name if machine else None,
             "mechanism_name": mechanism.name if mechanism else None,
+             "created_at":invoice.created_at,
             "items": [
                 {
                     "item_name": Warehouse.query.get(item.item_id).item_name,
-                    "barcode":  Warehouse.query.get(item.item_id).item_name,
+                    "barcode":  Warehouse.query.get(item.item_id).item_bar,
                     "quantity": item.quantity,
                     "location": item.location,
                     "total_price": item.total_price,
