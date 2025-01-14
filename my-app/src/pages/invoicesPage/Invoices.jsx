@@ -63,12 +63,67 @@ export default function Invoices() {
   const [invoices, setInvoices] = useState([]);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const itemsNames = [
-    { name: "item 1", parcode: "123" },
-    { name: "item 2", parcode: "456" },
-    { name: "item 3", parcode: "789" },
-    { name: "item 4", parcode: "1234" },
-  ];
+
+  // fetch warehouses
+  const [initialItems, setInitialItems] = useState([]);
+  const fetchWareHousesData = async () => {
+    const accessToken = localStorage.getItem("access_token");
+    if (!accessToken) return;
+    try {
+      const response = await fetch("http://127.0.0.1:5000/warehouse/", {
+        method: "GET",
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const data = await response.json();
+      setInitialItems(data);
+    } catch (err) {
+      console.error("Error fetching user data:", err);
+    }
+  };
+  useEffect(() => {
+    fetchWareHousesData();
+  }, []);
+
+  // fetch machines
+  const [machines, setMachines] = useState([]);
+  const fetchMachinesData = async () => {
+    const accessToken = localStorage.getItem("access_token");
+    if (!accessToken) return;
+    try {
+      const response = await fetch("http://127.0.0.1:5000/machine/", {
+        method: "GET",
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const data = await response.json();
+      setMachines(data);
+    } catch (err) {
+      console.error("Error fetching user data:", err);
+    }
+  };
+  useEffect(() => {
+    fetchMachinesData();
+  }, []);
+
+  // fetch mechanisms
+  const [mechanisms, setMechanisms] = useState([]);
+  const fetchMechanismsData = async () => {
+    const accessToken = localStorage.getItem("access_token");
+    if (!accessToken) return;
+    try {
+      const response = await fetch("http://127.0.0.1:5000/mechanism/", {
+        method: "GET",
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const data = await response.json();
+
+      setMechanisms(data);
+    } catch (err) {
+      console.error("Error fetching user data:", err);
+    }
+  };
+  useEffect(() => {
+    fetchMechanismsData();
+  }, []);
 
   // snackbar
   const [openSnackbar, setOpenSnackbar] = useState(false);
@@ -125,14 +180,33 @@ export default function Invoices() {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
       const data = await response.json();
-      setInvoices(data);
+      const updatedData = data.map((invoice) => ({
+        ...invoice,
+        items: invoice.items.map((item) => {
+          const matchedItem = initialItems.find(
+            (warehouseItem) => warehouseItem.item_name === item.item_name
+          );
+          if (matchedItem) {
+            return {
+              ...item,
+              availableLocations: matchedItem.locations,
+            };
+          }
+          return {
+            ...item,
+            availableLocations: [],
+          };
+        }),
+      }));
+
+      setInvoices(updatedData);
     } catch (err) {
       console.error("Error fetching user data:", err);
     }
   };
   useEffect(() => {
     fetchItemsData();
-  }, []);
+  }, [initialItems]);
 
   // open edit modal
   const openInvoice = (id) => {
@@ -159,7 +233,7 @@ export default function Invoices() {
     )
     .map((invoice) => ({
       ...invoice,
-      itemsNames: invoice.items.map((item) => item.name).join(", "),
+      itemsNames: invoice.items.map((item) => item.item_name).join(", "),
     }));
 
   // columns
@@ -307,12 +381,13 @@ export default function Invoices() {
       items: updatedItems,
       // note: `تم تعديل هذه الفاتورة بتاريخ ${currentDate}`,
     };
+    console.log(updatedInvoice);
 
     const accessToken = localStorage.getItem("access_token");
 
     try {
       const response = await fetch(
-        `http://127.0.0.1:5000/warehouse/${editingInvoice.id}`,
+        `http://127.0.0.1:5000/invoice/${updatedInvoice.id}`,
         {
           method: "PUT",
           headers: {
@@ -327,8 +402,24 @@ export default function Invoices() {
         throw new Error(`Failed to update user: ${response.status}`);
       }
       await fetchItemsData();
-      setSelectedInvoice(updatedInvoice);
-      console.log("Updated selectedInvoice:", updatedInvoice);
+      const fetchInvoiceData = async () => {
+        try {
+          const response = await fetch(
+            `http://127.0.0.1:5000/invoice/${updatedInvoice.id}`,
+            {
+              method: "GET",
+              headers: { Authorization: `Bearer ${accessToken}` },
+            }
+          );
+          const data = await response.json();
+
+          setSelectedInvoice(data);
+        } catch (err) {
+          console.error("Error fetching updated invoice:", err);
+        }
+      };
+
+      await fetchInvoiceData();
       setEditingInvoice(null);
       setIsEditingInvoice(false);
 
@@ -466,6 +557,7 @@ export default function Invoices() {
       total_amount: totalAmount,
     });
   };
+  console.log(invoices);
 
   return (
     <div className={styles.container}>
@@ -715,37 +807,7 @@ export default function Invoices() {
                   </Box> */}
                 </Box>
               </Box>
-              {/* Warehouse */}
-              {/* <Box className={styles.warehouseBox}>
-                {isEditingInvoice ? (
-                  <select
-                    value={editingInvoice.Warehouse}
-                    onChange={(e) =>
-                      setEditingInvoice({
-                        ...editingInvoice,
-                        Warehouse: e.target.value,
-                      })
-                    }
-                    style={{
-                      border: "1px solid #ddd",
-                      width: "170px",
-                      padding: "5px",
-                      borderRadius: "4px",
-                      outline: "none",
-                      fontSize: "15px",
-                      textAlign: "center",
-                    }}
-                  >
-                    <option value="المخزن الاول">المخزن الاول</option>
-                    <option value="المخزن الثانى">المخزن الثانى</option>
-                    <option value="المخزن الثالث">المخزن الثالث</option>
-                  </select>
-                ) : (
-                  <Box className={styles.warehouseText}>
-                    {selectedInvoice.Warehouse}
-                  </Box>
-                )}
-              </Box> */}
+
               {/* table Manager */}
               <Box className={styles.tableSection} sx={{ direction: "rtl" }}>
                 <Table
@@ -765,23 +827,39 @@ export default function Invoices() {
                       </TableCell>
                       <TableCell className={styles.tableInputCell} colSpan={5}>
                         {isEditingInvoice ? (
-                          <input
-                            type="text"
-                            value={editingInvoice.machine_name}
-                            onChange={(e) =>
+                          <Autocomplete
+                            value={
+                              machines.find(
+                                (item) =>
+                                  item.name ===
+                                  (editingInvoice.machine_name ||
+                                    selectedInvoice.machine_name)
+                              ) || null
+                            }
+                            sx={{
+                              minWidth: "300px",
+                              "& .MuiOutlinedInput-root": {
+                                padding: "10px",
+                              },
+                              "& .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline":
+                                {
+                                  border: "none",
+                                },
+                            }}
+                            options={machines}
+                            getOptionLabel={(option) => option.name}
+                            onChange={(event, newValue) =>
                               setEditingInvoice({
                                 ...editingInvoice,
-                                machine_name: e.target.value,
+                                machine_name: newValue ? newValue.name : "",
                               })
                             }
-                            style={{
-                              width: "100%",
-                              outline: "none",
-                              fontSize: "15px",
-                              textAlign: "right",
-                              border: "none",
-                              padding: "10px",
-                            }}
+                            renderInput={(params) => (
+                              <TextField
+                                {...params}
+                                placeholder="اسم الماكينة"
+                              />
+                            )}
                           />
                         ) : (
                           selectedInvoice.machine_name
@@ -794,23 +872,39 @@ export default function Invoices() {
                       </TableCell>
                       <TableCell className={styles.tableInputCell} colSpan={5}>
                         {isEditingInvoice ? (
-                          <input
-                            type="text"
-                            value={editingInvoice.mechanism_name}
-                            onChange={(e) =>
+                          <Autocomplete
+                            value={
+                              mechanisms.find(
+                                (item) =>
+                                  item.name ===
+                                  (editingInvoice.mechanism_name ||
+                                    selectedInvoice.mechanism_name)
+                              ) || null
+                            }
+                            sx={{
+                              minWidth: "300px",
+                              "& .MuiOutlinedInput-root": {
+                                padding: "10px",
+                              },
+                              "& .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline":
+                                {
+                                  border: "none",
+                                },
+                            }}
+                            options={mechanisms}
+                            getOptionLabel={(option) => option.name}
+                            onChange={(event, newValue) =>
                               setEditingInvoice({
                                 ...editingInvoice,
-                                mechanism_name: e.target.value,
+                                mechanism_name: newValue ? newValue.name : "",
                               })
                             }
-                            style={{
-                              width: "100%",
-                              outline: "none",
-                              fontSize: "15px",
-                              textAlign: "right",
-                              border: "none",
-                              padding: "10px",
-                            }}
+                            renderInput={(params) => (
+                              <TextField
+                                {...params}
+                                placeholder="اسم الماكينة"
+                              />
+                            )}
                           />
                         ) : (
                           selectedInvoice.mechanism_name
@@ -824,15 +918,16 @@ export default function Invoices() {
                       <TableCell className={styles.tableCell}>
                         اسم الصنف
                       </TableCell>
-                      <TableCell className={styles.tableCell}>الرمز</TableCell>
+                      {/* <TableCell className={styles.tableCell}>الرمز</TableCell> */}
+                      <TableCell className={styles.tableCell}>الموقع</TableCell>
                       <TableCell className={styles.tableCell}>الكمية</TableCell>
                       {selectedInvoice.type !== "اضافه" ? (
                         ""
                       ) : (
                         <>
-                          <TableCell className={styles.tableCell}>
+                          {/* <TableCell className={styles.tableCell}>
                             السعر
-                          </TableCell>
+                          </TableCell> */}
                           <TableCell className={styles.tableCell}>
                             إجمالي السعر
                           </TableCell>
@@ -843,6 +938,7 @@ export default function Invoices() {
                         بيان
                       </TableCell>
                     </TableRow>
+
                     {(isEditingInvoice
                       ? editingInvoice.items
                       : selectedInvoice.items
@@ -854,8 +950,9 @@ export default function Invoices() {
                           }}
                           className={styles.tableCellRow}
                         >
+                          {console.log(row, index)}
                           {index + 1}
-                          {editingInvoice && (
+                          {isEditingInvoice && (
                             <button
                               onClick={() =>
                                 handleDeleteItem(selectedInvoice.id, index)
@@ -866,22 +963,15 @@ export default function Invoices() {
                             </button>
                           )}
                         </TableCell>
-                        <TableCell
-                          sx={{
-                            "&.MuiTableCell-root": {
-                              padding: "0px",
-                            },
-                          }}
-                          className={styles.tableCellRow}
-                        >
+                        <TableCell className={styles.tableCellRow}>
                           {isEditingInvoice ? (
                             <Autocomplete
                               value={
-                                itemsNames.find(
+                                initialItems.find(
                                   (item) =>
-                                    item.name ===
-                                    (editingInvoice.items[index]?.name ||
-                                      row.name)
+                                    item.item_name ===
+                                    (editingInvoice.items[index]?.item_name ||
+                                      row.item_name)
                                 ) || null
                               }
                               sx={{
@@ -894,14 +984,16 @@ export default function Invoices() {
                                     border: "none",
                                   },
                               }}
-                              options={itemsNames}
-                              getOptionLabel={(option) => option.name}
+                              options={initialItems}
+                              getOptionLabel={(option) => option.item_name}
                               onChange={(e, newValue) => {
                                 const updatedItems = [...editingInvoice.items];
                                 updatedItems[index] = {
                                   ...updatedItems[index],
-                                  name: newValue?.name || "",
-                                  item_bar: newValue?.parcode || "",
+                                  item_name: newValue?.item_name || "",
+                                  item_bar: newValue?.item_bar || "",
+                                  location: "",
+                                  availableLocations: newValue?.locations || [],
                                 };
                                 setEditingInvoice({
                                   ...editingInvoice,
@@ -916,15 +1008,65 @@ export default function Invoices() {
                               )}
                             />
                           ) : (
-                            row.name
+                            row.item_name
                           )}
                         </TableCell>
+                        {/* 
                         <TableCell className={styles.tableCellRow}>
                           {isEditingInvoice
                             ? editingInvoice.items[index]?.item_bar ||
                               row.item_bar
                             : row.item_bar}
+                        </TableCell> */}
+
+                        <TableCell className={styles.tableCellRow}>
+                          {console.log(row.availableLocations)}
+                          {isEditingInvoice ? (
+                            <Autocomplete
+                              value={
+                                editingInvoice.items[
+                                  index
+                                ]?.availableLocations?.find(
+                                  (loc) =>
+                                    loc.location ===
+                                    editingInvoice.items[index]?.location
+                                ) || null
+                              }
+                              sx={{
+                                minWidth: "300px",
+                                "& .MuiOutlinedInput-root": {
+                                  padding: "10px",
+                                },
+                                "& .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline":
+                                  {
+                                    border: "none",
+                                  },
+                              }}
+                              options={
+                                editingInvoice.items[index]
+                                  ?.availableLocations || []
+                              }
+                              getOptionLabel={(option) => option.location || ""}
+                              onChange={(e, newValue) => {
+                                const updatedItems = [...editingInvoice.items];
+                                updatedItems[index] = {
+                                  ...updatedItems[index],
+                                  location: newValue?.location || "",
+                                };
+                                setEditingInvoice({
+                                  ...editingInvoice,
+                                  items: updatedItems,
+                                });
+                              }}
+                              renderInput={(params) => (
+                                <TextField {...params} placeholder="الموقع" />
+                              )}
+                            />
+                          ) : (
+                            row.location
+                          )}
                         </TableCell>
+
                         <TableCell className={styles.tableCellRow}>
                           {isEditingInvoice ? (
                             <input
@@ -938,6 +1080,9 @@ export default function Invoices() {
                               }}
                               type="number"
                               min="0"
+                              max={
+                                row.availableLocations?.[index]?.quantity || 0
+                              }
                               value={
                                 editingInvoice.items[index]?.quantity ||
                                 row.quantity
@@ -956,7 +1101,10 @@ export default function Invoices() {
                                 updatedItems[index] = {
                                   ...row,
                                   quantity: newQuantity,
-                                  total_price: newQuantity * (row.price || 0),
+                                  total_price:
+                                    newQuantity *
+                                    (row.availableLocations?.[index]
+                                      ?.price_unit || 0),
                                 };
 
                                 const totalAmount = updatedItems.reduce(

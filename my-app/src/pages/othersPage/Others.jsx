@@ -42,8 +42,9 @@ export default function Others() {
         justifyContent: "center",
         alignItems: "center",
         flexDirection: "column",
-        marginTop: "100px",
+        marginTop: "50px",
         gap: "20px",
+        height: "calc(100vh - 50px)",
       }}
     >
       {links.map((link, index) => (

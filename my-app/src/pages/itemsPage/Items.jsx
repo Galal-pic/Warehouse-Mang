@@ -72,11 +72,7 @@ export default function Items() {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
       const data = await response.json();
-      const updatedItems = data.map((item) => ({
-        ...item,
-        id: item.item_id,
-      }));
-      setInitialItems(updatedItems);
+      setInitialItems(data);
     } catch (err) {
       console.error("Error fetching user data:", err);
     }
@@ -467,7 +463,7 @@ export default function Items() {
     filterOperatorIsNot: "ليس",
     toolbarExportExcel: "تصدير إلى Excel",
     errorOverlayDefaultLabel: "حدث خطأ.",
-    footerRowSelected: (count) => `${count} صفوف محددة`,
+    footerRowSelected: (count) => ``,
     footerTotalRows: "إجمالي الصفوف:",
     footerTotalVisibleRows: (visibleCount, totalCount) =>
       `${visibleCount} من ${totalCount}`,
