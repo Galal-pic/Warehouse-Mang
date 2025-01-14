@@ -24,6 +24,8 @@ import Pagination from "@mui/material/Pagination";
 import Stack from "@mui/material/Stack";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
+import "../../colors.css";
+
 function CustomToolbar() {
   const navigate = useNavigate();
 
@@ -120,6 +122,11 @@ export default function Users() {
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackBarType, setSnackBarType] = useState("");
+
+  // collors
+  const primaryColor = getComputedStyle(
+    document.documentElement
+  ).getPropertyValue("--primary-color");
 
   // pagination
   const [paginationModel, setPaginationModel] = useState({

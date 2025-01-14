@@ -381,7 +381,7 @@ export default function Invoices() {
       items: updatedItems,
       // note: `تم تعديل هذه الفاتورة بتاريخ ${currentDate}`,
     };
-    console.log(updatedInvoice);
+    // console.log(updatedInvoice);
 
     const accessToken = localStorage.getItem("access_token");
 
@@ -413,7 +413,18 @@ export default function Invoices() {
           );
           const data = await response.json();
 
-          setSelectedInvoice(data);
+          const updatedInvoiceModal = {
+            ...data,
+            items: data.items.map((item) => ({
+              ...item,
+              availableLocations:
+                initialItems.find(
+                  (warehouseItem) => warehouseItem.item_name === item.item_name
+                )?.locations || [],
+            })),
+          };
+
+          setSelectedInvoice(updatedInvoiceModal);
         } catch (err) {
           console.error("Error fetching updated invoice:", err);
         }
@@ -434,7 +445,6 @@ export default function Invoices() {
     }
   };
   const handleDelete = async (id) => {
-    console.log(id);
     const isConfirmed = window.confirm(
       "Are you sure you want to delete this user?"
     );
@@ -502,7 +512,7 @@ export default function Invoices() {
 
       setSelectedInvoice(updatedSelectedInvoice);
 
-      console.log("Updated selectedInvoice:", updatedSelectedInvoice);
+      // console.log("Updated selectedInvoice:", updatedSelectedInvoice);
 
       if (editingInvoice) {
         const updatedEditingItems = editingInvoice.items.filter(
@@ -557,7 +567,6 @@ export default function Invoices() {
       total_amount: totalAmount,
     });
   };
-  console.log(invoices);
 
   return (
     <div className={styles.container}>
@@ -834,7 +843,7 @@ export default function Invoices() {
                                   item.name ===
                                   (editingInvoice.machine_name ||
                                     selectedInvoice.machine_name)
-                              ) || null
+                              ) || ""
                             }
                             sx={{
                               minWidth: "300px",
@@ -879,7 +888,7 @@ export default function Invoices() {
                                   item.name ===
                                   (editingInvoice.mechanism_name ||
                                     selectedInvoice.mechanism_name)
-                              ) || null
+                              ) || ""
                             }
                             sx={{
                               minWidth: "300px",
@@ -950,7 +959,6 @@ export default function Invoices() {
                           }}
                           className={styles.tableCellRow}
                         >
-                          {console.log(row, index)}
                           {index + 1}
                           {isEditingInvoice && (
                             <button
@@ -972,7 +980,7 @@ export default function Invoices() {
                                     item.item_name ===
                                     (editingInvoice.items[index]?.item_name ||
                                       row.item_name)
-                                ) || null
+                                ) || ""
                               }
                               sx={{
                                 minWidth: "300px",
@@ -1020,7 +1028,6 @@ export default function Invoices() {
                         </TableCell> */}
 
                         <TableCell className={styles.tableCellRow}>
-                          {console.log(row.availableLocations)}
                           {isEditingInvoice ? (
                             <Autocomplete
                               value={
@@ -1030,7 +1037,7 @@ export default function Invoices() {
                                   (loc) =>
                                     loc.location ===
                                     editingInvoice.items[index]?.location
-                                ) || null
+                                ) || ""
                               }
                               sx={{
                                 minWidth: "300px",
@@ -1366,7 +1373,7 @@ export default function Invoices() {
                         padding: "10px",
                       }}
                       type="text"
-                      value={editingInvoice.Warehouse_manager}
+                      value={editingInvoice.Warehouse_manager || ""}
                       onChange={(e) =>
                         setEditingInvoice({
                           ...editingInvoice,
