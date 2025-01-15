@@ -21,11 +21,11 @@ const links = [
     href: "/others",
   },
   {
-    text: "الفواتير",
+    text: "إدارة العمليات",
     href: "/invoices",
   },
   {
-    text: "إنشاء فاتورة",
+    text: "إنشاء عملية",
     href: "/createinvoice",
   },
   {

@@ -223,12 +223,12 @@ export default function Invoices() {
 
   // filters invoices
   const [operationType, setOperationType] = useState("");
-  const operationTypes = ["كل الفواتير", "اضافه", "صرف", "امانات", "مرتجع"];
+  const operationTypes = ["جميع العمليات", "اضافه", "صرف", "امانات", "مرتجع"];
   const filteredAndFormattedData = invoices
     .filter(
       (invoice) =>
         operationType === "" ||
-        operationType === "كل الفواتير" ||
+        operationType === "جميع العمليات" ||
         invoice.type === operationType
     )
     .map((invoice) => ({
@@ -570,7 +570,7 @@ export default function Invoices() {
 
   return (
     <div className={styles.container}>
-      <h1 className={styles.head}> الفواتير</h1>
+      <h1 className={styles.head}> العمليات</h1>
       {/* filter type invoice */}
       <Box
         sx={{
@@ -587,21 +587,23 @@ export default function Invoices() {
             key={type}
             variant={
               operationType === type ||
-              (type === "كل الفواتير" && operationType === "")
+              (type === "جميع العمليات" && operationType === "")
                 ? "contained"
                 : "outlined"
             }
-            onClick={() => setOperationType(type === "كل الفواتير" ? "" : type)}
+            onClick={() =>
+              setOperationType(type === "جميع العمليات" ? "" : type)
+            }
             sx={{
               backgroundColor:
                 operationType === type ||
-                (type === "كل الفواتير" && operationType === "")
+                (type === "جميع العمليات" && operationType === "")
                   ? primaryColor
                   : "",
               border: `1px solid ${primaryColor}`,
               color:
                 operationType === type ||
-                (type === "كل الفواتير" && operationType === "")
+                (type === "جميع العمليات" && operationType === "")
                   ? "white"
                   : primaryColor,
             }}
@@ -837,6 +839,17 @@ export default function Invoices() {
                       <TableCell className={styles.tableInputCell} colSpan={5}>
                         {isEditingInvoice ? (
                           <Autocomplete
+                            slotProps={{
+                              paper: {
+                                sx: {
+                                  "& .MuiAutocomplete-listbox": {
+                                    "& .MuiAutocomplete-option": {
+                                      direction: "rtl",
+                                    },
+                                  },
+                                },
+                              },
+                            }}
                             value={
                               machines.find(
                                 (item) =>
@@ -882,6 +895,17 @@ export default function Invoices() {
                       <TableCell className={styles.tableInputCell} colSpan={5}>
                         {isEditingInvoice ? (
                           <Autocomplete
+                            slotProps={{
+                              paper: {
+                                sx: {
+                                  "& .MuiAutocomplete-listbox": {
+                                    "& .MuiAutocomplete-option": {
+                                      direction: "rtl",
+                                    },
+                                  },
+                                },
+                              },
+                            }}
                             value={
                               mechanisms.find(
                                 (item) =>
@@ -974,6 +998,17 @@ export default function Invoices() {
                         <TableCell className={styles.tableCellRow}>
                           {isEditingInvoice ? (
                             <Autocomplete
+                              slotProps={{
+                                paper: {
+                                  sx: {
+                                    "& .MuiAutocomplete-listbox": {
+                                      "& .MuiAutocomplete-option": {
+                                        direction: "rtl",
+                                      },
+                                    },
+                                  },
+                                },
+                              }}
                               value={
                                 initialItems.find(
                                   (item) =>
@@ -1030,6 +1065,17 @@ export default function Invoices() {
                         <TableCell className={styles.tableCellRow}>
                           {isEditingInvoice ? (
                             <Autocomplete
+                              slotProps={{
+                                paper: {
+                                  sx: {
+                                    "& .MuiAutocomplete-listbox": {
+                                      "& .MuiAutocomplete-option": {
+                                        direction: "rtl",
+                                      },
+                                    },
+                                  },
+                                },
+                              }}
                               value={
                                 editingInvoice.items[
                                   index
@@ -1095,8 +1141,16 @@ export default function Invoices() {
                                 row.quantity
                               }
                               onInput={(e) => {
+                                const maxQuantity =
+                                  row.availableLocations?.[index]?.quantity ||
+                                  0;
+
                                 if (e.target.value < 0) {
                                   e.target.value = 0;
+                                }
+
+                                if (e.target.value > maxQuantity) {
+                                  e.target.value = maxQuantity;
                                 }
                               }}
                               onChange={(e) => {

@@ -235,7 +235,7 @@
 /* Buttons Section */
 .buttonsSection {
     display: flex;
-    justify-content: space-between;
+    justify-content: space-around;
     flex-wrap: wrap;
     gap: 30%;
     margin-top: 30px;
@@ -245,7 +245,7 @@
     padding: 0px 24px !important;
     border-radius: 12px !important;
     font-weight: bold !important;
-    flex: 1;
+    /* flex: 1; */
     font-size: 1.5rem !important;
 }
 
