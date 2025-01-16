@@ -41,17 +41,26 @@ export default function Type1() {
   const [operationType, setOperationType] = useState("");
   const [purchasesType, setPurchasesType] = useState("");
   useEffect(() => {
-    if (operationType !== "") {
-      setLastSelected(operationType);
-      setPurchasesType("");
+    if (operationType) {
+      if (lastSelected !== operationType) {
+        setLastSelected(operationType);
+        setPurchasesType("");
+        setNewInvoice((prevInvoice) => ({
+          ...prevInvoice,
+          type: operationType,
+        }));
+      }
+    } else if (purchasesType) {
+      if (lastSelected !== purchasesType) {
+        setLastSelected(purchasesType);
+        setOperationType("");
+        setNewInvoice((prevInvoice) => ({
+          ...prevInvoice,
+          type: purchasesType,
+        }));
+      }
     }
-    if (operationType || purchasesType) {
-      setNewInvoice({
-        ...newInvoice,
-        type: operationType || purchasesType,
-      });
-    }
-  }, [operationType]);
+  }, [operationType, purchasesType, lastSelected]);
 
   useEffect(() => {
     if (purchasesType !== "") {
@@ -239,27 +248,26 @@ export default function Type1() {
     }, 0)
     .toFixed(2);
 
+  // save invoice or not
+  const [isInvoiceSaved, setIsInvoiceSaved] = useState(false);
+
   // Fetch last voucher ID
   const [voucherNumber, setVoucherNumber] = useState(null);
-  useEffect(() => {
-    const fetchVoucherId = async () => {
-      const accessToken = localStorage.getItem("access_token");
-      if (!accessToken) return;
-      try {
-        const response = await fetch("http://127.0.0.1:5000/invoice/last-id", {
-          method: "GET",
-          headers: { Authorization: `Bearer ${accessToken}` },
-        });
-        if (!response.ok) return;
-        const data = await response.json();
-        setVoucherNumber(data.last_id);
-      } catch (err) {
-        console.error("Error fetching voucher ID:", err);
-      }
-    };
-    fetchVoucherId();
-  }, []);
-
+  const fetchVoucherId = async () => {
+    const accessToken = localStorage.getItem("access_token");
+    if (!accessToken) return;
+    try {
+      const response = await fetch("http://127.0.0.1:5000/invoice/last-id", {
+        method: "GET",
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (!response.ok) return;
+      const data = await response.json();
+      setVoucherNumber(data.last_id);
+    } catch (err) {
+      console.error("Error fetching voucher ID:", err);
+    }
+  };
   // Clear Invoice
   const clearInvoice = () => {
     setNewInvoice({
@@ -288,10 +296,15 @@ export default function Type1() {
     ]);
     setShowCommentField(false);
     setIsInvoiceSaved(false);
-  };
+    setLastSelected("");
+    setPurchasesType("");
+    setOperationType("");
 
-  // save invoice or not
-  const [isInvoiceSaved, setIsInvoiceSaved] = useState(false);
+    fetchVoucherId();
+  };
+  useEffect(() => {
+    fetchVoucherId();
+  }, []);
 
   // Get Date and Time
   const [date, setDate] = useState("");
@@ -323,6 +336,18 @@ export default function Type1() {
 
   // save invoice
   const handleSave = async () => {
+    if (newInvoice.type === "") {
+      setSnackbarMessage("يجب تحديد نوع العملية");
+      setSnackBarType("info");
+      setOpenSnackbar(true);
+      return;
+    }
+    if (newInvoice.machine_name === "" || newInvoice.mechanism_name === "") {
+      setSnackbarMessage("يجب ملئ اسم الماكينة واسم الميكانيزم");
+      setSnackBarType("info");
+      setOpenSnackbar(true);
+      return;
+    }
     const newRows = rows.filter((row) => row.quantity !== 0);
     if (newRows.length === 0) {
       setSnackbarMessage("يجب ملئ عنصر واحد على الأقل");
@@ -331,7 +356,6 @@ export default function Type1() {
       return;
     }
 
-    setIsInvoiceSaved(true);
     const updatedInvoice = {
       ...newInvoice,
       total_amount: totalAmount,
@@ -343,12 +367,11 @@ export default function Type1() {
         description: row.description,
       })),
     };
-    setRows(rows.filter((row) => row.quantity !== 0));
-    setNewInvoice(updatedInvoice);
-    // console.log("new invoice being set: ", updatedInvoice);
+    console.log("new invoice being set: ", updatedInvoice);
     const accessToken = localStorage.getItem("access_token");
     if (!accessToken) return;
     try {
+      console.log(lastSelected);
       const response = await fetch("http://127.0.0.1:5000/invoice/", {
         method: "POST",
         headers: {
@@ -361,6 +384,7 @@ export default function Type1() {
         throw new Error("Failed to save invoice");
       }
       setIsInvoiceSaved(true);
+      setRows(rows.filter((row) => row.quantity !== 0));
       setSnackbarMessage("تم حفظ الفاتورة بنجاح");
       setSnackBarType("success");
       setOpenSnackbar(true);

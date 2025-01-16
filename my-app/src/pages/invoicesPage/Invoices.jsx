@@ -9,7 +9,6 @@ import {
   Button,
   PaginationItem,
   Box,
-  Modal,
   Typography,
   Autocomplete,
   TextField,
@@ -180,35 +179,50 @@ export default function Invoices() {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
       const data = await response.json();
-      const updatedData = data.map((invoice) => ({
-        ...invoice,
-        items: invoice.items.map((item) => {
-          const matchedItem = initialItems.find(
-            (warehouseItem) => warehouseItem.item_name === item.item_name
-          );
-          if (matchedItem) {
-            return {
-              ...item,
-              availableLocations: matchedItem.locations,
-            };
-          }
+      const updatedData = data
+        .map((invoice) => {
+          const [date, timeWithSeconds] = invoice.created_at.split(" ");
+
+          const [hours, minutes] = timeWithSeconds.split(":");
+
+          const hoursIn12Format = hours % 12 || 12;
+          const ampm = hours >= 12 ? "PM" : "AM";
+          const time = `${hoursIn12Format}:${minutes} ${ampm}`;
+
           return {
-            ...item,
-            availableLocations: [],
+            ...invoice,
+            date,
+            time,
+            items: invoice.items.map((item) => {
+              const matchedItem = initialItems.find(
+                (warehouseItem) => warehouseItem.item_name === item.item_name
+              );
+              if (matchedItem) {
+                return {
+                  ...item,
+                  availableLocations: matchedItem.locations,
+                };
+              }
+              return {
+                ...item,
+                availableLocations: [],
+              };
+            }),
           };
-        }),
-      }));
+        })
+        .reverse();
 
       setInvoices(updatedData);
     } catch (err) {
       console.error("Error fetching user data:", err);
     }
   };
+
   useEffect(() => {
     fetchItemsData();
   }, [initialItems]);
 
-  // open edit modal
+  // open close modal
   const openInvoice = (id) => {
     const invoice = invoices.find((item) => item.id === id);
     setSelectedInvoice(invoice);
@@ -220,6 +234,17 @@ export default function Invoices() {
     setEditingInvoice(null);
     setIsEditingInvoice(false);
   };
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape" && isModalOpen) {
+        closeModal();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isModalOpen]);
 
   // filters invoices
   const [operationType, setOperationType] = useState("");
@@ -265,12 +290,13 @@ export default function Invoices() {
     { flex: 1, field: "employee_name", headerName: "اسم الموظف" },
     { flex: 1, field: "Warehouse_manager", headerName: "مدير المخزن" },
     { flex: 1, field: "client_name", headerName: "اسم العميل" },
-    // { flex: 1, field: "time", headerName: "وقت اصدار الفاتورة" },
-    // {
-    //   flex: 1,
-    //   field: "date",
-    //   headerName: "تاريخ اصدار الفاتورة",
-    // },
+    { flex: 1, field: "time", headerName: "وقت اصدار الفاتورة" },
+    {
+      flex: 1,
+      field: "date",
+      headerName: "تاريخ اصدار الفاتورة",
+      // type: "datetime",
+    },
     { flex: 1, field: "type", headerName: "نوع العملية" },
     { field: "id", headerName: "#" },
   ];
@@ -675,327 +701,183 @@ export default function Invoices() {
         }}
       />
 
-      {/* invoice data */}
-      <Modal
-        open={isModalOpen}
-        onClose={closeModal}
-        aria-labelledby="modal-title"
-        aria-describedby="modal-description"
-      >
-        <Box
-          sx={{
-            position: "absolute",
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-            width: "80%",
-            bgcolor: "#fff",
-            boxShadow: 24,
-            p: 4,
-            borderRadius: 2,
-            maxHeight: "75vh",
-            overflowY: "auto",
-            backgroundColor: "#eee",
+      {isModalOpen && (
+        <div
+          className="backdrop"
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0,0,0,0.5)",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            zIndex: 1000,
           }}
+          onClick={closeModal}
         >
-          <Typography
-            id="modal-title"
-            variant="h6"
-            component="h2"
+          {/* Invoice Details Box */}
+          <Box
             sx={{
-              textAlign: "center",
-              fontWeight: "bold",
-              fontSize: "1.2rem",
-              marginBottom: "16px",
-              color: "#1976d2",
+              width: "80%",
+              bgcolor: "#fff",
+              boxShadow: 24,
+              p: 4,
+              borderRadius: 2,
+              maxHeight: "75vh",
+              overflowY: "auto",
+              backgroundColor: "#eee",
               position: "relative",
+              zIndex: 1001, // Ensure it's above the backdrop
             }}
+            onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside the box
           >
-            تفاصيل الفاتورة
-            <Divider sx={{ marginTop: 5 }} />
-            {isEditingInvoice ? (
-              <div>
+            <Typography
+              id="modal-title"
+              variant="h6"
+              component="h2"
+              sx={{
+                textAlign: "center",
+                fontWeight: "bold",
+                fontSize: "1.2rem",
+                marginBottom: "16px",
+                color: "#1976d2",
+                position: "relative",
+              }}
+            >
+              تفاصيل الفاتورة
+              <Divider sx={{ marginTop: 5 }} />
+              {isEditingInvoice ? (
+                <div>
+                  <button
+                    onClick={() => {
+                      setIsEditingInvoice(false);
+                    }}
+                    className={styles.iconBtn}
+                    style={{
+                      color: "#d32f2f",
+                      position: "absolute",
+                      top: "0px",
+                      left: "0px",
+                    }}
+                  >
+                    <ClearOutlinedIcon />
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleSave(editingInvoice);
+                    }}
+                    className={styles.iconBtn}
+                    style={{
+                      color: "#1976d2",
+                      position: "absolute",
+                      top: "0px",
+                      left: "30px",
+                    }}
+                  >
+                    <SaveIcon />
+                  </button>
+                </div>
+              ) : (
                 <button
                   onClick={() => {
-                    setIsEditingInvoice(false);
-                  }}
-                  className={styles.iconBtn}
-                  style={{
-                    color: "#d32f2f",
-                    position: "absolute",
-                    top: "0px",
-                    left: "0px",
-                  }}
-                >
-                  <ClearOutlinedIcon />
-                </button>
-                <button
-                  onClick={() => {
-                    handleSave(editingInvoice);
+                    handleEditInfo(selectedInvoice);
                   }}
                   className={styles.iconBtn}
                   style={{
                     color: "#1976d2",
                     position: "absolute",
                     top: "0px",
-                    left: "30px",
+                    left: "0px",
                   }}
                 >
-                  <SaveIcon />
+                  <EditIcon />
                 </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => {
-                  handleEditInfo(selectedInvoice);
-                }}
-                className={styles.iconBtn}
-                style={{
-                  color: "#1976d2",
-                  position: "absolute",
-                  top: "0px",
-                  left: "0px",
-                }}
-              >
-                <EditIcon />
-              </button>
-            )}
-          </Typography>
-          {selectedInvoice && (
-            <>
-              {/* header part */}
-              <Box className={styles.headerSection}>
-                <Box className={styles.logoBox}>
-                  <img src={logo} alt="Logo" className={styles.logoImage} />
-                </Box>
-                <Box className={styles.operationTypeBox}>
-                  <Box className={styles.operationTypeText}>نوع العملية</Box>
-                  <Box className={styles.operationTypeName}>
-                    {isEditingInvoice ? (
-                      <select
-                        value={editingInvoice.type}
-                        onChange={(e) =>
-                          setEditingInvoice({
-                            ...editingInvoice,
-                            type: e.target.value,
-                          })
-                        }
-                        style={{
-                          border: "1px solid #ddd",
-                          width: "170px",
-                          padding: "5px",
-                          borderRadius: "4px",
-                          outline: "none",
-                          fontSize: "15px",
-                          textAlign: "center",
-                        }}
-                      >
-                        <option value="اضافه">إضافة</option>
-                        <option value="صرف">صرف</option>
-                        <option value="حذف">حذف</option>
-                      </select>
-                    ) : (
-                      selectedInvoice.type
-                    )}
+              )}
+            </Typography>
+            {selectedInvoice && (
+              <>
+                {/* header part */}
+                <Box className={styles.headerSection}>
+                  <Box className={styles.logoBox}>
+                    <img src={logo} alt="Logo" className={styles.logoImage} />
                   </Box>
-                </Box>
-                <Box className={styles.infoBox}>
-                  <Box className={styles.infoItem}>
-                    <Box className={styles.infoLabel}>رقم السند:</Box>
-                    <Box className={styles.infoValue}>{selectedInvoice.id}</Box>
-                  </Box>
-                  {/* <Box className={styles.infoItem}>
-                    <Box className={styles.infoLabel}>التاريخ</Box>
-                    <Box className={styles.infoValue}>
-                      {selectedInvoice.date}
-                    </Box>
-                  </Box>
-                  <Box className={styles.infoItem}>
-                    <Box className={styles.infoLabel}>الوقت</Box>
-                    <Box className={styles.infoValue}>
-                      {selectedInvoice.time}
-                    </Box>
-                  </Box> */}
-                </Box>
-              </Box>
-
-              {/* table Manager */}
-              <Box className={styles.tableSection} sx={{ direction: "rtl" }}>
-                <Table
-                  className={styles.customTable}
-                  sx={{
-                    "& .MuiTableCell-root": {
-                      border: "1px solid #b2b0b0",
-                      padding: "12px",
-                      textAlign: "center",
-                    },
-                  }}
-                >
-                  <TableBody>
-                    <TableRow className={styles.tableRow}>
-                      <TableCell className={styles.tableCell} colSpan={2}>
-                        اسم الماكينة
-                      </TableCell>
-                      <TableCell className={styles.tableInputCell} colSpan={5}>
-                        {isEditingInvoice ? (
-                          <Autocomplete
-                            slotProps={{
-                              paper: {
-                                sx: {
-                                  "& .MuiAutocomplete-listbox": {
-                                    "& .MuiAutocomplete-option": {
-                                      direction: "rtl",
-                                    },
-                                  },
-                                },
-                              },
-                            }}
-                            value={
-                              machines.find(
-                                (item) =>
-                                  item.name ===
-                                  (editingInvoice.machine_name ||
-                                    selectedInvoice.machine_name)
-                              ) || ""
-                            }
-                            sx={{
-                              minWidth: "300px",
-                              "& .MuiOutlinedInput-root": {
-                                padding: "10px",
-                              },
-                              "& .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline":
-                                {
-                                  border: "none",
-                                },
-                            }}
-                            options={machines}
-                            getOptionLabel={(option) => option.name}
-                            onChange={(event, newValue) =>
-                              setEditingInvoice({
-                                ...editingInvoice,
-                                machine_name: newValue ? newValue.name : "",
-                              })
-                            }
-                            renderInput={(params) => (
-                              <TextField
-                                {...params}
-                                placeholder="اسم الماكينة"
-                              />
-                            )}
-                          />
-                        ) : (
-                          selectedInvoice.machine_name
-                        )}
-                      </TableCell>
-                    </TableRow>
-                    <TableRow className={styles.tableRow}>
-                      <TableCell className={styles.tableCell} colSpan={2}>
-                        اسم الميكانيزم
-                      </TableCell>
-                      <TableCell className={styles.tableInputCell} colSpan={5}>
-                        {isEditingInvoice ? (
-                          <Autocomplete
-                            slotProps={{
-                              paper: {
-                                sx: {
-                                  "& .MuiAutocomplete-listbox": {
-                                    "& .MuiAutocomplete-option": {
-                                      direction: "rtl",
-                                    },
-                                  },
-                                },
-                              },
-                            }}
-                            value={
-                              mechanisms.find(
-                                (item) =>
-                                  item.name ===
-                                  (editingInvoice.mechanism_name ||
-                                    selectedInvoice.mechanism_name)
-                              ) || ""
-                            }
-                            sx={{
-                              minWidth: "300px",
-                              "& .MuiOutlinedInput-root": {
-                                padding: "10px",
-                              },
-                              "& .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline":
-                                {
-                                  border: "none",
-                                },
-                            }}
-                            options={mechanisms}
-                            getOptionLabel={(option) => option.name}
-                            onChange={(event, newValue) =>
-                              setEditingInvoice({
-                                ...editingInvoice,
-                                mechanism_name: newValue ? newValue.name : "",
-                              })
-                            }
-                            renderInput={(params) => (
-                              <TextField
-                                {...params}
-                                placeholder="اسم الماكينة"
-                              />
-                            )}
-                          />
-                        ) : (
-                          selectedInvoice.mechanism_name
-                        )}
-                      </TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell className={styles.tableCell}>
-                        <AddIcon onClick={addRow} className={styles.addIcon} />
-                      </TableCell>
-                      <TableCell className={styles.tableCell}>
-                        اسم الصنف
-                      </TableCell>
-                      {/* <TableCell className={styles.tableCell}>الرمز</TableCell> */}
-                      <TableCell className={styles.tableCell}>الموقع</TableCell>
-                      <TableCell className={styles.tableCell}>الكمية</TableCell>
-                      {selectedInvoice.type !== "اضافه" ? (
-                        ""
-                      ) : (
-                        <>
-                          {/* <TableCell className={styles.tableCell}>
-                            السعر
-                          </TableCell> */}
-                          <TableCell className={styles.tableCell}>
-                            إجمالي السعر
-                          </TableCell>
-                        </>
-                      )}
-
-                      <TableCell colSpan={2} className={styles.tableCell}>
-                        بيان
-                      </TableCell>
-                    </TableRow>
-
-                    {(isEditingInvoice
-                      ? editingInvoice.items
-                      : selectedInvoice.items
-                    ).map((row, index) => (
-                      <TableRow key={index}>
-                        <TableCell
-                          sx={{
-                            position: "relative",
+                  <Box className={styles.operationTypeBox}>
+                    <Box className={styles.operationTypeText}>نوع العملية</Box>
+                    <Box className={styles.operationTypeName}>
+                      {isEditingInvoice ? (
+                        <select
+                          value={editingInvoice.type}
+                          onChange={(e) =>
+                            setEditingInvoice({
+                              ...editingInvoice,
+                              type: e.target.value,
+                            })
+                          }
+                          style={{
+                            border: "1px solid #ddd",
+                            width: "170px",
+                            padding: "5px",
+                            borderRadius: "4px",
+                            outline: "none",
+                            fontSize: "15px",
+                            textAlign: "center",
                           }}
-                          className={styles.tableCellRow}
                         >
-                          {index + 1}
-                          {isEditingInvoice && (
-                            <button
-                              onClick={() =>
-                                handleDeleteItem(selectedInvoice.id, index)
-                              }
-                              className={styles.clearIcon}
-                            >
-                              <ClearOutlinedIcon fontSize="small" />
-                            </button>
-                          )}
+                          <option value="اضافه">إضافة</option>
+                          <option value="صرف">صرف</option>
+                          <option value="حذف">حذف</option>
+                        </select>
+                      ) : (
+                        selectedInvoice.type
+                      )}
+                    </Box>
+                  </Box>
+                  <Box className={styles.infoBox}>
+                    <Box className={styles.infoItem}>
+                      <Box className={styles.infoLabel}>رقم السند:</Box>
+                      <Box className={styles.infoValue}>
+                        {selectedInvoice.id}
+                      </Box>
+                    </Box>
+                    <Box className={styles.infoItem}>
+                      <Box className={styles.infoLabel}>التاريخ</Box>
+                      <Box className={styles.infoValue}>
+                        {selectedInvoice.date}
+                      </Box>
+                    </Box>
+                    <Box className={styles.infoItem}>
+                      <Box className={styles.infoLabel}>الوقت</Box>
+                      <Box className={styles.infoValue}>
+                        {selectedInvoice.time}
+                      </Box>
+                    </Box>
+                  </Box>
+                </Box>
+
+                {/* table Manager */}
+                <Box className={styles.tableSection} sx={{ direction: "rtl" }}>
+                  <Table
+                    className={styles.customTable}
+                    sx={{
+                      "& .MuiTableCell-root": {
+                        border: "1px solid #b2b0b0",
+                        padding: "12px",
+                        textAlign: "center",
+                      },
+                    }}
+                  >
+                    <TableBody>
+                      <TableRow className={styles.tableRow}>
+                        <TableCell className={styles.tableCell} colSpan={2}>
+                          اسم الماكينة
                         </TableCell>
-                        <TableCell className={styles.tableCellRow}>
+                        <TableCell
+                          className={styles.tableInputCell}
+                          colSpan={5}
+                        >
                           {isEditingInvoice ? (
                             <Autocomplete
                               slotProps={{
@@ -1010,11 +892,11 @@ export default function Invoices() {
                                 },
                               }}
                               value={
-                                initialItems.find(
+                                machines.find(
                                   (item) =>
-                                    item.item_name ===
-                                    (editingInvoice.items[index]?.item_name ||
-                                      row.item_name)
+                                    item.name ===
+                                    (editingInvoice.machine_name ||
+                                      selectedInvoice.machine_name)
                                 ) || ""
                               }
                               sx={{
@@ -1027,42 +909,34 @@ export default function Invoices() {
                                     border: "none",
                                   },
                               }}
-                              options={initialItems}
-                              getOptionLabel={(option) => option.item_name}
-                              onChange={(e, newValue) => {
-                                const updatedItems = [...editingInvoice.items];
-                                updatedItems[index] = {
-                                  ...updatedItems[index],
-                                  item_name: newValue?.item_name || "",
-                                  item_bar: newValue?.item_bar || "",
-                                  location: "",
-                                  availableLocations: newValue?.locations || [],
-                                };
+                              options={machines}
+                              getOptionLabel={(option) => option.name}
+                              onChange={(event, newValue) =>
                                 setEditingInvoice({
                                   ...editingInvoice,
-                                  items: updatedItems,
-                                });
-                              }}
+                                  machine_name: newValue ? newValue.name : "",
+                                })
+                              }
                               renderInput={(params) => (
                                 <TextField
                                   {...params}
-                                  placeholder="اسم العنصر"
+                                  placeholder="اسم الماكينة"
                                 />
                               )}
                             />
                           ) : (
-                            row.item_name
+                            selectedInvoice.machine_name
                           )}
                         </TableCell>
-                        {/* 
-                        <TableCell className={styles.tableCellRow}>
-                          {isEditingInvoice
-                            ? editingInvoice.items[index]?.item_bar ||
-                              row.item_bar
-                            : row.item_bar}
-                        </TableCell> */}
-
-                        <TableCell className={styles.tableCellRow}>
+                      </TableRow>
+                      <TableRow className={styles.tableRow}>
+                        <TableCell className={styles.tableCell} colSpan={2}>
+                          اسم الميكانيزم
+                        </TableCell>
+                        <TableCell
+                          className={styles.tableInputCell}
+                          colSpan={5}
+                        >
                           {isEditingInvoice ? (
                             <Autocomplete
                               slotProps={{
@@ -1077,12 +951,11 @@ export default function Invoices() {
                                 },
                               }}
                               value={
-                                editingInvoice.items[
-                                  index
-                                ]?.availableLocations?.find(
-                                  (loc) =>
-                                    loc.location ===
-                                    editingInvoice.items[index]?.location
+                                mechanisms.find(
+                                  (item) =>
+                                    item.name ===
+                                    (editingInvoice.mechanism_name ||
+                                      selectedInvoice.mechanism_name)
                                 ) || ""
                               }
                               sx={{
@@ -1095,101 +968,288 @@ export default function Invoices() {
                                     border: "none",
                                   },
                               }}
-                              options={
-                                editingInvoice.items[index]
-                                  ?.availableLocations || []
-                              }
-                              getOptionLabel={(option) => option.location || ""}
-                              onChange={(e, newValue) => {
-                                const updatedItems = [...editingInvoice.items];
-                                updatedItems[index] = {
-                                  ...updatedItems[index],
-                                  location: newValue?.location || "",
-                                };
+                              options={mechanisms}
+                              getOptionLabel={(option) => option.name}
+                              onChange={(event, newValue) =>
                                 setEditingInvoice({
                                   ...editingInvoice,
-                                  items: updatedItems,
-                                });
-                              }}
+                                  mechanism_name: newValue ? newValue.name : "",
+                                })
+                              }
                               renderInput={(params) => (
-                                <TextField {...params} placeholder="الموقع" />
+                                <TextField
+                                  {...params}
+                                  placeholder="اسم الماكينة"
+                                />
                               )}
                             />
                           ) : (
-                            row.location
+                            selectedInvoice.mechanism_name
                           )}
                         </TableCell>
-
-                        <TableCell className={styles.tableCellRow}>
-                          {isEditingInvoice ? (
-                            <input
-                              style={{
-                                width: "100%",
-                                outline: "none",
-                                fontSize: "15px",
-                                textAlign: "center",
-                                border: "none",
-                                padding: "10px",
-                              }}
-                              type="number"
-                              min="0"
-                              max={
-                                row.availableLocations?.[index]?.quantity || 0
-                              }
-                              value={
-                                editingInvoice.items[index]?.quantity ||
-                                row.quantity
-                              }
-                              onInput={(e) => {
-                                const maxQuantity =
-                                  row.availableLocations?.[index]?.quantity ||
-                                  0;
-
-                                if (e.target.value < 0) {
-                                  e.target.value = 0;
-                                }
-
-                                if (e.target.value > maxQuantity) {
-                                  e.target.value = maxQuantity;
-                                }
-                              }}
-                              onChange={(e) => {
-                                const newQuantity = Math.max(
-                                  0,
-                                  Number(e.target.value)
-                                );
-                                const updatedItems = [...editingInvoice.items];
-                                updatedItems[index] = {
-                                  ...row,
-                                  quantity: newQuantity,
-                                  total_price:
-                                    newQuantity *
-                                    (row.availableLocations?.[index]
-                                      ?.price_unit || 0),
-                                };
-
-                                const totalAmount = updatedItems.reduce(
-                                  (sum, item) => sum + (item.total_price || 0),
-                                  0
-                                );
-
-                                setEditingInvoice({
-                                  ...editingInvoice,
-                                  items: updatedItems,
-                                  total_amount: totalAmount,
-                                });
-                              }}
-                            />
-                          ) : (
-                            row.quantity
-                          )}
+                      </TableRow>
+                      <TableRow>
+                        <TableCell className={styles.tableCell}>
+                          <AddIcon
+                            onClick={addRow}
+                            className={styles.addIcon}
+                          />
                         </TableCell>
-
+                        <TableCell className={styles.tableCell}>
+                          اسم الصنف
+                        </TableCell>
+                        <TableCell className={styles.tableCell}>
+                          الرمز
+                        </TableCell>
+                        <TableCell className={styles.tableCell}>
+                          الموقع
+                        </TableCell>
+                        <TableCell className={styles.tableCell}>
+                          الكمية
+                        </TableCell>
                         {selectedInvoice.type !== "اضافه" ? (
                           ""
                         ) : (
                           <>
-                            {/* <TableCell className={styles.tableCellRow}>
+                            {/* <TableCell className={styles.tableCell}>
+                            السعر
+                          </TableCell> */}
+                            <TableCell className={styles.tableCell}>
+                              إجمالي السعر
+                            </TableCell>
+                          </>
+                        )}
+
+                        <TableCell colSpan={2} className={styles.tableCell}>
+                          بيان
+                        </TableCell>
+                      </TableRow>
+
+                      {(isEditingInvoice
+                        ? editingInvoice.items
+                        : selectedInvoice.items
+                      ).map((row, index) => (
+                        <TableRow key={index}>
+                          <TableCell
+                            sx={{
+                              position: "relative",
+                            }}
+                            className={styles.tableCellRow}
+                          >
+                            {index + 1}
+                            {isEditingInvoice && (
+                              <button
+                                onClick={() =>
+                                  handleDeleteItem(selectedInvoice.id, index)
+                                }
+                                className={styles.clearIcon}
+                              >
+                                <ClearOutlinedIcon fontSize="small" />
+                              </button>
+                            )}
+                          </TableCell>
+                          <TableCell className={styles.tableCellRow}>
+                            {isEditingInvoice ? (
+                              <Autocomplete
+                                slotProps={{
+                                  paper: {
+                                    sx: {
+                                      "& .MuiAutocomplete-listbox": {
+                                        "& .MuiAutocomplete-option": {
+                                          direction: "rtl",
+                                        },
+                                      },
+                                    },
+                                  },
+                                }}
+                                value={
+                                  initialItems.find(
+                                    (item) =>
+                                      item.item_name ===
+                                      (editingInvoice.items[index]?.item_name ||
+                                        row.item_name)
+                                  ) || ""
+                                }
+                                sx={{
+                                  minWidth: "300px",
+                                  "& .MuiOutlinedInput-root": {
+                                    padding: "10px",
+                                  },
+                                  "& .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline":
+                                    {
+                                      border: "none",
+                                    },
+                                }}
+                                options={initialItems}
+                                getOptionLabel={(option) => option.item_name}
+                                onChange={(e, newValue) => {
+                                  const updatedItems = [
+                                    ...editingInvoice.items,
+                                  ];
+                                  updatedItems[index] = {
+                                    ...updatedItems[index],
+                                    item_name: newValue?.item_name || "",
+                                    item_bar: newValue?.item_bar || "",
+                                    location: "",
+                                    availableLocations:
+                                      newValue?.locations || [],
+                                  };
+                                  setEditingInvoice({
+                                    ...editingInvoice,
+                                    items: updatedItems,
+                                  });
+                                }}
+                                renderInput={(params) => (
+                                  <TextField
+                                    {...params}
+                                    placeholder="اسم العنصر"
+                                  />
+                                )}
+                              />
+                            ) : (
+                              row.item_name
+                            )}
+                          </TableCell>
+
+                          <TableCell className={styles.tableCellRow}>
+                            {row.barcode}
+                          </TableCell>
+
+                          <TableCell className={styles.tableCellRow}>
+                            {isEditingInvoice ? (
+                              <Autocomplete
+                                slotProps={{
+                                  paper: {
+                                    sx: {
+                                      "& .MuiAutocomplete-listbox": {
+                                        "& .MuiAutocomplete-option": {
+                                          direction: "rtl",
+                                        },
+                                      },
+                                    },
+                                  },
+                                }}
+                                value={
+                                  editingInvoice.items[
+                                    index
+                                  ]?.availableLocations?.find(
+                                    (loc) =>
+                                      loc.location ===
+                                      editingInvoice.items[index]?.location
+                                  ) || ""
+                                }
+                                sx={{
+                                  minWidth: "300px",
+                                  "& .MuiOutlinedInput-root": {
+                                    padding: "10px",
+                                  },
+                                  "& .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline":
+                                    {
+                                      border: "none",
+                                    },
+                                }}
+                                options={
+                                  editingInvoice.items[index]
+                                    ?.availableLocations || []
+                                }
+                                getOptionLabel={(option) =>
+                                  option.location || ""
+                                }
+                                onChange={(e, newValue) => {
+                                  const updatedItems = [
+                                    ...editingInvoice.items,
+                                  ];
+                                  updatedItems[index] = {
+                                    ...updatedItems[index],
+                                    location: newValue?.location || "",
+                                  };
+                                  setEditingInvoice({
+                                    ...editingInvoice,
+                                    items: updatedItems,
+                                  });
+                                }}
+                                renderInput={(params) => (
+                                  <TextField {...params} placeholder="الموقع" />
+                                )}
+                              />
+                            ) : (
+                              row.location
+                            )}
+                          </TableCell>
+
+                          <TableCell className={styles.tableCellRow}>
+                            {isEditingInvoice ? (
+                              <input
+                                style={{
+                                  width: "100%",
+                                  outline: "none",
+                                  fontSize: "15px",
+                                  textAlign: "center",
+                                  border: "none",
+                                  padding: "10px",
+                                }}
+                                type="number"
+                                min="0"
+                                max={
+                                  row.availableLocations?.[index]?.quantity || 0
+                                }
+                                value={
+                                  editingInvoice.items[index]?.quantity ||
+                                  row.quantity
+                                }
+                                onInput={(e) => {
+                                  const maxQuantity =
+                                    row.availableLocations?.[index]?.quantity ||
+                                    0;
+
+                                  if (e.target.value < 0) {
+                                    e.target.value = 0;
+                                  }
+
+                                  if (e.target.value > maxQuantity) {
+                                    e.target.value = maxQuantity;
+                                  }
+                                }}
+                                onChange={(e) => {
+                                  const newQuantity = Math.max(
+                                    0,
+                                    Number(e.target.value)
+                                  );
+                                  const updatedItems = [
+                                    ...editingInvoice.items,
+                                  ];
+                                  updatedItems[index] = {
+                                    ...row,
+                                    quantity: newQuantity,
+                                    total_price:
+                                      newQuantity *
+                                      (row.availableLocations?.[index]
+                                        ?.price_unit || 0),
+                                  };
+
+                                  const totalAmount = updatedItems.reduce(
+                                    (sum, item) =>
+                                      sum + (item.total_price || 0),
+                                    0
+                                  );
+
+                                  setEditingInvoice({
+                                    ...editingInvoice,
+                                    items: updatedItems,
+                                    total_amount: totalAmount,
+                                  });
+                                }}
+                              />
+                            ) : (
+                              row.quantity
+                            )}
+                          </TableCell>
+
+                          {selectedInvoice.type !== "اضافه" ? (
+                            ""
+                          ) : (
+                            <>
+                              {/* <TableCell className={styles.tableCellRow}>
                               {isEditingInvoice ? (
                                 <input
                                   style={{
@@ -1243,66 +1303,71 @@ export default function Invoices() {
                                 row.price
                               )}
                             </TableCell> */}
-                            <TableCell className={styles.tableCellRow}>
-                              {isEditingInvoice
-                                ? editingInvoice.items[index]?.total_price
-                                : row.total_price}
-                            </TableCell>
-                          </>
-                        )}
-                        <TableCell colSpan={2} className={styles.tableCellRow}>
-                          {isEditingInvoice ? (
-                            <input
-                              style={{
-                                width: "100%",
-                                outline: "none",
-                                fontSize: "15px",
-                                textAlign: "right",
-                                border: "none",
-                                padding: "10px",
-                              }}
-                              type="text"
-                              value={
-                                editingInvoice.items[index]?.description ||
-                                row.description
-                              }
-                              onChange={(e) => {
-                                const updatedItems = [...editingInvoice.items];
-                                updatedItems[index] = {
-                                  ...row,
-                                  description: e.target.value,
-                                };
-                                setEditingInvoice({
-                                  ...editingInvoice,
-                                  items: updatedItems,
-                                });
-                              }}
-                            />
-                          ) : (
-                            row.description
+                              <TableCell className={styles.tableCellRow}>
+                                {isEditingInvoice
+                                  ? editingInvoice.items[index]?.total_price
+                                  : row.total_price}
+                              </TableCell>
+                            </>
                           )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </Box>
-              {/* total amount */}
-              {selectedInvoice.type !== "اضافه" ? (
-                ""
-              ) : (
-                <Box className={styles.totalAmountSection}>
-                  <Box className={styles.totalAmountBox}>
-                    <Box className={styles.totalAmountLabel}>الإجمالي:</Box>
-                    <Box className={styles.totalAmountValue}>
-                      {editingInvoice?.total_amount ||
-                        selectedInvoice.total_amount}
+                          <TableCell
+                            colSpan={2}
+                            className={styles.tableCellRow}
+                          >
+                            {isEditingInvoice ? (
+                              <input
+                                style={{
+                                  width: "100%",
+                                  outline: "none",
+                                  fontSize: "15px",
+                                  textAlign: "right",
+                                  border: "none",
+                                  padding: "10px",
+                                }}
+                                type="text"
+                                value={
+                                  editingInvoice.items[index]?.description ||
+                                  row.description
+                                }
+                                onChange={(e) => {
+                                  const updatedItems = [
+                                    ...editingInvoice.items,
+                                  ];
+                                  updatedItems[index] = {
+                                    ...row,
+                                    description: e.target.value,
+                                  };
+                                  setEditingInvoice({
+                                    ...editingInvoice,
+                                    items: updatedItems,
+                                  });
+                                }}
+                              />
+                            ) : (
+                              row.description
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </Box>
+                {/* total amount */}
+                {selectedInvoice.type !== "اضافه" ? (
+                  ""
+                ) : (
+                  <Box className={styles.totalAmountSection}>
+                    <Box className={styles.totalAmountBox}>
+                      <Box className={styles.totalAmountLabel}>الإجمالي:</Box>
+                      <Box className={styles.totalAmountValue}>
+                        {editingInvoice?.total_amount ||
+                          selectedInvoice.total_amount}
+                      </Box>
                     </Box>
                   </Box>
-                </Box>
-              )}
-              {/* comment */}
-              {/* <Box className={styles.commentFieldBox}>
+                )}
+                {/* comment */}
+                {/* <Box className={styles.commentFieldBox}>
                 {isEditingInvoice ? (
                   <input
                     style={{
@@ -1326,8 +1391,8 @@ export default function Invoices() {
                   selectedInvoice.comment
                 )}
               </Box> */}
-              {/* note */}
-              {/* {selectedInvoice.note === "" ? (
+                {/* note */}
+                {/* {selectedInvoice.note === "" ? (
                 ""
               ) : (
                 <Box className={styles.commentFieldBox}>
@@ -1357,11 +1422,38 @@ export default function Invoices() {
                   )}
                 </Box>
               )} */}
-              {/* info */}
-              <Box className={styles.infoSection}>
-                <Box className={styles.infoItemBox}>
-                  <Box className={styles.infoLabel}>اسم الموظف</Box>
-                  <Box className={styles.infoValue}>
+                {/* info */}
+                <Box className={styles.infoSection}>
+                  <Box className={styles.infoItemBox}>
+                    <Box className={styles.infoLabel}>اسم الموظف</Box>
+                    <Box className={styles.infoValue}>
+                      {isEditingInvoice ? (
+                        <input
+                          style={{
+                            width: "70%",
+                            margin: "auto",
+                            outline: "none",
+                            fontSize: "15px",
+                            textAlign: "center",
+                            border: "none",
+                            padding: "10px",
+                          }}
+                          type="text"
+                          value={editingInvoice.employee_name}
+                          onChange={(e) =>
+                            setEditingInvoice({
+                              ...editingInvoice,
+                              employee_name: e.target.value,
+                            })
+                          }
+                        />
+                      ) : (
+                        selectedInvoice.employee_name
+                      )}
+                    </Box>
+                  </Box>
+                  <Box className={styles.infoItemBox}>
+                    <Box className={styles.infoLabel}>اسم المستلم</Box>
                     {isEditingInvoice ? (
                       <input
                         style={{
@@ -1374,91 +1466,67 @@ export default function Invoices() {
                           padding: "10px",
                         }}
                         type="text"
-                        value={editingInvoice.employee_name}
+                        value={editingInvoice.client_name}
                         onChange={(e) =>
                           setEditingInvoice({
                             ...editingInvoice,
-                            employee_name: e.target.value,
+                            client_name: e.target.value,
                           })
                         }
                       />
                     ) : (
-                      selectedInvoice.employee_name
+                      selectedInvoice.client_name
+                    )}
+                  </Box>
+                  <Box className={styles.infoItemBox}>
+                    <Box className={styles.infoLabel}>مدير المخازن </Box>
+                    {isEditingInvoice ? (
+                      <input
+                        style={{
+                          width: "70%",
+                          margin: "auto",
+                          outline: "none",
+                          fontSize: "15px",
+                          textAlign: "center",
+                          border: "none",
+                          padding: "10px",
+                        }}
+                        type="text"
+                        value={editingInvoice.Warehouse_manager || ""}
+                        onChange={(e) =>
+                          setEditingInvoice({
+                            ...editingInvoice,
+                            Warehouse_manager: e.target.value,
+                          })
+                        }
+                      />
+                    ) : (
+                      selectedInvoice.Warehouse_manager
                     )}
                   </Box>
                 </Box>
-                <Box className={styles.infoItemBox}>
-                  <Box className={styles.infoLabel}>اسم المستلم</Box>
-                  {isEditingInvoice ? (
-                    <input
-                      style={{
-                        width: "70%",
-                        margin: "auto",
-                        outline: "none",
-                        fontSize: "15px",
-                        textAlign: "center",
-                        border: "none",
-                        padding: "10px",
-                      }}
-                      type="text"
-                      value={editingInvoice.client_name}
-                      onChange={(e) =>
-                        setEditingInvoice({
-                          ...editingInvoice,
-                          client_name: e.target.value,
-                        })
-                      }
-                    />
-                  ) : (
-                    selectedInvoice.client_name
-                  )}
-                </Box>
-                <Box className={styles.infoItemBox}>
-                  <Box className={styles.infoLabel}>مدير المخازن </Box>
-                  {isEditingInvoice ? (
-                    <input
-                      style={{
-                        width: "70%",
-                        margin: "auto",
-                        outline: "none",
-                        fontSize: "15px",
-                        textAlign: "center",
-                        border: "none",
-                        padding: "10px",
-                      }}
-                      type="text"
-                      value={editingInvoice.Warehouse_manager || ""}
-                      onChange={(e) =>
-                        setEditingInvoice({
-                          ...editingInvoice,
-                          Warehouse_manager: e.target.value,
-                        })
-                      }
-                    />
-                  ) : (
-                    selectedInvoice.Warehouse_manager
-                  )}
-                </Box>
-              </Box>
-            </>
-          )}
-          <Divider sx={{ marginTop: 5 }} />
+              </>
+            )}
+            <Divider sx={{ marginTop: 5 }} />
 
-          <Box sx={{ mt: 3, textAlign: "center" }}>
-            <Button
-              onClick={closeModal}
-              variant="contained"
-              color="primary"
-              sx={{
-                borderRadius: "20px",
-                padding: "8px 20px",
-              }}
-            >
-              إغلاق
-            </Button>
+            <Box sx={{ mt: 3, textAlign: "center" }}>
+              <Button
+                onClick={closeModal}
+                variant="contained"
+                color="primary"
+                sx={{
+                  borderRadius: "20px",
+                  padding: "8px 20px",
+                }}
+              >
+                إغلاق
+              </Button>
+            </Box>
           </Box>
-        </Box>
-      </Modal>
+        </div>
+      )}
+
+      {/* invoice data */}
 
       {/* Snackbar */}
       <SnackBar
