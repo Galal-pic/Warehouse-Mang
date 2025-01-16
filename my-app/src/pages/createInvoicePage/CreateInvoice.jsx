@@ -37,7 +37,7 @@ export default function Type1() {
   });
 
   const operationTypes = ["صرف", "أمانات", "مرتجع", "توالف", "حجز"];
-  const purchasesTypes = ["إضافة"];
+  const purchasesTypes = ["اضافه"];
   const [operationType, setOperationType] = useState("");
   const [purchasesType, setPurchasesType] = useState("");
   useEffect(() => {
@@ -383,6 +383,7 @@ export default function Type1() {
       if (!response.ok) {
         throw new Error("Failed to save invoice");
       }
+      fetchWareHousesData();
       setIsInvoiceSaved(true);
       setRows(rows.filter((row) => row.quantity !== 0));
       setSnackbarMessage("تم حفظ الفاتورة بنجاح");
@@ -898,29 +899,37 @@ export default function Type1() {
                       <input
                         type="number"
                         min="0"
-                        max={row.locations
-                          .filter((loc) => row.location === loc.location)
-                          .map((loc) => loc.quantity)
-                          .reduce(
-                            (max, quantity) => Math.max(max, quantity),
-                            0
-                          )}
-                        value={row.quantity}
-                        onInput={(e) => {
-                          const maxQuantity = row.locations
+                        max={
+                          operationType &&
+                          row.locations
                             .filter((loc) => row.location === loc.location)
                             .map((loc) => loc.quantity)
                             .reduce(
                               (max, quantity) => Math.max(max, quantity),
                               0
-                            );
+                            )
+                        }
+                        value={row.quantity}
+                        onInput={(e) => {
+                          if (lastSelected !== "") {
+                            const maxQuantity = row.locations
+                              .filter((loc) => row.location === loc.location)
+                              .map((loc) => loc.quantity)
+                              .reduce(
+                                (max, quantity) => Math.max(max, quantity),
+                                0
+                              );
 
-                          if (e.target.value < 0) {
-                            e.target.value = 0;
+                            if (e.target.value < 0) {
+                              e.target.value = 0;
+                            }
+
+                            if (operationType && e.target.value > maxQuantity) {
+                              e.target.value = maxQuantity;
+                            }
                           }
-
-                          if (e.target.value > maxQuantity) {
-                            e.target.value = maxQuantity;
+                          else{
+                            e.target.value = 0;
                           }
                         }}
                         onChange={(e) =>

@@ -247,14 +247,22 @@ export default function Invoices() {
   }, [isModalOpen]);
 
   // filters invoices
-  const [operationType, setOperationType] = useState("");
-  const operationTypes = ["جميع العمليات", "اضافه", "صرف", "امانات", "مرتجع"];
+  const [operationTypesPurchasesType, setOperationTypesPurchasesType] =
+    useState("");
+  const operationTypes = ["صرف", "أمانات", "مرتجع", "توالف", "حجز"];
+  const purchasesTypes = ["اضافه"];
+  const operationTypesPurchasesTypes = [
+    "جميع العمليات",
+    ...operationTypes,
+    ...purchasesTypes,
+  ];
+  console.log(operationTypesPurchasesTypes);
   const filteredAndFormattedData = invoices
     .filter(
       (invoice) =>
-        operationType === "" ||
-        operationType === "جميع العمليات" ||
-        invoice.type === operationType
+        operationTypesPurchasesType === "" ||
+        operationTypesPurchasesType === "جميع العمليات" ||
+        invoice.type === operationTypesPurchasesType
     )
     .map((invoice) => ({
       ...invoice,
@@ -387,7 +395,7 @@ export default function Invoices() {
     const updatedItems = editingInvoice.items.map((item) => {
       const quantity = parseFloat(item.quantity || 0);
 
-      if (editingInvoice.type !== "اضافه") {
+      if (purchasesTypes.includes(editingInvoice.type)) {
         return {
           ...item,
           quantity: quantity,
@@ -593,6 +601,7 @@ export default function Invoices() {
       total_amount: totalAmount,
     });
   };
+  console.log(editingInvoice);
 
   return (
     <div className={styles.container}>
@@ -608,28 +617,30 @@ export default function Invoices() {
           direction: "rtl",
         }}
       >
-        {operationTypes.map((type) => (
+        {operationTypesPurchasesTypes.map((type) => (
           <Button
             key={type}
             variant={
-              operationType === type ||
-              (type === "جميع العمليات" && operationType === "")
+              operationTypesPurchasesType === type ||
+              (type === "جميع العمليات" && operationTypesPurchasesType === "")
                 ? "contained"
                 : "outlined"
             }
             onClick={() =>
-              setOperationType(type === "جميع العمليات" ? "" : type)
+              setOperationTypesPurchasesType(
+                type === "جميع العمليات" ? "" : type
+              )
             }
             sx={{
               backgroundColor:
-                operationType === type ||
-                (type === "جميع العمليات" && operationType === "")
+                operationTypesPurchasesType === type ||
+                (type === "جميع العمليات" && operationTypesPurchasesType === "")
                   ? primaryColor
                   : "",
               border: `1px solid ${primaryColor}`,
               color:
-                operationType === type ||
-                (type === "جميع العمليات" && operationType === "")
+                operationTypesPurchasesType === type ||
+                (type === "جميع العمليات" && operationTypesPurchasesType === "")
                   ? "white"
                   : primaryColor,
             }}
@@ -826,9 +837,13 @@ export default function Invoices() {
                             textAlign: "center",
                           }}
                         >
-                          <option value="اضافه">إضافة</option>
-                          <option value="صرف">صرف</option>
-                          <option value="حذف">حذف</option>
+                          {[...operationTypes, ...purchasesTypes].map(
+                            (type) => (
+                              <option key={type} value={type}>
+                                {type}
+                              </option>
+                            )
+                          )}
                         </select>
                       ) : (
                         selectedInvoice.type
@@ -1007,7 +1022,7 @@ export default function Invoices() {
                         <TableCell className={styles.tableCell}>
                           الكمية
                         </TableCell>
-                        {selectedInvoice.type !== "اضافه" ? (
+                        {operationTypes.includes(selectedInvoice.type) ? (
                           ""
                         ) : (
                           <>
@@ -1191,7 +1206,11 @@ export default function Invoices() {
                                 type="number"
                                 min="0"
                                 max={
-                                  row.availableLocations?.[index]?.quantity || 0
+                                  operationTypes.includes(editingInvoice.type)
+                                    ? row.availableLocations?.find(
+                                        (loc) => loc.location === row.location
+                                      )?.quantity || 0
+                                    : undefined
                                 }
                                 value={
                                   editingInvoice.items[index]?.quantity ||
@@ -1199,14 +1218,22 @@ export default function Invoices() {
                                 }
                                 onInput={(e) => {
                                   const maxQuantity =
-                                    row.availableLocations?.[index]?.quantity ||
-                                    0;
+                                    row.availableLocations?.find(
+                                      (loc) => loc.location === row.location
+                                    )?.quantity || 0;
+
+                                  console.log("row", row);
 
                                   if (e.target.value < 0) {
                                     e.target.value = 0;
                                   }
 
-                                  if (e.target.value > maxQuantity) {
+                                  if (
+                                    operationTypes.includes(
+                                      editingInvoice.type
+                                    ) &
+                                    (e.target.value > maxQuantity)
+                                  ) {
                                     e.target.value = maxQuantity;
                                   }
                                 }}
@@ -1245,7 +1272,7 @@ export default function Invoices() {
                             )}
                           </TableCell>
 
-                          {selectedInvoice.type !== "اضافه" ? (
+                          {operationTypes.includes(selectedInvoice.type) ? (
                             ""
                           ) : (
                             <>
@@ -1353,7 +1380,7 @@ export default function Invoices() {
                   </Table>
                 </Box>
                 {/* total amount */}
-                {selectedInvoice.type !== "اضافه" ? (
+                {operationTypes.includes(selectedInvoice.type) ? (
                   ""
                 ) : (
                   <Box className={styles.totalAmountSection}>
