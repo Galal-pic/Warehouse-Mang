@@ -73,7 +73,7 @@ export default function Type1() {
         type: operationType || purchasesType,
       });
     }
-  }, [purchasesType]);
+  }, [purchasesType, operationType, lastSelected]);
 
   // warehouse
   const [warehouseManager, setWarehouseManager] = useState("");
