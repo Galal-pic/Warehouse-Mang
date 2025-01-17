@@ -41,26 +41,17 @@ export default function Type1() {
   const [operationType, setOperationType] = useState("");
   const [purchasesType, setPurchasesType] = useState("");
   useEffect(() => {
-    if (operationType) {
-      if (lastSelected !== operationType) {
-        setLastSelected(operationType);
-        setPurchasesType("");
-        setNewInvoice((prevInvoice) => ({
-          ...prevInvoice,
-          type: operationType,
-        }));
-      }
-    } else if (purchasesType) {
-      if (lastSelected !== purchasesType) {
-        setLastSelected(purchasesType);
-        setOperationType("");
-        setNewInvoice((prevInvoice) => ({
-          ...prevInvoice,
-          type: purchasesType,
-        }));
-      }
+    if (operationType !== "") {
+      setLastSelected(operationType);
+      setPurchasesType("");
     }
-  }, [operationType, purchasesType, lastSelected]);
+    if (operationType || purchasesType) {
+      setNewInvoice({
+        ...newInvoice,
+        type: operationType || purchasesType,
+      });
+    }
+  }, [operationType]);
 
   useEffect(() => {
     if (purchasesType !== "") {
@@ -73,7 +64,7 @@ export default function Type1() {
         type: operationType || purchasesType,
       });
     }
-  }, [purchasesType, operationType, lastSelected]);
+  }, [purchasesType]);
 
   // warehouse
   const [warehouseManager, setWarehouseManager] = useState("");
@@ -927,8 +918,7 @@ export default function Type1() {
                             if (operationType && e.target.value > maxQuantity) {
                               e.target.value = maxQuantity;
                             }
-                          }
-                          else{
+                          } else {
                             e.target.value = 0;
                           }
                         }}
