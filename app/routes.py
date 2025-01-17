@@ -5,7 +5,7 @@ from .models import (
     Employee, Machine, Mechanism, Warehouse, ItemLocations, Invoice, InvoiceItem
 )
 from datetime import datetime
-from .utils import Sales_Operations
+from .utils import Sales_Operations,Purchase_Operations
 
 # Namespaces
 machine_ns = Namespace('machine', description='Machine operations')
@@ -463,6 +463,10 @@ class InvoiceList(Resource):
 
         if data['type'] == 'صرف':
             Sales_Operations(data, machine, mechanism, employee, machine_ns, warehouse_ns, invoice_ns, mechanism_ns, item_location_ns)
+        elif data['type'] == 'اضافه':
+            Purchase_Operations(data, machine, mechanism, employee, machine_ns, warehouse_ns, invoice_ns, mechanism_ns, item_location_ns)
+
+    
 
         # Create the invoice
         new_invoice = Invoice(
