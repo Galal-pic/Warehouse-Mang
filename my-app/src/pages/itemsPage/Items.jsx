@@ -31,6 +31,7 @@ import LaunchIcon from "@mui/icons-material/Launch";
 import "../../colors.css";
 import AddIcon from "@mui/icons-material/Add";
 import SnackBar from "../../components/snackBar/SnackBar";
+import DeleteRow from "../../components/deleteItem/DeleteRow";
 
 const CustomPagination = ({ page, count, onChange }) => {
   const handlePageChange = (event, value) => {
@@ -105,7 +106,7 @@ export default function Items() {
     setPaginationModel((prev) => ({ ...prev, ...newModel }));
   };
 
-  // dialog
+  // add dialog
   const [openDialog, setOpenDialog] = useState(false);
 
   // add item
@@ -287,7 +288,7 @@ export default function Items() {
           </button>
           <button
             className={styles.iconBtn}
-            onClick={() => handleDelete(params.id)}
+            onClick={() => handleDeleteClick(params.id)}
             style={{ color: "#d32f2f" }}
           >
             <ClearOutlinedIcon />
@@ -307,39 +308,6 @@ export default function Items() {
     { field: "id", headerName: "#", width: 100, flex: 1 },
   ];
 
-  // delete
-  const handleDelete = async (id) => {
-    const isConfirmed = window.confirm(
-      "Are you sure you want to delete this user?"
-    );
-    if (!isConfirmed) return;
-    const accessToken = localStorage.getItem("access_token");
-
-    try {
-      const response = await fetch(`http://127.0.0.1:5000/warehouse/${id}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to delete user");
-      }
-
-      setInitialItems((prev) => prev.filter((item) => item.id !== id));
-      setOpenSnackbar(true);
-      setSnackbarMessage("تم حذف المنتج");
-      setSnackBarType("success");
-    } catch (error) {
-      console.error("Error deleting user:", error);
-      setOpenSnackbar(true);
-      setSnackbarMessage("خطأ في حذف العنصر");
-      setSnackBarType("error");
-    }
-  };
-
   // modal
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
@@ -358,6 +326,11 @@ export default function Items() {
   const [isEditingItem, setIsEditingItem] = useState(false);
   const [editingItem, setEditingItem] = useState(false);
   const handleSave = async () => {
+    if (selectedItem === editingItem) {
+      setEditingItem(null);
+      setIsEditingItem(false);
+      return;
+    }
     const hasEmptyValues = Object.values(editingItem).some((value) => {
       if (Array.isArray(value)) {
         return value.some(
@@ -379,17 +352,10 @@ export default function Items() {
       return;
     }
 
-    if (selectedItem === editingItem) {
-      setEditingItem(null);
-      setIsEditingItem(false);
-      return;
-    }
     const itemWithoutId = { ...editingItem };
     delete itemWithoutId.id;
-    console.log(itemWithoutId);
 
     const accessToken = localStorage.getItem("access_token");
-    console.log(editingItem.id);
 
     try {
       const response = await fetch(
@@ -424,6 +390,7 @@ export default function Items() {
     }
   };
 
+  // translate
   const localeText = {
     toolbarColumns: "الأعمدة",
     toolbarFilters: "التصفية",
@@ -486,12 +453,117 @@ export default function Items() {
     toolbarResetColumns: "إعادة تعيين",
   };
 
+  // delete dialog item
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState(null);
+  const [deleteConfirmationText, setDeleteConfirmationText] = useState("");
+
+  const handleDeleteClick = (id) => {
+    setSelectedUserId(id);
+    setDeleteDialogOpen(true);
+    setDeleteConfirmationText("");
+  };
+
+  // delete item
+  const handleDelete = async () => {
+    if (deleteConfirmationText.trim().toLowerCase() === "نعم") {
+      const accessToken = localStorage.getItem("access_token");
+
+      try {
+        const response = await fetch(
+          `http://127.0.0.1:5000/warehouse/${selectedUserId}`,
+          {
+            method: "DELETE",
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          }
+        );
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || "Failed to delete user");
+        }
+
+        setInitialItems((prev) =>
+          prev.filter((item) => item.id !== selectedUserId)
+        );
+        setOpenSnackbar(true);
+        setSnackbarMessage("تم حذف المنتج");
+        setSnackBarType("success");
+        setDeleteConfirmationText("");
+        setSelectedUserId(null);
+        setDeleteDialogOpen(false);
+      } catch (error) {
+        console.error("Error deleting user:", error);
+        setOpenSnackbar(true);
+        setSnackbarMessage("خطأ في حذف العنصر");
+        setSnackBarType("error");
+        setDeleteConfirmationText("");
+        setSelectedUserId(null);
+        setDeleteDialogOpen(false);
+      }
+    }
+  };
+
+  // delete dialog location
+  const [deleteDialogLocationOpen, setDeleteDialogLocationOpen] =
+    useState(false);
+  const [selectedLocationId, setSelectedLocationId] = useState(0);
+  const [deleteLocationConfirmationText, setDeleteLocationConfirmationText] =
+    useState("");
+  const handleDeleteLocationClick = async (location, id) => {
+    if (!location || location.trim() === "") {
+      setSelectedLocationId(id);
+      await handleDeleteLocation(id);
+      return;
+    }
+    setSelectedLocationId(id);
+    setDeleteDialogLocationOpen(true);
+    setDeleteLocationConfirmationText("");
+  };
+
+  // delete location
+  const handleDeleteLocation = async (id) => {
+    const filteredLocations = editingItem.locations.filter((item, idx) => {
+      return idx !== id;
+    });
+    setEditingItem({
+      ...editingItem,
+      locations: filteredLocations,
+    });
+    setDeleteLocationConfirmationText("");
+    setSelectedLocationId(null);
+    setDeleteDialogLocationOpen(false);
+  };
+
   return (
     <div className={styles.container}>
       {/* title */}
       <div>
-        <h2 className={styles.title}>المنتجات</h2>
+        <h1 className={styles.title}>المنتجات</h1>
       </div>
+
+      {/* delete dialog item */}
+      <DeleteRow
+        deleteDialogOpen={deleteDialogOpen}
+        setDeleteDialogOpen={setDeleteDialogOpen}
+        deleteConfirmationText={deleteConfirmationText}
+        setDeleteConfirmationText={setDeleteConfirmationText}
+        handleDelete={handleDelete}
+        message={"هل أنت متأكد من رغبتك في حذف هذا العنصر؟"}
+      />
+
+      {/* delete dialog location */}
+      <DeleteRow
+        deleteDialogOpen={deleteDialogLocationOpen}
+        setDeleteDialogOpen={setDeleteDialogLocationOpen}
+        deleteConfirmationText={deleteLocationConfirmationText}
+        setDeleteConfirmationText={setDeleteLocationConfirmationText}
+        handleDelete={() => handleDeleteLocation(selectedLocationId)}
+        message={"هل أنت متأكد من رغبتك في حذف هذا الموقع؟"}
+        isNessary={false}
+      />
 
       {/* table */}
       <DataGrid
@@ -527,10 +599,7 @@ export default function Items() {
             paddingBottom: "10px",
             display: "flex",
             justifyContent: "space-between",
-            backgroundColor: "#f7f7f7",
-          },
-          "& .MuiDataGrid-virtualScroller": {
-            borderRadius: "4px",
+            backgroundColor: "transparent",
           },
           "& .MuiDataGrid-cell": {
             border: "1px solid #ddd",
@@ -545,14 +614,16 @@ export default function Items() {
           "& .MuiDataGrid-cell:focus-within": {
             outline: "none",
           },
-          backgroundColor: "white",
+          "& .MuiDataGrid-virtualScroller": {
+            backgroundColor: "white",
+            borderRadius: "4px",
+          },
           border: "none",
-          marginTop: "10px",
-          // direction: "rtl",
+          margin: "10px 20px 0",
         }}
       />
 
-      {/* dialog */}
+      {/* add dialog */}
       <Dialog
         open={openDialog}
         onClose={() => {
@@ -1094,17 +1165,9 @@ export default function Items() {
                     >
                       {isEditingItem ? (
                         <button
-                          onClick={(e) => {
-                            const filterdLocations =
-                              editingItem.locations.filter(
-                                (item, idx) => idx !== index
-                              );
-                            setEditingItem({
-                              ...editingItem,
-                              locations: filterdLocations,
-                            });
-                            console.log(filterdLocations);
-                          }}
+                          onClick={(e) =>
+                            handleDeleteLocationClick(item.location, index)
+                          }
                           className={styles.iconBtn}
                           style={{
                             position: "absolute",
@@ -1318,7 +1381,6 @@ export default function Items() {
                         ...editingItem,
                         locations: [...editingItem.locations, newItem],
                       });
-                      console.log(editingItem);
                     }}
                     className={styles.iconBtn}
                     style={{

@@ -10,9 +10,8 @@ import {
   Snackbar,
   Alert,
   Button,
-  Select,
-  MenuItem,
   PaginationItem,
+  Autocomplete,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import ClearOutlinedIcon from "@mui/icons-material/ClearOutlined";
@@ -25,6 +24,7 @@ import Stack from "@mui/material/Stack";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import "../../colors.css";
+import DeleteRow from "../../components/deleteItem/DeleteRow";
 
 function CustomToolbar() {
   const navigate = useNavigate();
@@ -54,12 +54,12 @@ function CustomToolbar() {
         color="primary"
         onClick={handleClick}
       >
-        إضافة موظف
         <GroupAddIcon
           sx={{
-            marginRight: "8px",
+            margin: "0px 8px 3px",
           }}
         />
+        إضافة موظف
       </Button>
 
       <GridToolbarQuickFilter
@@ -119,9 +119,17 @@ export default function Users() {
   const API_BASE_URL = "http://127.0.0.1:5000/auth";
   const [users, setUsers] = useState([]);
   const [editedRow, setEditedRow] = useState(null);
+  const [selectedRow, setSelectedRow] = useState(null);
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackBarType, setSnackBarType] = useState("");
+
+  // jobs
+  const jobs = [
+    { value: "موظف", label: "موظف" },
+    { value: "مدير", label: "مدير" },
+    { value: "مشرف", label: "مشرف" },
+  ];
 
   // collors
   const primaryColor = getComputedStyle(
@@ -161,6 +169,7 @@ export default function Users() {
   const handleEditClick = (id) => {
     const row = users.find((row) => row.id === id);
     setEditedRow({ ...row });
+    setSelectedRow({ ...row });
   };
   const validatePhone = (phone) => {
     const phoneRegex = /^[0-9]{10,15}$/;
@@ -176,6 +185,15 @@ export default function Users() {
   };
 
   const handleSave = async (id) => {
+    if (
+      editedRow &&
+      selectedRow &&
+      JSON.stringify(editedRow) === JSON.stringify(selectedRow)
+    ) {
+      setEditedRow(null);
+      setSelectedRow(null);
+      return;
+    }
     const error = validateFields(editedRow);
 
     if (error) {
@@ -183,6 +201,7 @@ export default function Users() {
       setSnackbarMessage(error);
       setSnackBarType("error");
       setEditedRow(null);
+      setSelectedRow(null);
       return;
     }
 
@@ -220,37 +239,55 @@ export default function Users() {
     }
 
     setEditedRow(null);
+    setSelectedRow(null);
+  };
+
+  // dialog
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState(null);
+  const [deleteConfirmationText, setDeleteConfirmationText] = useState("");
+
+  const handleDeleteClick = (id) => {
+    setSelectedUserId(id);
+    setDeleteDialogOpen(true);
+    setDeleteConfirmationText("");
   };
 
   // Delete
-  const handleDelete = async (id) => {
-    const isConfirmed = window.confirm(
-      "Are you sure you want to delete this user?"
-    );
-    if (!isConfirmed) return;
-    const accessToken = localStorage.getItem("access_token");
-    try {
-      const response = await fetch(`${API_BASE_URL}/user/${id}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
+  const handleDelete = async () => {
+    if (deleteConfirmationText.trim().toLowerCase() === "نعم") {
+      const accessToken = localStorage.getItem("access_token");
+      try {
+        const response = await fetch(`${API_BASE_URL}/user/${selectedUserId}`, {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to delete user");
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || "Failed to delete user");
+        }
+
+        setOpenSnackbar(true);
+        setSnackbarMessage("تم حذف الموظف بنجاح");
+        setSnackBarType("success");
+        setUsers((prevRows) =>
+          prevRows.filter((row) => row.id !== selectedUserId)
+        );
+        setDeleteConfirmationText("");
+        setSelectedUserId(null);
+        setDeleteDialogOpen(false);
+      } catch (error) {
+        console.error("Error deleting user:", error);
+        setOpenSnackbar(true);
+        setSnackbarMessage("خطأ في حذف الموظف");
+        setSnackBarType("error");
+        setDeleteConfirmationText("");
+        setSelectedUserId(null);
+        setDeleteDialogOpen(false);
       }
-
-      setOpenSnackbar(true);
-      setSnackbarMessage("تم حذف الموظف بنجاح");
-      setSnackBarType("success");
-      setUsers((prevRows) => prevRows.filter((row) => row.id !== id));
-    } catch (error) {
-      console.error("Error deleting user:", error);
-      setOpenSnackbar(true);
-      setSnackbarMessage("خطأ في حذف الموظف");
-      setSnackBarType("error");
     }
   };
 
@@ -274,7 +311,10 @@ export default function Users() {
                 </button>
                 <button
                   className={styles.iconBtn}
-                  onClick={() => setEditedRow(null)}
+                  onClick={() => {
+                    setEditedRow(null);
+                    setSelectedRow(null);
+                  }}
                 >
                   <CancelIcon
                     sx={{
@@ -297,7 +337,7 @@ export default function Users() {
               </button>
               <button
                 className={styles.iconBtn}
-                onClick={() => handleDelete(params.id)}
+                onClick={() => handleDeleteClick(params.id)}
               >
                 <ClearOutlinedIcon
                   sx={{
@@ -317,15 +357,59 @@ export default function Users() {
       renderCell: (params) => {
         if (editedRow && editedRow.id === params.id) {
           return (
-            <Select
-              value={editedRow.job_name || ""}
-              onChange={(e) =>
-                setEditedRow({ ...editedRow, job_name: e.target.value })
+            <Autocomplete
+              slotProps={{
+                paper: {
+                  sx: {
+                    "& .MuiAutocomplete-listbox": {
+                      "& .MuiAutocomplete-option": {
+                        direction: "rtl",
+                      },
+                    },
+                  },
+                },
+              }}
+              options={jobs}
+              value={
+                jobs.find((job) => job.value === editedRow.job_name) || null
               }
-            >
-              <MenuItem value="مبرمج">مبرمج</MenuItem>
-              <MenuItem value="مدير">مدير</MenuItem>
-            </Select>
+              getOptionLabel={(option) => option.label}
+              onChange={(event, newValue) => {
+                setEditedRow({ ...editedRow, job_name: newValue?.value || "" });
+              }}
+              renderInput={(params) => (
+                <TextField
+                  sx={{
+                    backgroundColor: "white",
+                    borderRadius: "5px",
+                    margin: "5px 0",
+                    height: "50px",
+                    "& .MuiOutlinedInput-input": {
+                      textAlign: "center",
+                    },
+                  }}
+                  {...params}
+                  placeholder="اسم الوظيفة"
+                />
+              )}
+              isOptionEqualToValue={(option, value) =>
+                option.value === value?.value
+              }
+              fullWidth
+              sx={{
+                "& .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline": {
+                  border: "none",
+                },
+                "& .MuiAutocomplete-clearIndicator": {
+                  display: "none",
+                },
+                "& .MuiAutocomplete-popupIndicator": {},
+                "& .MuiOutlinedInput-root": {
+                  padding: "10px",
+                  fontSize: "14px",
+                },
+              }}
+            />
           );
         }
         return params.value;
@@ -338,8 +422,17 @@ export default function Users() {
       renderCell: (params) => {
         if (editedRow && editedRow.id === params.id) {
           return (
-            <TextField
-              sx={{ marginY: 0.2 }}
+            <input
+              style={{
+                height: "50px",
+                width: "100%",
+                padding: "10px",
+                fontSize: "1rem",
+                borderRadius: "4px",
+                textAlign: "center",
+                outline: "none",
+                border: "none",
+              }}
               value={editedRow.phone_number || ""}
               onChange={(e) =>
                 setEditedRow({ ...editedRow, phone_number: e.target.value })
@@ -357,8 +450,17 @@ export default function Users() {
       renderCell: (params) => {
         if (editedRow && editedRow.id === params.id) {
           return (
-            <TextField
-              sx={{ marginY: 0.2 }}
+            <input
+              style={{
+                height: "50px",
+                width: "100%",
+                padding: "10px",
+                fontSize: "1rem",
+                borderRadius: "4px",
+                textAlign: "center",
+                outline: "none",
+                border: "none",
+              }}
               value={editedRow.username || ""}
               onChange={(e) =>
                 setEditedRow({ ...editedRow, username: e.target.value })
@@ -437,7 +539,7 @@ export default function Users() {
     filterOperatorIsNot: "ليس",
     toolbarExportExcel: "تصدير إلى Excel",
     errorOverlayDefaultLabel: "حدث خطأ.",
-    footerRowSelected: (count) => `${count} صفوف محددة`,
+    footerRowSelected: (count) => ``,
     footerTotalRows: "إجمالي الصفوف:",
     footerTotalVisibleRows: (visibleCount, totalCount) =>
       `${visibleCount} من ${totalCount}`,
@@ -464,6 +566,17 @@ export default function Users() {
     <div className={styles.container}>
       <h1 className={styles.head}>بيانات الموظفين</h1>
 
+      {/* dialog */}
+      <DeleteRow
+        deleteDialogOpen={deleteDialogOpen}
+        setDeleteDialogOpen={setDeleteDialogOpen}
+        deleteConfirmationText={deleteConfirmationText}
+        setDeleteConfirmationText={setDeleteConfirmationText}
+        handleDelete={handleDelete}
+        message={"هل أنت متأكد من رغبتك في حذف هذا المستخدم؟"}
+      />
+
+      {/* data grid */}
       <DataGrid
         rows={users}
         columns={columns.map((col) => ({
@@ -494,14 +607,15 @@ export default function Users() {
         onPaginationModelChange={handlePageChange}
         disableVirtualization={false}
         sx={{
+          "& .MuiDataGrid-filterIcon, & .MuiDataGrid-sortIcon, & .MuiDataGrid-menuIconButton":
+            {
+              color: "white",
+            },
           "& .MuiDataGrid-toolbarContainer": {
             paddingBottom: "10px",
             display: "flex",
             justifyContent: "space-between",
-            backgroundColor: "#f7f7f7",
-          },
-          "& .MuiDataGrid-virtualScroller": {
-            borderRadius: "4px",
+            backgroundColor: "transparent",
           },
           "& .MuiDataGrid-cell": {
             border: "1px solid #ddd",
@@ -516,12 +630,17 @@ export default function Users() {
           "& .MuiDataGrid-cell:focus-within": {
             outline: "none",
           },
-          backgroundColor: "white",
+          "& .MuiDataGrid-virtualScroller": {
+            backgroundColor: "white",
+            borderRadius: "4px",
+          },
           border: "none",
+          margin: "0 20px"
           // direction: "rtl",
         }}
       />
 
+      {/* snack bar */}
       <Snackbar
         open={openSnackbar}
         autoHideDuration={2000}

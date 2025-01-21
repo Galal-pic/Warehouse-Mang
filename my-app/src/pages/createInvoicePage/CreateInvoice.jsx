@@ -67,7 +67,6 @@ export default function Type1() {
   }, [purchasesType]);
 
   // warehouse
-  const [warehouseManager, setWarehouseManager] = useState("");
   const [warehouseName, setWarehouseName] = useState("");
   const warehouses = ["المخزن الأول", "المخزن الثاني", "المخزن الثالث"];
   const handleWarehouseChange = (event, newValue) => {
@@ -200,13 +199,25 @@ export default function Type1() {
       setRows(newRows);
     }
   };
-  const handleLocationChange = (e, newLocation, index) => {
+  const handleLocationChange = (e, newLocation, index, barCodeItem) => {
     const selectedLocation = rows[index].locations.find(
       (loc) => loc.location === newLocation
     );
+    console.log(selectedLocation);
     if (selectedLocation) {
+      if (
+        rows.find(
+          (row) => row.barcode === barCodeItem && row.location === newLocation
+        )
+      ) {
+        setSnackbarMessage("هذا العنصر موجود بالفعل");
+        setSnackBarType("info");
+        setOpenSnackbar(true);
+        return;
+      }
       const newRows = [...rows];
       newRows[index].location = selectedLocation.location;
+      newRows[index].quantity = 0;
       newRows[index].price_unit = selectedLocation.price_unit;
       newRows[index].total_price =
         selectedLocation.price_unit * newRows[index].quantity;
@@ -339,13 +350,22 @@ export default function Type1() {
       setOpenSnackbar(true);
       return;
     }
-    const newRows = rows.filter((row) => row.quantity !== 0);
-    if (newRows.length === 0) {
-      setSnackbarMessage("يجب ملئ عنصر واحد على الأقل");
+
+    let newRows = rows.filter((row) => row.quantity !== 0);
+    if (
+      newRows.length === 0 ||
+      (newRows.length === 1 && isNaN(newRows[0].quantity))
+    ) {
+      setSnackbarMessage("يجب ملء عنصر واحد على الأقل");
       setSnackBarType("warning");
       setOpenSnackbar(true);
       return;
     }
+
+    newRows = newRows.map((row, index) => ({
+      ...row,
+      counter: index + 1,
+    }));
 
     const updatedInvoice = {
       ...newInvoice,
@@ -376,7 +396,7 @@ export default function Type1() {
       }
       fetchWareHousesData();
       setIsInvoiceSaved(true);
-      setRows(rows.filter((row) => row.quantity !== 0));
+      setRows(newRows);
       setSnackbarMessage("تم حفظ الفاتورة بنجاح");
       setSnackBarType("success");
       setOpenSnackbar(true);
@@ -388,7 +408,6 @@ export default function Type1() {
     }
   };
 
-  // handle print
   const handlePrint = () => {
     const style = document.createElement("style");
     style.innerHTML = `
@@ -403,40 +422,32 @@ export default function Type1() {
           position: absolute;
           left: 0;
           top: 0;
-          padding: 0 !important;
-          margin: 0!important;
-      
-        }
-        .printable-box .MuiIconButton-root {
-          display: none;
-        }
-        @page {
-          size: portrait;
-        }
-        .printable-box table {
-          width: 100%;
-          font-size: 7px;
-        }
-         .printable-box select {
-          display: none;
-        }
-        .printable-box button {
-          display: none;
+          padding: 10px !important;
+          margin: 0 !important;
+          width: 100% !important;
+
         }
         .printable-box img {
-          width: 300px !important;
+          width: 200px !important;
+          margin-bottom: 5px !important;
         }
-        .printable-box .operationType{
-          font-size: 7px;
+        .printable-box * {
+          font-size: 15px !important;
         }
-        .printable-box .text{
-          font-size: 7px;
+        .printable-box table {
+          width: 100% !important;
         }
-        .printable-box p {
-          margin: 0;
+        .printable-box .MuiTableCell-root {
+          padding: 4px !important;
         }
-        .printable-box .MuiTypography-root {
-          font-size: 7px;
+        .printable-box input,
+        .printable-box textarea,
+        .printable-box .MuiAutocomplete-root {
+          display: none !important;
+        }
+        @page {
+          size: auto;
+          margin: 5mm;
         }
       }
     `;
@@ -444,7 +455,6 @@ export default function Type1() {
     window.print();
     document.head.removeChild(style);
   };
-
   return (
     <Box className={styles.mainBox}>
       {/* Operation Type Selection */}
@@ -557,6 +567,7 @@ export default function Type1() {
           sx={{
             pointerEvents: isInvoiceSaved ? "none" : "",
             width: "100%",
+            border: isInvoiceSaved ? "none" : "",
           }}
         >
           {/* Header Section */}
@@ -592,8 +603,6 @@ export default function Type1() {
               marginBottom: "20px",
             }}
           >
-            {/* Autocomplete for warehouses */}
-
             <Autocomplete
               slotProps={{
                 paper: {
@@ -643,7 +652,13 @@ export default function Type1() {
                   <TableCell className={styles.tableCell} colSpan={2}>
                     اسم الماكينة
                   </TableCell>
-                  <TableCell className={styles.tableInputCell} colSpan={6}>
+                  <TableCell
+                    className={styles.tableInputCell}
+                    colSpan={6}
+                    sx={{
+                      padding: "0px !important",
+                    }}
+                  >
                     <Autocomplete
                       slotProps={{
                         paper: {
@@ -662,14 +677,24 @@ export default function Type1() {
                         ) || null
                       }
                       sx={{
-                        // minWidth: "300px",
-                        "& .MuiOutlinedInput-root": {
-                          padding: "10px",
-                        },
                         "& .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline":
                           {
                             border: "none",
                           },
+                        "& .MuiAutocomplete-clearIndicator": {
+                          display: "none",
+                        },
+                        "& .MuiAutocomplete-popupIndicator": {
+                          display: isInvoiceSaved ? "none" : "",
+                        },
+                        "& .MuiOutlinedInput-root": {
+                          padding: "10px",
+                          paddingRight: isInvoiceSaved
+                            ? "10px!important"
+                            : "35px!important",
+
+                          fontSize: "14px",
+                        },
                       }}
                       options={machines}
                       getOptionLabel={(option) =>
@@ -694,7 +719,13 @@ export default function Type1() {
                   <TableCell className={styles.tableCell} colSpan={2}>
                     اسم الميكانيزم
                   </TableCell>
-                  <TableCell className={styles.tableInputCell} colSpan={6}>
+                  <TableCell
+                    className={styles.tableInputCell}
+                    colSpan={6}
+                    sx={{
+                      padding: "0px !important",
+                    }}
+                  >
                     <Autocomplete
                       slotProps={{
                         paper: {
@@ -714,14 +745,24 @@ export default function Type1() {
                         ) || null
                       }
                       sx={{
-                        // minWidth: "300px",
-                        "& .MuiOutlinedInput-root": {
-                          padding: "10px",
-                        },
                         "& .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline":
                           {
                             border: "none",
                           },
+                        "& .MuiAutocomplete-clearIndicator": {
+                          display: "none",
+                        },
+                        "& .MuiAutocomplete-popupIndicator": {
+                          display: isInvoiceSaved ? "none" : "",
+                        },
+                        "& .MuiOutlinedInput-root": {
+                          padding: "10px",
+                          paddingRight: isInvoiceSaved
+                            ? "10px!important"
+                            : "35px!important",
+
+                          fontSize: "14px",
+                        },
                       }}
                       options={mechanisms}
                       getOptionLabel={(option) =>
@@ -761,21 +802,17 @@ export default function Type1() {
                       </TableCell>
                     </>
                   )}
-                  <TableCell
-                    colSpan={purchasesType ? 1 : 2}
-                    className={styles.tableCell}
-                  >
-                    بيان
-                  </TableCell>
+                  <TableCell className={styles.tableCell}>بيان</TableCell>
                 </TableRow>
                 {/* Rows for Data */}
                 {rows.map((row, index) => (
                   <TableRow key={index}>
                     <TableCell
+                      className={styles.tableCellRow}
                       sx={{
                         position: "relative",
+                        width: "10px !important",
                       }}
-                      className={styles.tableCellRow}
                     >
                       {row.counter}
                       <IconButton
@@ -791,144 +828,222 @@ export default function Type1() {
                       </IconButton>
                     </TableCell>
                     <TableCell
+                      className={styles.tableCellRow}
                       sx={{
                         "&.MuiTableCell-root": {
                           padding: "0px",
+                          maxWidth: "200px",
+                          whiteSpace: "normal",
+                          wordBreak: "break-word",
                         },
                       }}
-                      className={styles.tableCellRow}
                     >
-                      <Autocomplete
-                        slotProps={{
-                          paper: {
-                            sx: {
-                              "& .MuiAutocomplete-listbox": {
-                                "& .MuiAutocomplete-option": {
-                                  direction: "rtl",
+                      {isInvoiceSaved ? (
+                        row.item_name
+                      ) : (
+                        <Autocomplete
+                          slotProps={{
+                            input: {
+                              sx: {
+                                whiteSpace: "normal",
+                                wordBreak: "break-word",
+                              },
+                            },
+                            paper: {
+                              sx: {
+                                "& .MuiAutocomplete-listbox": {
+                                  "& .MuiAutocomplete-option": {
+                                    direction: "rtl",
+                                  },
                                 },
                               },
                             },
-                          },
-                        }}
-                        value={row.item_name || ""}
-                        sx={{
-                          "& .MuiAutocomplete-clearIndicator, & .MuiAutocomplete-popupIndicator":
-                            {
+                          }}
+                          value={row.item_name || ""}
+                          sx={{
+                            "& .MuiAutocomplete-clearIndicator": {
+                              display: "none",
+                            },
+                            "& .MuiAutocomplete-popupIndicator": {
                               display: isInvoiceSaved ? "none" : "",
                             },
-                          "& .MuiOutlinedInput-root": {
-                            padding: "10px",
-                            paddingRight: isInvoiceSaved
-                              ? "10px!important"
-                              : "",
-                            fontSize: "14px",
-                          },
-                          "& .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline":
-                            {
-                              border: "none",
+                            "& .MuiOutlinedInput-root": {
+                              padding: "10px",
+                              paddingRight: isInvoiceSaved
+                                ? "10px!important"
+                                : "35px!important",
+                              fontSize: "14px",
                             },
-                        }}
-                        options={warehouse.map((item) => item.item_name)}
-                        getOptionLabel={(option) => option}
-                        onChange={(e, newValue) =>
-                          handleItemChange(e, newValue, index)
-                        }
-                        renderInput={(params) => (
-                          <TextField {...params} placeholder="اسم العنصر" />
-                        )}
-                      />
+                            "& .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline":
+                              {
+                                border: "none",
+                              },
+                          }}
+                          options={warehouse.map((item) => item.item_name)}
+                          getOptionLabel={(option) => option}
+                          onChange={(e, newValue) =>
+                            handleItemChange(e, newValue, index)
+                          }
+                          renderInput={(params) => (
+                            <TextField {...params} placeholder="اسم العنصر" />
+                          )}
+                        />
+                      )}
                     </TableCell>
                     <TableCell className={styles.tableCellRow}>
                       {row.barcode || ""}
                     </TableCell>
-                    <TableCell className={styles.tableCellRow}>
-                      <Autocomplete
-                        slotProps={{
-                          paper: {
-                            sx: {
-                              "& .MuiAutocomplete-listbox": {
-                                "& .MuiAutocomplete-option": {
-                                  direction: "rtl",
+                    <TableCell
+                      className={styles.tableCellRow}
+                      sx={{
+                        "&.MuiTableCell-root": {
+                          padding: "0px",
+                          maxWidth: "200px",
+                          whiteSpace: "normal",
+                          wordBreak: "break-word",
+                        },
+                      }}
+                    >
+                      {isInvoiceSaved ? (
+                        row.location
+                      ) : (
+                        <Autocomplete
+                          slotProps={{
+                            input: {
+                              sx: {
+                                whiteSpace: "normal",
+                                wordBreak: "break-word",
+                              },
+                            },
+                            paper: {
+                              sx: {
+                                "& .MuiAutocomplete-listbox": {
+                                  "& .MuiAutocomplete-option": {
+                                    direction: "rtl",
+                                  },
                                 },
                               },
                             },
-                          },
-                        }}
-                        value={row.location || ""}
-                        sx={{
-                          "& .MuiAutocomplete-clearIndicator, & .MuiAutocomplete-popupIndicator":
-                            {
+                          }}
+                          value={row.location || ""}
+                          sx={{
+                            "& .MuiAutocomplete-clearIndicator": {
+                              display: "none",
+                            },
+                            "& .MuiAutocomplete-popupIndicator": {
                               display: isInvoiceSaved ? "none" : "",
                             },
-                          "& .MuiOutlinedInput-root": {
-                            padding: "10px",
-                            paddingRight: isInvoiceSaved
-                              ? "10px!important"
-                              : "",
-                            fontSize: "14px",
-                          },
-                          "& .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline":
-                            {
-                              wordBreak: "break-word",
-                              border: "none",
+                            "& .MuiOutlinedInput-root": {
+                              padding: "10px",
+                              paddingRight: isInvoiceSaved
+                                ? "10px!important"
+                                : "35px!important",
+                              fontSize: "14px",
                             },
-                        }}
-                        options={
-                          row.locations
-                            ? row.locations.map((loc) => loc.location)
-                            : []
-                        }
-                        onChange={(e, newLocation) =>
-                          handleLocationChange(e, newLocation, index)
-                        }
-                        renderInput={(params) => (
-                          <TextField {...params} placeholder="الموقع" />
-                        )}
-                      />
+                            "& .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline":
+                              {
+                                border: "none",
+                              },
+                          }}
+                          options={
+                            row.locations
+                              ? row.locations.map((loc) => loc.location)
+                              : []
+                          }
+                          onChange={(e, newLocation) => {
+                            handleLocationChange(
+                              e,
+                              newLocation,
+                              index,
+                              row.barcode
+                            );
+                          }}
+                          renderInput={(params) => (
+                            <TextField {...params} placeholder="الموقع" />
+                          )}
+                        />
+                      )}
                     </TableCell>
-                    <TableCell className={styles.tableCellRow}>
-                      <input
-                        type="number"
-                        min="0"
-                        max={
-                          operationType &&
-                          row.locations
-                            .filter((loc) => row.location === loc.location)
-                            .map((loc) => loc.quantity)
-                            .reduce(
-                              (max, quantity) => Math.max(max, quantity),
-                              0
-                            )
-                        }
-                        value={row.quantity}
-                        onInput={(e) => {
-                          if (lastSelected !== "") {
-                            const maxQuantity = row.locations
+                    <TableCell
+                      className={styles.tableCellRow}
+                      sx={{
+                        width: isInvoiceSaved ? "" : "50px",
+                      }}
+                    >
+                      {isInvoiceSaved ? (
+                        row.quantity
+                      ) : (
+                        <input
+                          style={{
+                            width: "100px",
+                          }}
+                          type="number"
+                          min="0"
+                          max={
+                            operationType &&
+                            row.locations
                               .filter((loc) => row.location === loc.location)
                               .map((loc) => loc.quantity)
                               .reduce(
                                 (max, quantity) => Math.max(max, quantity),
                                 0
-                              );
-
-                            if (e.target.value < 0) {
+                              )
+                          }
+                          value={row.quantity}
+                          onInput={(e) => {
+                            console.log(row.location);
+                            if (lastSelected !== "" && row.location !== "") {
+                              const maxQuantity = row.locations
+                                .filter((loc) => row.location === loc.location)
+                                .map((loc) => loc.quantity)
+                                .reduce(
+                                  (max, quantity) => Math.max(max, quantity),
+                                  0
+                                );
+                              if (e.target.value < 0) {
+                                e.target.value = 0;
+                              }
+                              if (
+                                operationType &&
+                                e.target.value > maxQuantity
+                              ) {
+                                e.target.value = maxQuantity;
+                              }
+                            } else {
                               e.target.value = 0;
                             }
-
-                            if (operationType && e.target.value > maxQuantity) {
-                              e.target.value = maxQuantity;
-                            }
-                          } else {
-                            e.target.value = 0;
+                          }}
+                          onChange={(e) =>
+                            handleQuantityChange(index, e.target.value)
                           }
-                        }}
-                        onChange={(e) =>
-                          handleQuantityChange(index, e.target.value)
-                        }
-                        className={styles.cellInput}
-                      />
-                    </TableCell>
+                          onClick={(event) => {
+                            if (lastSelected === "" || row.location === "") {
+                              setSnackbarMessage(
+                                "يجب تحديد نوع العملية وموقع العنصر اولا"
+                              );
+                              setSnackBarType("info");
+                              setOpenSnackbar(true);
+                              event.target.blur();
 
+                              return;
+                            }
+                          }}
+                          onDoubleClick={(event) => {
+                            if (lastSelected === "" || row.location === "") {
+                              setSnackbarMessage(
+                                "يجب تحديد نوع العملية وموقع العنصر اولا"
+                              );
+                              setSnackBarType("info");
+                              setOpenSnackbar(true);
+                              event.target.blur();
+
+                              return;
+                            }
+                          }}
+                          className={styles.cellInput}
+                        />
+                      )}
+                    </TableCell>
                     <TableCell
                       sx={{
                         display: purchasesType ? "" : "none",
@@ -945,30 +1060,42 @@ export default function Type1() {
                     >
                       {row.total_price}
                     </TableCell>
-
                     <TableCell
-                      colSpan={purchasesType ? 1 : 2}
                       className={styles.tableCellRow}
+                      sx={{
+                        maxWidth: "150px",
+                        whiteSpace: "normal",
+                        wordWrap: "break-word",
+                      }}
                     >
-                      <input
-                        type="text"
-                        value={row.description}
-                        onChange={(e) =>
-                          setRows(
-                            rows.map((row, rowIndex) => {
-                              if (rowIndex === index) {
-                                return {
-                                  ...row,
-                                  description: e.target.value,
-                                };
-                              } else {
-                                return row;
-                              }
-                            })
-                          )
-                        }
-                        className={styles.cellInput}
-                      />
+                      {isInvoiceSaved ? (
+                        row.description
+                      ) : (
+                        <textarea
+                          value={row.description}
+                          onChange={(e) =>
+                            setRows(
+                              rows.map((row, rowIndex) => {
+                                if (rowIndex === index) {
+                                  return {
+                                    ...row,
+                                    description: e.target.value,
+                                  };
+                                } else {
+                                  return row;
+                                }
+                              })
+                            )
+                          }
+                          className={styles.cellInput}
+                          style={{
+                            whiteSpace: "normal",
+                            wordWrap: "break-word",
+                            resize: "none",
+                            width: "100%",
+                          }}
+                        />
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -1047,48 +1174,6 @@ export default function Type1() {
             </Box>
           </Box>
         </Box>
-
-        {/* Buttons Section
-          <Box className={styles.buttonsSection}>
-            {!showCommentField ? (
-              <Button
-                variant="contained"
-                color="success"
-                onClick={handleAddComment}
-                className={`${styles.addCommentButton} ${styles.infoBtn}`}
-              >
-                تعليق
-              </Button>
-            ) : (
-              <Button
-                variant="outlined"
-                color="error"
-                onClick={handleCancelComment}
-                className={`${styles.cancelCommentButton} ${styles.infoBtn}`}
-              >
-                الغاء
-              </Button>
-            )}
-
-            <Button
-              variant="contained"
-              color="primary"
-              // onClick={handleSave}
-              className={`${styles.saveButton} ${styles.infoBtn}`}
-            >
-              تأكيد
-            </Button>
-
-            <Button
-              variant="contained"
-              color="info"
-              onClick={clearInvoice}
-              className={`${styles.printButton} ${styles.infoBtn}`}
-            >
-              فاتورة جديدة
-            </Button>
-          </Box> */}
-        {/* Buttons Section */}
 
         {/* Add Comment Button */}
         {!isInvoiceSaved ? (

@@ -1,9 +1,12 @@
+@import url('../../colors.css');
+
 /* Main container */
 .mainBox {
     padding: 40px;
     width: 90%;
     margin: auto;
     margin-top: 100px;
+    position: relative;
 }
 
 /* Operation Type Selection */
@@ -41,6 +44,8 @@
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+    background-color: white;
+    padding-bottom: 30px;
 }
 
 /* Printable Box */
@@ -63,7 +68,7 @@
 }
 
 .logoImage {
-    width: 300px;
+    width: 250px;
 }
 
 .operationTypeBox {
@@ -124,25 +129,28 @@
 
 .tableCell {
     border: 1px solid #b2b0b0 !important;
-    padding: 12px;
     text-align: center;
     background-color: #ddd;
     font-weight: bold;
-
 }
 
 .tableCellRow {
-    width: auto;
+    /* width: auto; */
     text-align: center;
+
 }
 
 .tableInputCell {
     /* Styles for input cells */
+    padding: 0 !important;
+
 }
 
 .cellInput {
     border: none;
     outline: none;
+    padding: 0;
+    text-align: center;
     width: 100%;
 }
 
@@ -230,6 +238,7 @@
     width: calc(100% - 100px);
     margin: auto;
     min-width: 100px;
+    border: 1px solid #ddd;
 }
 
 /* Buttons Section */

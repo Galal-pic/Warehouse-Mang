@@ -15,6 +15,7 @@ import Items from "./pages/itemsPage/Items";
 import Machines from "./pages/machinesPage/Machines";
 import Mechanisms from "./pages/mechanismsPage/Mechanisms";
 import Others from "./pages/othersPage/Others";
+import WallPaper from "./components/wallPaper/WallPaper";
 
 function App() {
   return (
@@ -27,6 +28,7 @@ function App() {
             element={
               <>
                 <Header />
+                <WallPaper />
                 <Routes>
                   <Route path="/" element={<Navigate to="/login" />} />
                   <Route path="/register" element={<Register />} />

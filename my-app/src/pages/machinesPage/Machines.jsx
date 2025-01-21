@@ -25,6 +25,7 @@ import IconButton from "@mui/material/IconButton";
 import AddCircleIcon from "@mui/icons-material/AddCircle";
 import "../../colors.css";
 import SnackBar from "../../components/snackBar/SnackBar";
+import DeleteRow from "../../components/deleteItem/DeleteRow";
 
 const CustomPagination = ({ page, count, onChange }) => {
   const handlePageChange = (event, value) => {
@@ -162,7 +163,7 @@ export default function Machines() {
     toolbarResetColumns: "إعادة تعيين",
   };
 
-  // dialog
+  // add dialog
   const [openDialog, setOpenDialog] = useState(false);
 
   // add item
@@ -287,6 +288,11 @@ export default function Machines() {
   const [editingItem, setEditingItem] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
   const handleSave = async () => {
+    if (selectedItem === editingItem) {
+      setEditingItem(null);
+      setIsEditingItem(false);
+      return;
+    }
     const hasEmptyValues = Object.values(editingItem).some((value) => {
       if (typeof value === "string") {
         return value.trim() === "";
@@ -298,11 +304,6 @@ export default function Machines() {
       setOpenSnackbar(true);
       setSnackbarMessage("يرجى ملئ جميع الحقول");
       setSnackBarType("info");
-      return;
-    }
-    if (selectedItem === editingItem) {
-      setEditingItem(null);
-      setIsEditingItem(false);
       return;
     }
 
@@ -381,7 +382,7 @@ export default function Machines() {
               </button>
               <button
                 className={styles.iconBtn}
-                onClick={() => handleDelete(params.id)}
+                onClick={() => handleDeleteClick(params.id)}
                 style={{ color: "#d32f2f" }}
               >
                 <ClearOutlinedIcon />
@@ -459,37 +460,56 @@ export default function Machines() {
     },
   ];
 
+  // delete dialog
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState(null);
+  const [deleteConfirmationText, setDeleteConfirmationText] = useState("");
+
+  const handleDeleteClick = (id) => {
+    setSelectedUserId(id);
+    setDeleteDialogOpen(true);
+    setDeleteConfirmationText("");
+  };
+
   // delete
-  const handleDelete = async (id) => {
-    const isConfirmed = window.confirm(
-      "Are you sure you want to delete this user?"
-    );
-    if (!isConfirmed) return;
+  const handleDelete = async () => {
+    if (deleteConfirmationText.trim().toLowerCase() === "نعم") {
+      const accessToken = localStorage.getItem("access_token");
 
-    const accessToken = localStorage.getItem("access_token");
+      try {
+        const response = await fetch(
+          `http://127.0.0.1:5000/machine/${selectedUserId}`,
+          {
+            method: "DELETE",
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          }
+        );
 
-    try {
-      const response = await fetch(`http://127.0.0.1:5000/machine/${id}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || "Failed to delete user");
+        }
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to delete user");
+        setInitialItems((prev) =>
+          prev.filter((item) => item.id !== selectedUserId)
+        );
+        setOpenSnackbar(true);
+        setSnackbarMessage("تم حذف الماكينة");
+        setSnackBarType("success");
+        setDeleteConfirmationText("");
+        setSelectedUserId(null);
+        setDeleteDialogOpen(false);
+      } catch (error) {
+        console.error("Error deleting user:", error);
+        setOpenSnackbar(true);
+        setSnackbarMessage("خطأ في حذف الماكينة");
+        setSnackBarType("error");
+        setDeleteConfirmationText("");
+        setSelectedUserId(null);
+        setDeleteDialogOpen(false);
       }
-
-      setInitialItems((prev) => prev.filter((item) => item.id !== id));
-      setOpenSnackbar(true);
-      setSnackbarMessage("تم حذف الماكينة");
-      setSnackBarType("success");
-    } catch (error) {
-      console.error("Error deleting user:", error);
-      setOpenSnackbar(true);
-      setSnackbarMessage("خطأ في حذف الماكينة");
-      setSnackBarType("error");
     }
   };
 
@@ -497,8 +517,18 @@ export default function Machines() {
     <div className={styles.container}>
       {/* title */}
       <div>
-        <h2 className={styles.title}>الماكينات</h2>
+        <h1 className={styles.title}>الماكينات</h1>
       </div>
+
+      {/* delete dialog */}
+      <DeleteRow
+        deleteDialogOpen={deleteDialogOpen}
+        setDeleteDialogOpen={setDeleteDialogOpen}
+        deleteConfirmationText={deleteConfirmationText}
+        setDeleteConfirmationText={setDeleteConfirmationText}
+        handleDelete={handleDelete}
+        message={"هل أنت متأكد من رغبتك في حذف هذه الالة؟"}
+      />
 
       {/* table */}
       <DataGrid
@@ -534,10 +564,7 @@ export default function Machines() {
             paddingBottom: "10px",
             display: "flex",
             justifyContent: "space-between",
-            backgroundColor: "#f7f7f7",
-          },
-          "& .MuiDataGrid-virtualScroller": {
-            borderRadius: "4px",
+            backgroundColor: "transparent",
           },
           "& .MuiDataGrid-cell": {
             border: "1px solid #ddd",
@@ -552,13 +579,16 @@ export default function Machines() {
           "& .MuiDataGrid-cell:focus-within": {
             outline: "none",
           },
-          backgroundColor: "white",
+          "& .MuiDataGrid-virtualScroller": {
+            backgroundColor: "white",
+            borderRadius: "4px",
+          },
           border: "none",
-          marginTop: "10px",
+          margin: "10px 20px 0",
         }}
       />
 
-      {/* dialog */}
+      {/* add dialog */}
       <Dialog
         open={openDialog}
         onClose={() => {

@@ -9,8 +9,6 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    /* background-color: #f7f7f7; */
     background-color: var(--primary-color);
     color: white;
     z-index: 9999;
@@ -34,8 +32,7 @@
 }
 
 .drawerButton {
-    width: 120px;
-
+    margin-left: calc(100% - 70px) !important;
 }
 
 .header a {
@@ -53,6 +50,156 @@
 .selected {
     color: #1976d2;
     font-weight: bold;
+}
+
+.navbarContainer {
+    display: flex;
+    justify-content: space-around;
+    gap: 50px;
+    flex: 1;
+    transition: 0.2s;
+    height: 100%;
+    flex-direction: row-reverse;
+}
+
+.navItem {
+    list-style: none;
+    align-items: center;
+    display: flex;
+    transition: 0.2s;
+    border-bottom: 3px solid var(--primary-color);
+}
+
+.activeNavItem {
+    border-bottom: 3px solid white;
+}
+
+.navLink {
+    color: #ccc;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+    width: 130px;
+    font-weight: normal;
+    transition: 0.2s;
+    text-decoration: none;
+    margin: auto;
+}
+
+.activeNavLink {
+    color: white;
+    font-weight: bold;
+}
+
+.icon {
+    margin-top: 5px !important;
+}
+
+
+.menuList {
+    padding: 0 !important;
+}
+
+.menuContainer {
+    margin-top: 13px;
+    text-align: right;
+}
+
+
+.menuItem {
+    padding: 0 !important;
+    width: 130px !important;
+    font-size: 15px !important;
+}
+
+.menuItem:hover {
+    background-color: #333 !important;
+    color: white !important;
+}
+
+
+.menuItem:hover .link .span {
+    transform: translateX(-10px) !important;
+}
+
+.link {
+    direction: rtl;
+    padding: 15px 8px;
+    text-decoration: none;
+    color: black;
+    width: 100%;
+    background-color: transparent;
+    font-weight: normal;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.span {
+    padding-right: 5px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: transform 0.3s ease, background-color 0.2s;
+}
+
+.activeLink {
+    font-weight: bold;
+    background-color: #eee !important;
+
+}
+
+.activeLink:hover {
+    background-color: transparent !important;
+}
+
+.link:hover {
+    color: white !important;
+}
+
+
+.navLinkMain {
+    color: #ccc !important;
+    margin: auto !important;
+}
+
+.activeNavLinkMain {
+    color: white !important;
+    font-weight: bold !important;
+}
+
+.liDrawer {
+    margin: 0;
+    padding: 0;
+}
+
+.liDrawer:hover {
+    background-color: #333;
+    transition: 0.3s;
+}
+
+.navLinkDrawer {
+    text-decoration: none;
+    color: black;
+    display: flex;
+    gap: 5px;
+    transition: 0.3s;
+    padding: 10px 0;
+
+}
+
+.navLinkDrawer:hover {
+    color: white;
+    transform: translateX(-10px) !important;
+
+}
+
+@media (max-width: 768px) {
+    .dropdown-menu {
+        display: none;
+    }
 }
 
 @media (max-width: 768px) {

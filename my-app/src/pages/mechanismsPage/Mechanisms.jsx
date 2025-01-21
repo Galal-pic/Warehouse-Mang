@@ -25,6 +25,7 @@ import IconButton from "@mui/material/IconButton";
 import AddCircleIcon from "@mui/icons-material/AddCircle";
 import "../../colors.css";
 import SnackBar from "../../components/snackBar/SnackBar";
+import DeleteRow from "../../components/deleteItem/DeleteRow";
 
 const CustomPagination = ({ page, count, onChange }) => {
   const handlePageChange = (event, value) => {
@@ -100,8 +101,19 @@ export default function Mechanisms() {
     setPaginationModel((prev) => ({ ...prev, ...newModel }));
   };
 
-  // dialog
+  // add dialog
   const [openDialog, setOpenDialog] = useState(false);
+
+  // delete dialog
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState(null);
+  const [deleteConfirmationText, setDeleteConfirmationText] = useState("");
+
+  const handleDeleteClick = (id) => {
+    setSelectedUserId(id);
+    setDeleteDialogOpen(true);
+    setDeleteConfirmationText("");
+  };
 
   // add item
   const [newItem, setNewItem] = useState({
@@ -152,7 +164,7 @@ export default function Mechanisms() {
     } catch (error) {
       console.error("Error creating invoice:", error);
       setOpenSnackbar(true);
-      setSnackbarMessage(error.message || "خطأ في إضافة الماكينة");
+      setSnackbarMessage(error.message || "خطأ في إضافة الميكانيزم");
       setSnackBarType("error");
     }
   };
@@ -225,7 +237,11 @@ export default function Mechanisms() {
   const [editingItem, setEditingItem] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
   const handleSave = async (id) => {
-    console.log(id)
+    if (selectedItem === editingItem) {
+      setEditingItem(null);
+      setIsEditingItem(false);
+      return;
+    }
     const hasEmptyValues = Object.values(editingItem).some((value) => {
       if (typeof value === "string") {
         return value.trim() === "";
@@ -239,24 +255,17 @@ export default function Mechanisms() {
       setSnackBarType("info");
       return;
     }
-    if (selectedItem === editingItem) {
-      setEditingItem(null);
-      setIsEditingItem(false);
-      return;
-    }
+
     const accessToken = localStorage.getItem("access_token");
     try {
-      const response = await fetch(
-        `http://127.0.0.1:5000/mechanism/${id}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify(editingItem),
-        }
-      );
+      const response = await fetch(`http://127.0.0.1:5000/mechanism/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(editingItem),
+      });
 
       if (!response.ok) {
         throw new Error(`Failed to update user: ${response.status}`);
@@ -271,7 +280,7 @@ export default function Mechanisms() {
     } catch (error) {
       console.error("Error updating user:", error);
       setOpenSnackbar(true);
-      setSnackbarMessage("خطأ في تحديث الماكينة");
+      setSnackbarMessage("خطأ في تحديث الميكانيزم");
       setSnackBarType("error");
     }
   };
@@ -286,7 +295,10 @@ export default function Mechanisms() {
           return (
             <>
               <div>
-                <button className={styles.iconBtn} onClick={() => handleSave(params.id)}>
+                <button
+                  className={styles.iconBtn}
+                  onClick={() => handleSave(params.id)}
+                >
                   <SaveIcon />
                 </button>
                 <button
@@ -318,7 +330,7 @@ export default function Mechanisms() {
               </button>
               <button
                 className={styles.iconBtn}
-                onClick={() => handleDelete(params.id)}
+                onClick={() => handleDeleteClick(params.id)}
                 style={{ color: "#d32f2f" }}
               >
                 <ClearOutlinedIcon />
@@ -363,7 +375,7 @@ export default function Mechanisms() {
     },
     {
       field: "name",
-      headerName: "اسم الماكينة",
+      headerName: "اسم الميكانيزم",
       width: 100,
       flex: 1,
       renderCell: (params) => {
@@ -397,36 +409,43 @@ export default function Mechanisms() {
   ];
 
   // delete
-  const handleDelete = async (id) => {
-    const isConfirmed = window.confirm(
-      "Are you sure you want to delete this user?"
-    );
-    if (!isConfirmed) return;
+  const handleDelete = async () => {
+    if (deleteConfirmationText.trim().toLowerCase() === "نعم") {
+      const accessToken = localStorage.getItem("access_token");
+      try {
+        const response = await fetch(
+          `http://127.0.0.1:5000/mechanism/${selectedUserId}`,
+          {
+            method: "DELETE",
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          }
+        );
 
-    const accessToken = localStorage.getItem("access_token");
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || "Failed to delete user");
+        }
 
-    try {
-      const response = await fetch(`http://127.0.0.1:5000/mechanism/${id}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to delete user");
+        setInitialItems((prev) =>
+          prev.filter((item) => item.id !== selectedUserId)
+        );
+        setOpenSnackbar(true);
+        setSnackbarMessage("تم حذف الميكانيزم");
+        setSnackBarType("success");
+        setDeleteConfirmationText("");
+        setSelectedUserId(null);
+        setDeleteDialogOpen(false);
+      } catch (error) {
+        console.error("Error deleting user:", error);
+        setOpenSnackbar(true);
+        setSnackbarMessage("خطأ في حذف الميكانيزم");
+        setSnackBarType("error");
+        setDeleteConfirmationText("");
+        setSelectedUserId(null);
+        setDeleteDialogOpen(false);
       }
-
-      setInitialItems((prev) => prev.filter((item) => item.id !== id));
-      setOpenSnackbar(true);
-      setSnackbarMessage("تم حذف الميكانيزم");
-      setSnackBarType("success");
-    } catch (error) {
-      console.error("Error deleting user:", error);
-      setOpenSnackbar(true);
-      setSnackbarMessage("خطأ في حذف الميكانيزم");
-      setSnackBarType("error");
     }
   };
 
@@ -496,7 +515,7 @@ export default function Mechanisms() {
     <div className={styles.container}>
       {/* title */}
       <div>
-        <h2 className={styles.title}>الميكانيزم</h2>
+        <h1 className={styles.title}>الميكانيزم</h1>
       </div>
 
       {/* table */}
@@ -533,10 +552,7 @@ export default function Mechanisms() {
             paddingBottom: "10px",
             display: "flex",
             justifyContent: "space-between",
-            backgroundColor: "#f7f7f7",
-          },
-          "& .MuiDataGrid-virtualScroller": {
-            borderRadius: "4px",
+            backgroundColor: "transparent",
           },
           "& .MuiDataGrid-cell": {
             border: "1px solid #ddd",
@@ -551,14 +567,16 @@ export default function Mechanisms() {
           "& .MuiDataGrid-cell:focus-within": {
             outline: "none",
           },
-          backgroundColor: "white",
+          "& .MuiDataGrid-virtualScroller": {
+            backgroundColor: "white",
+            borderRadius: "4px",
+          },
           border: "none",
-          marginTop: "10px",
-          // direction: "rtl",
+          margin: "10px 20px 0",
         }}
       />
 
-      {/* dialog */}
+      {/* add dialog */}
       <Dialog
         open={openDialog}
         onClose={() => {
@@ -708,6 +726,16 @@ export default function Mechanisms() {
           </DialogActions>
         </DialogContent>
       </Dialog>
+
+      {/* delete dialog */}
+      <DeleteRow
+        deleteDialogOpen={deleteDialogOpen}
+        setDeleteDialogOpen={setDeleteDialogOpen}
+        deleteConfirmationText={deleteConfirmationText}
+        setDeleteConfirmationText={setDeleteConfirmationText}
+        handleDelete={handleDelete}
+        message={"هل أنت متأكد من رغبتك في حذف هذا الميكانيزم؟"}
+      />
 
       {/* Snackbar */}
       <SnackBar

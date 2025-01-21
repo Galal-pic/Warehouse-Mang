@@ -8,14 +8,11 @@
 }
 
 .title {
-    /* background-color: var(--primary-color); */
+    font-size: 2rem;
+    margin-bottom: 20px;
     color: var(--primary-color);
-    /* color: white; */
-    padding: 5px 100px 10px;
-    display: inline;
-    border-radius: 30px;
+    position: relative;
 }
-
 
 
 .headerCell {

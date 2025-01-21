@@ -1,6 +1,8 @@
+@import url('./colors.css');
+
 .App {
   text-align: center;
   /* height: 100vh; */
-  background-color: #f7f7f7;
+  background-color: var(--main-color);
 }
 

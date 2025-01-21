@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import styles from "./Header.module.css";
-import logo from "./test.png";
+import logo from "./logo.png";
+import logoWhite from "./logoWhite.png";
 import { useAuth, logout } from "../../context/AuthContext";
-import { Button, Typography } from "@mui/material";
+import { Button, colors, Typography } from "@mui/material";
 import { Link, useNavigate } from "react-router-dom";
 import Box from "@mui/material/Box";
 import SwipeableDrawer from "@mui/material/SwipeableDrawer";
@@ -13,24 +14,48 @@ import ListItemText from "@mui/material/ListItemText";
 import MenuIcon from "@mui/icons-material/Menu";
 import "../../colors.css";
 import { useLocation } from "react-router-dom";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import HomeRepairServiceIcon from "@mui/icons-material/HomeRepairService";
+import PrecisionManufacturingIcon from "@mui/icons-material/PrecisionManufacturing";
+import SettingsIcon from "@mui/icons-material/Settings";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 
 // liks
-const links = [
+const resourceManagementLinks = [
   {
-    text: "أخرى",
-    href: "/others",
+    text: "المنتجات",
+    href: "/others/items",
+    icon: <HomeRepairServiceIcon sx={{ mb: 0.5 }} />,
   },
   {
-    text: "إدارة العمليات",
-    href: "/invoices",
+    text: "الماكينات",
+    href: "/others/machines",
+    icon: <PrecisionManufacturingIcon sx={{ mb: 0.5 }} />,
+  },
+  {
+    text: "الميكانيزم",
+    href: "/others/mechanisms",
+    icon: <SettingsIcon sx={{ mb: 0.5 }} />,
+  },
+];
+const links = [
+  {
+    text: "الموظفين",
+    href: "/users",
   },
   {
     text: "إنشاء عملية",
     href: "/createinvoice",
   },
   {
-    text: "الموظفين",
-    href: "/users",
+    text: "إدارة العمليات",
+    href: "/invoices",
+  },
+  {
+    text: "إدارة الموارد",
+    submenu: resourceManagementLinks,
   },
 ];
 
@@ -79,6 +104,10 @@ export default function Header() {
   const handleLinkClick = (href) => {
     setSelectedLink(href);
     navigate(href);
+    handleClose();
+  };
+  const isSubmenuActive = (submenu) => {
+    return submenu?.some((item) => item.href === selectedLink);
   };
 
   // logOut
@@ -107,8 +136,45 @@ export default function Header() {
     document.documentElement
   ).getPropertyValue("--primary-color");
 
+  // dropdown for others
+  const [anchorEl, setAnchorEl] = React.useState(null);
+  const open = Boolean(anchorEl);
+  const handleClick = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
+  const menuRef = useRef();
+  const headerRef = useRef();
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      const isClickInsideMenu = menuRef.current?.contains(e.target);
+      const isClickOnMenuButton = e.target.closest("[data-nav-item]");
+
+      if (open && !isClickInsideMenu && !isClickOnMenuButton) {
+        handleClose();
+      }
+    };
+
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, [open]);
+
+  // responsive
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 750);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 750);
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   return (
-    <div className={styles.header}>
+    <div className={styles.header} ref={headerRef}>
       {/* logo */}
       <div
         style={{ justifyContent: "flex-start" }}
@@ -117,7 +183,7 @@ export default function Header() {
         <Link to="/users">
           <img
             style={{ justifyContent: "flex-start" }}
-            src={logo}
+            src={logoWhite}
             alt=""
             className={styles.logo}
           />
@@ -125,60 +191,108 @@ export default function Header() {
       </div>
 
       {/* links */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-around",
-          gap: "50px",
-          flex: 1,
-          transition: "0.2s",
-          height: "100%",
-        }}
-      >
-        {links.map((link) => (
-          <li
-            key={link.text}
-            style={{
-              listStyle: "none",
-              alignItems: "center",
-              display: "flex",
-              transition: "0.2s",
-              borderBottom:
-                selectedLink === link.href
-                  ? "3px solid white"
-                  : `3px solid ${primaryColor}`,
-            }}
-          >
-            <Link
-              to={link.href}
-              style={{
-                textDecoration: "none",
-                color: selectedLink === link.href ? "white" : "#ccc",
-                marginRight: "10px",
-                margin: "auto",
-                fontWeight: selectedLink === link.href ? "bold" : "",
-              }}
-              onClick={() => handleLinkClick(link.href)}
+      {!isMobile && (
+        <div className={styles.navbarContainer}>
+          {links.map((link) => (
+            <li
+              key={link.text}
+              className={`${styles.navItem} ${
+                selectedLink === link.href || isSubmenuActive(link.submenu)
+                  ? styles.activeNavItem
+                  : ""
+              }`}
+              data-nav-item
             >
-              {link.text}
-            </Link>
-          </li>
-        ))}
-      </div>
+              {link.submenu ? (
+                <div>
+                  <div
+                    className={`${styles.navLink} ${
+                      selectedLink === link.href ||
+                      isSubmenuActive(link.submenu)
+                        ? styles.activeNavLink
+                        : ""
+                    }`}
+                    onClick={handleClick}
+                  >
+                    <KeyboardArrowDownIcon className={styles.icon} />
+                    إدارة الموارد
+                  </div>
+                  <Menu
+                    ref={menuRef}
+                    anchorEl={anchorEl}
+                    open={open}
+                    onClose={handleClose}
+                    MenuListProps={{
+                      className: styles.menuList,
+                    }}
+                    className={styles.menuContainer}
+                  >
+                    {resourceManagementLinks.map((resource) => {
+                      return (
+                        <MenuItem
+                          key={resource.text}
+                          onClick={handleClose}
+                          className={styles.menuItem}
+                          sx={{
+                            "&.MuiMenuItem-root": {
+                              backgroundColor: "transparent",
+                            },
+                          }}
+                        >
+                          <Link
+                            to={resource.href}
+                            className={`${styles.link} ${
+                              selectedLink === resource.href
+                                ? styles.activeLink
+                                : ""
+                            }`}
+                          >
+                            <span className={styles.span}>
+                              {resource.icon}
+                              {resource.text}
+                            </span>
+                          </Link>
+                        </MenuItem>
+                      );
+                    })}
+                  </Menu>
+                </div>
+              ) : (
+                <Link
+                  to={link.href}
+                  onClick={() => handleLinkClick(link.href)}
+                  className={`${styles.navLinkMain} ${
+                    selectedLink === link.href ? styles.activeNavLinkMain : ""
+                  }`}
+                  style={{
+                    height: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                  }}
+                >
+                  {link.text}
+                </Link>
+              )}
+            </li>
+          ))}
+        </div>
+      )}
 
       {/* Drawer icon */}
-      <Button
-        sx={{ flex: 1, justifyContent: "flex-end" }}
-        onClick={toggleDrawer(true)}
-        className={styles.drawerButton}
+      <div
+        style={{
+          flex: 1,
+        }}
       >
-        <MenuIcon
-          sx={{
-            fontSize: "50px",
-            color: "white",
-          }}
-        />
-      </Button>
+        <Button onClick={toggleDrawer(true)} className={styles.drawerButton}>
+          <MenuIcon
+            sx={{
+              fontSize: "50px",
+              color: "white",
+            }}
+          />
+        </Button>
+      </div>
 
       {/* Drawer */}
       <SwipeableDrawer
@@ -195,7 +309,7 @@ export default function Header() {
             width: 260,
             backgroundColor: "#f7f7f7",
             height: "100vh",
-            padding: 2,
+            padding: !isMobile ? 2 : "5px 20px 0",
             direction: "rtl",
           }}
           role="presentation"
@@ -213,7 +327,7 @@ export default function Header() {
             <ListItem
               disablePadding
               sx={{
-                marginBottom: 3,
+                marginBottom: !isMobile ? 3 : 0,
               }}
             >
               <ListItemButton
@@ -243,7 +357,7 @@ export default function Header() {
             <ListItem
               disablePadding
               sx={{
-                marginBottom: 3,
+                marginBottom: !isMobile ? 3 : 0,
               }}
             >
               <ListItemButton
@@ -268,6 +382,30 @@ export default function Header() {
                 />
               </ListItemButton>
             </ListItem>
+            {isMobile && (
+              <div
+                style={{
+                  flexDirection: "column-reverse",
+                  gap: "10px",
+                  margin: "10px 0 20px",
+                }}
+              >
+                {[...links, ...resourceManagementLinks].map((link) => (
+                  <li className={styles.liDrawer} key={link.text} data-nav-item>
+                    {link.href && (
+                      <Link
+                        to={link.href}
+                        onClick={() => handleLinkClick(link.href)}
+                        className={styles.navLinkDrawer}
+                      >
+                        <ArrowBackIcon />
+                        {link.text}
+                      </Link>
+                    )}
+                  </li>
+                ))}
+              </div>
+            )}
 
             {/* Logout Button */}
             <ListItem disablePadding>
@@ -301,7 +439,7 @@ export default function Header() {
             <ListItem
               disablePadding
               sx={{
-                marginBottom: 3,
+                marginBottom: !isMobile ? 3 : 0,
               }}
             >
               <img

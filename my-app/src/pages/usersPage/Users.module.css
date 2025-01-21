@@ -4,17 +4,21 @@
     --main_color: black;
     --blue_color: #1976d2;
 }
+
 /* General Container Styling */
 .container {
     width: 80%;
     padding: 100px 0 10px;
     margin: auto;
+    background-color: transparent !important;
 }
 
 /* Header Styling */
 .head {
     font-size: 2rem;
     margin-bottom: 20px;
+    color: var(--primary-color);
+    position: relative;
 }
 
 /* DataGrid Header Styling */
