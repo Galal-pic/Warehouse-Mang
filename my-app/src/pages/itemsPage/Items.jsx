@@ -305,7 +305,7 @@ export default function Items() {
     { field: "item_bar", headerName: "الرمز", width: 200, flex: 1 },
 
     { field: "item_name", headerName: "اسم المنتج", width: 100, flex: 1 },
-    { field: "id", headerName: "#", width: 100, flex: 1 },
+    { field: "id", headerName: "#", width: 100},
   ];
 
   // modal

@@ -17,7 +17,8 @@
     "react-router-dom": "^7.1.1",
     "react-scripts": "5.0.1",
     "react-token-auth": "^2.3.8",
-    "web-vitals": "^4.2.4"
+    "web-vitals": "^4.2.4",
+    "xlsx": "^0.18.5"
   },
   "scripts": {
     "start": "react-scripts start",

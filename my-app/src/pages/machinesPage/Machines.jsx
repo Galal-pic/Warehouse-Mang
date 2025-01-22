@@ -458,6 +458,11 @@ export default function Machines() {
         return params.value;
       },
     },
+    {
+      field: "id",
+      headerName: "#",
+      width: 100,
+    },
   ];
 
   // delete dialog

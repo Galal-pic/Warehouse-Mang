@@ -44,6 +44,15 @@ export default function Type1() {
     if (operationType !== "") {
       setLastSelected(operationType);
       setPurchasesType("");
+      rows.map((row) => {
+        const targetRow = row.locations.find(
+          (location) => location.location === row.location
+        );
+        if (targetRow && row.quantity > targetRow.quantity) {
+          row.quantity = 0;
+        }
+        return row;
+      });
     }
     if (operationType || purchasesType) {
       setNewInvoice({
@@ -57,6 +66,8 @@ export default function Type1() {
     if (purchasesType !== "") {
       setLastSelected(purchasesType);
       setOperationType("");
+      console.log(newInvoice);
+      console.log(rows);
     }
     if (operationType || purchasesType) {
       setNewInvoice({
@@ -395,6 +406,8 @@ export default function Type1() {
         throw new Error("Failed to save invoice");
       }
       fetchWareHousesData();
+      fetchMachinesData();
+      fetchMechanismsData();
       setIsInvoiceSaved(true);
       setRows(newRows);
       setSnackbarMessage("تم حفظ الفاتورة بنجاح");

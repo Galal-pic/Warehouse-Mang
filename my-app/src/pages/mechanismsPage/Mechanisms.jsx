@@ -406,6 +406,11 @@ export default function Mechanisms() {
         return params.value;
       },
     },
+    {
+      field: "id",
+      headerName: "#",
+      width: 100,
+    },
   ];
 
   // delete
