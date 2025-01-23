@@ -1,14 +1,8 @@
 import styles from "./Invoices.module.css";
 import React, { useEffect, useState } from "react";
-import {
-  DataGrid,
-  GridToolbarContainer,
-  GridToolbarExport,
-  GridToolbarQuickFilter,
-} from "@mui/x-data-grid";
+import { GridToolbarContainer, GridToolbarQuickFilter } from "@mui/x-data-grid";
 import {
   Button,
-  PaginationItem,
   Box,
   Typography,
   Autocomplete,
@@ -23,10 +17,6 @@ import {
 import EditIcon from "@mui/icons-material/Edit";
 import ClearOutlinedIcon from "@mui/icons-material/ClearOutlined";
 import SaveIcon from "@mui/icons-material/Save";
-import Pagination from "@mui/material/Pagination";
-import Stack from "@mui/material/Stack";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import LaunchIcon from "@mui/icons-material/Launch";
 import logo from "./logo.png";
 import AddIcon from "@mui/icons-material/Add";
@@ -34,35 +24,9 @@ import "../../colors.css";
 import SnackBar from "../../components/snackBar/SnackBar";
 import DeleteRow from "../../components/deleteItem/DeleteRow";
 import RotateLeftIcon from "@mui/icons-material/RotateLeft";
-import * as XLSX from "xlsx";
+import PublishedWithChangesIcon from "@mui/icons-material/PublishedWithChanges";
+import CustomDataGrid from "../../components/dataGrid/CustomDataGrid";
 
-const CustomPagination = ({ page, count, onChange }) => {
-  const handlePageChange = (event, value) => {
-    onChange({ page: value - 1 });
-  };
-
-  return (
-    <Stack
-      spacing={2}
-      sx={{
-        margin: "auto",
-        direction: "rtl",
-      }}
-    >
-      <Pagination
-        count={count}
-        page={page + 1}
-        onChange={handlePageChange}
-        renderItem={(item) => (
-          <PaginationItem
-            slots={{ previous: ArrowForwardIcon, next: ArrowBackIcon }}
-            {...item}
-          />
-        )}
-      />
-    </Stack>
-  );
-};
 export default function Invoices() {
   const [invoices, setInvoices] = useState([]);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
@@ -86,6 +50,26 @@ export default function Invoices() {
   };
   useEffect(() => {
     fetchWareHousesData();
+  }, []);
+
+  // fetch machines
+  const [supliers, setSupliers] = useState([]);
+  const fetchSupliersData = async () => {
+    const accessToken = localStorage.getItem("access_token");
+    if (!accessToken) return;
+    try {
+      const response = await fetch("http://127.0.0.1:5000/machine/", {
+        method: "GET",
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const data = await response.json();
+      setSupliers(data);
+    } catch (err) {
+      console.error("Error fetching user data:", err);
+    }
+  };
+  useEffect(() => {
+    fetchSupliersData();
   }, []);
 
   // fetch machines
@@ -139,9 +123,6 @@ export default function Invoices() {
   };
 
   // colors
-  const orangeColor = getComputedStyle(
-    document.documentElement
-  ).getPropertyValue("--orange-color");
   const secondColor = getComputedStyle(
     document.documentElement
   ).getPropertyValue("--second-color");
@@ -265,9 +246,7 @@ export default function Invoices() {
   // delete selected invoices
   const handleDeleteSelectedRows = async (selectedIds) => {
     const accessToken = localStorage.getItem("access_token");
-
     try {
-      // إرسال جميع طلبات الحذف بشكل متوازي
       await Promise.all(
         selectedIds.map(async (id) => {
           const response = await fetch(`http://127.0.0.1:5000/invoice/${id}`, {
@@ -280,15 +259,9 @@ export default function Invoices() {
           }
         })
       );
-
-      // تحديث البيانات بعد الحذف
       await fetchItemsData();
-
-      // إغلاق الـ dialog وإعادة التعيين
       setDeleteDialogCheckBoxOpen(false);
       setDeleteCheckBoxConfirmationText("");
-
-      // إظهار إشعار النجاح
       setOpenSnackbar(true);
       setSnackbarMessage("تم الحذف بنجاح");
       setSnackBarType("success");
@@ -300,19 +273,10 @@ export default function Invoices() {
     }
   };
   // custom toolbar
-
   function CustomToolbar() {
-    const handleExport = () => {
-      const ws = XLSX.utils.json_to_sheet(filteredAndFormattedData);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
-
-      XLSX.writeFile(wb, "exported_data.xlsx", {
-        bookType: "xlsx",
-        type: "binary",
-      });
+    const handleRefresh = () => {
+      console.log("refresh");
     };
-
     return (
       <GridToolbarContainer
         sx={{
@@ -320,22 +284,19 @@ export default function Invoices() {
         }}
       >
         {/* Add Delete Button */}
-        <div>
-          {selectedRows.length > 0 && (
-            <Button
-              variant="contained"
-              color="error"
-              startIcon={<ClearOutlinedIcon />}
-              onClick={handleDeleteCheckBoxClick}
-              sx={{
-                backgroundColor: "#d32f2f",
-                "&:hover": { backgroundColor: "#b71c1c" },
-              }}
-            >
-              حذف المحدد ({selectedRows.length})
-            </Button>
-          )}
-        </div>
+        <Button
+          variant="contained"
+          color="success"
+          startIcon={<PublishedWithChangesIcon />}
+          onClick={handleRefresh}
+          sx={{
+            position: "absolute",
+            top: "15px",
+            fontWeight: "bold",
+          }}
+        >
+          استكمال البيانات
+        </Button>
         <GridToolbarQuickFilter
           sx={{
             width: "500px",
@@ -344,7 +305,6 @@ export default function Invoices() {
               padding: "8px",
               borderBottom: `2px solid ${secondColor}`,
               backgroundColor: "white",
-              borderRadius: "5px",
             },
             "& .MuiSvgIcon-root": {
               color: secondColor,
@@ -364,18 +324,23 @@ export default function Invoices() {
           }}
           placeholder="ابحث هنا..."
         />
-        {/* Add Export Button */}
-        <Button
-          onClick={handleExport}
-          sx={{
-            color: "white",
-            backgroundColor: "#4caf50",
-            marginLeft: "16px",
-            "&:hover": { backgroundColor: "#388e3c" },
-          }}
-        >
-          تصدير
-        </Button>
+        {selectedRows.length > 0 && (
+          <Button
+            variant="contained"
+            color="error"
+            startIcon={<ClearOutlinedIcon />}
+            onClick={handleDeleteCheckBoxClick}
+            sx={{
+              backgroundColor: "#d32f2f",
+              "&:hover": { backgroundColor: "#b71c1c" },
+              position: "absolute",
+              top: "15px",
+              right: "0",
+            }}
+          >
+            حذف المحدد ({selectedRows.length})
+          </Button>
+        )}
       </GridToolbarContainer>
     );
   }
@@ -466,69 +431,6 @@ export default function Invoices() {
       disableColumnMenu: true,
     },
   ];
-
-  // local translate
-  const localeText = {
-    toolbarColumns: "الأعمدة",
-    toolbarFilters: "التصفية",
-    toolbarDensity: "الكثافة",
-    toolbarExport: "تصدير",
-    columnMenuSortAsc: "ترتيب تصاعدي",
-    columnMenuSortDesc: "ترتيب تنازلي",
-    columnMenuFilter: "تصفية",
-    columnMenuHideColumn: "إخفاء العمود",
-    columnMenuUnsort: "إلغاء الترتيب",
-    filterPanelOperator: "الشرط",
-    filterPanelValue: "القيمة",
-    filterOperatorContains: "يحتوي على",
-    filterOperatorEquals: "يساوي",
-    filterOperatorStartsWith: "يبدأ بـ",
-    filterOperatorEndsWith: "ينتهي بـ",
-    filterOperatorIsEmpty: "فارغ",
-    filterOperatorIsNotEmpty: "غير فارغ",
-    columnMenuManageColumns: "إدارة الأعمدة",
-    columnMenuShowColumns: "إظهار الأعمدة",
-    toolbarDensityCompact: "مضغوط",
-    toolbarDensityStandard: "عادي",
-    toolbarDensityComfortable: "مريح",
-    toolbarExportCSV: "تصدير إلى CSV",
-    toolbarExportPrint: "طباعة",
-    noRowsLabel: "لا توجد بيانات",
-    noResultsOverlayLabel: "لا توجد نتائج",
-    columnMenuShowHideAllColumns: "إظهار/إخفاء الكل",
-    columnMenuResetColumns: "إعادة تعيين الأعمدة",
-    filterOperatorDoesNotContain: "لا يحتوي على",
-    filterOperatorDoesNotEqual: "لا يساوي",
-    filterOperatorIsAnyOf: "أي من",
-    filterPanelColumns: "الأعمدة",
-    filterPanelInputPlaceholder: "أدخل القيمة",
-    filterPanelInputLabel: "قيمة التصفية",
-    filterOperatorIs: "هو",
-    filterOperatorIsNot: "ليس",
-    toolbarExportExcel: "تصدير إلى Excel",
-    errorOverlayDefaultLabel: "حدث خطأ.",
-    footerRowSelected: (count) => ``,
-    footerTotalRows: "إجمالي الصفوف:",
-    footerTotalVisibleRows: (visibleCount, totalCount) =>
-      `${visibleCount} من ${totalCount}`,
-    filterPanelDeleteIconLabel: "حذف",
-    filterPanelAddFilter: "إضافة تصفية",
-    filterPanelDeleteFilter: "حذف التصفية",
-    loadingOverlay: "جارٍ التحميل...",
-    columnMenuReset: "إعادة تعيين",
-    footerPaginationRowsPerPage: "عدد الصفوف في الصفحة:",
-    paginationLabelDisplayedRows: ({ from, to, count }) =>
-      `${from} - ${to} من ${count}`,
-
-    filterOperatorIsAny: "أي",
-    filterOperatorIsTrue: "نعم",
-    filterOperatorIsFalse: "لا",
-    filterValueAny: "أي",
-    filterValueTrue: "نعم",
-    filterValueFalse: "لا",
-    toolbarColumnsLabel: "إدارة الأعمدة",
-    toolbarResetColumns: "إعادة تعيين",
-  };
 
   // pagination
   const [paginationModel, setPaginationModel] = useState({
@@ -872,85 +774,13 @@ export default function Invoices() {
       </Box>
 
       {/* invoices data */}
-      <DataGrid
+      <CustomDataGrid
         rows={filteredAndFormattedData}
-        columns={columns.map((col) => ({
-          ...col,
-          align: "center",
-          headerAlign: "center",
-          headerClassName: styles.headerCell,
-        }))}
-        getRowClassName={(params) => `row-${params.row.type}`}
-        localeText={localeText}
-        rowHeight={62}
-        editMode="row"
-        onCellDoubleClick={(params, event) => {
-          event.stopPropagation();
-        }}
-        slots={{
-          toolbar: CustomToolbar,
-          pagination: CustomPagination,
-        }}
-        slotProps={{
-          pagination: {
-            page: paginationModel.page,
-            count: pageCount,
-            onChange: handlePageChange,
-          },
-        }}
-        pagination
+        columns={columns}
         paginationModel={paginationModel}
-        onPaginationModelChange={handlePageChange}
-        disableVirtualization={false}
-        sx={{
-          "& .MuiDataGrid-filterIcon, & .MuiDataGrid-sortIcon, & .MuiDataGrid-menuIconButton":
-            {
-              color: "white",
-            },
-          "& .MuiDataGrid-toolbarContainer": {
-            paddingBottom: "10px",
-            display: "flex",
-            justifyContent: "space-between",
-            backgroundColor: "transparent",
-          },
-          "& .MuiDataGrid-cell": {
-            border: "1px solid #ddd",
-          },
-          "&.MuiDataGrid-row:hover": {
-            backgroundColor: "#f7f7f7",
-          },
-          "& .MuiDataGrid-columnSeparator": {},
-          "& .MuiDataGrid-cell:focus": {
-            outline: "none",
-          },
-          "& .MuiDataGrid-cell:focus-within": {
-            outline: "none",
-          },
-          "& .MuiDataGrid-virtualScroller": {
-            backgroundColor: "white",
-            borderRadius: "4px",
-          },
-          "& .row-اضافه": {
-            backgroundColor: "#81d4fa",
-          },
-          "& .row-صرف": {
-            backgroundColor: "#f5deb3",
-          },
-          "& .row-أمانات": {
-            backgroundColor: "#d2b48c",
-          },
-          "& .row-حجز": {
-            backgroundColor: "#deb887",
-          },
-          "& .row-مرتجع": {
-            backgroundColor: "#e3d7b5",
-          },
-          "& .row-توالف": {
-            backgroundColor: "#c5b358",
-          },
-          border: "none",
-          margin: "0 20px",
-        }}
+        onPageChange={handlePageChange}
+        pageCount={pageCount}
+        CustomToolbar={CustomToolbar}
       />
 
       {/* invoice data */}
@@ -1149,6 +979,73 @@ export default function Invoices() {
                       }}
                     >
                       <TableBody>
+                        {/* Inputs for Suplier, Machine and Mechanism Names */}
+                        <TableRow className={styles.tableRow}>
+                          <TableCell className={styles.tableCell} colSpan={2}>
+                            اسم المورد
+                          </TableCell>
+                          <TableCell
+                            className={styles.tableInputCell}
+                            colSpan={6}
+                            sx={{
+                              padding: "0px !important",
+                            }}
+                          >
+                            {isEditingInvoice ? (
+                              <Autocomplete
+                                slotProps={{
+                                  paper: {
+                                    sx: {
+                                      "& .MuiAutocomplete-listbox": {
+                                        "& .MuiAutocomplete-option": {
+                                          direction: "rtl",
+                                        },
+                                      },
+                                    },
+                                  },
+                                }}
+                                value={
+                                  supliers.find(
+                                    (item) =>
+                                      item.name === editingInvoice.suplier_name
+                                  ) || null
+                                }
+                                sx={{
+                                  "& .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline":
+                                    {
+                                      border: "none",
+                                    },
+                                  "& .MuiAutocomplete-clearIndicator": {
+                                    display: "none",
+                                  },
+                                  "& .MuiAutocomplete-popupIndicator": {},
+                                  "& .MuiOutlinedInput-root": {
+                                    padding: "10px",
+                                    paddingRight: "35px!important",
+
+                                    fontSize: "14px",
+                                  },
+                                }}
+                                options={machines}
+                                getOptionLabel={(option) => option.name}
+                                onChange={(event, newValue) =>
+                                  setEditingInvoice({
+                                    ...editingInvoice,
+                                    suplier_name: newValue ? newValue.name : "",
+                                  })
+                                }
+                                renderInput={(params) => (
+                                  <TextField
+                                    {...params}
+                                    placeholder="اسم المورد"
+                                  />
+                                )}
+                              />
+                            ) : (
+                              selectedInvoice.machine_name
+                            )}
+                          </TableCell>
+                        </TableRow>
                         <TableRow className={styles.tableRow}>
                           <TableCell className={styles.tableCell} colSpan={2}>
                             اسم الماكينة
@@ -1777,13 +1674,131 @@ export default function Invoices() {
                       ? editingInvoice.type
                       : selectedInvoice.type
                   ) && (
-                    <Box className={styles.totalAmountSection}>
-                      <Box className={styles.totalAmountBox}>
-                        <Box className={styles.totalAmountLabel}>الإجمالي:</Box>
-                        <Box className={styles.totalAmountValue}>
+                    <Box className={styles.MoneySection}>
+                      <Box className={styles.MoneyBox}>
+                        <Box className={styles.MoneyLabel}>الإجمالي</Box>
+                        <Box className={styles.MoneyValue}>
                           {isEditingInvoice
                             ? editingInvoice?.total_amount
-                            : selectedInvoice.total_amount}
+                            : selectedInvoice?.total_amount}
+                        </Box>
+                      </Box>
+                      <Box className={styles.MoneyBox}>
+                        <Box className={styles.MoneyLabel}>طريقة الدفع</Box>
+                        <Box
+                          className={styles.MoneyValue}
+                          sx={{ padding: "0px" }}
+                        >
+                          {!isEditingInvoice ? (
+                            editingInvoice?.payment_method
+                          ) : (
+                            <Autocomplete
+                              slotProps={{
+                                paper: {
+                                  sx: {
+                                    "& .MuiAutocomplete-listbox": {
+                                      "& .MuiAutocomplete-option": {
+                                        direction: "rtl",
+                                      },
+                                    },
+                                  },
+                                },
+                              }}
+                              options={[
+                                { label: "Cash", value: "Cash" },
+                                { label: "Visa", value: "Visa" },
+                              ]}
+                              getOptionLabel={(option) => option.label}
+                              value={
+                                [
+                                  { label: "Cash", value: "Cash" },
+                                  { label: "Visa", value: "Visa" },
+                                ].find(
+                                  (option) =>
+                                    option.value ===
+                                    editingInvoice.payment_method
+                                ) || null
+                              }
+                              onChange={(event, newValue) => {
+                                setEditingInvoice({
+                                  ...editingInvoice,
+                                  payment_method: newValue
+                                    ? newValue.value
+                                    : "",
+                                });
+                              }}
+                              sx={{
+                                minWidth: "200px",
+
+                                "& .MuiAutocomplete-clearIndicator": {
+                                  display: "none",
+                                },
+                                "& .MuiAutocomplete-popupIndicator": {},
+                                "& .MuiOutlinedInput-root": {
+                                  paddingRight: "35px!important",
+                                  fontSize: "1rem",
+                                  padding: "0",
+                                  paddingLeft: "35px",
+                                },
+                                "& .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline":
+                                  {
+                                    border: "none",
+                                  },
+                                "& .MuiInputBase-input": {
+                                  textAlign: "center",
+                                },
+                              }}
+                              renderInput={(params) => (
+                                <TextField
+                                  {...params}
+                                  placeholder="طريقة الدفع"
+                                  fullWidth
+                                />
+                              )}
+                              isOptionEqualToValue={(option, value) =>
+                                option.value === value.value
+                              }
+                            />
+                          )}
+                        </Box>
+                      </Box>
+                      <Box className={styles.MoneyBox}>
+                        <Box className={styles.MoneyLabel}>المدفوع</Box>
+                        <Box className={styles.MoneyValue}>
+                          {!isEditingInvoice ? (
+                            editingInvoice?.amount_paid || 0
+                          ) : (
+                            <input
+                              style={{
+                                width: "100%",
+                                border: "none",
+                                outline: "none",
+                                height: "40px",
+                                fontSize: "1rem",
+                                textAlign: "center",
+                                paddingLeft: "15px",
+                              }}
+                              type="number"
+                              value={editingInvoice?.amount_paid || 0}
+                              onChange={(e) =>
+                                setEditingInvoice({
+                                  ...editingInvoice,
+                                  amount_paid: parseFloat(e.target.value),
+                                })
+                              }
+                            />
+                          )}
+                        </Box>
+                      </Box>
+                      <Box className={styles.MoneyBox}>
+                        <Box className={styles.MoneyLabel}>المتبقى</Box>
+                        <Box
+                          className={styles.MoneyValue}
+                          sx={{ marginBottom: "10px" }}
+                        >
+                          0
+                          {/* {(editingInvoice.amount_paid || 0) -
+                            (editingInvoice.total_amount || 0)} */}
                         </Box>
                       </Box>
                     </Box>

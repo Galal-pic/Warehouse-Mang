@@ -14,8 +14,7 @@ import Invoices from "./pages/invoicesPage/Invoices";
 import Items from "./pages/itemsPage/Items";
 import Machines from "./pages/machinesPage/Machines";
 import Mechanisms from "./pages/mechanismsPage/Mechanisms";
-import Others from "./pages/othersPage/Others";
-import WallPaper from "./components/wallPaper/WallPaper";
+import Supliers from "./pages/supliers/Supliers";
 
 function App() {
   return (
@@ -28,17 +27,16 @@ function App() {
             element={
               <>
                 <Header />
-                <WallPaper />
                 <Routes>
                   <Route path="/" element={<Navigate to="/login" />} />
                   <Route path="/register" element={<Register />} />
                   <Route path="/users" element={<Users />} />
                   <Route path="/createinvoice" element={<CreateInvoice />} />
                   <Route path="/invoices" element={<Invoices />} />
-                  <Route path="/others" element={<Others />} />
                   <Route path="/others/items" element={<Items />} />
                   <Route path="/others/machines" element={<Machines />} />
                   <Route path="/others/mechanisms" element={<Mechanisms />} />
+                  <Route path="/others/supliers" element={<Supliers />} />
                 </Routes>
               </>
             }

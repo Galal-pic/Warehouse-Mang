@@ -25,6 +25,7 @@ export default function Type1() {
   const [lastSelected, setLastSelected] = useState("");
   // create new invoice
   const [newInvoice, setNewInvoice] = useState({
+    suplier_name: "",
     type: lastSelected,
     client_name: "",
     Warehouse_manager: "",
@@ -34,6 +35,8 @@ export default function Type1() {
     mechanism_name: "",
     items: [],
     comment: "",
+    payment_method: "Cash",
+    amount_paid: 0,
   });
 
   const operationTypes = ["صرف", "أمانات", "مرتجع", "توالف", "حجز"];
@@ -77,13 +80,6 @@ export default function Type1() {
     }
   }, [purchasesType]);
 
-  // warehouse
-  const [warehouseName, setWarehouseName] = useState("");
-  const warehouses = ["المخزن الأول", "المخزن الثاني", "المخزن الثالث"];
-  const handleWarehouseChange = (event, newValue) => {
-    setWarehouseName(newValue || "");
-  };
-
   // fetch warehouses
   const [warehouse, setWarehouse] = useState([]);
   const fetchWareHousesData = async () => {
@@ -102,6 +98,26 @@ export default function Type1() {
   };
   useEffect(() => {
     fetchWareHousesData();
+  }, []);
+
+  // fetch supliers
+  const [supliers, setSuoliers] = useState([]);
+  const fetchSupliersData = async () => {
+    const accessToken = localStorage.getItem("access_token");
+    if (!accessToken) return;
+    try {
+      const response = await fetch("http://127.0.0.1:5000/machine/", {
+        method: "GET",
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const data = await response.json();
+      setSuoliers(data);
+    } catch (err) {
+      console.error("Error fetching user data:", err);
+    }
+  };
+  useEffect(() => {
+    fetchSupliersData();
   }, []);
 
   // fetch machines
@@ -284,6 +300,7 @@ export default function Type1() {
   // Clear Invoice
   const clearInvoice = () => {
     setNewInvoice({
+      suplier_name: "",
       type: lastSelected,
       client_name: "",
       Warehouse_manager: "",
@@ -293,6 +310,8 @@ export default function Type1() {
       mechanism_name: "",
       items: [],
       comment: "",
+      payment_method: "Cash",
+      amount_paid: 0,
     });
     setRows([
       {
@@ -406,6 +425,7 @@ export default function Type1() {
         throw new Error("Failed to save invoice");
       }
       fetchWareHousesData();
+      fetchSupliersData();
       fetchMachinesData();
       fetchMechanismsData();
       setIsInvoiceSaved(true);
@@ -608,45 +628,6 @@ export default function Type1() {
             </Box>
           </Box>
 
-          {/* warehouse */}
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "flex-end",
-              marginBottom: "20px",
-            }}
-          >
-            <Autocomplete
-              slotProps={{
-                paper: {
-                  sx: {
-                    "& .MuiAutocomplete-listbox": {
-                      "& .MuiAutocomplete-option": {
-                        direction: "rtl",
-                      },
-                    },
-                  },
-                },
-              }}
-              options={warehouses}
-              value={warehouseName}
-              onChange={handleWarehouseChange}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  placeholder="اختر المستودع"
-                  variant="outlined"
-                />
-              )}
-              sx={{
-                marginBottom: "16px",
-                "& .MuiOutlinedInput-root": { borderRadius: "4px" },
-                direction: "rtl",
-                minWidth: "200px",
-              }}
-            />
-          </Box>
-
           {/* Table Section */}
           <Box className={styles.tableSection}>
             <Table
@@ -660,7 +641,74 @@ export default function Type1() {
               }}
             >
               <TableBody>
-                {/* Inputs for Machine and Mechanism Names */}
+                {/* Inputs for Suplier, Machine and Mechanism Names */}
+                <TableRow className={styles.tableRow}>
+                  <TableCell className={styles.tableCell} colSpan={2}>
+                    اسم المورد
+                  </TableCell>
+                  <TableCell
+                    className={styles.tableInputCell}
+                    colSpan={6}
+                    sx={{
+                      padding: "0px !important",
+                    }}
+                  >
+                    <Autocomplete
+                      slotProps={{
+                        paper: {
+                          sx: {
+                            "& .MuiAutocomplete-listbox": {
+                              "& .MuiAutocomplete-option": {
+                                direction: "rtl",
+                              },
+                            },
+                          },
+                        },
+                      }}
+                      value={
+                        supliers.find(
+                          (suplier) => suplier.name === newInvoice.suplier_name
+                        ) || null
+                      }
+                      sx={{
+                        "& .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline":
+                          {
+                            border: "none",
+                          },
+                        "& .MuiAutocomplete-clearIndicator": {
+                          display: "none",
+                        },
+                        "& .MuiAutocomplete-popupIndicator": {
+                          display: isInvoiceSaved ? "none" : "",
+                        },
+                        "& .MuiOutlinedInput-root": {
+                          padding: "10px",
+                          paddingRight: isInvoiceSaved
+                            ? "10px!important"
+                            : "35px!important",
+
+                          fontSize: "14px",
+                        },
+                      }}
+                      options={machines}
+                      getOptionLabel={(option) =>
+                        option && option.name ? option.name : ""
+                      }
+                      isOptionEqualToValue={(option, value) =>
+                        option.name === value.name
+                      }
+                      onChange={(event, newValue) =>
+                        setNewInvoice({
+                          ...newInvoice,
+                          suplier_name: newValue ? newValue.name : "",
+                        })
+                      }
+                      renderInput={(params) => (
+                        <TextField {...params} placeholder="اسم المورد" />
+                      )}
+                    />
+                  </TableCell>
+                </TableRow>
                 <TableRow className={styles.tableRow}>
                   <TableCell className={styles.tableCell} colSpan={2}>
                     اسم الماكينة
@@ -1118,12 +1166,133 @@ export default function Type1() {
 
           {/* Total Amount Section */}
           {purchasesType && (
-            <Box className={styles.totalAmountSection}>
-              <Box className={styles.totalAmountBox}>
-                <Box className={styles.totalAmountLabel}>الإجمالي:</Box>
-                <Box className={styles.totalAmountValue}>{totalAmount}</Box>
+            <>
+              <Box className={styles.MoneySection}>
+                <Box className={styles.MoneyBox}>
+                  <Box className={styles.MoneyLabel}>الإجمالي</Box>
+                  <Box
+                    className={styles.MoneyValue}
+                    sx={{ marginBottom: isInvoiceSaved ? "" : "10px" }}
+                  >
+                    {totalAmount}
+                  </Box>
+                </Box>
+                <Box className={styles.MoneyBox}>
+                  <Box className={styles.MoneyLabel}>طريقة الدفع</Box>
+                  <Box className={styles.MoneyValue} sx={{ padding: "0px" }}>
+                    {isInvoiceSaved ? (
+                      newInvoice.payment_method
+                    ) : (
+                      <Autocomplete
+                        slotProps={{
+                          paper: {
+                            sx: {
+                              "& .MuiAutocomplete-listbox": {
+                                "& .MuiAutocomplete-option": {
+                                  direction: "rtl",
+                                },
+                              },
+                            },
+                          },
+                        }}
+                        options={[
+                          { label: "Cash", value: "Cash" },
+                          { label: "Visa", value: "Visa" },
+                        ]}
+                        getOptionLabel={(option) => option.label}
+                        value={
+                          [
+                            { label: "Cash", value: "Cash" },
+                            { label: "Visa", value: "Visa" },
+                          ].find(
+                            (option) =>
+                              option.value === newInvoice.payment_method
+                          ) || null
+                        }
+                        onChange={(event, newValue) => {
+                          setNewInvoice({
+                            ...newInvoice,
+                            payment_method: newValue ? newValue.value : "",
+                          });
+                        }}
+                        sx={{
+                          minWidth: "200px",
+
+                          "& .MuiAutocomplete-clearIndicator": {
+                            display: "none",
+                          },
+                          "& .MuiAutocomplete-popupIndicator": {
+                            display: isInvoiceSaved ? "none" : "",
+                          },
+                          "& .MuiOutlinedInput-root": {
+                            paddingRight: isInvoiceSaved
+                              ? "10px!important"
+                              : "35px!important",
+                            fontSize: "1rem",
+                            padding: "0",
+                            paddingLeft: isInvoiceSaved ? "" : "35px",
+                          },
+                          "& .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline":
+                            {
+                              border: "none",
+                            },
+                          "& .MuiInputBase-input": {
+                            textAlign: "center",
+                          },
+                        }}
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            placeholder="طريقة الدفع"
+                            fullWidth
+                          />
+                        )}
+                        isOptionEqualToValue={(option, value) =>
+                          option.value === value.value
+                        }
+                      />
+                    )}
+                  </Box>
+                </Box>
+                <Box className={styles.MoneyBox}>
+                  <Box className={styles.MoneyLabel}>المدفوع</Box>
+                  <Box className={styles.MoneyValue}>
+                    {isInvoiceSaved ? (
+                      newInvoice.amount_paid
+                    ) : (
+                      <input
+                        style={{
+                          width: "100%",
+                          border: "none",
+                          outline: "none",
+                          height: "40px",
+                          fontSize: "1rem",
+                          textAlign: "center",
+                          paddingRight: isInvoiceSaved ? "" : "15px",
+                        }}
+                        type="number"
+                        value={newInvoice.amount_paid}
+                        onChange={(e) =>
+                          setNewInvoice({
+                            ...newInvoice,
+                            amount_paid: parseFloat(e.target.value),
+                          })
+                        }
+                      />
+                    )}
+                  </Box>
+                </Box>
+                <Box className={styles.MoneyBox}>
+                  <Box className={styles.MoneyLabel}>المتبقى</Box>
+                  <Box
+                    className={styles.MoneyValue}
+                    sx={{ marginBottom: isInvoiceSaved ? "" : "10px" }}
+                  >
+                    {newInvoice.amount_paid - totalAmount}
+                  </Box>
+                </Box>
               </Box>
-            </Box>
+            </>
           )}
 
           {/* Comment Field */}

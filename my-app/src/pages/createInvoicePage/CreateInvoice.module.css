@@ -170,29 +170,29 @@
 }
 
 /* Total Amount Section */
-.totalAmountSection {
+.MoneySection {
     display: flex;
-    justify-content: flex-end;
-    margin-top: 10px;
+    justify-content: space-between;
+    font-size: 1rem;
 }
 
-.totalAmountBox {
-    padding: 8px 16px;
-    border-radius: 8px;
+.MoneyBox {
     display: flex;
-    gap: 10px;
+    flex-direction: column;
+    gap: 20px;
     background-color: white;
     border: 1px solid #ddd;
+    align-items: center;
+    padding: 5px 10px;
+    justify-content: space-between;
+    width: 200px;
 }
 
-.totalAmountLabel {
-    font-size: 1rem;
+.MoneyLabel {
     font-weight: 600;
 }
 
-.totalAmountValue {
-    margin-left: 10px;
-    font-size: 1rem;
+.MoneyValue {
     font-weight: 400;
     color: #1976d2;
 }

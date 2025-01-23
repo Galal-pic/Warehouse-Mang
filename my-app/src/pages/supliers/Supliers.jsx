@@ -1,4 +1,4 @@
-import styles from "./Mechanisms.module.css";
+import styles from "./Supliers.module.css";
 import React, { useEffect, useState } from "react";
 import { GridToolbarContainer, GridToolbarQuickFilter } from "@mui/x-data-grid";
 import {
@@ -12,6 +12,7 @@ import {
 import EditIcon from "@mui/icons-material/Edit";
 import ClearOutlinedIcon from "@mui/icons-material/ClearOutlined";
 import SaveIcon from "@mui/icons-material/Save";
+
 import IconButton from "@mui/material/IconButton";
 import AddCircleIcon from "@mui/icons-material/AddCircle";
 import "../../colors.css";
@@ -22,7 +23,8 @@ import ImportExportIcon from "@mui/icons-material/ImportExport";
 import { Menu, MenuItem } from "@mui/material";
 import CustomDataGrid from "../../components/dataGrid/CustomDataGrid";
 
-export default function Mechanisms() {
+
+export default function Supliers() {
   const [initialItems, setInitialItems] = useState([]);
 
   // fetch invoices
@@ -30,7 +32,7 @@ export default function Mechanisms() {
     const accessToken = localStorage.getItem("access_token");
     if (!accessToken) return;
     try {
-      const response = await fetch("http://127.0.0.1:5000/mechanism/", {
+      const response = await fetch("http://127.0.0.1:5000/machine/", {
         method: "GET",
         headers: { Authorization: `Bearer ${accessToken}` },
       });
@@ -72,21 +74,10 @@ export default function Mechanisms() {
   // add dialog
   const [openDialog, setOpenDialog] = useState(false);
 
-  // delete dialog
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [selectedUserId, setSelectedUserId] = useState(null);
-  const [deleteConfirmationText, setDeleteConfirmationText] = useState("");
-
-  const handleDeleteClick = (id) => {
-    setSelectedUserId(id);
-    setDeleteDialogOpen(true);
-    setDeleteConfirmationText("");
-  };
-
   // add item
   const [newItem, setNewItem] = useState({
     name: "",
-    description: "",
+    // description: "",
   });
   const [errors, setErrors] = useState({});
   const handleAddItem = async () => {
@@ -98,16 +89,16 @@ export default function Mechanisms() {
       return;
     }
 
-    if (newItem.description.trim() === "") {
-      newErrors.description = "الحقل مطلوب";
-      setErrors(newErrors);
-      return;
-    }
+    // if (newItem.description.trim() === "") {
+    //   newErrors.description = "الحقل مطلوب";
+    //   setErrors(newErrors);
+    //   return;
+    // }
 
     try {
       const accessToken = localStorage.getItem("access_token");
 
-      const response = await fetch("http://127.0.0.1:5000/mechanism/", {
+      const response = await fetch("http://127.0.0.1:5000/machine/", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -122,17 +113,17 @@ export default function Mechanisms() {
       await fetchItemsData();
       setNewItem({
         name: "",
-        description: "",
+        // description: "",
       });
       setErrors({});
       setOpenDialog(false);
       setOpenSnackbar(true);
-      setSnackbarMessage("تمت اضافة الميكانيزم");
+      setSnackbarMessage("تمت اضافة المورد");
       setSnackBarType("success");
     } catch (error) {
       console.error("Error creating invoice:", error);
       setOpenSnackbar(true);
-      setSnackbarMessage(error.message || "خطأ في إضافة الميكانيزم");
+      setSnackbarMessage(error.message || "خطأ في إضافة المورد");
       setSnackBarType("error");
     }
   };
@@ -255,7 +246,6 @@ export default function Mechanisms() {
             }}
             placeholder="ابحث هنا..."
           />
-
           {/* Export/Import Menu */}
           <Box
             sx={{
@@ -313,20 +303,21 @@ export default function Mechanisms() {
   const [isEditingItem, setIsEditingItem] = useState(false);
   const [editingItem, setEditingItem] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
-  const handleSave = async (id) => {
+  const handleSave = async () => {
     if (selectedItem === editingItem) {
       setEditingItem(null);
       setIsEditingItem(false);
       return;
     }
     const hasEmptyValues = Object.values(editingItem).some((value) => {
+      console.log(editingItem);
       if (typeof value === "string") {
         return value.trim() === "";
       }
       return !value;
     });
 
-    if (hasEmptyValues) {
+    if (editingItem.name.trim() === "") {
       setOpenSnackbar(true);
       setSnackbarMessage("يرجى ملئ جميع الحقول");
       setSnackBarType("info");
@@ -335,29 +326,33 @@ export default function Mechanisms() {
 
     const accessToken = localStorage.getItem("access_token");
     try {
-      const response = await fetch(`http://127.0.0.1:5000/mechanism/${id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify(editingItem),
-      });
+      const response = await fetch(
+        `http://127.0.0.1:5000/machine/${editingItem.id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify(editingItem),
+        }
+      );
 
       if (!response.ok) {
         throw new Error(`Failed to update user: ${response.status}`);
       }
       await fetchItemsData();
+
       setSelectedItem(editingItem);
       setEditingItem(null);
       setIsEditingItem(false);
       setOpenSnackbar(true);
-      setSnackbarMessage("تم تعديل الميكانيزم");
+      setSnackbarMessage("تم تحديث المورد");
       setSnackBarType("success");
     } catch (error) {
       console.error("Error updating user:", error);
       setOpenSnackbar(true);
-      setSnackbarMessage("خطأ في تحديث الميكانيزم");
+      setSnackbarMessage("خطأ في تحديث المورد");
       setSnackBarType("error");
     }
   };
@@ -372,10 +367,7 @@ export default function Mechanisms() {
           return (
             <>
               <div>
-                <button
-                  className={styles.iconBtn}
-                  onClick={() => handleSave(params.id)}
-                >
+                <button className={styles.iconBtn} onClick={() => handleSave()}>
                   <SaveIcon />
                 </button>
                 <button
@@ -417,42 +409,42 @@ export default function Mechanisms() {
         );
       },
     },
-    {
-      field: "description",
-      headerName: "الوصف",
-      width: 200,
-      flex: 1,
-      renderCell: (params) => {
-        if (isEditingItem && editingItem.id === params.id) {
-          return (
-            <div style={{ direction: "rtl" }}>
-              <input
-                type="text"
-                value={editingItem.description || ""}
-                onChange={(e) => {
-                  setEditingItem({
-                    ...editingItem,
-                    description: e.target.value,
-                  });
-                }}
-                style={{
-                  width: "100%",
-                  outline: "none",
-                  fontSize: "15px",
-                  textAlign: "right",
-                  border: "none",
-                  padding: "10px",
-                }}
-              />
-            </div>
-          );
-        }
-        return params.value;
-      },
-    },
+    // {
+    //   field: "description",
+    //   headerName: "الوصف",
+    //   width: 200,
+    //   flex: 1,
+    //   renderCell: (params) => {
+    //     if (isEditingItem && editingItem.id === params.id) {
+    //       return (
+    //         <div style={{ direction: "rtl" }}>
+    //           <input
+    //             type="text"
+    //             value={editingItem.description || ""}
+    //             onChange={(e) => {
+    //               setEditingItem({
+    //                 ...editingItem,
+    //                 description: e.target.value,
+    //               });
+    //             }}
+    //             style={{
+    //               width: "100%",
+    //               outline: "none",
+    //               fontSize: "15px",
+    //               textAlign: "right",
+    //               border: "none",
+    //               padding: "10px",
+    //             }}
+    //           />
+    //         </div>
+    //       );
+    //     }
+    //     return params.value;
+    //   },
+    // },
     {
       field: "name",
-      headerName: "اسم الميكانيزم",
+      headerName: "اسم المورد",
       width: 100,
       flex: 1,
       renderCell: (params) => {
@@ -490,13 +482,25 @@ export default function Mechanisms() {
     },
   ];
 
+  // delete dialog
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState(null);
+  const [deleteConfirmationText, setDeleteConfirmationText] = useState("");
+
+  const handleDeleteClick = (id) => {
+    setSelectedUserId(id);
+    setDeleteDialogOpen(true);
+    setDeleteConfirmationText("");
+  };
+
   // delete
   const handleDelete = async () => {
     if (deleteConfirmationText.trim().toLowerCase() === "نعم") {
       const accessToken = localStorage.getItem("access_token");
+
       try {
         const response = await fetch(
-          `http://127.0.0.1:5000/mechanism/${selectedUserId}`,
+          `http://127.0.0.1:5000/machine/${selectedUserId}`,
           {
             method: "DELETE",
             headers: {
@@ -514,7 +518,7 @@ export default function Mechanisms() {
           prev.filter((item) => item.id !== selectedUserId)
         );
         setOpenSnackbar(true);
-        setSnackbarMessage("تم حذف الميكانيزم");
+        setSnackbarMessage("تم حذف المورد");
         setSnackBarType("success");
         setDeleteConfirmationText("");
         setSelectedUserId(null);
@@ -522,7 +526,7 @@ export default function Mechanisms() {
       } catch (error) {
         console.error("Error deleting user:", error);
         setOpenSnackbar(true);
-        setSnackbarMessage("خطأ في حذف الميكانيزم");
+        setSnackbarMessage("خطأ في حذف المورد");
         setSnackBarType("error");
         setDeleteConfirmationText("");
         setSelectedUserId(null);
@@ -535,8 +539,18 @@ export default function Mechanisms() {
     <div className={styles.container}>
       {/* title */}
       <div>
-        <h1 className={styles.title}>الميكانيزم</h1>
+        <h1 className={styles.title}>الموردين</h1>
       </div>
+
+      {/* delete dialog */}
+      <DeleteRow
+        deleteDialogOpen={deleteDialogOpen}
+        setDeleteDialogOpen={setDeleteDialogOpen}
+        deleteConfirmationText={deleteConfirmationText}
+        setDeleteConfirmationText={setDeleteConfirmationText}
+        handleDelete={handleDelete}
+        message={"هل أنت متأكد من رغبتك في حذف هذا المورد؟"}
+      />
 
       {/* table */}
       <CustomDataGrid
@@ -555,7 +569,7 @@ export default function Mechanisms() {
           setOpenDialog(false);
           setNewItem({
             name: "",
-            description: "",
+            // description: "",
           });
           setErrors({});
         }}
@@ -569,7 +583,7 @@ export default function Mechanisms() {
             textAlign: "center",
           }}
         >
-          إضافة ماكينة جديدة
+          إضافة مورد جديد
         </DialogTitle>
         <DialogContent sx={{ width: "500px" }}>
           <div style={{ marginBottom: "10px", marginTop: "10px" }}>
@@ -616,7 +630,7 @@ export default function Mechanisms() {
               </span>
             )}
           </div>
-
+          {/* 
           <div style={{ marginBottom: "10px", marginTop: "10px" }}>
             <label
               style={{
@@ -664,7 +678,7 @@ export default function Mechanisms() {
                 {errors.description}
               </span>
             )}
-          </div>
+          </div> */}
 
           <DialogActions
             sx={{
@@ -679,7 +693,7 @@ export default function Mechanisms() {
                 setOpenDialog(false);
                 setNewItem({
                   name: "",
-                  description: "",
+                  //   description: "",
                 });
                 setErrors({});
               }}
@@ -698,16 +712,6 @@ export default function Mechanisms() {
           </DialogActions>
         </DialogContent>
       </Dialog>
-
-      {/* delete dialog */}
-      <DeleteRow
-        deleteDialogOpen={deleteDialogOpen}
-        setDeleteDialogOpen={setDeleteDialogOpen}
-        deleteConfirmationText={deleteConfirmationText}
-        setDeleteConfirmationText={setDeleteConfirmationText}
-        handleDelete={handleDelete}
-        message={"هل أنت متأكد من رغبتك في حذف هذا الميكانيزم؟"}
-      />
 
       {/* Snackbar */}
       <SnackBar

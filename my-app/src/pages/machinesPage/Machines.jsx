@@ -1,59 +1,27 @@
 import styles from "./Machines.module.css";
 import React, { useEffect, useState } from "react";
-import {
-  DataGrid,
-  GridToolbarContainer,
-  GridToolbarQuickFilter,
-} from "@mui/x-data-grid";
+import { GridToolbarContainer, GridToolbarQuickFilter } from "@mui/x-data-grid";
 import {
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   Button,
-  PaginationItem,
   Box,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import ClearOutlinedIcon from "@mui/icons-material/ClearOutlined";
 import SaveIcon from "@mui/icons-material/Save";
-import Pagination from "@mui/material/Pagination";
-import Stack from "@mui/material/Stack";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import IconButton from "@mui/material/IconButton";
 import AddCircleIcon from "@mui/icons-material/AddCircle";
 import "../../colors.css";
 import SnackBar from "../../components/snackBar/SnackBar";
 import DeleteRow from "../../components/deleteItem/DeleteRow";
+import * as XLSX from "xlsx";
+import ImportExportIcon from "@mui/icons-material/ImportExport";
+import { Menu, MenuItem } from "@mui/material";
+import CustomDataGrid from "../../components/dataGrid/CustomDataGrid";
 
-const CustomPagination = ({ page, count, onChange }) => {
-  const handlePageChange = (event, value) => {
-    onChange({ page: value - 1 });
-  };
-
-  return (
-    <Stack
-      spacing={2}
-      sx={{
-        margin: "auto",
-        direction: "rtl",
-      }}
-    >
-      <Pagination
-        count={count}
-        page={page + 1}
-        onChange={handlePageChange}
-        renderItem={(item) => (
-          <PaginationItem
-            slots={{ previous: ArrowForwardIcon, next: ArrowBackIcon }}
-            {...item}
-          />
-        )}
-      />
-    </Stack>
-  );
-};
 export default function Machines() {
   const [initialItems, setInitialItems] = useState([]);
 
@@ -99,68 +67,6 @@ export default function Machines() {
   const pageCount = Math.ceil(initialItems.length / paginationModel.pageSize);
   const handlePageChange = (newModel) => {
     setPaginationModel((prev) => ({ ...prev, ...newModel }));
-  };
-
-  const localeText = {
-    toolbarColumns: "الأعمدة",
-    toolbarFilters: "التصفية",
-    toolbarDensity: "الكثافة",
-    toolbarExport: "تصدير",
-    columnMenuSortAsc: "ترتيب تصاعدي",
-    columnMenuSortDesc: "ترتيب تنازلي",
-    columnMenuFilter: "تصفية",
-    columnMenuHideColumn: "إخفاء العمود",
-    columnMenuUnsort: "إلغاء الترتيب",
-    filterPanelOperator: "الشرط",
-    filterPanelValue: "القيمة",
-    filterOperatorContains: "يحتوي على",
-    filterOperatorEquals: "يساوي",
-    filterOperatorStartsWith: "يبدأ بـ",
-    filterOperatorEndsWith: "ينتهي بـ",
-    filterOperatorIsEmpty: "فارغ",
-    filterOperatorIsNotEmpty: "غير فارغ",
-    columnMenuManageColumns: "إدارة الأعمدة",
-    columnMenuShowColumns: "إظهار الأعمدة",
-    toolbarDensityCompact: "مضغوط",
-    toolbarDensityStandard: "عادي",
-    toolbarDensityComfortable: "مريح",
-    toolbarExportCSV: "تصدير إلى CSV",
-    toolbarExportPrint: "طباعة",
-    noRowsLabel: "لا توجد بيانات",
-    noResultsOverlayLabel: "لا توجد نتائج",
-    columnMenuShowHideAllColumns: "إظهار/إخفاء الكل",
-    columnMenuResetColumns: "إعادة تعيين الأعمدة",
-    filterOperatorDoesNotContain: "لا يحتوي على",
-    filterOperatorDoesNotEqual: "لا يساوي",
-    filterOperatorIsAnyOf: "أي من",
-    filterPanelColumns: "الأعمدة",
-    filterPanelInputPlaceholder: "أدخل القيمة",
-    filterPanelInputLabel: "قيمة التصفية",
-    filterOperatorIs: "هو",
-    filterOperatorIsNot: "ليس",
-    toolbarExportExcel: "تصدير إلى Excel",
-    errorOverlayDefaultLabel: "حدث خطأ.",
-    footerRowSelected: (count) => ``,
-    footerTotalRows: "إجمالي الصفوف:",
-    footerTotalVisibleRows: (visibleCount, totalCount) =>
-      `${visibleCount} من ${totalCount}`,
-    filterPanelDeleteIconLabel: "حذف",
-    filterPanelAddFilter: "إضافة تصفية",
-    filterPanelDeleteFilter: "حذف التصفية",
-    loadingOverlay: "جارٍ التحميل...",
-    columnMenuReset: "إعادة تعيين",
-    footerPaginationRowsPerPage: "عدد الصفوف في الصفحة:",
-    paginationLabelDisplayedRows: ({ from, to, count }) =>
-      `${from} - ${to} من ${count}`,
-
-    filterOperatorIsAny: "أي",
-    filterOperatorIsTrue: "نعم",
-    filterOperatorIsFalse: "لا",
-    filterValueAny: "أي",
-    filterValueTrue: "نعم",
-    filterValueFalse: "لا",
-    toolbarColumnsLabel: "إدارة الأعمدة",
-    toolbarResetColumns: "إعادة تعيين",
   };
 
   // add dialog
@@ -222,6 +128,64 @@ export default function Machines() {
 
   // toolbar
   function CustomToolbar() {
+    const [anchorEl, setAnchorEl] = useState(null);
+    const open = Boolean(anchorEl);
+
+    const handleExportImport = (event) => {
+      setAnchorEl(event.currentTarget);
+    };
+
+    const handleClose = () => {
+      setAnchorEl(null);
+    };
+
+    const sendDataToEndpoint = async (data) => {
+      console.log(data);
+      // try {
+      //   const response = await fetch("https://your-api-endpoint.com/upload", {
+      //     method: "POST",
+      //     headers: {
+      //       "Content-Type": "application/json",
+      //     },
+      //     body: JSON.stringify({ data }),
+      //   });
+      //   if (response.ok) {
+      //     console.log("Data sent successfully");
+      //   } else {
+      //     console.error("Failed to send data");
+      //   }
+      // } catch (error) {
+      //   console.error("Error:", error);
+      // }
+    };
+
+    const handleImport = (event) => {
+      const uploadedFile = event.target.files[0];
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(sheet);
+        console.log("Excel Data:", jsonData);
+        sendDataToEndpoint(jsonData);
+      };
+      reader.readAsArrayBuffer(uploadedFile);
+      handleClose();
+    };
+
+    const handleExport = () => {
+      const ws = XLSX.utils.json_to_sheet(initialItems);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+
+      XLSX.writeFile(wb, "exported_data.xlsx", {
+        bookType: "xlsx",
+        type: "binary",
+      });
+      handleClose();
+    };
     return (
       <GridToolbarContainer>
         <Box
@@ -260,13 +224,15 @@ export default function Machines() {
               direction: "rtl",
               "& .MuiInputBase-root": {
                 padding: "8px",
+                backgroundColor: "white",
+                width: "500px",
               },
               "& .MuiSvgIcon-root": {
                 color: primaryColor,
                 fontSize: "2rem",
               },
               "& .MuiInputBase-input": {
-                color: primaryColor,
+                color: "black",
                 fontSize: "1.2rem",
                 marginRight: "0.5rem",
               },
@@ -278,6 +244,54 @@ export default function Machines() {
             }}
             placeholder="ابحث هنا..."
           />
+          {/* Export/Import Menu */}
+          <Box
+            sx={{
+              alignItems: "center",
+              display: "flex",
+            }}
+          >
+            <IconButton
+              onClick={handleExportImport}
+              sx={{
+                padding: "12px",
+                borderRadius: "50%",
+                cursor: "pointer",
+                color: "white",
+              }}
+            >
+              <ImportExportIcon
+                sx={{
+                  fontSize: "40px",
+                  backgroundColor: "#4caf50",
+                  padding: "8px",
+                  borderRadius: "50%",
+                }}
+              />
+            </IconButton>
+            <Menu
+              anchorEl={anchorEl}
+              open={open}
+              onClose={handleClose}
+              MenuListProps={{
+                "aria-labelledby": "export-import-button",
+              }}
+            >
+              <MenuItem>
+                <label htmlFor="file-upload" style={{ cursor: "pointer" }}>
+                  Import
+                </label>
+                <input
+                  id="file-upload"
+                  type="file"
+                  accept=".xlsx, .xls"
+                  style={{ display: "none" }}
+                  onChange={handleImport}
+                />
+              </MenuItem>{" "}
+              <MenuItem onClick={handleExport}>Export</MenuItem>
+            </Menu>
+          </Box>
         </Box>
       </GridToolbarContainer>
     );
@@ -536,61 +550,13 @@ export default function Machines() {
       />
 
       {/* table */}
-      <DataGrid
+      <CustomDataGrid
         rows={initialItems}
-        columns={columns.map((col) => ({
-          ...col,
-          align: "center",
-          headerAlign: "center",
-          headerClassName: styles.headerCell,
-        }))}
-        localeText={localeText}
-        slots={{
-          pagination: CustomPagination,
-          toolbar: CustomToolbar,
-        }}
-        slotProps={{
-          pagination: {
-            page: paginationModel.page,
-            count: pageCount,
-            onChange: handlePageChange,
-          },
-        }}
-        pagination
+        columns={columns}
         paginationModel={paginationModel}
-        onPaginationModelChange={handlePageChange}
-        disableVirtualization={false}
-        sx={{
-          "& .MuiDataGrid-filterIcon, & .MuiDataGrid-sortIcon, & .MuiDataGrid-menuIconButton":
-            {
-              color: "white",
-            },
-          "& .MuiDataGrid-toolbarContainer": {
-            paddingBottom: "10px",
-            display: "flex",
-            justifyContent: "space-between",
-            backgroundColor: "transparent",
-          },
-          "& .MuiDataGrid-cell": {
-            border: "1px solid #ddd",
-          },
-          "&.MuiDataGrid-row:hover": {
-            backgroundColor: "#f7f7f7",
-          },
-          "& .MuiDataGrid-columnSeparator": {},
-          "& .MuiDataGrid-cell:focus": {
-            outline: "none",
-          },
-          "& .MuiDataGrid-cell:focus-within": {
-            outline: "none",
-          },
-          "& .MuiDataGrid-virtualScroller": {
-            backgroundColor: "white",
-            borderRadius: "4px",
-          },
-          border: "none",
-          margin: "10px 20px 0",
-        }}
+        onPageChange={handlePageChange}
+        pageCount={pageCount}
+        CustomToolbar={CustomToolbar}
       />
 
       {/* add dialog */}

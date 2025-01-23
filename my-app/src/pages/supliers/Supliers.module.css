@@ -1,0 +1,34 @@
+@import url('../../colors.css');
+
+.container {
+    width: 80%;
+    margin: auto;
+    padding: 100px 0 10px;
+
+}
+
+.title {
+    font-size: 2rem;
+    margin-bottom: 20px;
+    color: var(--primary-color);
+    position: relative;
+}
+
+
+
+.headerCell {
+    background-color: var(--primary-color);
+    font-weight: bold !important;
+    font-size: 1.5rem;
+    color: white;
+}
+
+.iconBtn {
+    font-size: 1.8rem;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: 0.2s;
+    border: 2px solid var(--secondary-color);
+    background-color: transparent;
+    color: var(--primary-color);
+}

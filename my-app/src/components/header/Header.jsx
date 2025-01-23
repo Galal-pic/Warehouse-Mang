@@ -21,7 +21,7 @@ import HomeRepairServiceIcon from "@mui/icons-material/HomeRepairService";
 import PrecisionManufacturingIcon from "@mui/icons-material/PrecisionManufacturing";
 import SettingsIcon from "@mui/icons-material/Settings";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-
+import GroupsIcon from '@mui/icons-material/Groups';
 // liks
 const resourceManagementLinks = [
   {
@@ -39,6 +39,11 @@ const resourceManagementLinks = [
     href: "/others/mechanisms",
     icon: <SettingsIcon sx={{ mb: 0.5 }} />,
   },
+  {
+    text: "الموردين",
+    href: "/others/supliers",
+    icon: <GroupsIcon sx={{ mb: 0.5 }} />,
+  }
 ];
 const links = [
   {
@@ -307,7 +312,6 @@ export default function Header() {
         <Box
           sx={{
             width: 260,
-            backgroundColor: "#f7f7f7",
             height: "100vh",
             padding: !isMobile ? 2 : "5px 20px 0",
             direction: "rtl",

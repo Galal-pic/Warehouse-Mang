@@ -1,9 +1,11 @@
+@import url('./colors.css');
 * {
   box-sizing: border-box;
 }
 
 html {
   overflow-x: hidden;
+  background-color: var(--main-color);
 }
 
 body {
@@ -13,7 +15,6 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #f7f7f7;
   padding-right: 0 !important;
 
 }

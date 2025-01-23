@@ -1,16 +1,11 @@
 import styles from "./Users.module.css";
 import React, { useEffect, useState } from "react";
-import {
-  DataGrid,
-  GridToolbarContainer,
-  GridToolbarQuickFilter,
-} from "@mui/x-data-grid";
+import { GridToolbarContainer, GridToolbarQuickFilter } from "@mui/x-data-grid";
 import {
   TextField,
   Snackbar,
   Alert,
   Button,
-  PaginationItem,
   Autocomplete,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
@@ -19,12 +14,10 @@ import SaveIcon from "@mui/icons-material/Save";
 import CancelIcon from "@mui/icons-material/Close";
 import { useNavigate } from "react-router-dom";
 import GroupAddIcon from "@mui/icons-material/GroupAdd";
-import Pagination from "@mui/material/Pagination";
-import Stack from "@mui/material/Stack";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
+
 import "../../colors.css";
 import DeleteRow from "../../components/deleteItem/DeleteRow";
+import CustomDataGrid from "../../components/dataGrid/CustomDataGrid";
 
 function CustomToolbar() {
   const navigate = useNavigate();
@@ -43,7 +36,7 @@ function CustomToolbar() {
           border: "2px solid #1976d2",
           padding: "8px 24px",
           color: "#1976d2",
-          backgroundColor: "transparent",
+          backgroundColor: "white",
           transition: "all 0.3s ease",
           "&:hover": {
             backgroundColor: "#1976d2",
@@ -71,6 +64,7 @@ function CustomToolbar() {
             border: "2px solid #1976d2",
             padding: "8px 16px",
             boxShadow: "none",
+            backgroundColor: "white",
           },
           "& .MuiInputBase-root:hover": {
             outline: "none",
@@ -88,33 +82,6 @@ function CustomToolbar() {
   );
 }
 
-const CustomPagination = ({ page, count, onChange }) => {
-  const handlePageChange = (event, value) => {
-    onChange({ page: value - 1 });
-  };
-
-  return (
-    <Stack
-      spacing={2}
-      sx={{
-        margin: "auto",
-        direction: "rtl",
-      }}
-    >
-      <Pagination
-        count={count}
-        page={page + 1}
-        onChange={handlePageChange}
-        renderItem={(item) => (
-          <PaginationItem
-            slots={{ previous: ArrowForwardIcon, next: ArrowBackIcon }}
-            {...item}
-          />
-        )}
-      />
-    </Stack>
-  );
-};
 export default function Users() {
   const API_BASE_URL = "http://127.0.0.1:5000/auth";
   const [users, setUsers] = useState([]);
@@ -130,11 +97,6 @@ export default function Users() {
     { value: "مدير", label: "مدير" },
     { value: "مشرف", label: "مشرف" },
   ];
-
-  // collors
-  const primaryColor = getComputedStyle(
-    document.documentElement
-  ).getPropertyValue("--primary-color");
 
   // pagination
   const [paginationModel, setPaginationModel] = useState({
@@ -500,72 +462,9 @@ export default function Users() {
     fetchUserData();
   }, []);
 
-  const localeText = {
-    toolbarColumns: "الأعمدة",
-    toolbarFilters: "التصفية",
-    toolbarDensity: "الكثافة",
-    toolbarExport: "تصدير",
-    columnMenuSortAsc: "ترتيب تصاعدي",
-    columnMenuSortDesc: "ترتيب تنازلي",
-    columnMenuFilter: "تصفية",
-    columnMenuHideColumn: "إخفاء العمود",
-    columnMenuUnsort: "إلغاء الترتيب",
-    filterPanelOperator: "الشرط",
-    filterPanelValue: "القيمة",
-    filterOperatorContains: "يحتوي على",
-    filterOperatorEquals: "يساوي",
-    filterOperatorStartsWith: "يبدأ بـ",
-    filterOperatorEndsWith: "ينتهي بـ",
-    filterOperatorIsEmpty: "فارغ",
-    filterOperatorIsNotEmpty: "غير فارغ",
-    columnMenuManageColumns: "إدارة الأعمدة",
-    columnMenuShowColumns: "إظهار الأعمدة",
-    toolbarDensityCompact: "مضغوط",
-    toolbarDensityStandard: "عادي",
-    toolbarDensityComfortable: "مريح",
-    toolbarExportCSV: "تصدير إلى CSV",
-    toolbarExportPrint: "طباعة",
-    noRowsLabel: "لا توجد بيانات",
-    noResultsOverlayLabel: "لا توجد نتائج",
-    columnMenuShowHideAllColumns: "إظهار/إخفاء الكل",
-    columnMenuResetColumns: "إعادة تعيين الأعمدة",
-    filterOperatorDoesNotContain: "لا يحتوي على",
-    filterOperatorDoesNotEqual: "لا يساوي",
-    filterOperatorIsAnyOf: "أي من",
-    filterPanelColumns: "الأعمدة",
-    filterPanelInputPlaceholder: "أدخل القيمة",
-    filterPanelInputLabel: "قيمة التصفية",
-    filterOperatorIs: "هو",
-    filterOperatorIsNot: "ليس",
-    toolbarExportExcel: "تصدير إلى Excel",
-    errorOverlayDefaultLabel: "حدث خطأ.",
-    footerRowSelected: (count) => ``,
-    footerTotalRows: "إجمالي الصفوف:",
-    footerTotalVisibleRows: (visibleCount, totalCount) =>
-      `${visibleCount} من ${totalCount}`,
-    filterPanelDeleteIconLabel: "حذف",
-    filterPanelAddFilter: "إضافة تصفية",
-    filterPanelDeleteFilter: "حذف التصفية",
-    loadingOverlay: "جارٍ التحميل...",
-    columnMenuReset: "إعادة تعيين",
-    footerPaginationRowsPerPage: "عدد الصفوف في الصفحة:",
-    paginationLabelDisplayedRows: ({ from, to, count }) =>
-      `${from} - ${to} من ${count}`,
-
-    filterOperatorIsAny: "أي",
-    filterOperatorIsTrue: "نعم",
-    filterOperatorIsFalse: "لا",
-    filterValueAny: "أي",
-    filterValueTrue: "نعم",
-    filterValueFalse: "لا",
-    toolbarColumnsLabel: "إدارة الأعمدة",
-    toolbarResetColumns: "إعادة تعيين",
-  };
-
   return (
     <div className={styles.container}>
       <h1 className={styles.head}>بيانات الموظفين</h1>
-
       {/* dialog */}
       <DeleteRow
         deleteDialogOpen={deleteDialogOpen}
@@ -576,68 +475,13 @@ export default function Users() {
         message={"هل أنت متأكد من رغبتك في حذف هذا المستخدم؟"}
       />
 
-      {/* data grid */}
-      <DataGrid
+      <CustomDataGrid
         rows={users}
-        columns={columns.map((col) => ({
-          ...col,
-          align: "center",
-          headerAlign: "center",
-          headerClassName: styles.headerCell,
-        }))}
-        localeText={localeText}
-        rowHeight={62}
-        editMode="row"
-        onCellDoubleClick={(params, event) => {
-          event.stopPropagation();
-        }}
-        slots={{
-          toolbar: CustomToolbar,
-          pagination: CustomPagination,
-        }}
-        slotProps={{
-          pagination: {
-            page: paginationModel.page,
-            count: pageCount,
-            onChange: handlePageChange,
-          },
-        }}
-        pagination
+        columns={columns}
         paginationModel={paginationModel}
-        onPaginationModelChange={handlePageChange}
-        disableVirtualization={false}
-        sx={{
-          "& .MuiDataGrid-filterIcon, & .MuiDataGrid-sortIcon, & .MuiDataGrid-menuIconButton":
-            {
-              color: "white",
-            },
-          "& .MuiDataGrid-toolbarContainer": {
-            paddingBottom: "10px",
-            display: "flex",
-            justifyContent: "space-between",
-            backgroundColor: "transparent",
-          },
-          "& .MuiDataGrid-cell": {
-            border: "1px solid #ddd",
-          },
-          "&.MuiDataGrid-row:hover": {
-            backgroundColor: "#f7f7f7",
-          },
-          "& .MuiDataGrid-columnSeparator": {},
-          "& .MuiDataGrid-cell:focus": {
-            outline: "none",
-          },
-          "& .MuiDataGrid-cell:focus-within": {
-            outline: "none",
-          },
-          "& .MuiDataGrid-virtualScroller": {
-            backgroundColor: "white",
-            borderRadius: "4px",
-          },
-          border: "none",
-          margin: "0 20px"
-          // direction: "rtl",
-        }}
+        onPageChange={handlePageChange}
+        pageCount={pageCount}
+        CustomToolbar={CustomToolbar}
       />
 
       {/* snack bar */}
