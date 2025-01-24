@@ -29,6 +29,8 @@ import { Menu, MenuItem } from "@mui/material";
 import CustomDataGrid from "../../components/dataGrid/CustomDataGrid";
 
 export default function Items() {
+  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+
   const [initialItems, setInitialItems] = useState([]);
 
   // fetch invoices
@@ -36,7 +38,7 @@ export default function Items() {
     const accessToken = localStorage.getItem("access_token");
     if (!accessToken) return;
     try {
-      const response = await fetch("http://127.0.0.1:5000/warehouse/", {
+      const response = await fetch(`${API_BASE_URL}/warehouse/`, {
         method: "GET",
         headers: { Authorization: `Bearer ${accessToken}` },
       });
@@ -135,7 +137,7 @@ export default function Items() {
     try {
       const accessToken = localStorage.getItem("access_token");
 
-      const response = await fetch("http://127.0.0.1:5000/warehouse/", {
+      const response = await fetch(`${API_BASE_URL}/warehouse/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -436,7 +438,7 @@ export default function Items() {
 
     try {
       const response = await fetch(
-        `http://127.0.0.1:5000/warehouse/${editingItem.id}`,
+        `${API_BASE_URL}/warehouse/${editingItem.id}`,
         {
           method: "PUT",
           headers: {
@@ -485,7 +487,7 @@ export default function Items() {
 
       try {
         const response = await fetch(
-          `http://127.0.0.1:5000/warehouse/${selectedUserId}`,
+          `${API_BASE_URL}/warehouse/${selectedUserId}`,
           {
             method: "DELETE",
             headers: {

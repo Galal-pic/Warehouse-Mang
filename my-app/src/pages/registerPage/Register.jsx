@@ -8,6 +8,8 @@ import SnackBar from "../../components/snackBar/SnackBar";
 import { CustomTextField } from "../../components/customTextField/CustomTextField";
 
 export default function Register() {
+  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+
   // requires
   const [username, setUserName] = useState("");
   const [job, setJob] = useState("");
@@ -95,7 +97,7 @@ export default function Register() {
       job_name: job,
     };
 
-    fetch("http://127.0.0.1:5000/auth/register", {
+    fetch(`${API_BASE_URL}/auth/register`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

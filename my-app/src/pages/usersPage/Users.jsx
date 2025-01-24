@@ -83,7 +83,7 @@ function CustomToolbar() {
 }
 
 export default function Users() {
-  const API_BASE_URL = "http://127.0.0.1:5000/auth";
+  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
   const [users, setUsers] = useState([]);
   const [editedRow, setEditedRow] = useState(null);
   const [selectedRow, setSelectedRow] = useState(null);
@@ -177,7 +177,7 @@ export default function Users() {
 
     try {
       const { username, job_name, phone_number } = editedRow;
-      const response = await fetch(`${API_BASE_URL}/user/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/auth/user/${id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -220,12 +220,15 @@ export default function Users() {
     if (deleteConfirmationText.trim().toLowerCase() === "نعم") {
       const accessToken = localStorage.getItem("access_token");
       try {
-        const response = await fetch(`${API_BASE_URL}/user/${selectedUserId}`, {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        });
+        const response = await fetch(
+          `${API_BASE_URL}/auth/user/${selectedUserId}`,
+          {
+            method: "DELETE",
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          }
+        );
 
         if (!response.ok) {
           const errorData = await response.json();
@@ -448,7 +451,7 @@ export default function Users() {
       if (!accessToken) return;
 
       try {
-        const data = await fetchData(`${API_BASE_URL}/users`, "GET");
+        const data = await fetchData(`${API_BASE_URL}/auth/users`, "GET");
         const updatedData = data.map((user, index) => ({
           ...user,
           rowNumber: index + 1,
