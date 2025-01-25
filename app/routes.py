@@ -2,7 +2,7 @@ from flask_restx import Namespace, Resource, fields
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from . import db
 from .models import (
-    Employee, Machine, Mechanism, Warehouse, ItemLocations, Invoice, InvoiceItem
+    Employee, Machine, Mechanism, Warehouse, ItemLocations, Invoice, InvoiceItem,Supplier
 )
 from datetime import datetime
 from .utils import Sales_Operations,Purchase_Operations
@@ -13,8 +13,15 @@ mechanism_ns = Namespace('mechanism', description='Mechanism operations')
 warehouse_ns = Namespace('warehouse', description='Warehouse operations')
 item_location_ns = Namespace('item_location', description='Item Location operations')
 invoice_ns = Namespace('invoice', description='Invoice operations')
+supplier_ns = Namespace('supplier', description='supplier operations')
 
 # Models for API documentation
+supplier_model = supplier_ns.model('Supplier', {
+    "id": fields.Integer(required=True),
+    'name': fields.String(required=True),
+    'description': fields.String(required=False),
+})
+
 machine_model = machine_ns.model('Machine', {
     "id": fields.Integer(required=True),
     'name': fields.String(required=True),
@@ -57,14 +64,76 @@ invoice_model = invoice_ns.model('Invoice', {
     'id': fields.Integer(required=True),
     'type': fields.String(required=True),
     'client_name': fields.String(required=False),
-    'Warehouse_manager': fields.String(required=False),
+    'warehouse_manager': fields.String(required=False),
     'total_amount': fields.Float(required=False),
+    'paid': fields.Float(required=False),
+    'residual':fields.Float(required=False),
+    'comment':fields.String(required=False),
+    'status':fields.String(required=False),
     'employee_name': fields.String(required=True),
     'machine_name': fields.String(required=True),
     'mechanism_name': fields.String(required=True),
+    'supplier_name': fields.String(required=False),
     "created_at":fields.String(required=False),
     'items': fields.List(fields.Nested(invoice_item_model)),
 })
+
+# Machine Endpoints
+@supplier_ns.route('/')
+class SupplierList(Resource):
+    @supplier_ns.marshal_list_with(supplier_model)
+    @jwt_required()
+    def get(self):
+        """Get all suppliers"""
+        suppliers = Supplier.query.all()
+        return suppliers
+
+    # @machine_ns.expect(machine_model)
+    @supplier_ns.marshal_with(supplier_model)
+    @jwt_required()
+    def post(self):
+        """Create a new supplier"""
+        data = supplier_ns.payload
+        if Supplier.query.filter_by(name=data['name']).first():
+            return supplier_ns.abort(400, "supplier already exists")
+
+        new_supplier = Supplier(
+            name=data["name"],
+            description=data.get("description")
+        )
+        db.session.add(new_supplier)
+        db.session.commit()
+        return new_supplier, 201
+
+@supplier_ns.route('/<int:supplier_id>')
+class SupplierDetail(Resource):
+    @supplier_ns.marshal_with(supplier_model)
+    @jwt_required()
+    def get(self, supplier_id):
+        """Get a supplier by ID"""
+        supplier = Machine.query.get_or_404(supplier_id)
+        return supplier
+
+    @supplier_ns.marshal_with(supplier_model)
+    @jwt_required()
+    def put(self, supplier_id):
+        """Update a supplier"""
+        data = supplier_ns.payload
+        supplier = Supplier.query.get_or_404(supplier_id)
+
+        supplier.name = data["name"]
+        supplier.description = data.get("description")
+
+        db.session.commit()
+        return supplier
+
+    @jwt_required()
+    def delete(self, supplier_id):
+        """Delete a supplier"""
+        supplier = Supplier.query.get_or_404(supplier_id)
+        db.session.delete(supplier)
+        db.session.commit()
+        return {"message": "supplier deleted successfully"}, 200
 
 # Machine Endpoints
 @machine_ns.route('/')
@@ -421,8 +490,12 @@ class InvoiceList(Resource):
                 "id": invoice.id,
                 "type": invoice.type,
                 "client_name": invoice.client_name,
-                "Warehouse_manager": invoice.Warehouse_manager,
+                "Warehouse_manager": invoice.warehouse_manager,
                 "total_amount": invoice.total_amount,
+                'paid': invoice.paid,
+                'residual': invoice.residual,
+                'comment': invoice.comment,
+                'status': invoice.status,
                 "employee_name": invoice.employee_name,
                 "machine_name": machine.name if machine else None,
                 "mechanism_name": mechanism.name if mechanism else None,
@@ -457,55 +530,56 @@ class InvoiceList(Resource):
         # Get the machine and mechanism by name
         machine = Machine.query.filter_by(name=data['machine_name']).first()  # Get the Machine object
         mechanism = Mechanism.query.filter_by(name=data['mechanism_name']).first()  # Get the Mechanism object
+        supplier = Supplier.query.filter_by(name=data['supplier_name']).first() # Get the Supplier object
 
-        if not machine or not mechanism:
-            invoice_ns.abort(404, "Machine or Mechanism not found")
+        if not machine or not mechanism or not supplier:
+            invoice_ns.abort(404, "Machine or Mechanism or supplier not found")
 
         if data['type'] == 'صرف':
-            Sales_Operations(data, machine, mechanism, employee, machine_ns, warehouse_ns, invoice_ns, mechanism_ns, item_location_ns)
+            Sales_Operations(data, machine, mechanism,supplier, employee, machine_ns, warehouse_ns, invoice_ns, mechanism_ns, item_location_ns,supplier_ns)
         elif data['type'] == 'اضافه':
-            Purchase_Operations(data, machine, mechanism, employee, machine_ns, warehouse_ns, invoice_ns, mechanism_ns, item_location_ns)
+            Purchase_Operations(data, machine, mechanism, supplier,employee, machine_ns, warehouse_ns, invoice_ns, mechanism_ns, item_location_ns,supplier_ns)
 
     
 
-        # Create the invoice
-        new_invoice = Invoice(
-            type=data["type"],
-            client_name=data.get("client_name"),
-            Warehouse_manager=data.get("Warehouse_manager"),
-            total_amount=data.get("total_amount", 0),  # Default to 0 if not provided
-            employee_name=employee.username,  # Set the employee_name
-            employee_id=employee.id,  # Set the employee_id
-            machine_id=machine.id,  # Set the machine_id
-            mechanism_id=mechanism.id,  # Set the mechanism_id
-        )
+        # # Create the invoice
+        # new_invoice = Invoice(
+        #     type=data["type"],
+        #     client_name=data.get("client_name"),
+        #     Warehouse_manager=data.get("Warehouse_manager"),
+        #     total_amount=data.get("total_amount", 0),  # Default to 0 if not provided
+        #     employee_name=employee.username,  # Set the employee_name
+        #     employee_id=employee.id,  # Set the employee_id
+        #     machine_id=machine.id,  # Set the machine_id
+        #     mechanism_id=mechanism.id,  # Set the mechanism_id
+        # )
 
-        # Add invoice items
-        for item_data in data["items"]:
-            # Look up the warehouse item by name
-            warehouse_item = Warehouse.query.filter_by(item_name=item_data["item_name"]).first()
-            item_details = ItemLocations.query.filter_by(item_id=warehouse_item.id, location=item_data['location']).first()
-            if not warehouse_item or not item_details:
-                invoice_ns.abort(404, f"Item with name '{item_data['item_name']}' or location '{item_data['location']}' not found in warehouse")
+        # # Add invoice items
+        # for item_data in data["items"]:
+        #     # Look up the warehouse item by name
+        #     warehouse_item = Warehouse.query.filter_by(item_name=item_data["item_name"]).first()
+        #     item_details = ItemLocations.query.filter_by(item_id=warehouse_item.id, location=item_data['location']).first()
+        #     if not warehouse_item or not item_details:
+        #         invoice_ns.abort(404, f"Item with name '{item_data['item_name']}' or location '{item_data['location']}' not found in warehouse")
 
-            # Create the invoice item
-            new_item = InvoiceItem(
-                invoice=new_invoice,  # Link to the invoice
-                warehouse=warehouse_item,  # Link to the warehouse item
-                quantity=item_data["quantity"],
-                location=item_data["location"],
-                total_price=item_data['total_price'],  # Use the provided total price
-                description=item_data.get("description"),
-            )
+        #     # Create the invoice item
+        #     new_item = InvoiceItem(
+        #         invoice=new_invoice,  # Link to the invoice
+        #         warehouse=warehouse_item,  # Link to the warehouse item
+        #         quantity=item_data["quantity"],
+        #         location=item_data["location"],
+        #         total_price=item_data['total_price'],  # Use the provided total price
+        #         description=item_data.get("description"),
+        #     )
 
-            # Add the invoice item to the session
-            db.session.add(new_item)
+        #     # Add the invoice item to the session
+        #     db.session.add(new_item)
 
-        # Add the invoice to the session and commit
-        db.session.add(new_invoice)
-        db.session.commit()
+        # # Add the invoice to the session and commit
+        # db.session.add(new_invoice)
+        # db.session.commit()
 
-        return new_invoice, 201
+        # return new_invoice, 201
 
 @invoice_ns.route('/<int:invoice_id>')
 class InvoiceDetail(Resource):

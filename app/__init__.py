@@ -43,7 +43,7 @@ def create_app():
     )
 
     # Register namespaces
-    from .routes import warehouse_ns, invoice_ns, machine_ns, mechanism_ns, item_location_ns
+    from .routes import warehouse_ns, invoice_ns, machine_ns, mechanism_ns, item_location_ns,supplier_ns
     from .auth import auth_ns
     api.add_namespace(warehouse_ns)
     api.add_namespace(invoice_ns)
@@ -51,5 +51,6 @@ def create_app():
     api.add_namespace(machine_ns)
     api.add_namespace(mechanism_ns)
     api.add_namespace(item_location_ns)  # Register the missing namespace
+    api.add_namespace(supplier_ns)  # Register the missing namespace
 
     return app

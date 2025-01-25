@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: cf9deb249cd4
+Revision ID: 8f174ca1322e
 Revises: 
-Create Date: 2025-01-11 14:54:42.762169
+Create Date: 2025-01-24 14:04:54.901115
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'cf9deb249cd4'
+revision = '8f174ca1322e'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -47,6 +47,15 @@ def upgrade():
     with op.batch_alter_table('mechanism', schema=None) as batch_op:
         batch_op.create_index(batch_op.f('ix_mechanism_name'), ['name'], unique=True)
 
+    op.create_table('supplier',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('name', sa.String(length=255), nullable=False),
+    sa.Column('description', sa.Text(), nullable=True),
+    sa.PrimaryKeyConstraint('id')
+    )
+    with op.batch_alter_table('supplier', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_supplier_name'), ['name'], unique=True)
+
     op.create_table('warehouse',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('item_name', sa.String(length=120), nullable=False),
@@ -64,15 +73,21 @@ def upgrade():
     sa.Column('type', sa.String(length=50), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=True),
     sa.Column('client_name', sa.String(length=50), nullable=True),
-    sa.Column('Warehouse_manager', sa.String(length=255), nullable=True),
+    sa.Column('warehouse_manager', sa.String(length=255), nullable=True),
     sa.Column('total_amount', sa.Float(), nullable=True),
+    sa.Column('paid', sa.Float(), nullable=True),
+    sa.Column('residual', sa.Float(), nullable=True),
+    sa.Column('comment', sa.String(length=255), nullable=True),
+    sa.Column('status', sa.String(length=50), nullable=True),
     sa.Column('employee_name', sa.String(length=50), nullable=False),
     sa.Column('employee_id', sa.Integer(), nullable=False),
     sa.Column('machine_id', sa.Integer(), nullable=True),
     sa.Column('mechanism_id', sa.Integer(), nullable=True),
+    sa.Column('supplier_id', sa.Integer(), nullable=True),
     sa.ForeignKeyConstraint(['employee_id'], ['employee.id'], ),
     sa.ForeignKeyConstraint(['machine_id'], ['machine.id'], ),
     sa.ForeignKeyConstraint(['mechanism_id'], ['mechanism.id'], ),
+    sa.ForeignKeyConstraint(['supplier_id'], ['supplier.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     with op.batch_alter_table('invoice', schema=None) as batch_op:
@@ -118,6 +133,10 @@ def downgrade():
         batch_op.drop_index(batch_op.f('ix_warehouse_item_name'))
 
     op.drop_table('warehouse')
+    with op.batch_alter_table('supplier', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_supplier_name'))
+
+    op.drop_table('supplier')
     with op.batch_alter_table('mechanism', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('ix_mechanism_name'))
 

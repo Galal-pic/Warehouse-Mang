@@ -11,27 +11,36 @@ class Employee(db.Model):
     job_name = db.Column(db.String(100), nullable=False)
 
     # Relationship with Invoice
-    invoices = db.relationship('Invoice', back_populates='employee', lazy=True, cascade='all, delete-orphan')
+    invoices = db.relationship('Invoice', back_populates='employee', lazy=True)
+
+class Supplier(db.Model):
+    __tablename__ = 'supplier'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), unique=True, nullable=False, index=True)
+    description = db.Column(db.Text)
+
+    # Relationship with Invoice
+    invoices = db.relationship('Invoice', back_populates='supplier', lazy=True)
 
 # Machine Model
 class Machine(db.Model):
     __tablename__ = 'machine'
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(255), unique=True, nullable=False, index=True)  # Machine name
-    description = db.Column(db.Text)  # Optional description
+    name = db.Column(db.String(255), unique=True, nullable=False, index=True)
+    description = db.Column(db.Text)
 
     # Relationship with Invoice
-    invoices = db.relationship('Invoice', back_populates='machine', lazy=True, cascade='all, delete-orphan')
+    invoices = db.relationship('Invoice', back_populates='machine', lazy=True)
 
 # Mechanism Model
 class Mechanism(db.Model):
     __tablename__ = 'mechanism'
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(255), unique=True, nullable=False, index=True)  # Mechanism name
-    description = db.Column(db.Text)  # Optional description
+    name = db.Column(db.String(255), unique=True, nullable=False, index=True)
+    description = db.Column(db.Text)
 
     # Relationship with Invoice
-    invoices = db.relationship('Invoice', back_populates='mechanism', lazy=True, cascade='all, delete-orphan')
+    invoices = db.relationship('Invoice', back_populates='mechanism', lazy=True)
 
 # Invoice Model
 class Invoice(db.Model):
@@ -40,54 +49,59 @@ class Invoice(db.Model):
     type = db.Column(db.String(50), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     client_name = db.Column(db.String(50))
-    Warehouse_manager = db.Column(db.String(255))
+    warehouse_manager = db.Column(db.String(255))
     total_amount = db.Column(db.Float)
+    paid = db.Column(db.Float)
+    residual = db.Column(db.Float)
+    comment = db.Column(db.String(255))
+    status = db.Column(db.String(50),default="Done")
     employee_name = db.Column(db.String(50), nullable=False)
     employee_id = db.Column(db.Integer, db.ForeignKey('employee.id'), nullable=False)
-    machine_id = db.Column(db.Integer, db.ForeignKey('machine.id'), nullable=True)  # ForeignKey to Machine
-    mechanism_id = db.Column(db.Integer, db.ForeignKey('mechanism.id'), nullable=True)  # ForeignKey to Mechanism
+    machine_id = db.Column(db.Integer, db.ForeignKey('machine.id'), nullable=True)
+    mechanism_id = db.Column(db.Integer, db.ForeignKey('mechanism.id'), nullable=True)
+    supplier_id = db.Column(db.Integer, db.ForeignKey('supplier.id'), nullable=True)
 
     # Relationships
-    employee = db.relationship('Employee', back_populates='invoices')  # Many-to-One with Employee
-    machine = db.relationship('Machine', back_populates='invoices')  # Many-to-One with Machine
-    mechanism = db.relationship('Mechanism', back_populates='invoices')  # Many-to-One with Mechanism
-    items = db.relationship('InvoiceItem', back_populates='invoice', cascade='all, delete-orphan')  # One-to-Many with InvoiceItem
+    employee = db.relationship('Employee', back_populates='invoices')
+    machine = db.relationship('Machine', back_populates='invoices')
+    mechanism = db.relationship('Mechanism', back_populates='invoices')
+    supplier = db.relationship('Supplier', back_populates='invoices')
+
+    items = db.relationship('InvoiceItem', back_populates='invoice', cascade='all, delete-orphan')
 
 class InvoiceItem(db.Model):
     __tablename__ = 'invoice_item'
-    invoice_id = db.Column(db.Integer, db.ForeignKey('invoice.id'), primary_key=True)  # Composite primary key
-    item_id = db.Column(db.Integer, db.ForeignKey('warehouse.id'), primary_key=True)  # Composite primary key
-    quantity = db.Column(db.Integer, nullable=False)  # Quantity of the item in the invoice
-    location = db.Column(db.String(255), nullable=False)  # Location of the item in the invoice
-    total_price = db.Column(db.Float, nullable=False)  # Total price (quantity * price_unit)
-    description = db.Column(db.Text)  # Optional description
+    invoice_id = db.Column(db.Integer, db.ForeignKey('invoice.id'), primary_key=True)
+    item_id = db.Column(db.Integer, db.ForeignKey('warehouse.id'), primary_key=True)
+    quantity = db.Column(db.Integer, nullable=False)
+    location = db.Column(db.String(255), nullable=False)
+    total_price = db.Column(db.Float, nullable=False)
+    description = db.Column(db.Text)
 
     # Relationships
-    invoice = db.relationship('Invoice', back_populates='items')  # Many-to-One with Invoice
-    warehouse = db.relationship('Warehouse', back_populates='invoice_items')  # Many-to-One with Warehouse
+    invoice = db.relationship('Invoice', back_populates='items')
+    warehouse = db.relationship('Warehouse', back_populates='invoice_items')
 
 # Warehouse Model
 class Warehouse(db.Model):
     __tablename__ = 'warehouse'
-    id = db.Column(db.Integer, primary_key=True)  # Item ID
+    id = db.Column(db.Integer, primary_key=True)
     item_name = db.Column(db.String(120), nullable=False, index=True, unique=True)
-    item_bar = db.Column(db.String(100), nullable=False, unique=True)  # Barcode
+    item_bar = db.Column(db.String(100), nullable=False, unique=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
-    invoice_items = db.relationship('InvoiceItem', back_populates='warehouse', cascade='all, delete-orphan')  # One-to-Many with InvoiceItem
-    item_locations = db.relationship('ItemLocations', back_populates='warehouse', cascade='all, delete-orphan')  # One-to-Many with ItemLocations
+    invoice_items = db.relationship('InvoiceItem', back_populates='warehouse')
+    item_locations = db.relationship('ItemLocations', back_populates='warehouse', cascade='all, delete-orphan')
 
 # ItemLocations Model
 class ItemLocations(db.Model):
     __tablename__ = 'item_locations'
-    item_id = db.Column(db.Integer, db.ForeignKey('warehouse.id'), primary_key=True)  # Composite primary key
-    location = db.Column(db.String(255), nullable=False, primary_key=True, index=True)  # Location of the item in the warehouse
-    price_unit = db.Column(db.Float, nullable=False, default=0)  # Price per unit
-    quantity = db.Column(db.Integer, nullable=False, default=0)  # Available quantity in the warehouse
+    item_id = db.Column(db.Integer, db.ForeignKey('warehouse.id'), primary_key=True)
+    location = db.Column(db.String(255), nullable=False, primary_key=True, index=True)
+    price_unit = db.Column(db.Float, nullable=False, default=0)
+    quantity = db.Column(db.Integer, nullable=False, default=0)
 
     # Relationships
-    warehouse = db.relationship('Warehouse', back_populates='item_locations')  # Many-to-One with Warehouse
-
-# InvoiceItem Model (Association Table with Composite Primary Key)
+    warehouse = db.relationship('Warehouse', back_populates='item_locations')
