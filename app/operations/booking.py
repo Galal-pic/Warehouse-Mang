@@ -1,6 +1,8 @@
 
 from ..models import Invoice,Warehouse,ItemLocations,InvoiceItem
 from .. import db
+from sqlalchemy.exc import SQLAlchemyError
+
 def Booking_Operations(data, machine, mechanism,supplier,employee, machine_ns,warehouse_ns,invoice_ns,mechanism_ns,item_location_n,supplier_ns):
     # Sales operations logic here
     new_invoice = Invoice(
@@ -55,3 +57,116 @@ def Booking_Operations(data, machine, mechanism,supplier,employee, machine_ns,wa
     db.session.add(new_invoice)
     db.session.commit()
     return new_invoice, 201
+
+def delete_booking(invoice,invoice_ns):
+    
+    # 2. Check if it's a sales invoice
+    if invoice.type != 'حجز':
+        invoice_ns.abort(400, "Can only delete booking invoices with this method")
+
+    try:
+        # 3. Restore quantities for each item
+        for invoice_item in invoice.items:
+            # Find the item location
+            item_location = ItemLocations.query.filter_by(
+                item_id=invoice_item.item_id,
+                location=invoice_item.location
+            ).first()
+            if not item_location:
+                raise ValueError(
+                    f"Item {invoice_item.warehouse.item_name} not found in location {invoice_item.location}"
+                )
+
+            # Restore the quantity
+            item_location.quantity += invoice_item.quantity
+
+        # 4. Delete associated invoice items and the invoice
+        InvoiceItem.query.filter_by(invoice_id=invoice.id).delete()
+        db.session.delete(invoice)
+        
+        db.session.commit()
+        return {"message": "Invoice deleted and stock restored successfully"}, 200
+
+    except Exception as e:
+        db.session.rollback()
+        invoice_ns.abort(500, f"Error deleting invoice: {str(e)}")
+
+
+def put_booking(data, invoice, machine, mechanism, invoice_ns):
+    try:
+        with db.session.begin_nested():
+            original_items = {(item.item_id, item.location): item for item in invoice.items}
+            updated_items = {}
+
+            # Process updates and new items
+            for item_data in data["items"]:
+                warehouse_item = Warehouse.query.filter_by(item_name=item_data["item_name"]).first()
+                location = item_data["location"]
+                key = (warehouse_item.id, location)
+                
+                item_location = ItemLocations.query.filter_by(
+                    item_id=warehouse_item.id,
+                    location=location
+                ).first()
+
+                if not item_location:
+                    invoice_ns.abort(404, f"Item location not found")
+
+                # Calculate quantity difference
+                if key in original_items:
+                    old_quantity = original_items[key].quantity
+                    new_quantity = item_data["quantity"]
+                    quantity_diff = new_quantity - old_quantity
+                else:
+                    old_quantity = 0
+                    new_quantity = item_data["quantity"]
+                    quantity_diff = new_quantity
+
+                # Check stock availability for increases
+                if quantity_diff > 0 and item_location.quantity < quantity_diff:
+                    invoice_ns.abort(400, f"Insufficient stock for {item_data['item_name']}")
+
+                # Update inventory
+                item_location.quantity -= quantity_diff
+
+                # Update or create invoice item
+                if key in original_items:
+                    item = original_items[key]
+                    item.quantity = new_quantity
+                else:
+                    item = InvoiceItem(
+                        invoice_id=invoice.id,
+                        item_id=warehouse_item.id,
+                        quantity=new_quantity,
+                        location=location,
+                        total_price=new_quantity * item_location.price_unit,
+                        description=item_data.get("description")
+                    )
+                    db.session.add(item)
+
+                updated_items[key] = item
+
+            # Restore removed items
+            for key, item in original_items.items():
+                if key not in updated_items:
+                    item_location = ItemLocations.query.filter_by(
+                        item_id=item.item_id,
+                        location=item.location
+                    ).first()
+                    
+                    if item_location:
+                        item_location.quantity += item.quantity
+                    
+                    db.session.delete(item)
+
+            # Update invoice fields
+            invoice.type = data["type"]
+            # ... (update other fields)
+            
+            db.session.commit()
+        
+        return {"message": "Invoice edit successfully"}, 200
+
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        invoice_ns.abort(500, f"Database error: {str(e)}")

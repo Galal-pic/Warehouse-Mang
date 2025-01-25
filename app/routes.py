@@ -1,12 +1,12 @@
 from flask_restx import Namespace, Resource, fields
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from . import db
-from .operations.booking import Booking_Operations
-from .operations.returns import Return_Operations
-from .operations.sales import Sales_Operations
-from .operations.warranty import Warranty_Operations
-from .operations.void import Void_Operations
-from .purchases.purchase import Purchase_Operations
+from .operations.booking import Booking_Operations,delete_booking,put_booking
+from .operations.returns import Return_Operations,delete_return,put_return
+from .operations.sales import Sales_Operations,delete_sales,put_sales
+from .operations.warranty import Warranty_Operations,delete_warranty,put_warranty
+from .operations.void import Void_Operations,delete_void,put_avoid
+from .purchases.purchase import Purchase_Operations,delete_purchase,put_purchase
 from .warehouses.warehouse import warehouse_ns,item_location_ns
 from .machines.machine import machine_ns
 from .mechanisms.mechanism import mechanism_ns
@@ -15,9 +15,7 @@ from .models import (
     Employee, Machine, Mechanism, Warehouse, ItemLocations, Invoice, InvoiceItem,Supplier
 )
 
-
 invoice_ns = Namespace('invoice', description='Invoice operations')
-
 
 # InvoiceItem Model
 invoice_item_model = invoice_ns.model('InvoiceItem', {
@@ -28,7 +26,6 @@ invoice_item_model = invoice_ns.model('InvoiceItem', {
     'total_price': fields.Float(required=True),  # pre unit
     'description': fields.String(required=False),
 })
-
 # Invoice Model
 invoice_model = invoice_ns.model('Invoice', {
     'id': fields.Integer(required=True),
@@ -128,19 +125,6 @@ class InvoiceList(Resource):
             Void_Operations(data, machine, mechanism, supplier, employee, machine_ns, warehouse_ns, invoice_ns, mechanism_ns, item_location_ns, supplier_ns)
         elif data['type'] == 'حجز':
             Booking_Operations(data, machine, mechanism, supplier, employee, machine_ns, warehouse_ns, invoice_ns, mechanism_ns, item_location_ns, supplier_ns)
-
-
-@invoice_ns.route('/<int:invoice_id>/confirm')
-class ConfirmInvoice(Resource):
-    @invoice_ns.doc('confirm_invoice')
-    def post(self, invoice_id):
-        invoice = Invoice.query.get_or_404(invoice_id)
-        if invoice.type != 'صرف' or invoice.status != 'draft':
-            invoice_ns.abort(400, "Invoice cannot be confirmed")
-        # Update invoice status to confirmed
-        invoice.status = 'confirmed'
-        db.session.commit()
-        return {"message": "Invoice confirmed successfully"}, 200
     
 @invoice_ns.route('/<int:invoice_id>')
 class InvoiceDetail(Resource):
@@ -156,16 +140,19 @@ class InvoiceDetail(Resource):
         items = InvoiceItem.query.filter_by(invoice_id=invoice.id).all()
         # Serialize the invoice with related data
         invoice_data = {
-            "id": invoice.id,
-            "type": invoice.type,
-            "client_name": invoice.client_name,
-            "Warehouse_manager": invoice.Warehouse_manager,
-            "total_amount": invoice.total_amount,
-            "employee_name": invoice.employee_name,
-            "employee_id": invoice.employee_id,
-            "machine_name": machine.name if machine else None,
-            "mechanism_name": mechanism.name if mechanism else None,
-             "created_at":invoice.created_at,
+              "id": invoice.id,
+                "type": invoice.type,
+                "client_name": invoice.client_name,
+                "Warehouse_manager": invoice.warehouse_manager,
+                "total_amount": invoice.total_amount,
+                'paid': invoice.paid,
+                'residual': invoice.residual,
+                'comment': invoice.comment,
+                'status': invoice.status,
+                "employee_name": invoice.employee_name,
+                "machine_name": machine.name if machine else None,
+                "mechanism_name": mechanism.name if mechanism else None,
+                "created_at":invoice.created_at,
             "items": [
                 {
                     "item_name": Warehouse.query.get(item.item_id).item_name,
@@ -180,88 +167,55 @@ class InvoiceDetail(Resource):
         }
         return invoice_data
 
-    # @invoice_ns.expect(invoice_model)
-@invoice_ns.route('/<int:invoice_id>')
-class InvoiceDetail(Resource):
     @invoice_ns.marshal_with(invoice_model)
     @jwt_required()
     def put(self, invoice_id):
         """Update an invoice"""
         data = invoice_ns.payload
         invoice = Invoice.query.get_or_404(invoice_id)
-
         # Fetch the machine and mechanism by name
         machine = Machine.query.filter_by(name=data["machine_name"]).first()
         mechanism = Mechanism.query.filter_by(name=data["mechanism_name"]).first()
 
         if not machine or not mechanism:
             invoice_ns.abort(404, "Machine or Mechanism not found")
+        
+        if invoice.type =='صرف':
+            put_sales(data,invoice,machine,mechanism,invoice_ns)
+        elif invoice.type =='اضافه':
+            put_purchase(data,invoice,machine,mechanism,invoice_ns)
+        elif invoice.type =='أمانات':
+            put_warranty(data,invoice,machine,mechanism,invoice_ns)
+        elif invoice.type =='مرتجع':
+            put_return(data,invoice,machine,mechanism,invoice_ns)
+        elif invoice.type =='تالف':
+            put_avoid(data,invoice,machine,mechanism,invoice_ns)
+        elif invoice.type =='حجز':
+            put_booking(data,invoice,machine,mechanism,invoice_ns)
 
-        # Update invoice fields
-        invoice.type = data["type"]
-        invoice.client_name = data.get("client_name")
-        invoice.Warehouse_manager = data.get("Warehouse_manager")
-        invoice.total_amount = data.get("total_amount")
-        invoice.employee_name = data["employee_name"]
-        invoice.machine_id = machine.id
-        invoice.mechanism_id = mechanism.id
+        return {"message": "Invoice edit successfully"}, 200
 
-        # Get existing items in the invoice
-        existing_items = { (item.item_id, item.location): item for item in invoice.items }
-
-        # Track items to keep (those present in the payload)
-        items_to_keep = set()
-
-        # Update or add items
-        for item_data in data["items"]:
-            # Fetch the warehouse item by name
-            warehouse_item = Warehouse.query.filter_by(item_name=item_data["item_name"]).first()
-            if not warehouse_item:
-                invoice_ns.abort(404, f"Item with name '{item_data['item_name']}' not found in warehouse")
-
-            # Fetch the item location details
-            item_location = ItemLocations.query.filter_by(item_id=warehouse_item.id, location=item_data["location"]).first()
-            if not item_location:
-                invoice_ns.abort(404, f"Item location '{item_data['location']}' not found for item '{item_data['item_name']}'")
-
-            # Check if the item already exists in the invoice
-            key = (warehouse_item.id, item_data["location"])
-            if key in existing_items:
-                # Update existing item
-                existing_item = existing_items[key]
-                existing_item.quantity = item_data["quantity"]
-                existing_item.total_price = item_data["quantity"] * item_location.price_unit
-                existing_item.description = item_data.get("description")
-            else:
-                # Add new item
-                new_item = InvoiceItem(
-                    invoice_id=invoice.id,
-                    item_id=warehouse_item.id,
-                    quantity=item_data["quantity"],
-                    location=item_data["location"],
-                    total_price=item_data["quantity"] * item_location.price_unit,
-                    description=item_data.get("description"),
-                )
-                db.session.add(new_item)
-
-            # Mark this item as "to keep"
-            items_to_keep.add(key)
-
-        # Delete items that are not in the payload
-        for key, item in existing_items.items():
-            if key not in items_to_keep:
-                db.session.delete(item)
-
-        db.session.commit()
-        return invoice
         
     @jwt_required()
     def delete(self, invoice_id):
         """Delete an invoice"""
         invoice = Invoice.query.get_or_404(invoice_id)
-        db.session.delete(invoice)
-        db.session.commit()
+        if invoice.type  =='صرف':
+            delete_sales(invoice,invoice_ns)
+        elif invoice.type =='اضافه':
+            delete_purchase(invoice, invoice_ns)
+        elif invoice.type =='أمانات':
+            delete_warranty(invoice, invoice_ns)
+        elif invoice.type =='مرتجع':
+            delete_return(invoice, invoice_ns)
+        elif invoice.type =='تالف':
+            delete_void(invoice, invoice_ns)
+        elif invoice.type =='حجز':
+            delete_booking(invoice, invoice_ns)
+        
         return {"message": "Invoice deleted successfully"}, 200
+
+
 
 @invoice_ns.route('/last-id')
 class LastInvoiceId(Resource):
@@ -272,3 +226,18 @@ class LastInvoiceId(Resource):
         if last_invoice:
             return {"last_id": last_invoice.id + 1}, 200
         return {"last_id": 0}, 200  # If no invoices exist, return 0
+    
+@invoice_ns.route('/<int:invoice_id>/confirm')
+class ConfirmInvoice(Resource):
+    @invoice_ns.doc('confirm_invoice')
+    @jwt_required()
+    def post(self, invoice_id):
+        invoice = Invoice.query.get_or_404(invoice_id)
+        if invoice.type != 'صرف' or invoice.status != 'draft':
+            invoice_ns.abort(400, "Invoice cannot be confirmed")
+        # Update invoice status to confirmed
+        invoice.status = 'confirmed'
+        employee = Employee.query.get(get_jwt_identity())
+        invoice.warehouse_manager = employee.username
+        db.session.commit()
+        return {"message": "Invoice confirmed successfully"}, 200
