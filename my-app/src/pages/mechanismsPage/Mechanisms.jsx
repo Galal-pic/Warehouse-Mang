@@ -23,6 +23,8 @@ import { Menu, MenuItem } from "@mui/material";
 import CustomDataGrid from "../../components/dataGrid/CustomDataGrid";
 
 export default function Mechanisms() {
+  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+
   const [initialItems, setInitialItems] = useState([]);
 
   // fetch invoices
@@ -30,7 +32,7 @@ export default function Mechanisms() {
     const accessToken = localStorage.getItem("access_token");
     if (!accessToken) return;
     try {
-      const response = await fetch("http://127.0.0.1:5000/mechanism/", {
+      const response = await fetch(`${API_BASE_URL}/mechanism/`, {
         method: "GET",
         headers: { Authorization: `Bearer ${accessToken}` },
       });
@@ -107,7 +109,7 @@ export default function Mechanisms() {
     try {
       const accessToken = localStorage.getItem("access_token");
 
-      const response = await fetch("http://127.0.0.1:5000/mechanism/", {
+      const response = await fetch(`${API_BASE_URL}/mechanism/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -335,7 +337,7 @@ export default function Mechanisms() {
 
     const accessToken = localStorage.getItem("access_token");
     try {
-      const response = await fetch(`http://127.0.0.1:5000/mechanism/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/mechanism/${id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -496,7 +498,7 @@ export default function Mechanisms() {
       const accessToken = localStorage.getItem("access_token");
       try {
         const response = await fetch(
-          `http://127.0.0.1:5000/mechanism/${selectedUserId}`,
+          `${API_BASE_URL}/mechanism/${selectedUserId}`,
           {
             method: "DELETE",
             headers: {

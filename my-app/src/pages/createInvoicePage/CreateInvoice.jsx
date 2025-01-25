@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Box,
   Table,
@@ -21,24 +21,10 @@ import styles from "./CreateInvoice.module.css";
 import SnackBar from "../../components/snackBar/SnackBar";
 
 export default function Type1() {
+  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+
   // Operation Type Selection
   const [lastSelected, setLastSelected] = useState("");
-  // create new invoice
-  const [newInvoice, setNewInvoice] = useState({
-    suplier_name: "",
-    type: lastSelected,
-    client_name: "",
-    Warehouse_manager: "",
-    total_amount: 0,
-    employee_name: "",
-    machine_name: "",
-    mechanism_name: "",
-    items: [],
-    comment: "",
-    payment_method: "Cash",
-    amount_paid: 0,
-  });
-
   const operationTypes = ["صرف", "أمانات", "مرتجع", "توالف", "حجز"];
   const purchasesTypes = ["اضافه"];
   const [operationType, setOperationType] = useState("");
@@ -64,13 +50,10 @@ export default function Type1() {
       });
     }
   }, [operationType]);
-
   useEffect(() => {
     if (purchasesType !== "") {
       setLastSelected(purchasesType);
       setOperationType("");
-      console.log(newInvoice);
-      console.log(rows);
     }
     if (operationType || purchasesType) {
       setNewInvoice({
@@ -80,107 +63,72 @@ export default function Type1() {
     }
   }, [purchasesType]);
 
-  // fetch warehouses
-  const [warehouse, setWarehouse] = useState([]);
-  const fetchWareHousesData = async () => {
-    const accessToken = localStorage.getItem("access_token");
-    if (!accessToken) return;
-    try {
-      const response = await fetch("http://127.0.0.1:5000/warehouse/", {
-        method: "GET",
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-      const data = await response.json();
-      setWarehouse(data);
-    } catch (err) {
-      console.error("Error fetching user data:", err);
-    }
-  };
-  useEffect(() => {
-    fetchWareHousesData();
-  }, []);
+  // create new invoice
+  const [newInvoice, setNewInvoice] = useState({
+    suplier_name: "",
+    type: lastSelected,
+    client_name: "",
+    Warehouse_manager: "",
+    total_amount: 0,
+    employee_name: "",
+    machine_name: "",
+    mechanism_name: "",
+    items: [],
+    comment: "",
+    payment_method: "Cash",
+    amount_paid: 0,
+    remain_amount: 0,
+  });
 
-  // fetch supliers
-  const [supliers, setSuoliers] = useState([]);
-  const fetchSupliersData = async () => {
+  // fetch warehouses
+  const [supliers, setSupliers] = useState([]);
+  const [machines, setMachines] = useState([]);
+  const [mechanisms, setMechanisms] = useState([]);
+  const [warehouse, setWarehouse] = useState([]);
+  const [user, setUser] = useState({});
+  const [voucherNumber, setVoucherNumber] = useState(null);
+  const fetchFun = async (url, setValues) => {
     const accessToken = localStorage.getItem("access_token");
     if (!accessToken) return;
     try {
-      const response = await fetch("http://127.0.0.1:5000/machine/", {
+      const response = await fetch(url, {
         method: "GET",
         headers: { Authorization: `Bearer ${accessToken}` },
       });
       const data = await response.json();
-      setSuoliers(data);
+      setValues(data);
     } catch (err) {
       console.error("Error fetching user data:", err);
     }
   };
+  const fetchSupliersData = () =>
+    fetchFun(`${API_BASE_URL}/machine/`, setSupliers);
+  const fetchMachinesData = () =>
+    fetchFun(`${API_BASE_URL}/machine/`, setMachines);
+  const fetchMechanismsData = () =>
+    fetchFun(`${API_BASE_URL}/mechanism/`, setMechanisms);
+  const fetchWareHousesData = () =>
+    fetchFun(`${API_BASE_URL}/warehouse/`, setWarehouse);
+  const fetchUserData = () => fetchFun(`${API_BASE_URL}/auth/user`, setUser);
+  const fetchVoucherId = () =>
+    fetchFun(`${API_BASE_URL}/invoice/last-id`, setVoucherNumber);
   useEffect(() => {
     fetchSupliersData();
-  }, []);
-
-  // fetch machines
-  const [machines, setMachines] = useState([]);
-  const fetchMachinesData = async () => {
-    const accessToken = localStorage.getItem("access_token");
-    if (!accessToken) return;
-    try {
-      const response = await fetch("http://127.0.0.1:5000/machine/", {
-        method: "GET",
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-      const data = await response.json();
-      setMachines(data);
-    } catch (err) {
-      console.error("Error fetching user data:", err);
-    }
-  };
-  useEffect(() => {
     fetchMachinesData();
-  }, []);
-
-  // fetch mechanisms
-  const [mechanisms, setMechanisms] = useState([]);
-  const fetchMechanismsData = async () => {
-    const accessToken = localStorage.getItem("access_token");
-    if (!accessToken) return;
-    try {
-      const response = await fetch("http://127.0.0.1:5000/mechanism/", {
-        method: "GET",
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-      const data = await response.json();
-
-      setMechanisms(data);
-    } catch (err) {
-      console.error("Error fetching user data:", err);
-    }
-  };
-  useEffect(() => {
     fetchMechanismsData();
+    fetchWareHousesData();
+    fetchUserData();
+    fetchVoucherId();
   }, []);
 
-  // User data fetch
-  const [user, setUser] = useState({});
-  useEffect(() => {
-    const fetchUserData = async () => {
-      const accessToken = localStorage.getItem("access_token");
-      if (!accessToken) return;
-      try {
-        const response = await fetch("http://127.0.0.1:5000/auth/user", {
-          method: "GET",
-          headers: { Authorization: `Bearer ${accessToken}` },
-        });
-        if (!response.ok) return;
-        const data = await response.json();
-        setUser(data);
-      } catch (err) {
-        console.error("Error fetching user data:", err);
-      }
-    };
-    fetchUserData();
-  }, []);
+  // comment field
+  const [showCommentField, setShowCommentField] = useState(false);
+  const handleAddComment = () => {
+    setShowCommentField(true);
+  };
+  const handleCancelComment = () => {
+    setShowCommentField(false);
+  };
 
   // create, add, remove item
   const [rows, setRows] = useState([
@@ -190,6 +138,7 @@ export default function Type1() {
       barcode: "",
       quantity: 0,
       location: "",
+      maxquantity: 0,
       price_unit: 0,
       total_price: 0,
       description: "",
@@ -205,6 +154,7 @@ export default function Type1() {
         barcode: "",
         quantity: 0,
         location: "",
+        maxquantity: 0,
         price_unit: 0,
         total_price: 0,
         description: "",
@@ -216,87 +166,101 @@ export default function Type1() {
     const newRows = rows.filter((row, i) => i !== index);
     setRows(newRows.map((row, i) => ({ ...row, counter: i + 1 })));
   };
-  const handleItemChange = (e, newValue, index) => {
-    const selectedItem = warehouse.find((item) => item.item_name === newValue);
-    if (selectedItem) {
-      const newRows = [...rows];
-      newRows[index].item_name = selectedItem.item_name;
-      newRows[index].barcode = selectedItem.item_bar;
-      newRows[index].locations = selectedItem.locations;
-      setRows(newRows);
-    }
-  };
-  const handleLocationChange = (e, newLocation, index, barCodeItem) => {
-    const selectedLocation = rows[index].locations.find(
-      (loc) => loc.location === newLocation
-    );
-    console.log(selectedLocation);
-    if (selectedLocation) {
-      if (
-        rows.find(
-          (row) => row.barcode === barCodeItem && row.location === newLocation
-        )
-      ) {
-        setSnackbarMessage("هذا العنصر موجود بالفعل");
-        setSnackBarType("info");
-        setOpenSnackbar(true);
-        return;
-      }
-      const newRows = [...rows];
-      newRows[index].location = selectedLocation.location;
-      newRows[index].quantity = 0;
-      newRows[index].price_unit = selectedLocation.price_unit;
-      newRows[index].total_price =
-        selectedLocation.price_unit * newRows[index].quantity;
-      setRows(newRows);
-    }
-  };
-  const handleQuantityChange = (index, value) => {
-    const newRows = [...rows];
-    newRows[index].quantity = parseFloat(value);
-    if (newRows[index].price_unit) {
-      newRows[index].total_price =
-        newRows[index].price_unit * newRows[index].quantity;
-    }
-    setRows(newRows);
-  };
 
-  // comment field
-  const [showCommentField, setShowCommentField] = useState(false);
-  const handleAddComment = () => {
-    setShowCommentField(true);
-  };
-  const handleCancelComment = () => {
-    setShowCommentField(false);
-  };
+  // Create warehouse map for faster lookups
+  const warehouseMap = useMemo(() => {
+    const map = new Map();
+    warehouse.forEach((item) => map.set(item.item_name, item));
+    return map;
+  }, [warehouse]);
+  const itemNames = useMemo(
+    () => warehouse.map((item) => item.item_name),
+    [warehouse]
+  );
+
+  // handle rows fields change
+  const handleItemChange = useCallback(
+    (e, newValue, index) => {
+      const selectedItem = warehouseMap.get(newValue);
+      if (selectedItem) {
+        setRows((prevRows) => {
+          const newRows = [...prevRows];
+          newRows[index] = {
+            ...newRows[index],
+            item_name: selectedItem.item_name,
+            barcode: selectedItem.item_bar,
+            locations: selectedItem.locations,
+            location: "",
+            quantity: 0,
+          };
+          return newRows;
+        });
+      }
+    },
+    [warehouseMap]
+  );
+  const handleLocationChange = useCallback(
+    (e, newLocation, index, barCodeItem) => {
+      setRows((prevRows) => {
+        const selectedLocation = prevRows[index].locations.find(
+          (loc) => loc.location === newLocation
+        );
+
+        if (selectedLocation) {
+          if (
+            prevRows.some(
+              (row) =>
+                row.barcode === barCodeItem && row.location === newLocation
+            )
+          ) {
+            setSnackbarMessage("هذا العنصر موجود بالفعل");
+            setSnackBarType("info");
+            setOpenSnackbar(true);
+            return prevRows;
+          }
+
+          const newRows = [...prevRows];
+          newRows[index] = {
+            ...newRows[index],
+            location: selectedLocation.location,
+            quantity: 0,
+            price_unit: selectedLocation.price_unit,
+            total_price: 0,
+            maxquantity: selectedLocation.quantity,
+          };
+          return newRows;
+        }
+        return prevRows;
+      });
+    },
+    []
+  );
+  const handleQuantityChange = useCallback(
+    (index, value, maxquantity, priceunit) => {
+      const quantity = parseFloat(value);
+      setRows((prevRows) => {
+        const newRows = [...prevRows];
+        newRows[index] = {
+          ...newRows[index],
+          quantity: quantity,
+          total_price: priceunit * (quantity || 0),
+        };
+        return newRows;
+      });
+    },
+    []
+  );
 
   // Calculate the total
-  const totalAmount = rows
-    .reduce((total, row) => {
-      return total + (row.total_price || 0);
-    }, 0)
-    .toFixed(2);
+  const totalAmount = useMemo(
+    () =>
+      rows.reduce((total, row) => total + (row.total_price || 0), 0).toFixed(2),
+    [rows]
+  );
 
   // save invoice or not
   const [isInvoiceSaved, setIsInvoiceSaved] = useState(false);
 
-  // Fetch last voucher ID
-  const [voucherNumber, setVoucherNumber] = useState(null);
-  const fetchVoucherId = async () => {
-    const accessToken = localStorage.getItem("access_token");
-    if (!accessToken) return;
-    try {
-      const response = await fetch("http://127.0.0.1:5000/invoice/last-id", {
-        method: "GET",
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-      if (!response.ok) return;
-      const data = await response.json();
-      setVoucherNumber(data.last_id);
-    } catch (err) {
-      console.error("Error fetching voucher ID:", err);
-    }
-  };
   // Clear Invoice
   const clearInvoice = () => {
     setNewInvoice({
@@ -312,6 +276,7 @@ export default function Type1() {
       comment: "",
       payment_method: "Cash",
       amount_paid: 0,
+      remain_amount: 0,
     });
     setRows([
       {
@@ -334,9 +299,6 @@ export default function Type1() {
 
     fetchVoucherId();
   };
-  useEffect(() => {
-    fetchVoucherId();
-  }, []);
 
   // Get Date and Time
   const [date, setDate] = useState("");
@@ -361,7 +323,6 @@ export default function Type1() {
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackBarType, setSnackBarType] = useState("");
-  // Handle close snack
   const handleCloseSnackbar = () => {
     setOpenSnackbar(false);
   };
@@ -374,7 +335,23 @@ export default function Type1() {
       setOpenSnackbar(true);
       return;
     }
-    if (newInvoice.machine_name === "" || newInvoice.mechanism_name === "") {
+    console.log(purchasesType && newInvoice.suplier_name === "");
+
+    if (purchasesType) {
+      if (
+        newInvoice.machine_name === "" ||
+        newInvoice.mechanism_name === "" ||
+        newInvoice.suplier_name === ""
+      ) {
+        setSnackbarMessage("يجب ملئ اسم المورد واسم الماكينة واسم الميكانيزم");
+        setSnackBarType("info");
+        setOpenSnackbar(true);
+        return;
+      }
+    } else if (
+      newInvoice.machine_name === "" ||
+      newInvoice.mechanism_name === ""
+    ) {
       setSnackbarMessage("يجب ملئ اسم الماكينة واسم الميكانيزم");
       setSnackBarType("info");
       setOpenSnackbar(true);
@@ -384,7 +361,8 @@ export default function Type1() {
     let newRows = rows.filter((row) => row.quantity !== 0);
     if (
       newRows.length === 0 ||
-      (newRows.length === 1 && isNaN(newRows[0].quantity))
+      (newRows.length === 1 && isNaN(newRows[0].quantity)) ||
+      (newRows.length === 1 && newRows[0].quantity === "")
     ) {
       setSnackbarMessage("يجب ملء عنصر واحد على الأقل");
       setSnackBarType("warning");
@@ -399,6 +377,8 @@ export default function Type1() {
 
     const updatedInvoice = {
       ...newInvoice,
+      amount_paid: newInvoice.amount_paid || 0,
+      remain_amount: newInvoice.amount_paid - totalAmount || 0,
       total_amount: totalAmount,
       items: newRows.map((row) => ({
         item_name: row.item_name,
@@ -412,8 +392,7 @@ export default function Type1() {
     const accessToken = localStorage.getItem("access_token");
     if (!accessToken) return;
     try {
-      console.log(lastSelected);
-      const response = await fetch("http://127.0.0.1:5000/invoice/", {
+      const response = await fetch(`${API_BASE_URL}/invoice/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -615,7 +594,7 @@ export default function Type1() {
             <Box className={styles.infoBox}>
               <Box className={styles.infoItem}>
                 <Box className={styles.infoLabel}>رقم السند:</Box>
-                <Box className={styles.infoValue}>{voucherNumber}</Box>
+                <Box className={styles.infoValue}>{voucherNumber?.last_id}</Box>
               </Box>
               <Box className={styles.infoItem}>
                 <Box className={styles.infoLabel}>التاريخ</Box>
@@ -642,73 +621,76 @@ export default function Type1() {
             >
               <TableBody>
                 {/* Inputs for Suplier, Machine and Mechanism Names */}
-                <TableRow className={styles.tableRow}>
-                  <TableCell className={styles.tableCell} colSpan={2}>
-                    اسم المورد
-                  </TableCell>
-                  <TableCell
-                    className={styles.tableInputCell}
-                    colSpan={6}
-                    sx={{
-                      padding: "0px !important",
-                    }}
-                  >
-                    <Autocomplete
-                      slotProps={{
-                        paper: {
-                          sx: {
-                            "& .MuiAutocomplete-listbox": {
-                              "& .MuiAutocomplete-option": {
-                                direction: "rtl",
+                {purchasesType && (
+                  <TableRow className={styles.tableRow}>
+                    <TableCell className={styles.tableCell} colSpan={2}>
+                      اسم المورد
+                    </TableCell>
+                    <TableCell
+                      className={styles.tableInputCell}
+                      colSpan={6}
+                      sx={{
+                        padding: "0px !important",
+                      }}
+                    >
+                      <Autocomplete
+                        slotProps={{
+                          paper: {
+                            sx: {
+                              "& .MuiAutocomplete-listbox": {
+                                "& .MuiAutocomplete-option": {
+                                  direction: "rtl",
+                                },
                               },
                             },
                           },
-                        },
-                      }}
-                      value={
-                        supliers.find(
-                          (suplier) => suplier.name === newInvoice.suplier_name
-                        ) || null
-                      }
-                      sx={{
-                        "& .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline":
-                          {
-                            border: "none",
+                        }}
+                        value={
+                          supliers.find(
+                            (suplier) =>
+                              suplier.name === newInvoice.suplier_name
+                          ) || null
+                        }
+                        sx={{
+                          "& .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline":
+                            {
+                              border: "none",
+                            },
+                          "& .MuiAutocomplete-clearIndicator": {
+                            display: "none",
                           },
-                        "& .MuiAutocomplete-clearIndicator": {
-                          display: "none",
-                        },
-                        "& .MuiAutocomplete-popupIndicator": {
-                          display: isInvoiceSaved ? "none" : "",
-                        },
-                        "& .MuiOutlinedInput-root": {
-                          padding: "10px",
-                          paddingRight: isInvoiceSaved
-                            ? "10px!important"
-                            : "35px!important",
+                          "& .MuiAutocomplete-popupIndicator": {
+                            display: isInvoiceSaved ? "none" : "",
+                          },
+                          "& .MuiOutlinedInput-root": {
+                            padding: "10px",
+                            paddingRight: isInvoiceSaved
+                              ? "10px!important"
+                              : "35px!important",
 
-                          fontSize: "14px",
-                        },
-                      }}
-                      options={machines}
-                      getOptionLabel={(option) =>
-                        option && option.name ? option.name : ""
-                      }
-                      isOptionEqualToValue={(option, value) =>
-                        option.name === value.name
-                      }
-                      onChange={(event, newValue) =>
-                        setNewInvoice({
-                          ...newInvoice,
-                          suplier_name: newValue ? newValue.name : "",
-                        })
-                      }
-                      renderInput={(params) => (
-                        <TextField {...params} placeholder="اسم المورد" />
-                      )}
-                    />
-                  </TableCell>
-                </TableRow>
+                            fontSize: "14px",
+                          },
+                        }}
+                        options={machines}
+                        getOptionLabel={(option) =>
+                          option && option.name ? option.name : ""
+                        }
+                        isOptionEqualToValue={(option, value) =>
+                          option.name === value.name
+                        }
+                        onChange={(event, newValue) =>
+                          setNewInvoice({
+                            ...newInvoice,
+                            suplier_name: newValue ? newValue.name : "",
+                          })
+                        }
+                        renderInput={(params) => (
+                          <TextField {...params} placeholder="اسم المورد" />
+                        )}
+                      />
+                    </TableCell>
+                  </TableRow>
+                )}
                 <TableRow className={styles.tableRow}>
                   <TableCell className={styles.tableCell} colSpan={2}>
                     اسم الماكينة
@@ -940,7 +922,7 @@ export default function Type1() {
                                 border: "none",
                               },
                           }}
-                          options={warehouse.map((item) => item.item_name)}
+                          options={itemNames}
                           getOptionLabel={(option) => option}
                           onChange={(e, newValue) =>
                             handleItemChange(e, newValue, index)
@@ -1040,43 +1022,31 @@ export default function Type1() {
                           }}
                           type="number"
                           min="0"
-                          max={
-                            operationType &&
-                            row.locations
-                              .filter((loc) => row.location === loc.location)
-                              .map((loc) => loc.quantity)
-                              .reduce(
-                                (max, quantity) => Math.max(max, quantity),
-                                0
-                              )
-                          }
-                          value={row.quantity}
+                          max={operationType && row.maxquantity}
+                          value={row?.quantity}
                           onInput={(e) => {
-                            console.log(row.location);
                             if (lastSelected !== "" && row.location !== "") {
-                              const maxQuantity = row.locations
-                                .filter((loc) => row.location === loc.location)
-                                .map((loc) => loc.quantity)
-                                .reduce(
-                                  (max, quantity) => Math.max(max, quantity),
-                                  0
-                                );
                               if (e.target.value < 0) {
                                 e.target.value = 0;
                               }
                               if (
                                 operationType &&
-                                e.target.value > maxQuantity
+                                e.target.value > row.maxquantity
                               ) {
-                                e.target.value = maxQuantity;
+                                e.target.value = row.maxquantity;
                               }
                             } else {
                               e.target.value = 0;
                             }
                           }}
-                          onChange={(e) =>
-                            handleQuantityChange(index, e.target.value)
-                          }
+                          onChange={(e) => {
+                            handleQuantityChange(
+                              index,
+                              e.target.value,
+                              row.maxquantity,
+                              row.price_unit
+                            );
+                          }}
                           onClick={(event) => {
                             if (lastSelected === "" || row.location === "") {
                               setSnackbarMessage(
@@ -1258,7 +1228,7 @@ export default function Type1() {
                   <Box className={styles.MoneyLabel}>المدفوع</Box>
                   <Box className={styles.MoneyValue}>
                     {isInvoiceSaved ? (
-                      newInvoice.amount_paid
+                      newInvoice.amount_paid || 0
                     ) : (
                       <input
                         style={{
@@ -1288,7 +1258,7 @@ export default function Type1() {
                     className={styles.MoneyValue}
                     sx={{ marginBottom: isInvoiceSaved ? "" : "10px" }}
                   >
-                    {newInvoice.amount_paid - totalAmount}
+                    {newInvoice.amount_paid - totalAmount || 0}
                   </Box>
                 </Box>
               </Box>

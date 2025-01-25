@@ -3,7 +3,7 @@ import styles from "./Header.module.css";
 import logo from "./logo.png";
 import logoWhite from "./logoWhite.png";
 import { useAuth, logout } from "../../context/AuthContext";
-import { Button, colors, Typography } from "@mui/material";
+import { Button, Typography } from "@mui/material";
 import { Link, useNavigate } from "react-router-dom";
 import Box from "@mui/material/Box";
 import SwipeableDrawer from "@mui/material/SwipeableDrawer";
@@ -21,7 +21,7 @@ import HomeRepairServiceIcon from "@mui/icons-material/HomeRepairService";
 import PrecisionManufacturingIcon from "@mui/icons-material/PrecisionManufacturing";
 import SettingsIcon from "@mui/icons-material/Settings";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import GroupsIcon from '@mui/icons-material/Groups';
+import GroupsIcon from "@mui/icons-material/Groups";
 // liks
 const resourceManagementLinks = [
   {
@@ -43,7 +43,7 @@ const resourceManagementLinks = [
     text: "الموردين",
     href: "/others/supliers",
     icon: <GroupsIcon sx={{ mb: 0.5 }} />,
-  }
+  },
 ];
 const links = [
   {
@@ -65,6 +65,8 @@ const links = [
 ];
 
 export default function Header() {
+  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+
   // get user data
   const [user, setUser] = useState({});
   const [logged] = useAuth();
@@ -78,7 +80,7 @@ export default function Header() {
       }
 
       try {
-        const response = await fetch("http://127.0.0.1:5000/auth/user", {
+        const response = await fetch(`${API_BASE_URL}/auth/user`, {
           method: "GET",
           headers: {
             Authorization: `Bearer ${accessToken}`,

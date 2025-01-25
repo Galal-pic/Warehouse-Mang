@@ -23,6 +23,8 @@ import { Menu, MenuItem } from "@mui/material";
 import CustomDataGrid from "../../components/dataGrid/CustomDataGrid";
 
 export default function Machines() {
+  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+
   const [initialItems, setInitialItems] = useState([]);
 
   // fetch invoices
@@ -30,7 +32,7 @@ export default function Machines() {
     const accessToken = localStorage.getItem("access_token");
     if (!accessToken) return;
     try {
-      const response = await fetch("http://127.0.0.1:5000/machine/", {
+      const response = await fetch(`${API_BASE_URL}/machine/`, {
         method: "GET",
         headers: { Authorization: `Bearer ${accessToken}` },
       });
@@ -96,7 +98,7 @@ export default function Machines() {
     try {
       const accessToken = localStorage.getItem("access_token");
 
-      const response = await fetch("http://127.0.0.1:5000/machine/", {
+      const response = await fetch(`${API_BASE_URL}/machine/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -324,7 +326,7 @@ export default function Machines() {
     const accessToken = localStorage.getItem("access_token");
     try {
       const response = await fetch(
-        `http://127.0.0.1:5000/machine/${editingItem.id}`,
+        `${API_BASE_URL}/machine/${editingItem.id}`,
         {
           method: "PUT",
           headers: {
@@ -497,7 +499,7 @@ export default function Machines() {
 
       try {
         const response = await fetch(
-          `http://127.0.0.1:5000/machine/${selectedUserId}`,
+          `${API_BASE_URL}/machine/${selectedUserId}`,
           {
             method: "DELETE",
             headers: {
