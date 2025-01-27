@@ -14,11 +14,12 @@ import SaveIcon from "@mui/icons-material/Save";
 import CancelIcon from "@mui/icons-material/Close";
 import { useNavigate } from "react-router-dom";
 import GroupAddIcon from "@mui/icons-material/GroupAdd";
+import CustomInput from "../../components/customEditTextField/CustomInput";
 
 import "../../colors.css";
 import DeleteRow from "../../components/deleteItem/DeleteRow";
 import CustomDataGrid from "../../components/dataGrid/CustomDataGrid";
-
+import CircularProgress from "@mui/material/CircularProgress";
 function CustomToolbar() {
   const navigate = useNavigate();
 
@@ -91,6 +92,11 @@ export default function Users() {
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackBarType, setSnackBarType] = useState("");
 
+  // loader
+  const [isLoading, setIsLoading] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   // jobs
   const jobs = [
     { value: "موظف", label: "موظف" },
@@ -133,17 +139,10 @@ export default function Users() {
     setEditedRow({ ...row });
     setSelectedRow({ ...row });
   };
-  const validatePhone = (phone) => {
-    const phoneRegex = /^[0-9]{10,15}$/;
-    return phoneRegex.test(phone);
-  };
 
   const validateFields = (row) => {
     if (!row.username) return "اسم المستخدم مطلوب";
     if (!row.job_name) return "اسم الوظيفة مطلوب";
-    if (!row.phone_number) return "رقم الهاتف مطلوب";
-    if (!validatePhone(row.phone_number)) return "رقم الهاتف غير صالح";
-    return null;
   };
 
   const handleSave = async (id) => {
@@ -162,19 +161,10 @@ export default function Users() {
       setOpenSnackbar(true);
       setSnackbarMessage(error);
       setSnackBarType("error");
-      setEditedRow(null);
-      setSelectedRow(null);
       return;
     }
-
-    const updatedRows = users.map((row) =>
-      row.id === id ? { ...row, ...editedRow } : row
-    );
-
-    setUsers(updatedRows);
-
+    setIsUpdating(true);
     const accessToken = localStorage.getItem("access_token");
-
     try {
       const { username, job_name, phone_number } = editedRow;
       const response = await fetch(`${API_BASE_URL}/auth/user/${id}`, {
@@ -189,19 +179,23 @@ export default function Users() {
       if (!response.ok) {
         throw new Error(`Failed to update user: ${response.status}`);
       }
-
+      const updatedRows = users.map((row) =>
+        row.id === id ? { ...row, ...editedRow } : row
+      );
+      setUsers(updatedRows);
       setOpenSnackbar(true);
       setSnackbarMessage("تم تحديث بيانات الموظف بنجاح");
       setSnackBarType("success");
+      setEditedRow(null);
+      setSelectedRow(null);
     } catch (error) {
       console.error("Error updating user:", error);
       setOpenSnackbar(true);
-      setSnackbarMessage("خطأ في تحديث بيانات الموظف");
+      setSnackbarMessage("اسم الموظف موجود بالفعل");
       setSnackBarType("error");
+    } finally {
+      setIsUpdating(false);
     }
-
-    setEditedRow(null);
-    setSelectedRow(null);
   };
 
   // dialog
@@ -218,6 +212,8 @@ export default function Users() {
   // Delete
   const handleDelete = async () => {
     if (deleteConfirmationText.trim().toLowerCase() === "نعم") {
+      setIsDeleting(true);
+
       const accessToken = localStorage.getItem("access_token");
       try {
         const response = await fetch(
@@ -252,6 +248,8 @@ export default function Users() {
         setDeleteConfirmationText("");
         setSelectedUserId(null);
         setDeleteDialogOpen(false);
+      } finally {
+        setIsDeleting(false);
       }
     }
   };
@@ -271,8 +269,9 @@ export default function Users() {
                 <button
                   className={styles.iconBtn}
                   onClick={() => handleSave(params.id)}
+                  disabled={isUpdating}
                 >
-                  <SaveIcon />
+                  {isUpdating ? <CircularProgress size={24} /> : <SaveIcon />}
                 </button>
                 <button
                   className={styles.iconBtn}
@@ -387,21 +386,15 @@ export default function Users() {
       renderCell: (params) => {
         if (editedRow && editedRow.id === params.id) {
           return (
-            <input
-              style={{
-                height: "50px",
-                width: "100%",
-                padding: "10px",
-                fontSize: "1rem",
-                borderRadius: "4px",
-                textAlign: "center",
-                outline: "none",
-                border: "none",
-              }}
+            <CustomInput
               value={editedRow.phone_number || ""}
-              onChange={(e) =>
-                setEditedRow({ ...editedRow, phone_number: e.target.value })
+              onChange={(newValue) =>
+                setEditedRow((prev) => ({
+                  ...prev,
+                  phone_number: newValue,
+                }))
               }
+              isUser={true}
             />
           );
         }
@@ -415,21 +408,15 @@ export default function Users() {
       renderCell: (params) => {
         if (editedRow && editedRow.id === params.id) {
           return (
-            <input
-              style={{
-                height: "50px",
-                width: "100%",
-                padding: "10px",
-                fontSize: "1rem",
-                borderRadius: "4px",
-                textAlign: "center",
-                outline: "none",
-                border: "none",
-              }}
+            <CustomInput
               value={editedRow.username || ""}
-              onChange={(e) =>
-                setEditedRow({ ...editedRow, username: e.target.value })
+              onChange={(newValue) =>
+                setEditedRow((prev) => ({
+                  ...prev,
+                  username: newValue,
+                }))
               }
+              isUser={true}
             />
           );
         }
@@ -449,7 +436,7 @@ export default function Users() {
     const fetchUserData = async () => {
       const accessToken = localStorage.getItem("access_token");
       if (!accessToken) return;
-
+      setIsLoading(true);
       try {
         const data = await fetchData(`${API_BASE_URL}/auth/users`, "GET");
         const updatedData = data.map((user, index) => ({
@@ -459,6 +446,8 @@ export default function Users() {
         setUsers(updatedData);
       } catch (error) {
         console.error("Error fetching data:", error);
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -476,6 +465,7 @@ export default function Users() {
         setDeleteConfirmationText={setDeleteConfirmationText}
         handleDelete={handleDelete}
         message={"هل أنت متأكد من رغبتك في حذف هذا المستخدم؟"}
+        loader={isDeleting}
       />
 
       <CustomDataGrid
@@ -485,6 +475,13 @@ export default function Users() {
         onPageChange={handlePageChange}
         pageCount={pageCount}
         CustomToolbar={CustomToolbar}
+        loader={isLoading}
+        onCellKeyDown={(params, event) => {
+          if ([" ", "ArrowLeft", "ArrowRight"].includes(event.key)) {
+            event.stopPropagation();
+            event.preventDefault();
+          }
+        }}
       />
 
       {/* snack bar */}

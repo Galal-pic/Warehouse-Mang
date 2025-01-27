@@ -8,6 +8,7 @@ import {
   DialogTitle,
   Button,
   Box,
+  CircularProgress,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import ClearOutlinedIcon from "@mui/icons-material/ClearOutlined";
@@ -21,9 +22,16 @@ import * as XLSX from "xlsx";
 import ImportExportIcon from "@mui/icons-material/ImportExport";
 import { Menu, MenuItem } from "@mui/material";
 import CustomDataGrid from "../../components/dataGrid/CustomDataGrid";
+import CustomInput from "../../components/customEditTextField/CustomInput";
 
 export default function Mechanisms() {
   const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+
+  // loaders
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [isMachinesLoading, setIsMachinesLoading] = useState(false);
 
   const [initialItems, setInitialItems] = useState([]);
 
@@ -31,6 +39,7 @@ export default function Mechanisms() {
   const fetchItemsData = async () => {
     const accessToken = localStorage.getItem("access_token");
     if (!accessToken) return;
+    setIsMachinesLoading(true);
     try {
       const response = await fetch(`${API_BASE_URL}/mechanism/`, {
         method: "GET",
@@ -41,6 +50,8 @@ export default function Mechanisms() {
       setInitialItems(data);
     } catch (err) {
       console.error("Error fetching user data:", err);
+    } finally {
+      setIsMachinesLoading(false);
     }
   };
   useEffect(() => {
@@ -106,6 +117,7 @@ export default function Mechanisms() {
       return;
     }
 
+    setIsAdding(true);
     try {
       const accessToken = localStorage.getItem("access_token");
 
@@ -134,8 +146,10 @@ export default function Mechanisms() {
     } catch (error) {
       console.error("Error creating invoice:", error);
       setOpenSnackbar(true);
-      setSnackbarMessage(error.message || "خطأ في إضافة الميكانيزم");
+      setSnackbarMessage("اسم الميكانيزم موجود بالفعل");
       setSnackBarType("error");
+    } finally {
+      setIsAdding(false);
     }
   };
 
@@ -336,6 +350,7 @@ export default function Mechanisms() {
     }
 
     const accessToken = localStorage.getItem("access_token");
+    setIsUpdating(true);
     try {
       const response = await fetch(`${API_BASE_URL}/mechanism/${id}`, {
         method: "PUT",
@@ -359,8 +374,10 @@ export default function Mechanisms() {
     } catch (error) {
       console.error("Error updating user:", error);
       setOpenSnackbar(true);
-      setSnackbarMessage("خطأ في تحديث الميكانيزم");
+      setSnackbarMessage("اسم الميكانيزم موجود بالفعل");
       setSnackBarType("error");
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -376,9 +393,10 @@ export default function Mechanisms() {
               <div>
                 <button
                   className={styles.iconBtn}
+                  disabled={isUpdating}
                   onClick={() => handleSave(params.id)}
                 >
-                  <SaveIcon />
+                  {isUpdating ? <CircularProgress size={24} /> : <SaveIcon />}
                 </button>
                 <button
                   className={styles.iconBtn}
@@ -428,14 +446,13 @@ export default function Mechanisms() {
         if (isEditingItem && editingItem.id === params.id) {
           return (
             <div style={{ direction: "rtl" }}>
-              <input
-                type="text"
+              <CustomInput
                 value={editingItem.description || ""}
-                onChange={(e) => {
-                  setEditingItem({
-                    ...editingItem,
-                    description: e.target.value,
-                  });
+                onChange={(newValue) => {
+                  setEditingItem((prev) => ({
+                    ...prev,
+                    description: newValue,
+                  }));
                 }}
                 style={{
                   width: "100%",
@@ -461,14 +478,13 @@ export default function Mechanisms() {
         if (isEditingItem && editingItem.id === params.id) {
           return (
             <div style={{ direction: "rtl" }}>
-              <input
-                type="text"
-                value={editingItem.name || ""}
-                onChange={(e) => {
-                  setEditingItem({
-                    ...editingItem,
-                    name: e.target.value,
-                  });
+              <CustomInput
+                value={editingItem?.name || ""}
+                onChange={(newValue) => {
+                  setEditingItem((prev) => ({
+                    ...prev,
+                    name: newValue,
+                  }));
                 }}
                 style={{
                   width: "100%",
@@ -496,6 +512,7 @@ export default function Mechanisms() {
   const handleDelete = async () => {
     if (deleteConfirmationText.trim().toLowerCase() === "نعم") {
       const accessToken = localStorage.getItem("access_token");
+      setIsDeleting(true);
       try {
         const response = await fetch(
           `${API_BASE_URL}/mechanism/${selectedUserId}`,
@@ -524,11 +541,15 @@ export default function Mechanisms() {
       } catch (error) {
         console.error("Error deleting user:", error);
         setOpenSnackbar(true);
-        setSnackbarMessage("خطأ في حذف الميكانيزم");
+        setSnackbarMessage(
+          "خطأ في حذف الميكانيزم اذا استمرت المشكلة حاول اعادة تحميل الصفحة"
+        );
         setSnackBarType("error");
         setDeleteConfirmationText("");
         setSelectedUserId(null);
         setDeleteDialogOpen(false);
+      } finally {
+        setIsDeleting(false);
       }
     }
   };
@@ -548,6 +569,13 @@ export default function Mechanisms() {
         onPageChange={handlePageChange}
         pageCount={pageCount}
         CustomToolbar={CustomToolbar}
+        loader={isMachinesLoading}
+        onCellKeyDown={(params, event) => {
+          if ([" ", "ArrowLeft", "ArrowRight"].includes(event.key)) {
+            event.stopPropagation();
+            event.preventDefault();
+          }
+        }}
       />
 
       {/* add dialog */}
@@ -694,8 +722,9 @@ export default function Mechanisms() {
               color="primary"
               onClick={handleAddItem}
               className={`${styles.saveButton} ${styles.infoBtn}`}
+              disabled={isAdding}
             >
-              إضافة
+              {isAdding ? <CircularProgress size={24} /> : "إضافة"}
             </Button>
           </DialogActions>
         </DialogContent>
@@ -709,6 +738,7 @@ export default function Mechanisms() {
         setDeleteConfirmationText={setDeleteConfirmationText}
         handleDelete={handleDelete}
         message={"هل أنت متأكد من رغبتك في حذف هذا الميكانيزم؟"}
+        loader={isDeleting}
       />
 
       {/* Snackbar */}

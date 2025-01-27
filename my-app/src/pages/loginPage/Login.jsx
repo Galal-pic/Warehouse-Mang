@@ -8,6 +8,7 @@ import logo from "./logo.png";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import SnackBar from "../../components/snackBar/SnackBar";
 import { CustomTextField } from "../../components/customTextField/CustomTextField";
+import CircularProgress from "@mui/material/CircularProgress";
 
 const Login = () => {
   const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
@@ -19,6 +20,9 @@ const Login = () => {
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const navigate = useNavigate();
+
+  // loader
+  const [isLoading, setIsLoading] = useState(false);
 
   // Handle close snack
   const handleCloseSnackbar = () => {
@@ -47,6 +51,7 @@ const Login = () => {
       password: password,
     };
 
+    setIsLoading(true);
     try {
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: "POST",
@@ -66,14 +71,16 @@ const Login = () => {
 
       const data = await response.json();
       localStorage.setItem("access_token", data.access_token);
-      navigate("/users");
       login(data); // Assuming login is a context or state function
+      navigate("/users");
     } catch (error) {
       console.error("Error:", error);
       setSnackbarMessage(
         "اسم المستخدم أو كلمة المرور خاطئة، يرجى المحاولة مرة أخرى"
       );
       setOpenSnackbar(true);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -139,9 +146,11 @@ const Login = () => {
                 variant="contained"
                 className={styles.btn}
                 onClick={handleSubmit}
+                disabled={isLoading}
               >
                 تسجيل الدخول
               </Button>
+              <Box>{isLoading ? <CircularProgress size={24} /> : ""}</Box>
             </Box>
           </Paper>
         </motion.div>

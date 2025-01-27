@@ -12,6 +12,7 @@ import {
   Divider,
   List,
   ListItem,
+  CircularProgress,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import ClearOutlinedIcon from "@mui/icons-material/ClearOutlined";
@@ -27,9 +28,17 @@ import * as XLSX from "xlsx";
 import ImportExportIcon from "@mui/icons-material/ImportExport";
 import { Menu, MenuItem } from "@mui/material";
 import CustomDataGrid from "../../components/dataGrid/CustomDataGrid";
+import NumberInput from "../../components/number/NumberInput";
+import { isNumber } from "@mui/x-data-grid/internals";
 
 export default function Items() {
   const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+
+  // loaders
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [isMachinesLoading, setIsMachinesLoading] = useState(false);
 
   const [initialItems, setInitialItems] = useState([]);
 
@@ -37,6 +46,7 @@ export default function Items() {
   const fetchItemsData = async () => {
     const accessToken = localStorage.getItem("access_token");
     if (!accessToken) return;
+    setIsMachinesLoading(true);
     try {
       const response = await fetch(`${API_BASE_URL}/warehouse/`, {
         method: "GET",
@@ -46,6 +56,8 @@ export default function Items() {
       setInitialItems(data);
     } catch (err) {
       console.error("Error fetching user data:", err);
+    } finally {
+      setIsMachinesLoading(false);
     }
   };
   useEffect(() => {
@@ -117,23 +129,26 @@ export default function Items() {
       setErrors(newErrors);
       return;
     }
+    const updatedItems = {
+      ...newItem,
+      locations: [
+        {
+          location: newItem.locations[0].location,
+          price_unit:
+            newItem.locations[0].price_unit === "" ||
+            !isNumber(newItem.locations[0].price_unit)
+              ? 0
+              : newItem.locations[0].price_unit,
+          quantity:
+            newItem.locations[0].quantity === "" ||
+            !isNumber(newItem.locations[0].quantity)
+              ? 0
+              : newItem.locations[0].quantity,
+        },
+      ],
+    };
 
-    if (!location.quantity || location.quantity.toString().trim() === "") {
-      newErrors.locations = [
-        { ...newErrors.locations?.[0], quantity: "الكمية مطلوبة" },
-      ];
-      setErrors(newErrors);
-      return;
-    }
-
-    if (!location.price_unit || location.price_unit.toString().trim() === "") {
-      newErrors.locations = [
-        { ...newErrors.locations?.[0], price_unit: "السعر مطلوب" },
-      ];
-      setErrors(newErrors);
-      return;
-    }
-
+    setIsAdding(true);
     try {
       const accessToken = localStorage.getItem("access_token");
 
@@ -143,7 +158,7 @@ export default function Items() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${accessToken}`,
         },
-        body: JSON.stringify(newItem),
+        body: JSON.stringify(updatedItems),
       });
       if (!response.ok) {
         const errorData = await response.json();
@@ -169,8 +184,10 @@ export default function Items() {
     } catch (error) {
       console.error("Error creating invoice:", error);
       setOpenSnackbar(true);
-      setSnackbarMessage(error.message || "خطأ في إضافة المنتج");
+      setSnackbarMessage("اسم العنصر او الرمز موجود بالفعل");
       setSnackBarType("error");
+    } finally {
+      setIsAdding(false);
     }
   };
 
@@ -430,12 +447,24 @@ export default function Items() {
       setSnackBarType("info");
       return;
     }
+    const newItems = editingItem.locations.map((location) => {
+      return {
+        ...location,
+        price_unit: isNumber(Number(location.price_unit))
+          ? Number(location.price_unit)
+          : 0,
+        quantity: isNumber(Number(location.quantity))
+          ? Number(location.quantity)
+          : 0,
+      };
+    });
 
-    const itemWithoutId = { ...editingItem };
-    delete itemWithoutId.id;
-
+    const updatedItems = {
+      ...editingItem,
+      locations: newItems,
+    };
     const accessToken = localStorage.getItem("access_token");
-
+    setIsUpdating(true);
     try {
       const response = await fetch(
         `${API_BASE_URL}/warehouse/${editingItem.id}`,
@@ -445,7 +474,7 @@ export default function Items() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${accessToken}`,
           },
-          body: JSON.stringify(itemWithoutId),
+          body: JSON.stringify(updatedItems),
         }
       );
 
@@ -454,7 +483,7 @@ export default function Items() {
       }
       await fetchItemsData();
 
-      setSelectedItem(editingItem);
+      setSelectedItem(updatedItems);
       setEditingItem(null);
       setIsEditingItem(false);
 
@@ -464,8 +493,10 @@ export default function Items() {
     } catch (error) {
       console.error("Error updating user:", error);
       setOpenSnackbar(true);
-      setSnackbarMessage("خطأ في تحديث المنتج");
+      setSnackbarMessage("اسم العنصر او الرمز موجود بالفعل");
       setSnackBarType("error");
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -484,7 +515,7 @@ export default function Items() {
   const handleDelete = async () => {
     if (deleteConfirmationText.trim().toLowerCase() === "نعم") {
       const accessToken = localStorage.getItem("access_token");
-
+      setIsDeleting(true);
       try {
         const response = await fetch(
           `${API_BASE_URL}/warehouse/${selectedUserId}`,
@@ -513,11 +544,15 @@ export default function Items() {
       } catch (error) {
         console.error("Error deleting user:", error);
         setOpenSnackbar(true);
-        setSnackbarMessage("خطأ في حذف العنصر");
+        setSnackbarMessage(
+          "خطأ في حذف العنصر اذا استمرت المشكلة حاول اعادة تحميل الصفحة"
+        );
         setSnackBarType("error");
         setDeleteConfirmationText("");
         setSelectedUserId(null);
         setDeleteDialogOpen(false);
+      } finally {
+        setIsDeleting(false);
       }
     }
   };
@@ -568,6 +603,7 @@ export default function Items() {
         setDeleteConfirmationText={setDeleteConfirmationText}
         handleDelete={handleDelete}
         message={"هل أنت متأكد من رغبتك في حذف هذا العنصر؟"}
+        loader={isDeleting}
       />
 
       {/* delete dialog location */}
@@ -589,6 +625,7 @@ export default function Items() {
         onPageChange={handlePageChange}
         pageCount={pageCount}
         CustomToolbar={CustomToolbar}
+        loader={isMachinesLoading}
       />
 
       {/* add dialog */}
@@ -783,9 +820,7 @@ export default function Items() {
             >
               الكمية
             </label>
-            <input
-              type="number"
-              min="0"
+            <NumberInput
               value={newItem.locations[0]?.quantity ?? ""}
               onChange={(e) => {
                 const value =
@@ -840,9 +875,7 @@ export default function Items() {
             >
               سعر القطعة
             </label>
-            <input
-              type="number"
-              min="0"
+            <NumberInput
               value={newItem.locations[0]?.price_unit ?? ""}
               onChange={(e) => {
                 const value =
@@ -918,8 +951,9 @@ export default function Items() {
               color="primary"
               onClick={handleAddItem}
               className={`${styles.saveButton} ${styles.infoBtn}`}
+              disabled={isAdding}
             >
-              إضافة
+              {isAdding ? <CircularProgress size={25} /> : "إضافة"}
             </Button>
           </DialogActions>
         </DialogContent>
@@ -999,6 +1033,7 @@ export default function Items() {
                   />
                 </button>
                 <button
+                  disabled={isUpdating}
                   onClick={() => {
                     handleSave();
                   }}
@@ -1010,7 +1045,7 @@ export default function Items() {
                     left: "20px",
                   }}
                 >
-                  <SaveIcon />
+                  {isUpdating ? <CircularProgress size={25} /> : <SaveIcon />}
                 </button>
               </div>
             ) : (
@@ -1222,22 +1257,15 @@ export default function Items() {
                         <Box>
                           <h5>
                             {isEditingItem ? (
-                              <input
-                                type="number"
-                                min="0"
+                              <NumberInput
                                 value={
                                   editingItem.locations[index]?.quantity !==
                                   undefined
                                     ? editingItem.locations[index].quantity
                                     : ""
                                 }
-                                onInput={(e) => {
-                                  if (Number(e.target.value) < 0) {
-                                    e.target.value = 0;
-                                  }
-                                }}
                                 onChange={(e) => {
-                                  const newQuantity = Number(e.target.value);
+                                  const newQuantity = e.target.value;
 
                                   if (!isNaN(newQuantity) && newQuantity >= 0) {
                                     const updatedLocations = [
@@ -1286,22 +1314,15 @@ export default function Items() {
                         <Box>
                           <h5>
                             {isEditingItem ? (
-                              <input
-                                type="number"
-                                min="0"
+                              <NumberInput
                                 value={
                                   editingItem.locations[index]?.price_unit !==
                                   undefined
                                     ? editingItem.locations[index].price_unit
                                     : ""
                                 }
-                                onInput={(e) => {
-                                  if (Number(e.target.value) < 0) {
-                                    e.target.value = 0;
-                                  }
-                                }}
                                 onChange={(e) => {
-                                  const newPriceUnit = Number(e.target.value);
+                                  const newPriceUnit = e.target.value;
                                   if (
                                     !isNaN(newPriceUnit) &&
                                     newPriceUnit >= 0

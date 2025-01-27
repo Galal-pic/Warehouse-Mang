@@ -6,7 +6,9 @@ import {
   DialogContentText,
   DialogActions,
   Button,
+  CircularProgress,
 } from "@mui/material";
+
 export default function DeleteRow({
   deleteDialogOpen,
   setDeleteDialogOpen,
@@ -15,6 +17,7 @@ export default function DeleteRow({
   handleDelete,
   message,
   isNessary = true,
+  loader, // Pass the loader state as a prop
 }) {
   const inputRef = useRef();
 
@@ -51,9 +54,21 @@ export default function DeleteRow({
             fontWeight: "bold",
           }}
         >
-          تأكيد الحذف
+          {loader ? "جاري الحذف..." : "تأكيد الحذف"}
         </DialogTitle>
-        {isNessary ? (
+        {loader ? (
+          <DialogContent
+            sx={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              height: "150px",
+              width: "500px",
+            }}
+          >
+            <CircularProgress />
+          </DialogContent>
+        ) : isNessary ? (
           <DialogContent sx={{ width: "500px" }}>
             <DialogContentText
               style={{
@@ -109,33 +124,37 @@ export default function DeleteRow({
             </DialogContentText>
           </DialogContent>
         )}
-        <DialogActions
-          sx={{
-            display: "flex",
-            justifyContent: "space-around",
-          }}
-        >
-          <Button
-            onClick={handleSubmit}
-            color="primary"
-            variant="contained"
-            disabled={
-              isNessary ? !["نعم"].includes(deleteConfirmationText.trim()) : ""
-            }
-          >
-            تأكيد
-          </Button>
-          <Button
-            onClick={() => {
-              setDeleteDialogOpen(false);
-              setDeleteConfirmationText("");
+        {!loader && (
+          <DialogActions
+            sx={{
+              display: "flex",
+              justifyContent: "space-around",
             }}
-            color="error"
-            variant="outlined"
           >
-            إغلاق
-          </Button>
-        </DialogActions>
+            <Button
+              onClick={handleSubmit}
+              color="primary"
+              variant="contained"
+              disabled={
+                isNessary
+                  ? !["نعم"].includes(deleteConfirmationText.trim())
+                  : ""
+              }
+            >
+              تأكيد
+            </Button>
+            <Button
+              onClick={() => {
+                setDeleteDialogOpen(false);
+                setDeleteConfirmationText("");
+              }}
+              color="error"
+              variant="outlined"
+            >
+              إغلاق
+            </Button>
+          </DialogActions>
+        )}
       </Dialog>
     </>
   );

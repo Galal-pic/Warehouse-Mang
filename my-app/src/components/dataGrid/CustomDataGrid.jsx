@@ -5,6 +5,20 @@ import Stack from "@mui/material/Stack";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import { PaginationItem } from "@mui/material";
+import CircularProgress from "@mui/material/CircularProgress";
+
+const CustomLoadingOverlay = () => (
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      height: "100%",
+    }}
+  >
+    <CircularProgress />
+  </div>
+);
 const CustomPagination = ({ page, count, onChange }) => {
   const handlePageChange = (event, value) => {
     onChange({ page: value - 1 });
@@ -39,6 +53,7 @@ export default function CustomDataGrid({
   onPageChange,
   pageCount,
   CustomToolbar,
+  loader,
   ...props
 }) {
   // translate
@@ -118,6 +133,10 @@ export default function CustomDataGrid({
         headerAlign: "center",
         headerClassName: "custom-header",
       }))}
+      loading={loader}
+      components={{
+        LoadingOverlay: CustomLoadingOverlay,
+      }}
       localeText={localeText}
       rowHeight={62}
       editMode="row"

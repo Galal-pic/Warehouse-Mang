@@ -6,9 +6,13 @@ import { useNavigate } from "react-router-dom";
 import CustomSelectField from "../../components/customSelectField/CustomSelectField";
 import SnackBar from "../../components/snackBar/SnackBar";
 import { CustomTextField } from "../../components/customTextField/CustomTextField";
+import CircularProgress from "@mui/material/CircularProgress";
 
 export default function Register() {
   const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+
+  // loader
+  const [isLoading, setIsLoading] = useState(false);
 
   // requires
   const [username, setUserName] = useState("");
@@ -19,7 +23,6 @@ export default function Register() {
 
   // errors
   const [nameError, setNameError] = useState("");
-  const [phoneError, setPhoneError] = useState("");
   const [jobError, setJobError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [confirmPasswordError, setConfirmPasswordError] = useState("");
@@ -45,7 +48,6 @@ export default function Register() {
   const handleSubmit = (e) => {
     e.preventDefault();
     setNameError("");
-    setPhoneError("");
     setJobError("");
     setPasswordError("");
     setConfirmPasswordError("");
@@ -55,17 +57,6 @@ export default function Register() {
       return;
     } else if (username.length > 80) {
       setNameError("الاسم لا يمكن أن يكون أطول من 80 حرفًا");
-      return;
-    }
-
-    if (!phoneNumber) {
-      setPhoneError("يرجى ادخال رقم الهاتف");
-      return;
-    } else if (!/^[0-9]+$/.test(phoneNumber)) {
-      setPhoneError("رقم الهاتف غير صالح");
-      return;
-    } else if (phoneNumber.length > 20) {
-      setPhoneError("رقم الهاتف لا يمكن أن يتجاوز 20 رقمًا");
       return;
     }
 
@@ -96,6 +87,8 @@ export default function Register() {
       phone_number: phoneNumber,
       job_name: job,
     };
+
+    setIsLoading(true);
 
     fetch(`${API_BASE_URL}/auth/register`, {
       method: "POST",
@@ -137,6 +130,9 @@ export default function Register() {
         setSnackbarMessage("فشل التسجيل. يرجى المحاولة مرة أخرى.");
         setOpenSnackbar(true);
         console.error("Error:", error);
+      })
+      .finally(() => {
+        setIsLoading(false);
       });
   };
 
@@ -176,7 +172,6 @@ export default function Register() {
               label="رقم الهاتف"
               value={phoneNumber}
               setValue={setPhoneNumber}
-              valueError={phoneError}
               className={styles.textField}
             />
 
@@ -215,9 +210,11 @@ export default function Register() {
             variant="contained"
             className={styles.btn}
             onClick={handleSubmit}
+            disabled={isLoading}
           >
             إضافة موظف
           </Button>
+          <Box>{isLoading ? <CircularProgress size={24} /> : ""}</Box>
         </Paper>
       </Box>
 

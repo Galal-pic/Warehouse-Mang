@@ -30,6 +30,7 @@
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2) !important;
     padding: 0 20px !important;
     position: relative;
+    padding-bottom: 20px !important;
 }
 .iconBtn{
     position: absolute !important;

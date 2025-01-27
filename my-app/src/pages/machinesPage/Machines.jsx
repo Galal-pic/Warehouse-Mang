@@ -8,6 +8,7 @@ import {
   DialogTitle,
   Button,
   Box,
+  CircularProgress,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import ClearOutlinedIcon from "@mui/icons-material/ClearOutlined";
@@ -21,9 +22,16 @@ import * as XLSX from "xlsx";
 import ImportExportIcon from "@mui/icons-material/ImportExport";
 import { Menu, MenuItem } from "@mui/material";
 import CustomDataGrid from "../../components/dataGrid/CustomDataGrid";
+import CustomInput from "../../components/customEditTextField/CustomInput";
 
 export default function Machines() {
   const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+
+  // loaders
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [isMachinesLoading, setIsMachinesLoading] = useState(false);
 
   const [initialItems, setInitialItems] = useState([]);
 
@@ -31,6 +39,7 @@ export default function Machines() {
   const fetchItemsData = async () => {
     const accessToken = localStorage.getItem("access_token");
     if (!accessToken) return;
+    setIsMachinesLoading(true);
     try {
       const response = await fetch(`${API_BASE_URL}/machine/`, {
         method: "GET",
@@ -41,6 +50,8 @@ export default function Machines() {
       setInitialItems(data);
     } catch (err) {
       console.error("Error fetching user data:", err);
+    } finally {
+      setIsMachinesLoading(false);
     }
   };
   useEffect(() => {
@@ -94,7 +105,7 @@ export default function Machines() {
       setErrors(newErrors);
       return;
     }
-
+    setIsAdding(true);
     try {
       const accessToken = localStorage.getItem("access_token");
 
@@ -123,8 +134,10 @@ export default function Machines() {
     } catch (error) {
       console.error("Error creating invoice:", error);
       setOpenSnackbar(true);
-      setSnackbarMessage(error.message || "خطأ في إضافة الماكينة");
+      setSnackbarMessage("اسم الماكينة موجود بالفعل");
       setSnackBarType("error");
+    } finally {
+      setIsAdding(false);
     }
   };
 
@@ -324,6 +337,7 @@ export default function Machines() {
     }
 
     const accessToken = localStorage.getItem("access_token");
+    setIsUpdating(true);
     try {
       const response = await fetch(
         `${API_BASE_URL}/machine/${editingItem.id}`,
@@ -351,8 +365,10 @@ export default function Machines() {
     } catch (error) {
       console.error("Error updating user:", error);
       setOpenSnackbar(true);
-      setSnackbarMessage("خطأ في تحديث الماكينة");
+      setSnackbarMessage("اسم الماكينة موجود بالفعل");
       setSnackBarType("error");
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -366,8 +382,12 @@ export default function Machines() {
           return (
             <>
               <div>
-                <button className={styles.iconBtn} onClick={() => handleSave()}>
-                  <SaveIcon />
+                <button
+                  disabled={isUpdating}
+                  className={styles.iconBtn}
+                  onClick={() => handleSave()}
+                >
+                  {isUpdating ? <CircularProgress size={25} /> : <SaveIcon />}
                 </button>
                 <button
                   className={styles.iconBtn}
@@ -409,30 +429,20 @@ export default function Machines() {
       },
     },
     {
-      field: "description",
-      headerName: "الوصف",
-      width: 200,
+      field: "name",
+      headerName: "اسم الماكينة",
       flex: 1,
       renderCell: (params) => {
-        if (isEditingItem && editingItem.id === params.id) {
+        if (isEditingItem && editingItem?.id === params.id) {
           return (
             <div style={{ direction: "rtl" }}>
-              <input
-                type="text"
-                value={editingItem.description || ""}
-                onChange={(e) => {
-                  setEditingItem({
-                    ...editingItem,
-                    description: e.target.value,
-                  });
-                }}
-                style={{
-                  width: "100%",
-                  outline: "none",
-                  fontSize: "15px",
-                  textAlign: "right",
-                  border: "none",
-                  padding: "10px",
+              <CustomInput
+                value={editingItem?.name || ""}
+                onChange={(newValue) => {
+                  setEditingItem((prev) => ({
+                    ...prev,
+                    name: newValue,
+                  }));
                 }}
               />
             </div>
@@ -442,30 +452,20 @@ export default function Machines() {
       },
     },
     {
-      field: "name",
-      headerName: "اسم الماكينة",
-      width: 100,
+      field: "description",
+      headerName: "الوصف",
       flex: 1,
       renderCell: (params) => {
-        if (isEditingItem && editingItem.id === params.id) {
+        if (isEditingItem && editingItem?.id === params.id) {
           return (
             <div style={{ direction: "rtl" }}>
-              <input
-                type="text"
-                value={editingItem.name || ""}
-                onChange={(e) => {
-                  setEditingItem({
-                    ...editingItem,
-                    name: e.target.value,
-                  });
-                }}
-                style={{
-                  width: "100%",
-                  outline: "none",
-                  fontSize: "15px",
-                  textAlign: "right",
-                  border: "none",
-                  padding: "10px",
+              <CustomInput
+                value={editingItem?.description || ""}
+                onChange={(newValue) => {
+                  setEditingItem((prev) => ({
+                    ...prev,
+                    description: newValue,
+                  }));
                 }}
               />
             </div>
@@ -496,6 +496,7 @@ export default function Machines() {
   const handleDelete = async () => {
     if (deleteConfirmationText.trim().toLowerCase() === "نعم") {
       const accessToken = localStorage.getItem("access_token");
+      setIsDeleting(true);
 
       try {
         const response = await fetch(
@@ -507,7 +508,6 @@ export default function Machines() {
             },
           }
         );
-
         if (!response.ok) {
           const errorData = await response.json();
           throw new Error(errorData.message || "Failed to delete user");
@@ -525,11 +525,15 @@ export default function Machines() {
       } catch (error) {
         console.error("Error deleting user:", error);
         setOpenSnackbar(true);
-        setSnackbarMessage("خطأ في حذف الماكينة");
+        setSnackbarMessage(
+          "خطأ في حذف الماكينة اذا استمرت المشكلة حاول اعادة تحميل الصفحة"
+        );
         setSnackBarType("error");
         setDeleteConfirmationText("");
         setSelectedUserId(null);
         setDeleteDialogOpen(false);
+      } finally {
+        setIsDeleting(false);
       }
     }
   };
@@ -549,6 +553,7 @@ export default function Machines() {
         setDeleteConfirmationText={setDeleteConfirmationText}
         handleDelete={handleDelete}
         message={"هل أنت متأكد من رغبتك في حذف هذه الالة؟"}
+        loader={isDeleting}
       />
 
       {/* table */}
@@ -559,6 +564,13 @@ export default function Machines() {
         onPageChange={handlePageChange}
         pageCount={pageCount}
         CustomToolbar={CustomToolbar}
+        loader={isMachinesLoading}
+        onCellKeyDown={(params, event) => {
+          if ([" ", "ArrowLeft", "ArrowRight"].includes(event.key)) {
+            event.stopPropagation();
+            event.preventDefault();
+          }
+        }}
       />
 
       {/* add dialog */}
@@ -703,10 +715,11 @@ export default function Machines() {
             <Button
               variant="contained"
               color="primary"
+              disabled={isAdding}
               onClick={handleAddItem}
               className={`${styles.saveButton} ${styles.infoBtn}`}
             >
-              إضافة
+              {isAdding ? <CircularProgress size={25} /> : "إضافة"}
             </Button>
           </DialogActions>
         </DialogContent>

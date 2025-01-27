@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import styles from "./Header.module.css";
 import logo from "./logo.png";
 import logoWhite from "./logoWhite.png";
-import { useAuth, logout } from "../../context/AuthContext";
+import { logout } from "../../context/AuthContext";
 import { Button, Typography } from "@mui/material";
 import { Link, useNavigate } from "react-router-dom";
 import Box from "@mui/material/Box";
@@ -22,6 +22,8 @@ import PrecisionManufacturingIcon from "@mui/icons-material/PrecisionManufacturi
 import SettingsIcon from "@mui/icons-material/Settings";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import GroupsIcon from "@mui/icons-material/Groups";
+import CircularProgress from "@mui/material/CircularProgress";
+
 // liks
 const resourceManagementLinks = [
   {
@@ -67,9 +69,12 @@ const links = [
 export default function Header() {
   const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
+  // loader
+  const [isUserLoading, setIsUserLoading] = useState(false);
+  const [isLogoutLoading, setIsLogoutLoading] = useState(false);
+
   // get user data
   const [user, setUser] = useState({});
-  const [logged] = useAuth();
   useEffect(() => {
     const fetchUserData = async () => {
       const accessToken = localStorage.getItem("access_token");
@@ -79,6 +84,7 @@ export default function Header() {
         return;
       }
 
+      setIsUserLoading(true);
       try {
         const response = await fetch(`${API_BASE_URL}/auth/user`, {
           method: "GET",
@@ -96,11 +102,13 @@ export default function Header() {
         return data;
       } catch (err) {
         console.error("Error fetching user data:", err);
+      } finally {
+        setIsUserLoading(false);
       }
     };
 
     fetchUserData();
-  }, [setUser]);
+  }, [API_BASE_URL]);
 
   // selected link
   const [selectedLink, setSelectedLink] = useState("");
@@ -119,10 +127,13 @@ export default function Header() {
 
   // logOut
   const navigate = useNavigate();
-  const handleLogout = async () => {
+  const handleLogout = async (event) => {
+    event.stopPropagation();
+    setIsLogoutLoading(true);
     logout();
     navigate("/login");
     localStorage.clear();
+    setIsLogoutLoading(false);
   };
 
   // drawer
@@ -137,11 +148,6 @@ export default function Header() {
     }
     setState(open);
   };
-
-  // get colos
-  const primaryColor = getComputedStyle(
-    document.documentElement
-  ).getPropertyValue("--primary-color");
 
   // dropdown for others
   const [anchorEl, setAnchorEl] = React.useState(null);
@@ -352,10 +358,15 @@ export default function Header() {
                   الاسم:
                 </Typography>
                 <ListItemText
+                  sx={{ textAlign: isUserLoading ? "center" : "" }}
                   primary={
-                    <Typography sx={{ color: "#555", fontSize: "1.5rem" }}>
-                      {user.username}
-                    </Typography>
+                    isUserLoading ? (
+                      <CircularProgress size={24} />
+                    ) : (
+                      <Typography sx={{ color: "#555", fontSize: "1.5rem" }}>
+                        {user.username}
+                      </Typography>
+                    )
                   }
                 />
               </ListItemButton>
@@ -378,12 +389,16 @@ export default function Header() {
                 <Typography variant="h6" sx={{ fontWeight: "bold" }}>
                   الوظيقة:
                 </Typography>
-
                 <ListItemText
+                  sx={{ textAlign: isUserLoading ? "center" : "" }}
                   primary={
-                    <Typography sx={{ color: "#555", fontSize: "1.5rem" }}>
-                      {user.job_name}
-                    </Typography>
+                    isUserLoading ? (
+                      <CircularProgress size={24} />
+                    ) : (
+                      <Typography sx={{ color: "#555", fontSize: "1.5rem" }}>
+                        {user.job_name}
+                      </Typography>
+                    )
                   }
                 />
               </ListItemButton>
@@ -412,7 +427,6 @@ export default function Header() {
                 ))}
               </div>
             )}
-
             {/* Logout Button */}
             <ListItem disablePadding>
               <ListItemButton
@@ -424,7 +438,8 @@ export default function Header() {
                 <Button
                   variant="contained"
                   color="primary"
-                  onClick={handleLogout}
+                  onClick={(event) => handleLogout(event)}
+                  disabled={isLogoutLoading}
                   sx={{
                     width: "100%",
                     height: "50px",
@@ -440,7 +455,9 @@ export default function Header() {
                 </Button>
               </ListItemButton>
             </ListItem>
-
+            <Box sx={{ margin: "auto", mt: isLogoutLoading ? 3 : "" }}>
+              {isLogoutLoading ? <CircularProgress size={24} /> : ""}
+            </Box>
             {/* logo */}
             <ListItem
               disablePadding

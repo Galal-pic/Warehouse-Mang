@@ -8,11 +8,11 @@ import {
   DialogTitle,
   Button,
   Box,
+  CircularProgress,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import ClearOutlinedIcon from "@mui/icons-material/ClearOutlined";
 import SaveIcon from "@mui/icons-material/Save";
-
 import IconButton from "@mui/material/IconButton";
 import AddCircleIcon from "@mui/icons-material/AddCircle";
 import "../../colors.css";
@@ -22,9 +22,16 @@ import * as XLSX from "xlsx";
 import ImportExportIcon from "@mui/icons-material/ImportExport";
 import { Menu, MenuItem } from "@mui/material";
 import CustomDataGrid from "../../components/dataGrid/CustomDataGrid";
+import CustomInput from "../../components/customEditTextField/CustomInput";
 
 export default function Supliers() {
   const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+
+  // loaders
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [isMachinesLoading, setIsMachinesLoading] = useState(false);
 
   const [initialItems, setInitialItems] = useState([]);
 
@@ -32,8 +39,9 @@ export default function Supliers() {
   const fetchItemsData = async () => {
     const accessToken = localStorage.getItem("access_token");
     if (!accessToken) return;
+    setIsMachinesLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/machine/`, {
+      const response = await fetch(`${API_BASE_URL}/supplier/`, {
         method: "GET",
         headers: { Authorization: `Bearer ${accessToken}` },
       });
@@ -42,6 +50,8 @@ export default function Supliers() {
       setInitialItems(data);
     } catch (err) {
       console.error("Error fetching user data:", err);
+    } finally {
+      setIsMachinesLoading(false);
     }
   };
   useEffect(() => {
@@ -78,7 +88,7 @@ export default function Supliers() {
   // add item
   const [newItem, setNewItem] = useState({
     name: "",
-    // description: "",
+    description: "",
   });
   const [errors, setErrors] = useState({});
   const handleAddItem = async () => {
@@ -89,17 +99,17 @@ export default function Supliers() {
       setErrors(newErrors);
       return;
     }
+    if (newItem.description.trim() === "") {
+      newErrors.description = "الحقل مطلوب";
+      setErrors(newErrors);
+      return;
+    }
 
-    // if (newItem.description.trim() === "") {
-    //   newErrors.description = "الحقل مطلوب";
-    //   setErrors(newErrors);
-    //   return;
-    // }
-
+    setIsAdding(true);
     try {
       const accessToken = localStorage.getItem("access_token");
 
-      const response = await fetch(`${API_BASE_URL}/machine/`, {
+      const response = await fetch(`${API_BASE_URL}/supplier/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -114,7 +124,6 @@ export default function Supliers() {
       await fetchItemsData();
       setNewItem({
         name: "",
-        // description: "",
       });
       setErrors({});
       setOpenDialog(false);
@@ -124,8 +133,10 @@ export default function Supliers() {
     } catch (error) {
       console.error("Error creating invoice:", error);
       setOpenSnackbar(true);
-      setSnackbarMessage(error.message || "خطأ في إضافة المورد");
+      setSnackbarMessage("اسم المورد موجود بالفعل");
       setSnackBarType("error");
+    } finally {
+      setIsAdding(false);
     }
   };
 
@@ -310,15 +321,15 @@ export default function Supliers() {
       setIsEditingItem(false);
       return;
     }
+
     const hasEmptyValues = Object.values(editingItem).some((value) => {
-      console.log(editingItem);
       if (typeof value === "string") {
         return value.trim() === "";
       }
       return !value;
     });
 
-    if (editingItem.name.trim() === "") {
+    if (hasEmptyValues) {
       setOpenSnackbar(true);
       setSnackbarMessage("يرجى ملئ جميع الحقول");
       setSnackBarType("info");
@@ -326,9 +337,10 @@ export default function Supliers() {
     }
 
     const accessToken = localStorage.getItem("access_token");
+    setIsUpdating(true);
     try {
       const response = await fetch(
-        `${API_BASE_URL}/machine/${editingItem.id}`,
+        `${API_BASE_URL}/supplier/${editingItem.id}`,
         {
           method: "PUT",
           headers: {
@@ -353,8 +365,10 @@ export default function Supliers() {
     } catch (error) {
       console.error("Error updating user:", error);
       setOpenSnackbar(true);
-      setSnackbarMessage("خطأ في تحديث المورد");
+      setSnackbarMessage("اسم المورد موجود بالفعل");
       setSnackBarType("error");
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -368,8 +382,12 @@ export default function Supliers() {
           return (
             <>
               <div>
-                <button className={styles.iconBtn} onClick={() => handleSave()}>
-                  <SaveIcon />
+                <button
+                  disabled={isUpdating}
+                  className={styles.iconBtn}
+                  onClick={() => handleSave()}
+                >
+                  {isUpdating ? <CircularProgress size={24} /> : <SaveIcon />}
                 </button>
                 <button
                   className={styles.iconBtn}
@@ -410,56 +428,22 @@ export default function Supliers() {
         );
       },
     },
-    // {
-    //   field: "description",
-    //   headerName: "الوصف",
-    //   width: 200,
-    //   flex: 1,
-    //   renderCell: (params) => {
-    //     if (isEditingItem && editingItem.id === params.id) {
-    //       return (
-    //         <div style={{ direction: "rtl" }}>
-    //           <input
-    //             type="text"
-    //             value={editingItem.description || ""}
-    //             onChange={(e) => {
-    //               setEditingItem({
-    //                 ...editingItem,
-    //                 description: e.target.value,
-    //               });
-    //             }}
-    //             style={{
-    //               width: "100%",
-    //               outline: "none",
-    //               fontSize: "15px",
-    //               textAlign: "right",
-    //               border: "none",
-    //               padding: "10px",
-    //             }}
-    //           />
-    //         </div>
-    //       );
-    //     }
-    //     return params.value;
-    //   },
-    // },
     {
-      field: "name",
-      headerName: "اسم المورد",
-      width: 100,
+      field: "description",
+      headerName: "الباركود",
+      width: 200,
       flex: 1,
       renderCell: (params) => {
         if (isEditingItem && editingItem.id === params.id) {
           return (
             <div style={{ direction: "rtl" }}>
-              <input
-                type="text"
-                value={editingItem.name || ""}
-                onChange={(e) => {
-                  setEditingItem({
-                    ...editingItem,
-                    name: e.target.value,
-                  });
+              <CustomInput
+                value={editingItem.description || ""}
+                onChange={(newValue) => {
+                  setEditingItem((prev) => ({
+                    ...prev,
+                    description: newValue,
+                  }));
                 }}
                 style={{
                   width: "100%",
@@ -468,6 +452,26 @@ export default function Supliers() {
                   textAlign: "right",
                   border: "none",
                   padding: "10px",
+                }}
+              />
+            </div>
+          );
+        }
+        return params.value;
+      },
+    },
+    {
+      field: "name",
+      headerName: "اسم المورد",
+      flex: 1,
+      renderCell: (params) => {
+        if (isEditingItem && editingItem?.id === params.id) {
+          return (
+            <div style={{ direction: "rtl" }}>
+              <CustomInput
+                value={editingItem.name || ""}
+                onChange={(newValue) => {
+                  setEditingItem({ ...editingItem, name: newValue });
                 }}
               />
             </div>
@@ -498,10 +502,10 @@ export default function Supliers() {
   const handleDelete = async () => {
     if (deleteConfirmationText.trim().toLowerCase() === "نعم") {
       const accessToken = localStorage.getItem("access_token");
-
+      setIsDeleting(true);
       try {
         const response = await fetch(
-          `${API_BASE_URL}/machine/${selectedUserId}`,
+          `${API_BASE_URL}/supplier/${selectedUserId}`,
           {
             method: "DELETE",
             headers: {
@@ -527,11 +531,15 @@ export default function Supliers() {
       } catch (error) {
         console.error("Error deleting user:", error);
         setOpenSnackbar(true);
-        setSnackbarMessage("خطأ في حذف المورد");
+        setSnackbarMessage(
+          "خطأ في حذف المورد اذا استمرت المشكلة حاول اعادة تحميل الصفحة"
+        );
         setSnackBarType("error");
         setDeleteConfirmationText("");
         setSelectedUserId(null);
         setDeleteDialogOpen(false);
+      } finally {
+        setIsDeleting(false);
       }
     }
   };
@@ -551,6 +559,7 @@ export default function Supliers() {
         setDeleteConfirmationText={setDeleteConfirmationText}
         handleDelete={handleDelete}
         message={"هل أنت متأكد من رغبتك في حذف هذا المورد؟"}
+        loader={isDeleting}
       />
 
       {/* table */}
@@ -561,6 +570,13 @@ export default function Supliers() {
         onPageChange={handlePageChange}
         pageCount={pageCount}
         CustomToolbar={CustomToolbar}
+        loader={isMachinesLoading}
+        onCellKeyDown={(params, event) => {
+          if ([" ", "ArrowLeft", "ArrowRight"].includes(event.key)) {
+            event.stopPropagation();
+            event.preventDefault();
+          }
+        }}
       />
 
       {/* add dialog */}
@@ -570,7 +586,6 @@ export default function Supliers() {
           setOpenDialog(false);
           setNewItem({
             name: "",
-            // description: "",
           });
           setErrors({});
         }}
@@ -631,7 +646,6 @@ export default function Supliers() {
               </span>
             )}
           </div>
-          {/* 
           <div style={{ marginBottom: "10px", marginTop: "10px" }}>
             <label
               style={{
@@ -642,7 +656,7 @@ export default function Supliers() {
                 color: errors.description ? "#d32f2f" : "#555",
               }}
             >
-              الوصف
+              الباركود
             </label>
             <input
               type="text"
@@ -679,8 +693,7 @@ export default function Supliers() {
                 {errors.description}
               </span>
             )}
-          </div> */}
-
+          </div>
           <DialogActions
             sx={{
               display: "flex",
@@ -694,7 +707,7 @@ export default function Supliers() {
                 setOpenDialog(false);
                 setNewItem({
                   name: "",
-                  //   description: "",
+                  description: "",
                 });
                 setErrors({});
               }}
@@ -707,8 +720,9 @@ export default function Supliers() {
               color="primary"
               onClick={handleAddItem}
               className={`${styles.saveButton} ${styles.infoBtn}`}
+              disabled={isAdding}
             >
-              إضافة
+              {isAdding ? <CircularProgress size={24} /> : "إضافة"}
             </Button>
           </DialogActions>
         </DialogContent>

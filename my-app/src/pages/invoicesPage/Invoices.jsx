@@ -13,6 +13,7 @@ import {
   TableCell,
   Divider,
   Checkbox,
+  CircularProgress,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import ClearOutlinedIcon from "@mui/icons-material/ClearOutlined";
@@ -26,6 +27,8 @@ import DeleteRow from "../../components/deleteItem/DeleteRow";
 import RotateLeftIcon from "@mui/icons-material/RotateLeft";
 import PublishedWithChangesIcon from "@mui/icons-material/PublishedWithChanges";
 import CustomDataGrid from "../../components/dataGrid/CustomDataGrid";
+import NumberInput from "../../components/number/NumberInput";
+import CustomAutoCompleteField from "../../components/customAutoCompleteField/CustomAutoCompleteField";
 
 export default function Invoices() {
   const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
@@ -33,6 +36,16 @@ export default function Invoices() {
   const [invoices, setInvoices] = useState([]);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // loaders
+  const [isInvoicesLoading, setIsInvoicesLoading] = useState(false);
+  const [isArrayDeleting, setIsArrayDeleting] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const [isInvoiceDeleting, setIsInvoiceDeleting] = useState(false);
+  const [isSupliersLoading, setIsSupliersLoading] = useState(false);
+  const [isMacinesLoading, setIsMacinesLoading] = useState(false);
+  const [isMechanismsLoading, setIsMechanismsLoading] = useState(false);
+  const [isWareHousesLoading, setIsWareHousesLoading] = useState(false);
 
   // fetch machines
   const [supliers, setSupliers] = useState([]);
@@ -54,13 +67,21 @@ export default function Invoices() {
     }
   };
   const fetchSupliersData = () =>
-    fetchFun(`${API_BASE_URL}/machine/`, setSupliers);
+    fetchFun(`${API_BASE_URL}/supplier/`, setSupliers, setIsSupliersLoading);
   const fetchMachinesData = () =>
-    fetchFun(`${API_BASE_URL}/machine/`, setMachines);
+    fetchFun(`${API_BASE_URL}/machine/`, setMachines, setIsMacinesLoading);
   const fetchMechanismsData = () =>
-    fetchFun(`${API_BASE_URL}/mechanism/`, setMechanisms);
+    fetchFun(
+      `${API_BASE_URL}/mechanism/`,
+      setMechanisms,
+      setIsMechanismsLoading
+    );
   const fetchWareHousesData = () =>
-    fetchFun(`${API_BASE_URL}/warehouse/`, setWarehouse);
+    fetchFun(
+      `${API_BASE_URL}/warehouse/`,
+      setWarehouse,
+      setIsWareHousesLoading
+    );
   useEffect(() => {
     fetchSupliersData();
     fetchMachinesData();
@@ -72,6 +93,8 @@ export default function Invoices() {
   const fetchInvoicesData = async () => {
     const accessToken = localStorage.getItem("access_token");
     if (!accessToken) return;
+    setIsInvoicesLoading(true);
+
     try {
       const response = await fetch(`${API_BASE_URL}/invoice/`, {
         method: "GET",
@@ -121,6 +144,8 @@ export default function Invoices() {
       setInvoices(updatedData);
     } catch (err) {
       console.error("Error fetching user data:", err);
+    } finally {
+      setIsInvoicesLoading(false);
     }
   };
   useEffect(() => {
@@ -201,6 +226,7 @@ export default function Invoices() {
   // delete selected invoices
   const handleDeleteSelectedRows = async (selectedIds) => {
     const accessToken = localStorage.getItem("access_token");
+    setIsArrayDeleting(true);
     try {
       await Promise.all(
         selectedIds.map(async (id) => {
@@ -225,6 +251,8 @@ export default function Invoices() {
       setOpenSnackbar(true);
       setSnackbarMessage("حدث خطأ أثناء الحذف");
       setSnackBarType("error");
+    } finally {
+      setIsArrayDeleting(false);
     }
   };
   // custom toolbar
@@ -336,6 +364,7 @@ export default function Invoices() {
         </div>
       ),
     },
+    { flex: 1, field: "status", headerName: "تيست" },
     { flex: 1, field: "itemsNames", headerName: "أسماء العناصر" },
     { flex: 1, field: "mechanism_name", headerName: "الميكانيزم" },
     { flex: 1, field: "machine_name", headerName: "الماكينة" },
@@ -428,7 +457,7 @@ export default function Invoices() {
       if (
         !editingInvoice.machine_name ||
         !editingInvoice.mechanism_name ||
-        !editingInvoice.suplier_name
+        !editingInvoice.supplier_name
       ) {
         setSnackbarMessage("يجب ملئ اسم المورد واسم الماكينة واسم الميكانيزم");
         setSnackBarType("info");
@@ -444,7 +473,7 @@ export default function Invoices() {
 
     // Step 3: Filter and validate items
     let newRows = editingInvoice.items.filter(
-      (row) => row.quantity !== 0 && row.quantity !== ""
+      (row) => Number(row.quantity) !== 0 && row.quantity !== ""
     );
 
     if (newRows.length === 0) {
@@ -470,29 +499,31 @@ export default function Invoices() {
     const updatedInvoice = {
       id: editingInvoice.id,
       type: editingInvoice.type,
-      suplier_name: editingInvoice.suplier_name,
+      supplier_name: editingInvoice.supplier_name,
       machine_name: editingInvoice.machine_name,
       mechanism_name: editingInvoice.mechanism_name,
       total_amount: editingInvoice.total_amount,
-      payment_method: editingInvoice.payment_method,
-      amount_paid: editingInvoice.amount_paid,
-      remain_amount: editingInvoice.remain_amount,
+      paid: editingInvoice.paid || 0,
+      residual: editingInvoice.paid - editingInvoice.total_amount || 0,
       employee_name: editingInvoice.employee_name,
       client_name: editingInvoice.client_name,
       warehouse_manager: editingInvoice.warehouse_manager,
-      items: newRows.map((row, index) => ({
+      comment: editingInvoice.comment,
+      items: newRows.map((row) => ({
         item_name: row.item_name,
         barcode: row.barcode,
         location: row.location,
-        quantity: row.quantity,
+        quantity: Number(row.quantity),
         total_price: row.total_price,
         description: row.description,
       })),
     };
+    console.log("newRows", newRows);
     console.log("updatedInvoice", updatedInvoice);
 
     const accessToken = localStorage.getItem("access_token");
 
+    setIsSaved(true);
     try {
       // Step 6: Send the update request
       const updateResponse = await fetch(
@@ -508,7 +539,9 @@ export default function Invoices() {
       );
 
       if (!updateResponse.ok) {
-        throw new Error(`Failed to update invoice: ${updateResponse.status}`);
+        const errorData = await updateResponse.json(); // Get server error details
+        console.error("Server Error:", errorData);
+        throw new Error(errorData.message || "Failed to update invoice");
       }
 
       // Step 8: Update state with new data
@@ -526,8 +559,12 @@ export default function Invoices() {
 
       // Step 10: Show error message
       setOpenSnackbar(true);
-      setSnackbarMessage("خطأ في تحديث الفاتورة");
+      setSnackbarMessage(
+        "خطأ في تحديث الفاتورة اذا استمرت المشكله قم باعادة تحميل الصفحة"
+      );
       setSnackBarType("error");
+    } finally {
+      setIsSaved(false);
     }
   };
 
@@ -608,7 +645,7 @@ export default function Invoices() {
   const handleDelete = async () => {
     if (deleteConfirmationText.trim().toLowerCase() === "نعم") {
       const accessToken = localStorage.getItem("access_token");
-
+      setIsInvoiceDeleting(true);
       try {
         const response = await fetch(
           `${API_BASE_URL}/invoice/${selectedUserId}`,
@@ -642,6 +679,8 @@ export default function Invoices() {
         setDeleteConfirmationText("");
         setSelectedUserId(null);
         setDeleteDialogOpen(false);
+      } finally {
+        setIsInvoiceDeleting(false);
       }
     }
   };
@@ -751,6 +790,7 @@ export default function Invoices() {
         onPageChange={handlePageChange}
         pageCount={pageCount}
         CustomToolbar={CustomToolbar}
+        loader={isInvoicesLoading}
       />
 
       {/* invoice data */}
@@ -818,6 +858,7 @@ export default function Invoices() {
                     <ClearOutlinedIcon />
                   </button>
                   <button
+                    disabled={isSaved}
                     onClick={() => {
                       handleSave(editingInvoice);
                     }}
@@ -829,7 +870,7 @@ export default function Invoices() {
                       left: "30px",
                     }}
                   >
-                    <SaveIcon />
+                    {isSaved ? <CircularProgress size={24} /> : <SaveIcon />}
                   </button>
                 </div>
               ) : (
@@ -866,6 +907,20 @@ export default function Invoices() {
                           <select
                             value={editingInvoice.type}
                             onChange={(e) => {
+                              console.log(editingInvoice.items);
+                              editingInvoice.items.map((row) => {
+                                const targetRow = row.availableLocations.find(
+                                  (location) =>
+                                    location.location === row.location
+                                );
+                                if (
+                                  targetRow &&
+                                  Number(row.quantity) > targetRow.quantity
+                                ) {
+                                  row.quantity = 0;
+                                }
+                                return row;
+                              });
                               setEditingInvoice({
                                 ...editingInvoice,
                                 type: e.target.value,
@@ -950,63 +1005,16 @@ export default function Invoices() {
                               }}
                             >
                               {isEditingInvoice ? (
-                                <Autocomplete
-                                  slotProps={{
-                                    paper: {
-                                      sx: {
-                                        "& .MuiAutocomplete-listbox": {
-                                          "& .MuiAutocomplete-option": {
-                                            direction: "rtl",
-                                          },
-                                        },
-                                      },
-                                    },
-                                  }}
-                                  value={
-                                    supliers.find(
-                                      (item) =>
-                                        item.name ===
-                                        editingInvoice.suplier_name
-                                    ) || null
-                                  }
-                                  sx={{
-                                    "& .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline":
-                                      {
-                                        border: "none",
-                                      },
-                                    "& .MuiAutocomplete-clearIndicator": {
-                                      display: "none",
-                                    },
-                                    "& .MuiAutocomplete-popupIndicator": {},
-                                    "& .MuiOutlinedInput-root": {
-                                      padding: "10px",
-                                      paddingRight: "35px!important",
-
-                                      fontSize: "14px",
-                                    },
-                                  }}
-                                  options={machines}
-                                  getOptionLabel={(option) => option.name}
-                                  onChange={(event, newValue) => {
-                                    if (!newValue) {
-                                      return;
-                                    }
-                                    setEditingInvoice({
-                                      ...editingInvoice,
-                                      suplier_name: newValue
-                                        ? newValue.name
-                                        : "",
-                                    });
-                                  }}
-                                  renderInput={(params) => (
-                                    <TextField
-                                      {...params}
-                                      placeholder="اسم المورد"
-                                    />
-                                  )}
+                                <CustomAutoCompleteField
+                                  loading={isSupliersLoading}
+                                  values={supliers}
+                                  editingItem={editingInvoice}
+                                  setEditingItem={setEditingInvoice}
+                                  fieldName="supplier_name"
+                                  placeholder="اسم المورد"
                                 />
                               ) : (
-                                selectedInvoice.machine_name
+                                selectedInvoice.supplier_name
                               )}
                             </TableCell>
                           </TableRow>
@@ -1023,57 +1031,13 @@ export default function Invoices() {
                             }}
                           >
                             {isEditingInvoice ? (
-                              <Autocomplete
-                                slotProps={{
-                                  paper: {
-                                    sx: {
-                                      "& .MuiAutocomplete-listbox": {
-                                        "& .MuiAutocomplete-option": {
-                                          direction: "rtl",
-                                        },
-                                      },
-                                    },
-                                  },
-                                }}
-                                value={
-                                  machines.find(
-                                    (item) =>
-                                      item.name === editingInvoice.machine_name
-                                  ) || null
-                                }
-                                sx={{
-                                  "& .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline":
-                                    {
-                                      border: "none",
-                                    },
-                                  "& .MuiAutocomplete-clearIndicator": {
-                                    display: "none",
-                                  },
-                                  "& .MuiAutocomplete-popupIndicator": {},
-                                  "& .MuiOutlinedInput-root": {
-                                    padding: "10px",
-                                    paddingRight: "35px!important",
-
-                                    fontSize: "14px",
-                                  },
-                                }}
-                                options={machines}
-                                getOptionLabel={(option) => option.name}
-                                onChange={(event, newValue) => {
-                                  if (!newValue) {
-                                    return;
-                                  }
-                                  setEditingInvoice({
-                                    ...editingInvoice,
-                                    machine_name: newValue ? newValue.name : "",
-                                  });
-                                }}
-                                renderInput={(params) => (
-                                  <TextField
-                                    {...params}
-                                    placeholder="اسم الماكينة"
-                                  />
-                                )}
+                              <CustomAutoCompleteField
+                                loading={isMacinesLoading}
+                                values={machines}
+                                editingItem={editingInvoice}
+                                setEditingItem={setEditingInvoice}
+                                fieldName="machine_name"
+                                placeholder="اسم الماكينة"
                               />
                             ) : (
                               selectedInvoice.machine_name
@@ -1092,60 +1056,13 @@ export default function Invoices() {
                             }}
                           >
                             {isEditingInvoice ? (
-                              <Autocomplete
-                                slotProps={{
-                                  paper: {
-                                    sx: {
-                                      "& .MuiAutocomplete-listbox": {
-                                        "& .MuiAutocomplete-option": {
-                                          direction: "rtl",
-                                        },
-                                      },
-                                    },
-                                  },
-                                }}
-                                value={
-                                  mechanisms.find(
-                                    (item) =>
-                                      item.name ===
-                                      editingInvoice.mechanism_name
-                                  ) || null
-                                }
-                                sx={{
-                                  "& .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline":
-                                    {
-                                      border: "none",
-                                    },
-                                  "& .MuiAutocomplete-clearIndicator": {
-                                    display: "none",
-                                  },
-                                  "& .MuiAutocomplete-popupIndicator": {},
-                                  "& .MuiOutlinedInput-root": {
-                                    padding: "10px",
-                                    paddingRight: "35px!important",
-
-                                    fontSize: "14px",
-                                  },
-                                }}
-                                options={mechanisms}
-                                getOptionLabel={(option) => option.name}
-                                onChange={(event, newValue) => {
-                                  if (!newValue) {
-                                    return;
-                                  }
-                                  setEditingInvoice({
-                                    ...editingInvoice,
-                                    mechanism_name: newValue
-                                      ? newValue.name
-                                      : "",
-                                  });
-                                }}
-                                renderInput={(params) => (
-                                  <TextField
-                                    {...params}
-                                    placeholder="اسم الماكينة"
-                                  />
-                                )}
+                              <CustomAutoCompleteField
+                                loading={isMechanismsLoading}
+                                values={mechanisms}
+                                editingItem={editingInvoice}
+                                setEditingItem={setEditingInvoice}
+                                fieldName="mechanism_name"
+                                placeholder="اسم الميكانيزم"
                               />
                             ) : (
                               selectedInvoice.mechanism_name
@@ -1234,6 +1151,7 @@ export default function Invoices() {
                             >
                               {isEditingInvoice ? (
                                 <Autocomplete
+                                  loading={isWareHousesLoading}
                                   slotProps={{
                                     input: {
                                       sx: {
@@ -1330,6 +1248,7 @@ export default function Invoices() {
                             >
                               {isEditingInvoice ? (
                                 <Autocomplete
+                                  loading={row.item_name === "" ? false : true}
                                   slotProps={{
                                     input: {
                                       sx: {
@@ -1431,7 +1350,7 @@ export default function Invoices() {
                               }}
                             >
                               {isEditingInvoice ? (
-                                <input
+                                <NumberInput
                                   style={{
                                     width: "100px",
                                     outline: "none",
@@ -1440,8 +1359,6 @@ export default function Invoices() {
                                     border: "none",
                                     padding: "10px",
                                   }}
-                                  type="number"
-                                  min="0"
                                   max={
                                     purchasesTypes.includes(
                                       editingInvoice.type
@@ -1618,6 +1535,7 @@ export default function Invoices() {
                             editingInvoice?.payment_method
                           ) : (
                             <Autocomplete
+                              loading={true}
                               slotProps={{
                                 paper: {
                                   sx: {
@@ -1691,9 +1609,9 @@ export default function Invoices() {
                         <Box className={styles.MoneyLabel}>المدفوع</Box>
                         <Box className={styles.MoneyValue}>
                           {!isEditingInvoice ? (
-                            editingInvoice?.amount_paid || 0
+                            editingInvoice?.paid || 0
                           ) : (
-                            <input
+                            <NumberInput
                               style={{
                                 width: "100%",
                                 border: "none",
@@ -1703,12 +1621,11 @@ export default function Invoices() {
                                 textAlign: "center",
                                 paddingLeft: "15px",
                               }}
-                              type="number"
-                              value={editingInvoice?.amount_paid || 0}
+                              value={editingInvoice?.paid}
                               onChange={(e) =>
                                 setEditingInvoice({
                                   ...editingInvoice,
-                                  amount_paid: parseFloat(e.target.value),
+                                  paid: parseFloat(e.target.value),
                                 })
                               }
                             />
@@ -1721,39 +1638,48 @@ export default function Invoices() {
                           className={styles.MoneyValue}
                           sx={{ marginBottom: "10px" }}
                         >
-                          0
-                          {/* {(editingInvoice.amount_paid || 0) -
-                            (editingInvoice.total_amount || 0)} */}
+                          {isEditingInvoice
+                            ? (editingInvoice.paid || 0) -
+                              (editingInvoice.total_amount || 0)
+                            : selectedInvoice?.paid}
                         </Box>
                       </Box>
                     </Box>
                   )}
-                  {/* comment
-                  <Box className={styles.commentFieldBox}>
-                    {isEditingInvoice ? (
-                      <input
-                        style={{
-                          width: "100%",
-                          outline: "none",
-                          fontSize: "15px",
-                          textAlign: "center",
-                          border: "none",
-                          padding: "10px",
-                        }}
-                        type="text"
-                        value={editingInvoice.comment}
-                        onChange={(e) =>
-                          setEditingInvoice({
-                            ...editingInvoice,
-                            comment: e.target.value,
-                          })
-                        }
-                      />
+                  {/* comment */}
+                  {selectedInvoice.comment.trim() === "" ||
+                  selectedInvoice.comment === null ? (
+                    isEditingInvoice ? (
+                      <Box className={styles.commentFieldBox}>
+                        <input
+                          style={{
+                            width: "100%",
+                            outline: "none",
+                            fontSize: "15px",
+                            textAlign: "center",
+                            border: "none",
+                            padding: "10px",
+                          }}
+                          type="text"
+                          value={editingInvoice.comment}
+                          onChange={(e) =>
+                            setEditingInvoice({
+                              ...editingInvoice,
+                              comment: e.target.value,
+                            })
+                          }
+                        />
+                      </Box>
                     ) : (
-                      selectedInvoice.comment
-                    )}
-                  </Box>
-                  note
+                      ""
+                    )
+                  ) : (
+                    <Box className={styles.commentFieldBox}>
+                      {selectedInvoice.comment}
+                    </Box>
+                  )}
+
+                  {/* note
                   {selectedInvoice.note === "" ? (
                     ""
                   ) : (
@@ -1842,30 +1768,8 @@ export default function Invoices() {
                       )}
                     </Box>
                     <Box className={styles.infoItemBox}>
-                      <Box className={styles.infoLabel}>مدير المخازن </Box>
-                      {isEditingInvoice ? (
-                        <input
-                          style={{
-                            width: "70%",
-                            margin: "auto",
-                            outline: "none",
-                            fontSize: "15px",
-                            textAlign: "center",
-                            border: "none",
-                            padding: "10px",
-                          }}
-                          type="text"
-                          value={editingInvoice.Warehouse_manager || ""}
-                          onChange={(e) =>
-                            setEditingInvoice({
-                              ...editingInvoice,
-                              Warehouse_manager: e.target.value,
-                            })
-                          }
-                        />
-                      ) : (
-                        selectedInvoice.Warehouse_manager
-                      )}
+                      <Box className={styles.infoLabel}>عامل المخازن </Box>
+                      {selectedInvoice.Warehouse_manager}
                     </Box>
                   </Box>
                 </>
@@ -1920,6 +1824,7 @@ export default function Invoices() {
         setDeleteConfirmationText={setDeleteConfirmationText}
         handleDelete={handleDelete}
         message={"هل أنت متأكد من رغبتك في حذف هذه العملية؟"}
+        loader={isInvoiceDeleting}
       />
 
       {/* delete item dialog */}
@@ -1944,6 +1849,7 @@ export default function Invoices() {
           setSelectedRows([]);
         }}
         message={"هل أنت متأكد من رغبتك في حذف العناصر المحددة؟"}
+        loader={isArrayDeleting}
       />
 
       {/* Snackbar */}

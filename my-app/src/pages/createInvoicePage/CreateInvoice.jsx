@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+} from "react";
 import {
   Box,
   Table,
@@ -19,6 +25,10 @@ import AddIcon from "@mui/icons-material/Add";
 import logo from "./logo.png";
 import styles from "./CreateInvoice.module.css";
 import SnackBar from "../../components/snackBar/SnackBar";
+import CircularProgress from "@mui/material/CircularProgress";
+import NumberInput from "../../components/number/NumberInput";
+import CustomAutoCompleteField from "../../components/customAutoCompleteField/CustomAutoCompleteField";
+import { isNumber } from "@mui/x-data-grid/internals";
 
 export default function Type1() {
   const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
@@ -87,9 +97,19 @@ export default function Type1() {
   const [warehouse, setWarehouse] = useState([]);
   const [user, setUser] = useState({});
   const [voucherNumber, setVoucherNumber] = useState(null);
-  const fetchFun = async (url, setValues) => {
+
+  const [isSupliersLoading, setIsSupliersLoading] = useState(false);
+  const [isMacinesLoading, setIsMacinesLoading] = useState(false);
+  const [isMechanismsLoading, setIsMechanismsLoading] = useState(false);
+  const [isWareHousesLoading, setIsWareHousesLoading] = useState(false);
+
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoadingUser, setIsLoadingUser] = useState(false);
+  const [isLoadingVoucher, setIsLoadingVoucher] = useState(false);
+  const fetchFun = async (url, setValues, setLoading = null) => {
     const accessToken = localStorage.getItem("access_token");
     if (!accessToken) return;
+    if (setLoading) setLoading(true);
     try {
       const response = await fetch(url, {
         method: "GET",
@@ -99,19 +119,38 @@ export default function Type1() {
       setValues(data);
     } catch (err) {
       console.error("Error fetching user data:", err);
+    } finally {
+      if (setLoading) setLoading(false);
     }
   };
+
   const fetchSupliersData = () =>
-    fetchFun(`${API_BASE_URL}/machine/`, setSupliers);
+    fetchFun(`${API_BASE_URL}/supplier/`, setSupliers, setIsSupliersLoading);
+
   const fetchMachinesData = () =>
-    fetchFun(`${API_BASE_URL}/machine/`, setMachines);
+    fetchFun(`${API_BASE_URL}/machine/`, setMachines, setIsMacinesLoading);
   const fetchMechanismsData = () =>
-    fetchFun(`${API_BASE_URL}/mechanism/`, setMechanisms);
+    fetchFun(
+      `${API_BASE_URL}/mechanism/`,
+      setMechanisms,
+      setIsMechanismsLoading
+    );
   const fetchWareHousesData = () =>
-    fetchFun(`${API_BASE_URL}/warehouse/`, setWarehouse);
-  const fetchUserData = () => fetchFun(`${API_BASE_URL}/auth/user`, setUser);
+    fetchFun(
+      `${API_BASE_URL}/warehouse/`,
+      setWarehouse,
+      setIsWareHousesLoading
+    );
+  const fetchUserData = () =>
+    fetchFun(`${API_BASE_URL}/auth/user`, setUser, setIsLoadingUser);
+
   const fetchVoucherId = () =>
-    fetchFun(`${API_BASE_URL}/invoice/last-id`, setVoucherNumber);
+    fetchFun(
+      `${API_BASE_URL}/invoice/last-id`,
+      setVoucherNumber,
+      setIsLoadingVoucher
+    );
+
   useEffect(() => {
     fetchSupliersData();
     fetchMachinesData();
@@ -358,7 +397,9 @@ export default function Type1() {
       return;
     }
 
-    let newRows = rows.filter((row) => row.quantity !== 0);
+    let newRows = rows.filter(
+      (row) => row.quantity !== 0 && isNumber(row.quantity)
+    );
     if (
       newRows.length === 0 ||
       (newRows.length === 1 && isNaN(newRows[0].quantity)) ||
@@ -376,14 +417,20 @@ export default function Type1() {
     }));
 
     const updatedInvoice = {
-      ...newInvoice,
-      amount_paid: newInvoice.amount_paid || 0,
-      remain_amount: newInvoice.amount_paid - totalAmount || 0,
-      total_amount: totalAmount,
+      type: newInvoice.type,
+      client_name: newInvoice.client_name,
+      total_amount: totalAmount || 0,
+      paid: newInvoice.amount_paid || 0,
+      residual: newInvoice.amount_paid - totalAmount || 0,
+      comment: newInvoice.comment,
+      employee_name: user.username,
+      machine_name: newInvoice.machine_name,
+      mechanism_name: newInvoice.mechanism_name,
+      supplier_name: newInvoice.suplier_name,
       items: newRows.map((row) => ({
         item_name: row.item_name,
-        location: row.location,
         quantity: row.quantity,
+        location: row.location,
         total_price: row.total_price,
         description: row.description,
       })),
@@ -391,6 +438,8 @@ export default function Type1() {
     console.log("new invoice being set: ", updatedInvoice);
     const accessToken = localStorage.getItem("access_token");
     if (!accessToken) return;
+
+    setIsSaving(true);
     try {
       const response = await fetch(`${API_BASE_URL}/invoice/`, {
         method: "POST",
@@ -414,9 +463,13 @@ export default function Type1() {
       setOpenSnackbar(true);
     } catch (err) {
       console.error("Error saving invoice:", err);
-      setSnackbarMessage("خطا في حفظ الفاتورة");
+      setSnackbarMessage(
+        "خطا في حفظ الفاتورة اذا استمرت المشكله قم باعادة تحميل الصفحة"
+      );
       setSnackBarType("error");
       setOpenSnackbar(true);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -594,7 +647,13 @@ export default function Type1() {
             <Box className={styles.infoBox}>
               <Box className={styles.infoItem}>
                 <Box className={styles.infoLabel}>رقم السند:</Box>
-                <Box className={styles.infoValue}>{voucherNumber?.last_id}</Box>
+                <Box className={styles.infoValue}>
+                  {isLoadingVoucher ? (
+                    <CircularProgress size={15} />
+                  ) : (
+                    voucherNumber?.last_id
+                  )}
+                </Box>
               </Box>
               <Box className={styles.infoItem}>
                 <Box className={styles.infoLabel}>التاريخ</Box>
@@ -633,60 +692,16 @@ export default function Type1() {
                         padding: "0px !important",
                       }}
                     >
-                      <Autocomplete
-                        slotProps={{
-                          paper: {
-                            sx: {
-                              "& .MuiAutocomplete-listbox": {
-                                "& .MuiAutocomplete-option": {
-                                  direction: "rtl",
-                                },
-                              },
-                            },
-                          },
-                        }}
-                        value={
-                          supliers.find(
-                            (suplier) =>
-                              suplier.name === newInvoice.suplier_name
-                          ) || null
-                        }
-                        sx={{
-                          "& .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline":
-                            {
-                              border: "none",
-                            },
-                          "& .MuiAutocomplete-clearIndicator": {
-                            display: "none",
-                          },
-                          "& .MuiAutocomplete-popupIndicator": {
-                            display: isInvoiceSaved ? "none" : "",
-                          },
-                          "& .MuiOutlinedInput-root": {
-                            padding: "10px",
-                            paddingRight: isInvoiceSaved
-                              ? "10px!important"
-                              : "35px!important",
-
-                            fontSize: "14px",
-                          },
-                        }}
-                        options={machines}
-                        getOptionLabel={(option) =>
-                          option && option.name ? option.name : ""
-                        }
+                      <CustomAutoCompleteField
+                        loading={isSupliersLoading}
+                        values={supliers}
+                        editingItem={newInvoice}
+                        setEditingItem={setNewInvoice}
+                        fieldName="suplier_name"
+                        placeholder="اسم المورد"
                         isOptionEqualToValue={(option, value) =>
                           option.name === value.name
                         }
-                        onChange={(event, newValue) =>
-                          setNewInvoice({
-                            ...newInvoice,
-                            suplier_name: newValue ? newValue.name : "",
-                          })
-                        }
-                        renderInput={(params) => (
-                          <TextField {...params} placeholder="اسم المورد" />
-                        )}
                       />
                     </TableCell>
                   </TableRow>
@@ -702,59 +717,16 @@ export default function Type1() {
                       padding: "0px !important",
                     }}
                   >
-                    <Autocomplete
-                      slotProps={{
-                        paper: {
-                          sx: {
-                            "& .MuiAutocomplete-listbox": {
-                              "& .MuiAutocomplete-option": {
-                                direction: "rtl",
-                              },
-                            },
-                          },
-                        },
-                      }}
-                      value={
-                        machines.find(
-                          (machine) => machine.name === newInvoice.machine_name
-                        ) || null
-                      }
-                      sx={{
-                        "& .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline":
-                          {
-                            border: "none",
-                          },
-                        "& .MuiAutocomplete-clearIndicator": {
-                          display: "none",
-                        },
-                        "& .MuiAutocomplete-popupIndicator": {
-                          display: isInvoiceSaved ? "none" : "",
-                        },
-                        "& .MuiOutlinedInput-root": {
-                          padding: "10px",
-                          paddingRight: isInvoiceSaved
-                            ? "10px!important"
-                            : "35px!important",
-
-                          fontSize: "14px",
-                        },
-                      }}
-                      options={machines}
-                      getOptionLabel={(option) =>
-                        option && option.name ? option.name : ""
-                      }
+                    <CustomAutoCompleteField
+                      loading={isMacinesLoading}
+                      values={machines}
+                      editingItem={newInvoice}
+                      setEditingItem={setNewInvoice}
+                      fieldName="machine_name"
+                      placeholder="اسم الماكينة"
                       isOptionEqualToValue={(option, value) =>
                         option.name === value.name
                       }
-                      onChange={(event, newValue) =>
-                        setNewInvoice({
-                          ...newInvoice,
-                          machine_name: newValue ? newValue.name : "",
-                        })
-                      }
-                      renderInput={(params) => (
-                        <TextField {...params} placeholder="اسم الماكينة" />
-                      )}
                     />
                   </TableCell>
                 </TableRow>
@@ -769,60 +741,16 @@ export default function Type1() {
                       padding: "0px !important",
                     }}
                   >
-                    <Autocomplete
-                      slotProps={{
-                        paper: {
-                          sx: {
-                            "& .MuiAutocomplete-listbox": {
-                              "& .MuiAutocomplete-option": {
-                                direction: "rtl",
-                              },
-                            },
-                          },
-                        },
-                      }}
-                      value={
-                        mechanisms.find(
-                          (mechanism) =>
-                            mechanism.name === newInvoice.mechanism_name
-                        ) || null
-                      }
-                      sx={{
-                        "& .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline":
-                          {
-                            border: "none",
-                          },
-                        "& .MuiAutocomplete-clearIndicator": {
-                          display: "none",
-                        },
-                        "& .MuiAutocomplete-popupIndicator": {
-                          display: isInvoiceSaved ? "none" : "",
-                        },
-                        "& .MuiOutlinedInput-root": {
-                          padding: "10px",
-                          paddingRight: isInvoiceSaved
-                            ? "10px!important"
-                            : "35px!important",
-
-                          fontSize: "14px",
-                        },
-                      }}
-                      options={mechanisms}
-                      getOptionLabel={(option) =>
-                        option && option.name ? option.name : ""
-                      }
+                    <CustomAutoCompleteField
+                      loading={isMechanismsLoading}
+                      values={mechanisms}
+                      editingItem={newInvoice}
+                      setEditingItem={setNewInvoice}
+                      fieldName="mechanism_name"
+                      placeholder="اسم الميكانيزم"
                       isOptionEqualToValue={(option, value) =>
                         option.name === value.name
                       }
-                      onChange={(event, newValue) =>
-                        setNewInvoice({
-                          ...newInvoice,
-                          mechanism_name: newValue ? newValue.name : "",
-                        })
-                      }
-                      renderInput={(params) => (
-                        <TextField {...params} placeholder="اسم الميكانيزم" />
-                      )}
                     />
                   </TableCell>
                 </TableRow>
@@ -885,6 +813,7 @@ export default function Type1() {
                         row.item_name
                       ) : (
                         <Autocomplete
+                          loading={isWareHousesLoading}
                           slotProps={{
                             input: {
                               sx: {
@@ -951,6 +880,7 @@ export default function Type1() {
                         row.location
                       ) : (
                         <Autocomplete
+                          loading={row.item_name === "" ? false : true}
                           slotProps={{
                             input: {
                               sx: {
@@ -1016,12 +946,10 @@ export default function Type1() {
                       {isInvoiceSaved ? (
                         row.quantity
                       ) : (
-                        <input
+                        <NumberInput
                           style={{
                             width: "100px",
                           }}
-                          type="number"
-                          min="0"
                           max={operationType && row.maxquantity}
                           value={row?.quantity}
                           onInput={(e) => {
@@ -1154,6 +1082,7 @@ export default function Type1() {
                       newInvoice.payment_method
                     ) : (
                       <Autocomplete
+                        loading={true}
                         slotProps={{
                           paper: {
                             sx: {
@@ -1230,7 +1159,7 @@ export default function Type1() {
                     {isInvoiceSaved ? (
                       newInvoice.amount_paid || 0
                     ) : (
-                      <input
+                      <NumberInput
                         style={{
                           width: "100%",
                           border: "none",
@@ -1240,7 +1169,6 @@ export default function Type1() {
                           textAlign: "center",
                           paddingRight: isInvoiceSaved ? "" : "15px",
                         }}
-                        type="number"
                         value={newInvoice.amount_paid}
                         onChange={(e) =>
                           setNewInvoice({
@@ -1294,7 +1222,9 @@ export default function Type1() {
           <Box className={styles.infoSection}>
             <Box className={styles.infoItemBox}>
               <Box className={styles.infoLabel}>اسم الموظف</Box>
-              <Box className={styles.infoValue}>{user.username}</Box>
+              <Box className={styles.infoValue}>
+                {isLoadingUser ? <CircularProgress size={15} /> : user.username}
+              </Box>
             </Box>
             <Box className={styles.infoItemBox}>
               <Box className={styles.infoLabel}>اسم المستلم</Box>
@@ -1311,18 +1241,7 @@ export default function Type1() {
               />
             </Box>
             <Box className={styles.infoItemBox}>
-              <Box className={styles.infoLabel}>مدير المخازن </Box>
-              <input
-                type="text"
-                value={newInvoice.Warehouse_manager}
-                onChange={(e) =>
-                  setNewInvoice({
-                    ...newInvoice,
-                    Warehouse_manager: e.target.value,
-                  })
-                }
-                className={styles.infoInput}
-              />
+              <Box className={styles.infoLabel}>عامل المخازن </Box>
             </Box>
           </Box>
         </Box>
@@ -1355,8 +1274,13 @@ export default function Type1() {
               color="primary"
               onClick={handleSave}
               className={`${styles.saveButton} ${styles.infoBtn}`}
+              disabled={isSaving}
             >
-              تأكيد
+              {isSaving ? (
+                <CircularProgress size={24} sx={{ color: "white" }} />
+              ) : (
+                "تأكيد"
+              )}
             </Button>
 
             <Button

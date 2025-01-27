@@ -7,7 +7,7 @@ export const CustomTextField = ({
   type = "text",
   value,
   setValue,
-  valueError,
+  valueError = null,
 }) => {
   const [showPassword, setShowPassword] = useState(false);
 
@@ -28,10 +28,7 @@ export const CustomTextField = ({
           endAdornment:
             type === "password" ? (
               <InputAdornment position="end">
-                <IconButton
-                  onClick={handleClickShowPassword}
-                  edge="end"
-                >
+                <IconButton onClick={handleClickShowPassword} edge="end">
                   {showPassword ? <Visibility /> : <VisibilityOff />}
                 </IconButton>
               </InputAdornment>
@@ -54,7 +51,7 @@ export const CustomTextField = ({
         "& .MuiInputLabel-root": {
           transformOrigin: "right",
         },
-        marginBottom: "10px"
+        marginBottom: "10px",
       }}
     />
   );
