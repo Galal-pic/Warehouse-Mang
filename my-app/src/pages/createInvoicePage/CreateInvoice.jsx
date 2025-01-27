@@ -426,7 +426,7 @@ export default function Type1() {
       employee_name: user.username,
       machine_name: newInvoice.machine_name,
       mechanism_name: newInvoice.mechanism_name,
-      supplier_name: newInvoice.suplier_name,
+      supplier_name: newInvoice.suplier_name || "اسامة",
       items: newRows.map((row) => ({
         item_name: row.item_name,
         quantity: row.quantity,

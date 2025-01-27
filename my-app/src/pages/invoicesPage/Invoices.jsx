@@ -29,6 +29,7 @@ import PublishedWithChangesIcon from "@mui/icons-material/PublishedWithChanges";
 import CustomDataGrid from "../../components/dataGrid/CustomDataGrid";
 import NumberInput from "../../components/number/NumberInput";
 import CustomAutoCompleteField from "../../components/customAutoCompleteField/CustomAutoCompleteField";
+import FilterTabs from "../../components/filter/Filter";
 
 export default function Invoices() {
   const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
@@ -38,6 +39,7 @@ export default function Invoices() {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // loaders
+  const [isConfirmDone, setIsConfirmDone] = useState(false);
   const [isInvoicesLoading, setIsInvoicesLoading] = useState(false);
   const [isArrayDeleting, setIsArrayDeleting] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
@@ -89,14 +91,29 @@ export default function Invoices() {
     fetchWareHousesData();
   }, []);
 
+  // select Now Type
+  const filtersTypes = [
+    { label: "صرف", type: "operation", url: "/invoice/", status: true },
+    { label: "أمانات", type: "operation", url: "/invoice/", status: true },
+    { label: "مرتجع", type: "operation", url: "/invoice/", status: false },
+    { label: "توالف", type: "operation", url: "/invoice/", status: false },
+    { label: "حجز", type: "operation", url: "/invoice/", status: true },
+    { label: "اضافه", type: "purchase", url: "/invoice/", status: false },
+  ];
+  const [selectedNowType, setSelectedNowType] = useState({
+    label: "اضافه",
+    type: "purchase",
+    url: "/invoice/",
+    status: false,
+  });
+
   // fetch invoices
   const fetchInvoicesData = async () => {
     const accessToken = localStorage.getItem("access_token");
     if (!accessToken) return;
     setIsInvoicesLoading(true);
-
     try {
-      const response = await fetch(`${API_BASE_URL}/invoice/`, {
+      const response = await fetch(`${API_BASE_URL}${selectedNowType.url}`, {
         method: "GET",
         headers: { Authorization: `Bearer ${accessToken}` },
       });
@@ -126,7 +143,9 @@ export default function Invoices() {
                 return {
                   ...item,
                   priceunit: currentLocation ? currentLocation.price_unit : 0,
-                  maxquantity: currentLocation ? currentLocation.quantity : 0,
+                  maxquantity: currentLocation
+                    ? currentLocation.quantity + item.quantity
+                    : 0,
                   availableLocations: matchedItem.locations,
                 };
               }
@@ -150,7 +169,7 @@ export default function Invoices() {
   };
   useEffect(() => {
     fetchInvoicesData();
-  }, [warehouse]);
+  }, [warehouse, selectedNowType]);
 
   // snackbar
   const [openSnackbar, setOpenSnackbar] = useState(false);
@@ -328,6 +347,47 @@ export default function Invoices() {
     );
   }
 
+  // handle confirm
+  const getButtonText = (invoiceType) => {
+    switch (invoiceType) {
+      case "صرف":
+        return "صرف الفاتورة";
+      case "أمانات":
+        return "صرف الأمانة";
+      case "حجز":
+        return "صرف الحجز";
+      default:
+        return "صرف الفاتورة";
+    }
+  };
+
+  const handleInvoiceAction = async (id) => {
+    const accessToken = localStorage.getItem("access_token");
+    setIsConfirmDone((prev) => ({ ...prev, [id]: true }));
+    try {
+      const response = await fetch(`${API_BASE_URL}/invoice/${id}/confirm`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({}),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete invoice");
+      }
+      await fetchInvoicesData();
+      setOpenSnackbar(true);
+      setSnackbarMessage("تم التحديث بنجاح");
+      setSnackBarType("success");
+    } catch (error) {
+      console.error("Error post invoice:", error);
+      setOpenSnackbar(true);
+      setSnackbarMessage("حدث خطأ أثناء التحديث حاول مرة اخرى");
+      setSnackBarType("error");
+    } finally {
+      setIsConfirmDone((prev) => ({ ...prev, [id]: false }));
+    }
+  };
+
   // columns
   const columns = [
     {
@@ -364,7 +424,38 @@ export default function Invoices() {
         </div>
       ),
     },
-    { flex: 1, field: "status", headerName: "تيست" },
+    ...(selectedNowType.status
+      ? [
+          {
+            width: 150,
+            field: "status",
+            headerName: "حالة العملية",
+            renderCell: (params) => {
+              if (params.row.status === "confirmed") {
+                return "تم";
+              } else {
+                const invoiceType = selectedNowType.label;
+                const buttonText = getButtonText(invoiceType);
+                const isLoading = isConfirmDone[params.row.id] || false;
+                return (
+                  <Button
+                    variant="contained"
+                    color="error"
+                    onClick={() => handleInvoiceAction(params.row.id)}
+                    sx={{
+                      borderRadius: "8px",
+                      padding: "1px 16px",
+                    }}
+                    disabled={isLoading}
+                  >
+                    {isLoading ? <CircularProgress size={24} /> : buttonText}
+                  </Button>
+                );
+              }
+            },
+          },
+        ]
+      : []),
     { flex: 1, field: "itemsNames", headerName: "أسماء العناصر" },
     { flex: 1, field: "mechanism_name", headerName: "الميكانيزم" },
     { flex: 1, field: "machine_name", headerName: "الماكينة" },
@@ -518,7 +609,6 @@ export default function Invoices() {
         description: row.description,
       })),
     };
-    console.log("newRows", newRows);
     console.log("updatedInvoice", updatedInvoice);
 
     const accessToken = localStorage.getItem("access_token");
@@ -756,6 +846,17 @@ export default function Invoices() {
                 : "outlined"
             }
             onClick={() => {
+              const selectedFilter =
+                type !== "جميع العمليات" &&
+                filtersTypes.find((filter) => filter.label === type);
+              setSelectedNowType(
+                selectedFilter || {
+                  label: "اضافه",
+                  type: "purchase",
+                  url: "/invoice/",
+                  status: false,
+                }
+              );
               setSelectedRows([]);
               setOperationTypesPurchasesType(
                 type === "جميع العمليات" ? "" : type
@@ -781,7 +882,10 @@ export default function Invoices() {
           </Button>
         ))}
       </Box>
-
+      {/* <FilterTabs
+        setNowType={setSelectedNowType}
+        setSelectedRows={setSelectedRows}
+      /> */}
       {/* invoices data */}
       <CustomDataGrid
         rows={filteredAndFormattedData}
@@ -907,7 +1011,6 @@ export default function Invoices() {
                           <select
                             value={editingInvoice.type}
                             onChange={(e) => {
-                              console.log(editingInvoice.items);
                               editingInvoice.items.map((row) => {
                                 const targetRow = row.availableLocations.find(
                                   (location) =>
@@ -1325,7 +1428,8 @@ export default function Invoices() {
                                       quantity: 0,
                                       priceunit: newValue?.price_unit,
                                       total_price: 0,
-                                      maxquantity: newValue?.quantity,
+                                      maxquantity:
+                                        newValue?.quantity + row.quantity,
                                     };
                                     setEditingInvoice({
                                       ...editingInvoice,
@@ -1609,7 +1713,7 @@ export default function Invoices() {
                         <Box className={styles.MoneyLabel}>المدفوع</Box>
                         <Box className={styles.MoneyValue}>
                           {!isEditingInvoice ? (
-                            editingInvoice?.paid || 0
+                            selectedInvoice?.paid || 0
                           ) : (
                             <NumberInput
                               style={{
@@ -1641,7 +1745,7 @@ export default function Invoices() {
                           {isEditingInvoice
                             ? (editingInvoice.paid || 0) -
                               (editingInvoice.total_amount || 0)
-                            : selectedInvoice?.paid}
+                            : selectedInvoice?.residual}
                         </Box>
                       </Box>
                     </Box>

@@ -429,29 +429,6 @@ export default function Machines() {
       },
     },
     {
-      field: "name",
-      headerName: "اسم الماكينة",
-      flex: 1,
-      renderCell: (params) => {
-        if (isEditingItem && editingItem?.id === params.id) {
-          return (
-            <div style={{ direction: "rtl" }}>
-              <CustomInput
-                value={editingItem?.name || ""}
-                onChange={(newValue) => {
-                  setEditingItem((prev) => ({
-                    ...prev,
-                    name: newValue,
-                  }));
-                }}
-              />
-            </div>
-          );
-        }
-        return params.value;
-      },
-    },
-    {
       field: "description",
       headerName: "الوصف",
       flex: 1,
@@ -465,6 +442,29 @@ export default function Machines() {
                   setEditingItem((prev) => ({
                     ...prev,
                     description: newValue,
+                  }));
+                }}
+              />
+            </div>
+          );
+        }
+        return params.value;
+      },
+    },
+    {
+      field: "name",
+      headerName: "اسم الماكينة",
+      flex: 1,
+      renderCell: (params) => {
+        if (isEditingItem && editingItem?.id === params.id) {
+          return (
+            <div style={{ direction: "rtl" }}>
+              <CustomInput
+                value={editingItem?.name || ""}
+                onChange={(newValue) => {
+                  setEditingItem((prev) => ({
+                    ...prev,
+                    name: newValue,
                   }));
                 }}
               />
