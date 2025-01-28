@@ -44,6 +44,55 @@ invoice_model = invoice_ns.model('Invoice', {
     "created_at":fields.String(required=False),
     'items': fields.List(fields.Nested(invoice_item_model)),
 })
+@invoice_ns.route('/<string:type>')
+class invoices_get(Resource):
+    @invoice_ns.marshal_list_with(invoice_model)
+    @jwt_required()
+    def get(self, type):
+        """Get invoices by type"""
+        invoices = Invoice.query.filter_by(type=type).all()
+        result = []
+        for invoice in invoices:
+            # Fetch related machine and mechanism data
+            machine = Machine.query.get(invoice.machine_id) if invoice.machine_id else None
+            mechanism = Mechanism.query.get(invoice.mechanism_id) if invoice.mechanism_id else None
+            supplier = Supplier.query.get(invoice.supplier_id) if invoice.supplier_id else None
+
+            # Fetch related items data
+            items = InvoiceItem.query.filter_by(invoice_id=invoice.id).all()
+            # Serialize the invoice with related data
+            invoice_data = {
+                "id": invoice.id,
+                "type": invoice.type,
+                "client_name": invoice.client_name,
+                "warehouse_manager": invoice.warehouse_manager,
+                "total_amount": invoice.total_amount,
+                'paid': invoice.paid,
+                'residual': invoice.residual,
+                'comment': invoice.comment,
+                'status': invoice.status,
+                "employee_name": invoice.employee_name,
+                "machine_name": machine.name if machine else None,
+                "mechanism_name": mechanism.name if mechanism else None,
+                "supplier_name": supplier.name if supplier else None,
+                "created_at":invoice.created_at,
+                "items": [
+                    {
+                        "item_name": Warehouse.query.get(item.item_id).item_name,
+                        "barcode":  Warehouse.query.get(item.item_id).item_bar,
+                        "quantity": item.quantity,
+                        "location": item.location,
+                        "total_price": item.total_price,
+                        "description": item.description
+                    }
+                    for item in items
+                ]
+            }
+            result.append(invoice_data)
+
+        return result
+
+
 # Invoice Endpoints
 @invoice_ns.route('/')
 class InvoiceList(Resource):

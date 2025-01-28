@@ -124,7 +124,7 @@ def put_purchase(data, invoice, machine, mechanism, invoice_ns):
                     invoice_ns.abort(400, f"Insufficient stock for {item_data['item_name']}")
 
                 # Update inventory
-                item_location.quantity -= quantity_diff
+                item_location.quantity += quantity_diff
 
                 # Update or create invoice item
                 if key in original_items:
@@ -152,7 +152,7 @@ def put_purchase(data, invoice, machine, mechanism, invoice_ns):
                     ).first()
                     
                     if item_location:
-                        item_location.quantity += item.quantity
+                        item_location.quantity -= item.quantity
                     
                     db.session.delete(item)
 
