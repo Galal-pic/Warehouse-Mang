@@ -78,7 +78,7 @@ export default function Type1() {
     suplier_name: "",
     type: lastSelected,
     client_name: "",
-    Warehouse_manager: "",
+    warehouse_manager: "",
     total_amount: 0,
     employee_name: "",
     machine_name: "",
@@ -306,7 +306,7 @@ export default function Type1() {
       suplier_name: "",
       type: lastSelected,
       client_name: "",
-      Warehouse_manager: "",
+      warehouse_manager: "",
       total_amount: 0,
       employee_name: "",
       machine_name: "",
@@ -940,7 +940,7 @@ export default function Type1() {
                     <TableCell
                       className={styles.tableCellRow}
                       sx={{
-                        width: isInvoiceSaved ? "" : "50px",
+                        width: isInvoiceSaved ? "" : "100px",
                       }}
                     >
                       {isInvoiceSaved ? (

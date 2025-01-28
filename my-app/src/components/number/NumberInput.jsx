@@ -1,6 +1,7 @@
 import React, { useRef, useEffect } from "react";
 
 const NumberInput = React.forwardRef((props, ref) => {
+  const { style, ...restProps } = props; // استخراج style من props
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -24,7 +25,7 @@ const NumberInput = React.forwardRef((props, ref) => {
 
   return (
     <input
-      {...props}
+      {...restProps}
       type="number"
       min="0"
       ref={(node) => {
@@ -32,6 +33,10 @@ const NumberInput = React.forwardRef((props, ref) => {
         if (ref) {
           ref.current = node;
         }
+      }}
+      style={{
+        ...style,
+        height: "100%",
       }}
       onWheel={(e) => {
         e.preventDefault();

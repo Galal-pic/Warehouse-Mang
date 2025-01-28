@@ -2,7 +2,12 @@ import "./App.css";
 import Header from "./components/header/Header";
 import Login from "./pages/loginPage/Login";
 import Register from "./pages/registerPage/Register";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
 import Users from "./pages/usersPage/Users";
 import CreateInvoice from "./pages/createInvoicePage/CreateInvoice";
 import Invoices from "./pages/invoicesPage/Invoices";
@@ -17,6 +22,7 @@ function App() {
     <div className="App">
       <Router>
         <Routes>
+          <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<Login />} />
 
           <Route element={<ProtectedRoute />}>

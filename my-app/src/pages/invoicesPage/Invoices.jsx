@@ -92,19 +92,11 @@ export default function Invoices() {
   }, []);
 
   // select Now Type
-  const filtersTypes = [
-    { label: "صرف", type: "operation", url: "/invoice/", status: true },
-    { label: "أمانات", type: "operation", url: "/invoice/", status: true },
-    { label: "مرتجع", type: "operation", url: "/invoice/", status: false },
-    { label: "توالف", type: "operation", url: "/invoice/", status: false },
-    { label: "حجز", type: "operation", url: "/invoice/", status: true },
-    { label: "اضافه", type: "purchase", url: "/invoice/", status: false },
-  ];
   const [selectedNowType, setSelectedNowType] = useState({
-    label: "اضافه",
-    type: "purchase",
-    url: "/invoice/",
-    status: false,
+    label: "صرف",
+    type: "operation",
+    url: "/invoice/صرف",
+    status: true,
   });
 
   // fetch invoices
@@ -209,22 +201,6 @@ export default function Invoices() {
     };
   }, [isModalOpen]);
 
-  // filters invoices
-  const [operationTypesPurchasesType, setOperationTypesPurchasesType] =
-    useState("");
-  const operationTypes = ["صرف", "أمانات", "مرتجع", "توالف", "حجز"];
-  const purchasesTypes = ["اضافه"];
-  const operationTypesPurchasesTypes = [
-    "جميع العمليات",
-    ...operationTypes,
-    ...purchasesTypes,
-  ];
-  const filteredAndFormattedData = invoices.filter(
-    (invoice) =>
-      operationTypesPurchasesType === "" ||
-      operationTypesPurchasesType === "جميع العمليات" ||
-      invoice.type === operationTypesPurchasesType
-  );
   // select with checkboxes
   const [selectedRows, setSelectedRows] = useState([]);
   const handleCheckboxChange = (event, id) => {
@@ -236,7 +212,7 @@ export default function Invoices() {
   };
   const handleSelectAll = (event) => {
     if (selectedRows.length === 0) {
-      setSelectedRows(filteredAndFormattedData.map((row) => row.id));
+      setSelectedRows(invoices.map((row) => row.id));
     } else {
       setSelectedRows([]);
     }
@@ -355,7 +331,9 @@ export default function Invoices() {
       case "أمانات":
         return "صرف الأمانة";
       case "حجز":
-        return "صرف الحجز";
+        return "تاكيد الحجز";
+      case "مرتجع":
+        return "تاكيد الاسترجاع";
       default:
         return "صرف الفاتورة";
     }
@@ -393,36 +371,51 @@ export default function Invoices() {
     {
       field: "actions",
       headerName: "فتح الفاتورة",
-      width: 120,
-      renderCell: (params) => (
-        <div>
-          <button
-            className={styles.iconBtn}
-            onClick={() => openInvoice(params.id)}
+      width: selectedNowType.label === "أمانات" ? 180 : 100,
+      renderCell: (params) => {
+        // const isLoading = isConfirmDone[params.row.id] || false;
+        return (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-around",
+              alignItems: "center",
+              height: "100%",
+            }}
           >
-            <LaunchIcon />
-          </button>
-          <button
-            className={styles.iconBtn}
-            onClick={() => handleDeleteClick(params.id)}
-            style={{ color: "#d32f2f" }}
-          >
-            <ClearOutlinedIcon />
-          </button>
-          {params.row.type === "أمانات" && (
             <button
               className={styles.iconBtn}
-              onClick={() => console.log(params.row)}
+              onClick={() => openInvoice(params.id)}
             >
-              <RotateLeftIcon
-                sx={{
-                  color: secondColor,
-                }}
-              />
+              <LaunchIcon />
             </button>
-          )}
-        </div>
-      ),
+            <button
+              className={styles.iconBtn}
+              onClick={() => handleDeleteClick(params.id)}
+              style={{ color: "#d32f2f" }}
+            >
+              <ClearOutlinedIcon />
+            </button>
+            {selectedNowType.label === "أمانات" &&
+              (params.row.test !== "" ? (
+                <Button
+                  variant="contained"
+                  color="info"
+                  onClick={() => console.log(params.row)}
+                  sx={{
+                    borderRadius: "8px",
+                    padding: "6px 16px",
+                  }}
+                  // disabled={isLoading}
+                >
+                  استرداد
+                </Button>
+              ) : (
+                "تم الاسترداد"
+              ))}
+          </div>
+        );
+      },
     },
     ...(selectedNowType.status
       ? [
@@ -444,7 +437,7 @@ export default function Invoices() {
                     onClick={() => handleInvoiceAction(params.row.id)}
                     sx={{
                       borderRadius: "8px",
-                      padding: "1px 16px",
+                      padding: "6px 16px",
                     }}
                     disabled={isLoading}
                   >
@@ -460,7 +453,7 @@ export default function Invoices() {
     { flex: 1, field: "mechanism_name", headerName: "الميكانيزم" },
     { flex: 1, field: "machine_name", headerName: "الماكينة" },
     { flex: 1, field: "employee_name", headerName: "اسم الموظف" },
-    { flex: 1, field: "Warehouse_manager", headerName: "مدير المخزن" },
+    { flex: 1, field: "warehouse_manager", headerName: "عامل المخازن" },
     { flex: 1, field: "client_name", headerName: "اسم العميل" },
     { flex: 1, field: "time", headerName: "وقت اصدار الفاتورة" },
     {
@@ -476,12 +469,10 @@ export default function Invoices() {
       renderHeader: () => (
         <Checkbox
           checked={
-            selectedRows.length === filteredAndFormattedData.length &&
-            filteredAndFormattedData.length > 0
+            selectedRows.length === invoices.length && invoices.length > 0
           }
           indeterminate={
-            selectedRows.length > 0 &&
-            selectedRows.length < filteredAndFormattedData.length
+            selectedRows.length > 0 && selectedRows.length < invoices.length
           }
           onChange={handleSelectAll}
           sx={{
@@ -544,7 +535,7 @@ export default function Invoices() {
     }
 
     // Step 2: Validate required fields
-    if (purchasesTypes.includes(editingInvoice.type)) {
+    if (selectedNowType.type === "purchase") {
       if (
         !editingInvoice.machine_name ||
         !editingInvoice.mechanism_name ||
@@ -825,70 +816,13 @@ export default function Invoices() {
     <div className={styles.container}>
       <h1 className={styles.head}> العمليات</h1>
       {/* filter type invoice */}
-      <Box
-        sx={{
-          display: "flex",
-          gap: 2,
-          margin: "auto",
-          marginBottom: 2,
-          justifyContent: "center",
-          direction: "rtl",
-          flexWrap: "wrap",
-        }}
-      >
-        {operationTypesPurchasesTypes.map((type) => (
-          <Button
-            key={type}
-            variant={
-              operationTypesPurchasesType === type ||
-              (type === "جميع العمليات" && operationTypesPurchasesType === "")
-                ? "contained"
-                : "outlined"
-            }
-            onClick={() => {
-              const selectedFilter =
-                type !== "جميع العمليات" &&
-                filtersTypes.find((filter) => filter.label === type);
-              setSelectedNowType(
-                selectedFilter || {
-                  label: "اضافه",
-                  type: "purchase",
-                  url: "/invoice/",
-                  status: false,
-                }
-              );
-              setSelectedRows([]);
-              setOperationTypesPurchasesType(
-                type === "جميع العمليات" ? "" : type
-              );
-            }}
-            sx={{
-              fontWeight: "bold",
-              fontSize: "15px",
-              backgroundColor:
-                operationTypesPurchasesType === type ||
-                (type === "جميع العمليات" && operationTypesPurchasesType === "")
-                  ? secondColor
-                  : "white",
-              border: `2px solid ${secondColor}`,
-              color:
-                operationTypesPurchasesType === type ||
-                (type === "جميع العمليات" && operationTypesPurchasesType === "")
-                  ? "white"
-                  : secondColor,
-            }}
-          >
-            {type}
-          </Button>
-        ))}
-      </Box>
-      {/* <FilterTabs
+      <FilterTabs
         setNowType={setSelectedNowType}
         setSelectedRows={setSelectedRows}
-      /> */}
+      />
       {/* invoices data */}
       <CustomDataGrid
-        rows={filteredAndFormattedData}
+        rows={invoices}
         columns={columns}
         paginationModel={paginationModel}
         onPageChange={handlePageChange}
@@ -1007,49 +941,7 @@ export default function Invoices() {
                         نوع العملية
                       </Box>
                       <Box className={styles.operationTypeName}>
-                        {isEditingInvoice ? (
-                          <select
-                            value={editingInvoice.type}
-                            onChange={(e) => {
-                              editingInvoice.items.map((row) => {
-                                const targetRow = row.availableLocations.find(
-                                  (location) =>
-                                    location.location === row.location
-                                );
-                                if (
-                                  targetRow &&
-                                  Number(row.quantity) > targetRow.quantity
-                                ) {
-                                  row.quantity = 0;
-                                }
-                                return row;
-                              });
-                              setEditingInvoice({
-                                ...editingInvoice,
-                                type: e.target.value,
-                              });
-                            }}
-                            style={{
-                              border: "1px solid #ddd",
-                              width: "170px",
-                              padding: "5px",
-                              borderRadius: "4px",
-                              outline: "none",
-                              fontSize: "15px",
-                              textAlign: "center",
-                            }}
-                          >
-                            {[...operationTypes, ...purchasesTypes].map(
-                              (type) => (
-                                <option key={type} value={type}>
-                                  {type}
-                                </option>
-                              )
-                            )}
-                          </select>
-                        ) : (
-                          selectedInvoice.type
-                        )}
+                        {selectedInvoice.type}
                       </Box>
                     </Box>
                     <Box className={styles.infoBox}>
@@ -1091,11 +983,7 @@ export default function Invoices() {
                     >
                       <TableBody>
                         {/* Inputs for Suplier, Machine and Mechanism Names */}
-                        {!operationTypes.includes(
-                          isEditingInvoice
-                            ? editingInvoice.type
-                            : selectedInvoice.type
-                        ) && (
+                        {selectedNowType.type === "purchase" && (
                           <TableRow className={styles.tableRow}>
                             <TableCell className={styles.tableCell} colSpan={2}>
                               اسم المورد
@@ -1196,23 +1084,16 @@ export default function Invoices() {
                           <TableCell className={styles.tableCell}>
                             الكمية
                           </TableCell>
-                          {(isEditingInvoice
-                            ? editingInvoice.type
-                            : selectedInvoice.type) &&
-                            !operationTypes.includes(
-                              isEditingInvoice
-                                ? editingInvoice.type
-                                : selectedInvoice.type
-                            ) && (
-                              <>
-                                <TableCell className={styles.tableCell}>
-                                  السعر
-                                </TableCell>
-                                <TableCell className={styles.tableCell}>
-                                  إجمالي السعر
-                                </TableCell>
-                              </>
-                            )}
+                          {selectedNowType.type === "purchase" && (
+                            <>
+                              <TableCell className={styles.tableCell}>
+                                السعر
+                              </TableCell>
+                              <TableCell className={styles.tableCell}>
+                                إجمالي السعر
+                              </TableCell>
+                            </>
+                          )}
 
                           <TableCell className={styles.tableCell}>
                             بيان
@@ -1450,7 +1331,7 @@ export default function Invoices() {
                             <TableCell
                               className={styles.tableCellRow}
                               sx={{
-                                width: "50px",
+                                width: "100px",
                               }}
                             >
                               {isEditingInvoice ? (
@@ -1464,9 +1345,8 @@ export default function Invoices() {
                                     padding: "10px",
                                   }}
                                   max={
-                                    purchasesTypes.includes(
-                                      editingInvoice.type
-                                    ) && row.maxquantity
+                                    selectedNowType.type === "purchase" &&
+                                    row.maxquantity
                                   }
                                   value={row?.quantity}
                                   onInput={(e) => {
@@ -1474,9 +1354,7 @@ export default function Invoices() {
                                       e.target.value = 0;
                                     }
                                     if (
-                                      operationTypes.includes(
-                                        editingInvoice.type
-                                      ) &
+                                      (selectedNowType.type === "operation") &
                                       (e.target.value > row.maxquantity)
                                     ) {
                                       e.target.value = row.maxquantity;
@@ -1553,11 +1431,7 @@ export default function Invoices() {
                                 row.quantity
                               )}
                             </TableCell>
-                            {!operationTypes.includes(
-                              isEditingInvoice
-                                ? editingInvoice.type
-                                : selectedInvoice.type
-                            ) && (
+                            {selectedNowType.type === "purchase" && (
                               <>
                                 <TableCell className={styles.tableCellRow}>
                                   {row.priceunit}
@@ -1615,11 +1489,7 @@ export default function Invoices() {
                     </Table>
                   </Box>
                   {/* total amount */}
-                  {!operationTypes.includes(
-                    isEditingInvoice
-                      ? editingInvoice.type
-                      : selectedInvoice.type
-                  ) && (
+                  {selectedNowType.type === "purchase" && (
                     <Box className={styles.MoneySection}>
                       <Box className={styles.MoneyBox}>
                         <Box className={styles.MoneyLabel}>الإجمالي</Box>
@@ -1820,29 +1690,7 @@ export default function Invoices() {
                     <Box className={styles.infoItemBox}>
                       <Box className={styles.infoLabel}>اسم الموظف</Box>
                       <Box className={styles.infoValue}>
-                        {isEditingInvoice ? (
-                          <input
-                            style={{
-                              width: "70%",
-                              margin: "auto",
-                              outline: "none",
-                              fontSize: "15px",
-                              textAlign: "center",
-                              border: "none",
-                              padding: "10px",
-                            }}
-                            type="text"
-                            value={editingInvoice.employee_name}
-                            onChange={(e) =>
-                              setEditingInvoice({
-                                ...editingInvoice,
-                                employee_name: e.target.value,
-                              })
-                            }
-                          />
-                        ) : (
-                          selectedInvoice.employee_name
-                        )}
+                        {selectedInvoice.employee_name}
                       </Box>
                     </Box>
                     <Box className={styles.infoItemBox}>
@@ -1873,7 +1721,7 @@ export default function Invoices() {
                     </Box>
                     <Box className={styles.infoItemBox}>
                       <Box className={styles.infoLabel}>عامل المخازن </Box>
-                      {selectedInvoice.Warehouse_manager}
+                      {selectedInvoice.warehouse_manager}
                     </Box>
                   </Box>
                 </>

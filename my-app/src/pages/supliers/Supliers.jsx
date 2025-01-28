@@ -155,22 +155,22 @@ export default function Supliers() {
 
     const sendDataToEndpoint = async (data) => {
       console.log(data);
-      // try {
-      //   const response = await fetch("https://your-api-endpoint.com/upload", {
-      //     method: "POST",
-      //     headers: {
-      //       "Content-Type": "application/json",
-      //     },
-      //     body: JSON.stringify({ data }),
-      //   });
-      //   if (response.ok) {
-      //     console.log("Data sent successfully");
-      //   } else {
-      //     console.error("Failed to send data");
-      //   }
-      // } catch (error) {
-      //   console.error("Error:", error);
-      // }
+      try {
+        const response = await fetch(`${API_BASE_URL}/machine/excel`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ data }),
+        });
+        if (response.ok) {
+          console.log("Data sent successfully");
+        } else {
+          console.error("Failed to send data");
+        }
+      } catch (error) {
+        console.error("Error:", error);
+      }
     };
 
     const handleImport = (event) => {

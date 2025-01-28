@@ -43,12 +43,17 @@ export default function FilterTabs({ setNowType, setSelectedRows }) {
   };
 
   const filtersTypes = [
-    { label: "صرف", type: "operation", url: "/invoice/", status: true },
-    { label: "أمانات", type: "operation", url: "/invoice/", status: true },
-    { label: "مرتجع", type: "operation", url: "/invoice/", status: false },
-    { label: "توالف", type: "operation", url: "/invoice/", status: false },
-    { label: "حجز", type: "operation", url: "/invoice/", status: true },
-    { label: "اضافه", type: "purchase", url: "/invoice/", status: false },
+    { label: "صرف", type: "operation", url: "/invoice/صرف", status: true },
+    {
+      label: "أمانات",
+      type: "operation",
+      url: "/invoice/أمانات",
+      status: true,
+    },
+    { label: "مرتجع", type: "operation", url: "/invoice/مرتجع", status: true },
+    { label: "توالف", type: "operation", url: "/invoice/توالف", status: false },
+    { label: "حجز", type: "operation", url: "/invoice/حجز", status: true },
+    { label: "اضافه", type: "purchase", url: "/invoice/اضافه", status: false },
   ];
 
   return (
@@ -62,7 +67,7 @@ export default function FilterTabs({ setNowType, setSelectedRows }) {
     >
       <Box>
         <Tabs
-          sx={{ marginBottom: "20px" }}
+          sx={{ marginBottom: "20px", direction: "rtl" }}
           value={value}
           onChange={handleChange}
           aria-label="filter tabs"
@@ -79,6 +84,7 @@ export default function FilterTabs({ setNowType, setSelectedRows }) {
                 borderRadius: "10px",
                 transition: "0.3s",
                 fontWeight: "bold",
+                fontSize: "1.2rem",
                 "&:hover": {
                   backgroundColor: "#f5f5f5",
                 },
