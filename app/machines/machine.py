@@ -11,6 +11,16 @@ machine_model = machine_ns.model('Machine', {
     'description': fields.String(required=False),
 })
 
+@machine_ns.route('/excel')
+class MachineExcel(Resource):
+
+    @machine_ns.marshal_with(machine_model)
+    @jwt_required()
+    def post(self):
+        """Create a new machine"""
+        data = machine_ns.payload
+        print(data)
+        
 # Machine Endpoints
 @machine_ns.route('/')
 class MachineList(Resource):
