@@ -14,7 +14,6 @@ def Booking_Operations(data, machine, mechanism,supplier,employee, machine_ns,wa
             residual=data.get("residual", 0),  
             comment=data.get("comment"),
             status=data.get("status"),
-            supplier_id = supplier.id,
             employee_name = data.get('employee_name'),
             employee_id=employee.id,  
             machine_id=machine.id, 
@@ -32,10 +31,10 @@ def Booking_Operations(data, machine, mechanism,supplier,employee, machine_ns,wa
         if not warehouse_item or not item_details :
             invoice_ns.abort(404, f"Item with ID '{item_data['item_name']}' not found in warehouse")  
 
-        if warehouse_item.id in item_ids:
+        if (warehouse_item.id,item_data['location']) in item_ids:
             invoice_ns.abort(400, f"Item '{item_data['item_name']}' already added to invoice")
             
-        item_ids.append(warehouse_item.id)
+        item_ids.append((warehouse_item.id,item_data['location']))
         # If quantity is not enough, abort with 400
         if item_details.quantity < item_data["quantity"]:
             invoice_ns.abort(400, f"Not enough quantity for item '{item_data['item_name']}' in location '{item_data['location']}'")

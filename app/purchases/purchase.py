@@ -19,7 +19,7 @@ def Purchase_Operations(data, machine, mechanism,supplier,employee, machine_ns,w
             employee_id=employee.id,  
             machine_id=machine.id, 
             mechanism_id=mechanism.id,
-        )
+        )   
     item_ids = []
     
     for item_data in data["items"]:
@@ -32,9 +32,11 @@ def Purchase_Operations(data, machine, mechanism,supplier,employee, machine_ns,w
         if not warehouse_item or not item_details :
             invoice_ns.abort(404, f"Item with ID '{item_data['item_name']}' not found in warehouse")  
 
-        if warehouse_item.id in item_ids:
-            invoice_ns.abort(400, f"Item '{item_data['item_name']}' already added to invoice")
         
+        if (warehouse_item.id,item_data['location']) in item_ids:
+            invoice_ns.abort(400, f"Item '{item_data['item_name']}' already added to invoice")
+            
+        item_ids.append((warehouse_item.id,item_data['location']))
         # Update the quantity in the warehouse
         item_details.quantity += item_data["quantity"]
         

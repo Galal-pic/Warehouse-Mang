@@ -60,6 +60,7 @@ class InvoiceList(Resource):
             # Fetch related machine and mechanism data
             machine = Machine.query.get(invoice.machine_id) if invoice.machine_id else None
             mechanism = Mechanism.query.get(invoice.mechanism_id) if invoice.mechanism_id else None
+            supplier = Supplier.query.get(invoice.supplier_id) if invoice.supplier_id else None
 
             # Fetch related items data
             items = InvoiceItem.query.filter_by(invoice_id=invoice.id).all()
@@ -68,7 +69,7 @@ class InvoiceList(Resource):
                 "id": invoice.id,
                 "type": invoice.type,
                 "client_name": invoice.client_name,
-                "Warehouse_manager": invoice.warehouse_manager,
+                "warehouse_manager": invoice.warehouse_manager,
                 "total_amount": invoice.total_amount,
                 'paid': invoice.paid,
                 'residual': invoice.residual,
@@ -77,6 +78,7 @@ class InvoiceList(Resource):
                 "employee_name": invoice.employee_name,
                 "machine_name": machine.name if machine else None,
                 "mechanism_name": mechanism.name if mechanism else None,
+                "supplier_name": supplier.name if supplier else None,
                 "created_at":invoice.created_at,
                 "items": [
                     {
@@ -110,7 +112,7 @@ class InvoiceList(Resource):
         mechanism = Mechanism.query.filter_by(name=data['mechanism_name']).first()  # Get the Mechanism object
         supplier = Supplier.query.filter_by(name=data['supplier_name']).first() # Get the Supplier object
 
-        if not machine or not mechanism or not supplier:
+        if not machine or not mechanism:
             invoice_ns.abort(404, "Machine or Mechanism or supplier not found")
 
         if data['type'] == 'صرف':
@@ -121,7 +123,7 @@ class InvoiceList(Resource):
             Warranty_Operations(data, machine, mechanism, supplier, employee, machine_ns, warehouse_ns, invoice_ns, mechanism_ns, item_location_ns, supplier_ns)
         elif data['type'] == 'مرتجع':
             Return_Operations(data, machine, mechanism, supplier, employee, machine_ns, warehouse_ns, invoice_ns, mechanism_ns, item_location_ns, supplier_ns)
-        elif data['type'] == 'تالف':
+        elif data['type'] == 'توالف':
             Void_Operations(data, machine, mechanism, supplier, employee, machine_ns, warehouse_ns, invoice_ns, mechanism_ns, item_location_ns, supplier_ns)
         elif data['type'] == 'حجز':
             Booking_Operations(data, machine, mechanism, supplier, employee, machine_ns, warehouse_ns, invoice_ns, mechanism_ns, item_location_ns, supplier_ns)
@@ -188,7 +190,7 @@ class InvoiceDetail(Resource):
             put_warranty(data,invoice,machine,mechanism,invoice_ns)
         elif invoice.type =='مرتجع':
             put_return(data,invoice,machine,mechanism,invoice_ns)
-        elif invoice.type =='تالف':
+        elif invoice.type =='توالف':
             put_avoid(data,invoice,machine,mechanism,invoice_ns)
         elif invoice.type =='حجز':
             put_booking(data,invoice,machine,mechanism,invoice_ns)

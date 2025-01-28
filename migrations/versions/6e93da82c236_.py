@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: e7812a45700b
+Revision ID: 6e93da82c236
 Revises: 
-Create Date: 2025-01-25 22:19:28.452760
+Create Date: 2025-01-28 13:30:51.051236
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'e7812a45700b'
+revision = '6e93da82c236'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -92,6 +92,7 @@ def upgrade():
     )
     with op.batch_alter_table('invoice', schema=None) as batch_op:
         batch_op.create_index(batch_op.f('ix_invoice_created_at'), ['created_at'], unique=False)
+        batch_op.create_index(batch_op.f('ix_invoice_type'), ['type'], unique=False)
 
     op.create_table('item_locations',
     sa.Column('item_id', sa.Integer(), nullable=False),
@@ -107,13 +108,13 @@ def upgrade():
     op.create_table('invoice_item',
     sa.Column('invoice_id', sa.Integer(), nullable=False),
     sa.Column('item_id', sa.Integer(), nullable=False),
-    sa.Column('quantity', sa.Integer(), nullable=False),
     sa.Column('location', sa.String(length=255), nullable=False),
+    sa.Column('quantity', sa.Integer(), nullable=False),
     sa.Column('total_price', sa.Float(), nullable=False),
     sa.Column('description', sa.Text(), nullable=True),
     sa.ForeignKeyConstraint(['invoice_id'], ['invoice.id'], ),
     sa.ForeignKeyConstraint(['item_id'], ['warehouse.id'], ),
-    sa.PrimaryKeyConstraint('invoice_id', 'item_id')
+    sa.PrimaryKeyConstraint('invoice_id', 'item_id', 'location')
     )
     # ### end Alembic commands ###
 
@@ -126,6 +127,7 @@ def downgrade():
 
     op.drop_table('item_locations')
     with op.batch_alter_table('invoice', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_invoice_type'))
         batch_op.drop_index(batch_op.f('ix_invoice_created_at'))
 
     op.drop_table('invoice')

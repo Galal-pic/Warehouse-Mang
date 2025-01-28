@@ -46,8 +46,8 @@ class Mechanism(db.Model):
 class Invoice(db.Model):
     __tablename__ = 'invoice'
     id = db.Column(db.Integer, primary_key=True)
-    type = db.Column(db.String(50), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    type = db.Column(db.String(50), nullable=False,index=True)
+    created_at = db.Column(db.DateTime, default=datetime.now, index=True)
     client_name = db.Column(db.String(50))
     warehouse_manager = db.Column(db.String(255))
     total_amount = db.Column(db.Float)
@@ -73,8 +73,8 @@ class InvoiceItem(db.Model):
     __tablename__ = 'invoice_item'
     invoice_id = db.Column(db.Integer, db.ForeignKey('invoice.id'), primary_key=True)
     item_id = db.Column(db.Integer, db.ForeignKey('warehouse.id'), primary_key=True)
+    location = db.Column(db.String(255),primary_key=True)
     quantity = db.Column(db.Integer, nullable=False)
-    location = db.Column(db.String(255), nullable=False)
     total_price = db.Column(db.Float, nullable=False)
     description = db.Column(db.Text)
 
@@ -88,8 +88,8 @@ class Warehouse(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     item_name = db.Column(db.String(120), nullable=False, index=True, unique=True)
     item_bar = db.Column(db.String(100), nullable=False, unique=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
     # Relationships
     invoice_items = db.relationship('InvoiceItem', back_populates='warehouse')

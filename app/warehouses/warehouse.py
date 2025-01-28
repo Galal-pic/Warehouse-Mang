@@ -62,47 +62,12 @@ class WarehouseList(Resource):
         # Check if item with the same name or barcode already exists
         existing_item = (Warehouse.query.filter_by(item_name=data['item_name']).first()) or (Warehouse.query.filter_by(item_bar=data['item_bar']).first())
 
-        # If the item exists, check if the location already exists for the same item
-        if existing_item:
-            existing_location = ItemLocations.query.filter_by(
-                location=data['locations'][0]['location'],  # Check the location in the payload
-                item_id=existing_item.id
-            ).first()
-        else:
-            existing_location = None
-
         # If the item and location already exist, abort
-        if existing_item and existing_location:
+        if existing_item :
             warehouse_ns.abort(400, "Item with the same name or barcode and same location already exists")
 
-        # If the item exists but the location is new, add the new location
-        if existing_item and not existing_location:
-            new_location = ItemLocations(
-                item_id=existing_item.id,  # Use the ID of the existing warehouse item
-                location=data["locations"][0]["location"],
-                price_unit=data["locations"][0]["price_unit"],
-                quantity=data["locations"][0]["quantity"]
-            )
-            db.session.add(new_location)
-            db.session.commit()
-
-            # Prepare the response
-            response = {
-                "id": existing_item.id,  # Include the id field
-                "item_name": existing_item.item_name,
-                "item_bar": existing_item.item_bar,
-                "locations": [
-                    {
-                        "location": new_location.location,
-                        "price_unit": new_location.price_unit,
-                        "quantity": new_location.quantity
-                    }
-                ]
-            }
-            return response, 201
-
         # If the item does not exist, create both the item and the location
-        if not existing_item:
+        elif not existing_item:
             new_item = Warehouse(
                 item_name=data["item_name"],
                 item_bar=data["item_bar"]
