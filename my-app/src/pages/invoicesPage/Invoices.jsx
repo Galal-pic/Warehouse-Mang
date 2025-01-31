@@ -24,7 +24,6 @@ import AddIcon from "@mui/icons-material/Add";
 import "../../colors.css";
 import SnackBar from "../../components/snackBar/SnackBar";
 import DeleteRow from "../../components/deleteItem/DeleteRow";
-import RotateLeftIcon from "@mui/icons-material/RotateLeft";
 import PublishedWithChangesIcon from "@mui/icons-material/PublishedWithChanges";
 import CustomDataGrid from "../../components/dataGrid/CustomDataGrid";
 import NumberInput from "../../components/number/NumberInput";
@@ -510,13 +509,19 @@ export default function Invoices() {
 
   const warehouseMap = useMemo(() => {
     const map = new Map();
-    warehouse.forEach((item) => map.set(item.item_name, item));
+
+    if (!Array.isArray(warehouse) || warehouse.length === 0) {
+      return map;
+    }
+
+    warehouse?.forEach((item) => map.set(item.item_name, item));
     return map;
   }, [warehouse]);
-  const itemNames = useMemo(
-    () => warehouse.map((item) => item.item_name),
-    [warehouse]
-  );
+  const itemNames = useMemo(() => {
+    return Array.isArray(warehouse)
+      ? warehouse.map((item) => item.item_name)
+      : [];
+  }, [warehouse]);
 
   // edited invoice
   const [isEditingInvoice, setIsEditingInvoice] = useState(false);

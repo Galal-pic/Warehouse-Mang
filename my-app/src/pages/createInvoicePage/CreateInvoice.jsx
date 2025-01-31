@@ -209,13 +209,20 @@ export default function Type1() {
   // Create warehouse map for faster lookups
   const warehouseMap = useMemo(() => {
     const map = new Map();
-    warehouse.forEach((item) => map.set(item.item_name, item));
+
+    if (!Array.isArray(warehouse) || warehouse.length === 0) {
+      return map;
+    }
+
+    warehouse?.forEach((item) => map.set(item.item_name, item));
     return map;
   }, [warehouse]);
-  const itemNames = useMemo(
-    () => warehouse.map((item) => item.item_name),
-    [warehouse]
-  );
+
+  const itemNames = useMemo(() => {
+    return Array.isArray(warehouse)
+      ? warehouse.map((item) => item.item_name)
+      : [];
+  }, [warehouse]);
 
   // handle rows fields change
   const handleItemChange = useCallback(
@@ -374,7 +381,6 @@ export default function Type1() {
       setOpenSnackbar(true);
       return;
     }
-    console.log(purchasesType && newInvoice.suplier_name === "");
 
     if (purchasesType) {
       if (

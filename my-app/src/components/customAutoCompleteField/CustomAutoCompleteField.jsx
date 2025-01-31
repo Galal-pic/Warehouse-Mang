@@ -30,7 +30,9 @@ export default function CustomAutoCompleteField({
         },
       }}
       value={
-        values.find((item) => item.name === editingItem[fieldName]) || null
+        Array.isArray(values)
+          ? values.find((item) => item.name === editingItem[fieldName]) || null
+          : null
       }
       sx={{
         "& .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline": {
@@ -47,8 +49,8 @@ export default function CustomAutoCompleteField({
         },
         minWidth: "150px",
       }}
-      options={values}
-      getOptionLabel={(option) => option.name}
+      options={Array.isArray(values) ? values : []}
+      getOptionLabel={(option) => option.name || ""}
       onChange={(event, newValue) => {
         if (!newValue) {
           return;

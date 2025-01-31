@@ -146,6 +146,7 @@ export default function CustomDataGrid({
         pagination: CustomPagination,
       }}
       slotProps={{
+        toolbar: props,
         pagination: {
           page: paginationModel.page,
           count: pageCount,

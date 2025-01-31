@@ -1,6 +1,5 @@
 import styles from "./Items.module.css";
 import React, { useEffect, useState } from "react";
-import { GridToolbarContainer, GridToolbarQuickFilter } from "@mui/x-data-grid";
 import {
   Dialog,
   DialogActions,
@@ -17,19 +16,15 @@ import {
 import EditIcon from "@mui/icons-material/Edit";
 import ClearOutlinedIcon from "@mui/icons-material/ClearOutlined";
 import SaveIcon from "@mui/icons-material/Save";
-import IconButton from "@mui/material/IconButton";
-import AddCircleIcon from "@mui/icons-material/AddCircle";
 import LaunchIcon from "@mui/icons-material/Launch";
 import "../../colors.css";
 import AddIcon from "@mui/icons-material/Add";
 import SnackBar from "../../components/snackBar/SnackBar";
 import DeleteRow from "../../components/deleteItem/DeleteRow";
-import * as XLSX from "xlsx";
-import ImportExportIcon from "@mui/icons-material/ImportExport";
-import { Menu, MenuItem } from "@mui/material";
 import CustomDataGrid from "../../components/dataGrid/CustomDataGrid";
 import NumberInput from "../../components/number/NumberInput";
 import { isNumber } from "@mui/x-data-grid/internals";
+import CustomToolbar from "../../components/customToolBar/CustomToolBar";
 
 export default function Items() {
   const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
@@ -191,183 +186,15 @@ export default function Items() {
     }
   };
 
-  // toolbar
-  function CustomToolbar() {
-    const [anchorEl, setAnchorEl] = useState(null);
-    const open = Boolean(anchorEl);
-
-    const handleExportImport = (event) => {
-      setAnchorEl(event.currentTarget);
-    };
-
-    const handleClose = () => {
-      setAnchorEl(null);
-    };
-
-    const sendDataToEndpoint = async (data) => {
-      console.log(data);
-      // try {
-      //   const response = await fetch("https://your-api-endpoint.com/upload", {
-      //     method: "POST",
-      //     headers: {
-      //       "Content-Type": "application/json",
-      //     },
-      //     body: JSON.stringify({ data }),
-      //   });
-      //   if (response.ok) {
-      //     console.log("Data sent successfully");
-      //   } else {
-      //     console.error("Failed to send data");
-      //   }
-      // } catch (error) {
-      //   console.error("Error:", error);
-      // }
-    };
-
-    const handleImport = (event) => {
-      const uploadedFile = event.target.files[0];
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: "array" });
-        const sheetName = workbook.SheetNames[0];
-        const sheet = workbook.Sheets[sheetName];
-        const jsonData = XLSX.utils.sheet_to_json(sheet);
-        console.log("Excel Data:", jsonData);
-        sendDataToEndpoint(jsonData);
-      };
-      reader.readAsArrayBuffer(uploadedFile);
-      handleClose();
-    };
-
-    const handleExport = () => {
-      const ws = XLSX.utils.json_to_sheet(filteredAndFormattedData);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
-
-      XLSX.writeFile(wb, "exported_data.xlsx", {
-        bookType: "xlsx",
-        type: "binary",
-      });
-      handleClose();
-    };
-    return (
-      <GridToolbarContainer>
-        <Box
-          sx={{
-            display: "flex",
-            width: "100%",
-            justifyContent: "space-between",
-          }}
-        >
-          <Box
-            sx={{
-              alignItems: "center",
-              display: "flex",
-            }}
-          >
-            <IconButton
-              sx={{
-                color: primaryColor,
-                padding: "8px",
-                borderRadius: "50%",
-                cursor: "pointer",
-              }}
-              onClick={() => setOpenDialog(true)}
-            >
-              <AddCircleIcon
-                sx={{
-                  fontSize: "50px",
-                }}
-                fontSize="large"
-              />
-            </IconButton>
-          </Box>
-
-          <GridToolbarQuickFilter
-            sx={{
-              direction: "rtl",
-              "& .MuiInputBase-root": {
-                padding: "8px",
-                backgroundColor: "white",
-                width: "500px",
-              },
-              "& .MuiSvgIcon-root": {
-                color: primaryColor,
-                fontSize: "2rem",
-              },
-              "& .MuiInputBase-input": {
-                color: "black",
-                fontSize: "1.2rem",
-                marginRight: "0.5rem",
-              },
-              "& .MuiInputBase-input::placeholder": {
-                fontSize: "1rem",
-                color: primaryColor,
-              },
-              overflow: "hidden",
-            }}
-            placeholder="ابحث هنا..."
-          />
-
-          {/* Export/Import Menu */}
-          <Box
-            sx={{
-              alignItems: "center",
-              display: "flex",
-            }}
-          >
-            <IconButton
-              onClick={handleExportImport}
-              sx={{
-                padding: "12px",
-                borderRadius: "50%",
-                cursor: "pointer",
-                color: "white",
-              }}
-            >
-              <ImportExportIcon
-                sx={{
-                  fontSize: "40px",
-                  backgroundColor: "#4caf50",
-                  padding: "8px",
-                  borderRadius: "50%",
-                }}
-              />
-            </IconButton>
-            <Menu
-              anchorEl={anchorEl}
-              open={open}
-              onClose={handleClose}
-              MenuListProps={{
-                "aria-labelledby": "export-import-button",
-              }}
-            >
-              <MenuItem>
-                <label htmlFor="file-upload" style={{ cursor: "pointer" }}>
-                  Import
-                </label>
-                <input
-                  id="file-upload"
-                  type="file"
-                  accept=".xlsx, .xls"
-                  style={{ display: "none" }}
-                  onChange={handleImport}
-                />
-              </MenuItem>{" "}
-              <MenuItem onClick={handleExport}>Export</MenuItem>
-            </Menu>
-          </Box>
-        </Box>
-      </GridToolbarContainer>
-    );
-  }
-
   // filters invoices
-  const filteredAndFormattedData = initialItems.map((item) => ({
-    ...item,
-    locations: item.locations.map((loc) => loc.location).join(", "),
-  }));
+  const filteredAndFormattedData = Array.isArray(initialItems)
+    ? initialItems.map((item) => ({
+        ...item,
+        locations: Array.isArray(item.locations)
+          ? item.locations.map((loc) => loc.location).join(", ")
+          : "",
+      }))
+    : [];
 
   // columns
   const columns = [
@@ -625,6 +452,11 @@ export default function Items() {
         onPageChange={handlePageChange}
         pageCount={pageCount}
         CustomToolbar={CustomToolbar}
+        initialItems={initialItems}
+        excelURL={"machine"}
+        primaryColor={primaryColor}
+        API_BASE_URL={API_BASE_URL}
+        setOpenDialog={setOpenDialog}
         loader={isMachinesLoading}
       />
 
