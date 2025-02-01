@@ -1,19 +1,20 @@
 import React, { useState } from "react";
-import { Box, Button, Paper, IconButton } from "@mui/material";
+import {
+  Box,
+  Button,
+  Paper,
+  IconButton,
+  CircularProgress,
+} from "@mui/material";
 import ArrowBackOutlinedIcon from "@mui/icons-material/ArrowBackOutlined";
 import styles from "./Register.module.css";
 import { useNavigate } from "react-router-dom";
 import CustomSelectField from "../../components/customSelectField/CustomSelectField";
 import SnackBar from "../../components/snackBar/SnackBar";
 import { CustomTextField } from "../../components/customTextField/CustomTextField";
-import CircularProgress from "@mui/material/CircularProgress";
+import { useAddUserMutation } from "../services/userApi";
 
 export default function Register() {
-  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
-
-  // loader
-  const [isLoading, setIsLoading] = useState(false);
-
   // requires
   const [username, setUserName] = useState("");
   const [job, setJob] = useState("");
@@ -31,21 +32,21 @@ export default function Register() {
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackBarType, setSnackBarType] = useState("");
-  // Handle close snack
+
+  const [addUser, { isLoading: mutationLoading }] = useAddUserMutation();
+
   const handleCloseSnackbar = () => {
     setOpenSnackbar(false);
   };
 
-  // navigation
   const navigate = useNavigate();
 
-  // select field options
   const jobs = [
     { value: "موظف", label: "موظف" },
     { value: "مدير", label: "مدير" },
   ];
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setNameError("");
     setJobError("");
@@ -88,52 +89,26 @@ export default function Register() {
       job_name: job,
     };
 
-    setIsLoading(true);
-
-    fetch(`${API_BASE_URL}/auth/register`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(dataToSend),
-    })
-      .then((response) => {
-        if (response.status === 400) {
-          response.json().then((data) => {
-            setOpenSnackbar(true);
-            setSnackBarType("info");
-            setSnackbarMessage("الموظف موجود بالفعل");
-          });
-        }
-        console.log("Response status:", response.status);
-
-        if (response.status === 201) {
-          response.json().then((data) => {
-            navigate("/users");
-          });
-        }
-
-        if (response.ok) {
-          return response.json();
-        } else {
-          return response.json().then((data) => {
-            throw new Error(data.message || "الاستجابة من الشبكة لم تكن صحيحة");
-          });
-        }
-      })
-      .then((data) => {
+    try {
+      const response = await addUser(dataToSend).unwrap();
+      if (response) {
         setSnackbarMessage("تم تسجيل الموظف بنجاح");
         setSnackBarType("success");
         setOpenSnackbar(true);
-      })
-      .catch((error) => {
+        navigate("/users");
+      }
+    } catch (error) {
+      if (error?.data?.message === "Username already exists") {
+        setNameError("الاسم غير متاح");
+        setSnackbarMessage("اسم المستخدم موجود بالفعل. يرجى اختيار اسم آخر.");
+        setSnackBarType("info");
+      } else {
         setSnackbarMessage("فشل التسجيل. يرجى المحاولة مرة أخرى.");
-        setOpenSnackbar(true);
-        console.error("Error:", error);
-      })
-      .finally(() => {
-        setIsLoading(false);
-      });
+        setSnackBarType("error");
+      }
+      setOpenSnackbar(true);
+      console.error("Error:", error);
+    }
   };
 
   const handleBack = () => {
@@ -158,7 +133,6 @@ export default function Register() {
             onSubmit={handleSubmit}
             className={styles.textFields}
           >
-            {/* Name Field */}
             <CustomTextField
               label="الاسم"
               value={username}
@@ -166,16 +140,12 @@ export default function Register() {
               valueError={nameError}
               className={styles.textField}
             />
-
-            {/* Phone Field */}
             <CustomTextField
               label="رقم الهاتف"
               value={phoneNumber}
               setValue={setPhoneNumber}
               className={styles.textField}
             />
-
-            {/* job Field */}
             <CustomSelectField
               label="اختر الوظيفة"
               value={job}
@@ -183,8 +153,6 @@ export default function Register() {
               options={jobs}
               error={!!jobError}
             />
-
-            {/* Password Field */}
             <CustomTextField
               label="كلمة المرور"
               type={"password"}
@@ -193,8 +161,6 @@ export default function Register() {
               valueError={passwordError}
               className={styles.textField}
             />
-
-            {/* Confirm Password Field */}
             <CustomTextField
               label="تأكيد كلمة المرور"
               type={"password"}
@@ -204,17 +170,16 @@ export default function Register() {
               className={styles.textField}
             />
           </Box>
-          {/* Submit Button */}
           <Button
             type="submit"
             variant="contained"
             className={styles.btn}
             onClick={handleSubmit}
-            disabled={isLoading}
+            disabled={mutationLoading}
           >
             إضافة موظف
           </Button>
-          <Box>{isLoading ? <CircularProgress size={24} /> : ""}</Box>
+          <Box>{mutationLoading ? <CircularProgress size={24} /> : ""}</Box>
         </Paper>
       </Box>
 

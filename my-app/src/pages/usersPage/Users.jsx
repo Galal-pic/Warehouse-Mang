@@ -1,5 +1,5 @@
 import styles from "./Users.module.css";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { GridToolbarContainer, GridToolbarQuickFilter } from "@mui/x-data-grid";
 import {
   TextField,
@@ -20,6 +20,12 @@ import "../../colors.css";
 import DeleteRow from "../../components/deleteItem/DeleteRow";
 import CustomDataGrid from "../../components/dataGrid/CustomDataGrid";
 import CircularProgress from "@mui/material/CircularProgress";
+import {
+  useGetUsersQuery,
+  useUpdateUserMutation,
+  useDeleteUserMutation,
+} from "../services/userApi";
+
 function CustomToolbar() {
   const navigate = useNavigate();
 
@@ -84,51 +90,6 @@ function CustomToolbar() {
 }
 
 export default function Users() {
-  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
-
-  // get user information
-  const [isUserLoading, setIsUserLoading] = useState(false);
-  const [user, setUser] = useState({});
-  useEffect(() => {
-    const fetchUserData = async () => {
-      const accessToken = localStorage.getItem("access_token");
-
-      if (!accessToken) {
-        console.error("No access token found.");
-        return;
-      }
-
-      setIsUserLoading(true);
-      setTimeout(async () => {
-        try {
-          const response = await fetch(`${API_BASE_URL}/auth/user`, {
-            method: "GET",
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-            },
-          });
-
-          if (!response.ok) {
-            throw new Error(
-              `Failed to fetch user data: ${response.statusText}`
-            );
-          }
-
-          const data = await response.json();
-          setUser(data);
-          return data;
-        } catch (err) {
-          console.error("Error fetching user data:", err);
-        } finally {
-          setIsUserLoading(false);
-        }
-      }, 2000);
-    };
-
-    fetchUserData();
-  }, [API_BASE_URL]);
-
-  const [users, setUsers] = useState([]);
   const [editedRow, setEditedRow] = useState(null);
   const [selectedRow, setSelectedRow] = useState(null);
   const [openSnackbar, setOpenSnackbar] = useState(false);
@@ -136,9 +97,9 @@ export default function Users() {
   const [snackBarType, setSnackBarType] = useState("");
 
   // loader
-  const [isLoading, setIsLoading] = useState(false);
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const { data: users = [], isLoading, isError } = useGetUsersQuery();
+  const [updateUser, { isLoading: isUpdating }] = useUpdateUserMutation();
+  const [deleteUser, { isLoading: isDeleting }] = useDeleteUserMutation();
 
   // jobs
   const jobs = [
@@ -155,25 +116,6 @@ export default function Users() {
   const pageCount = Math.ceil(users.length / paginationModel.pageSize);
   const handlePageChange = (newModel) => {
     setPaginationModel((prev) => ({ ...prev, ...newModel }));
-  };
-
-  // Fetch data from API
-  const fetchData = async (url, method = "GET", body = null) => {
-    const accessToken = localStorage.getItem("access_token");
-
-    try {
-      const response = await fetch(url, {
-        method,
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: body ? JSON.stringify(body) : null,
-      });
-      if (!response.ok) throw new Error("حدث خطأ أثناء العملية");
-      return await response.json();
-    } catch (error) {
-      throw error;
-    }
   };
 
   // Edit
@@ -198,46 +140,26 @@ export default function Users() {
       setSelectedRow(null);
       return;
     }
-    const error = validateFields(editedRow);
 
+    const error = validateFields(editedRow);
     if (error) {
       setOpenSnackbar(true);
       setSnackbarMessage(error);
       setSnackBarType("error");
       return;
     }
-    setIsUpdating(true);
-    const accessToken = localStorage.getItem("access_token");
-    try {
-      const { username, job_name, phone_number } = editedRow;
-      const response = await fetch(`${API_BASE_URL}/auth/user/${id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({ username, job_name, phone_number }),
-      });
 
-      if (!response.ok) {
-        throw new Error(`Failed to update user: ${response.status}`);
-      }
-      const updatedRows = users.map((row) =>
-        row.id === id ? { ...row, ...editedRow } : row
-      );
-      setUsers(updatedRows);
+    try {
+      await updateUser({ id, ...editedRow }).unwrap();
       setOpenSnackbar(true);
       setSnackbarMessage("تم تحديث بيانات الموظف بنجاح");
       setSnackBarType("success");
       setEditedRow(null);
       setSelectedRow(null);
     } catch (error) {
-      console.error("Error updating user:", error);
       setOpenSnackbar(true);
       setSnackbarMessage("اسم الموظف موجود بالفعل");
       setSnackBarType("error");
-    } finally {
-      setIsUpdating(false);
     }
   };
 
@@ -253,46 +175,24 @@ export default function Users() {
   };
 
   // Delete
+
   const handleDelete = async () => {
     if (deleteConfirmationText.trim().toLowerCase() === "نعم") {
-      setIsDeleting(true);
-
-      const accessToken = localStorage.getItem("access_token");
       try {
-        const response = await fetch(
-          `${API_BASE_URL}/auth/user/${selectedUserId}`,
-          {
-            method: "DELETE",
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-            },
-          }
-        );
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || "Failed to delete user");
-        }
-
+        await deleteUser(selectedUserId).unwrap();
         setOpenSnackbar(true);
         setSnackbarMessage("تم حذف الموظف بنجاح");
         setSnackBarType("success");
-        setUsers((prevRows) =>
-          prevRows.filter((row) => row.id !== selectedUserId)
-        );
         setDeleteConfirmationText("");
         setSelectedUserId(null);
         setDeleteDialogOpen(false);
       } catch (error) {
-        console.error("Error deleting user:", error);
         setOpenSnackbar(true);
         setSnackbarMessage("خطأ في حذف الموظف");
         setSnackBarType("error");
         setDeleteConfirmationText("");
         setSelectedUserId(null);
         setDeleteDialogOpen(false);
-      } finally {
-        setIsDeleting(false);
       }
     }
   };
@@ -474,29 +374,6 @@ export default function Users() {
     },
   ];
 
-  // fetch employees
-  useEffect(() => {
-    const fetchUserData = async () => {
-      const accessToken = localStorage.getItem("access_token");
-      if (!accessToken) return;
-      setIsLoading(true);
-      try {
-        const data = await fetchData(`${API_BASE_URL}/auth/users`, "GET");
-        const updatedData = data.map((user, index) => ({
-          ...user,
-          rowNumber: index + 1,
-        }));
-        setUsers(updatedData);
-      } catch (error) {
-        console.error("Error fetching data:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchUserData();
-  }, [API_BASE_URL]);
-
   // if (isUserLoading) {
   //   return (
   //     <div
@@ -515,55 +392,52 @@ export default function Users() {
   //   );
   // } else {
   //   if (user.username === "esraa") {
-      return (
-        <div className={styles.container}>
-          <h1 className={styles.head}>بيانات الموظفين</h1>
-          {/* dialog */}
-          <DeleteRow
-            deleteDialogOpen={deleteDialogOpen}
-            setDeleteDialogOpen={setDeleteDialogOpen}
-            deleteConfirmationText={deleteConfirmationText}
-            setDeleteConfirmationText={setDeleteConfirmationText}
-            handleDelete={handleDelete}
-            message={"هل أنت متأكد من رغبتك في حذف هذا المستخدم؟"}
-            loader={isDeleting}
-          />
+  return (
+    <div className={styles.container}>
+      <h1 className={styles.head}>بيانات الموظفين</h1>
+      {/* dialog */}
+      <DeleteRow
+        deleteDialogOpen={deleteDialogOpen}
+        setDeleteDialogOpen={setDeleteDialogOpen}
+        deleteConfirmationText={deleteConfirmationText}
+        setDeleteConfirmationText={setDeleteConfirmationText}
+        handleDelete={handleDelete}
+        message={"هل أنت متأكد من رغبتك في حذف هذا المستخدم؟"}
+        loader={isDeleting}
+      />
 
-          <CustomDataGrid
-            rows={users}
-            columns={columns}
-            paginationModel={paginationModel}
-            onPageChange={handlePageChange}
-            pageCount={pageCount}
-            CustomToolbar={CustomToolbar}
-            loader={isLoading}
-            onCellKeyDown={(params, event) => {
-              if ([" ", "ArrowLeft", "ArrowRight"].includes(event.key)) {
-                event.stopPropagation();
-                event.preventDefault();
-              }
-            }}
-          />
+      <CustomDataGrid
+        rows={users}
+        columns={columns}
+        paginationModel={paginationModel}
+        onPageChange={handlePageChange}
+        pageCount={pageCount}
+        CustomToolbar={CustomToolbar}
+        loader={isLoading}
+        onCellKeyDown={(params, event) => {
+          if ([" ", "ArrowLeft", "ArrowRight"].includes(event.key)) {
+            event.stopPropagation();
+            event.preventDefault();
+          }
+        }}
+      />
 
-          {/* snack bar */}
-          <Snackbar
-            open={openSnackbar}
-            autoHideDuration={2000}
-            onClose={() => setOpenSnackbar(false)}
-            anchorOrigin={{ vertical: "top", horizontal: "center" }}
-            sx={{
-              zIndex: "9999999999999999999999999999999999",
-            }}
-          >
-            <Alert
-              onClose={() => setOpenSnackbar(false)}
-              severity={snackBarType}
-            >
-              {snackbarMessage}
-            </Alert>
-          </Snackbar>
-        </div>
-      );
+      {/* snack bar */}
+      <Snackbar
+        open={openSnackbar}
+        autoHideDuration={2000}
+        onClose={() => setOpenSnackbar(false)}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+        sx={{
+          zIndex: "9999999999999999999999999999999999",
+        }}
+      >
+        <Alert onClose={() => setOpenSnackbar(false)} severity={snackBarType}>
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
+    </div>
+  );
   //   } else {
   //     return (
   //       <div
