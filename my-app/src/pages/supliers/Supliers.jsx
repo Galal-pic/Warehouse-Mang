@@ -367,202 +367,280 @@ export default function Supliers() {
     }
   };
 
-  return (
-    <div className={styles.container}>
-      {/* title */}
-      <div>
-        <h1 className={styles.title}>الموردين</h1>
-      </div>
+  const [isUserLoading, setIsUserLoading] = useState(false);
+  const [user, setUser] = useState({});
+  useEffect(() => {
+    const fetchUserData = async () => {
+      const accessToken = localStorage.getItem("access_token");
 
-      {/* delete dialog */}
-      <DeleteRow
-        deleteDialogOpen={deleteDialogOpen}
-        setDeleteDialogOpen={setDeleteDialogOpen}
-        deleteConfirmationText={deleteConfirmationText}
-        setDeleteConfirmationText={setDeleteConfirmationText}
-        handleDelete={handleDelete}
-        message={"هل أنت متأكد من رغبتك في حذف هذا المورد؟"}
-        loader={isDeleting}
-      />
+      if (!accessToken) {
+        console.error("No access token found.");
+        return;
+      }
 
-      {/* table */}
-      <CustomDataGrid
-        rows={initialItems}
-        columns={columns}
-        paginationModel={paginationModel}
-        onPageChange={handlePageChange}
-        pageCount={pageCount}
-        CustomToolbar={CustomToolbar}
-        initialItems={initialItems}
-        excelURL={"machine"}
-        primaryColor={primaryColor}
-        API_BASE_URL={API_BASE_URL}
-        setOpenDialog={setOpenDialog}
-        loader={isMachinesLoading}
-        onCellKeyDown={(params, event) => {
-          if ([" ", "ArrowLeft", "ArrowRight"].includes(event.key)) {
-            event.stopPropagation();
-            event.preventDefault();
-          }
-        }}
-      />
-
-      {/* add dialog */}
-      <Dialog
-        open={openDialog}
-        onClose={() => {
-          setOpenDialog(false);
-          setNewItem({
-            name: "",
+      setIsUserLoading(true);
+      setTimeout(async () => {
+        try {
+          const response = await fetch(`${API_BASE_URL}/auth/user`, {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
           });
-          setErrors({});
-        }}
-        sx={{
-          marginTop: "30px",
-          zIndex: "99999",
-        }}
-      >
-        <DialogTitle
-          sx={{
-            textAlign: "center",
-          }}
-        >
-          إضافة مورد جديد
-        </DialogTitle>
-        <DialogContent sx={{ width: "500px" }}>
-          <div style={{ marginBottom: "10px", marginTop: "10px" }}>
-            <label
-              style={{
-                display: "block",
-                marginBottom: "5px",
-                textAlign: "right",
-                fontWeight: "bold",
-                color: errors.name ? "#d32f2f" : "#555",
-              }}
-            >
-              الاسم
-            </label>
-            <input
-              type="text"
-              value={newItem.name}
-              onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
-              style={{
-                width: "100%",
-                padding: "10px",
-                fontSize: "1rem",
-                border: errors.name ? "1px solid #d32f2f" : "1px solid #ccc",
-                borderRadius: "4px",
-                direction: "rtl",
-                textAlign: "right",
-                outline: "none",
-                transition: "border-color 0.2s",
-              }}
-              onFocus={(e) => (e.target.style.borderColor = "#1976d2")}
-              onBlur={(e) => (e.target.style.borderColor = "#ccc")}
-            />
-            {errors.name && (
-              <span
-                style={{
-                  color: "#d32f2f",
-                  fontSize: "0.875rem",
-                  marginTop: "5px",
-                  display: "block",
-                  textAlign: "right",
-                }}
-              >
-                {errors.name}
-              </span>
-            )}
+
+          if (!response.ok) {
+            throw new Error(
+              `Failed to fetch user data: ${response.statusText}`
+            );
+          }
+
+          const data = await response.json();
+          setUser(data);
+          return data;
+        } catch (err) {
+          console.error("Error fetching user data:", err);
+        } finally {
+          setIsUserLoading(false);
+        }
+      }, 2000);
+    };
+
+    fetchUserData();
+  }, [API_BASE_URL]);
+  // if (isUserLoading) {
+  //   return (
+  //     <div
+  //       style={{
+  //         height: "100vh",
+  //         display: "flex",
+  //         justifyContent: "center",
+  //         alignItems: "center",
+  //       }}
+  //     >
+  //       <h1 className={styles.head}>
+  //         {" "}
+  //         <CircularProgress />
+  //       </h1>
+  //     </div>
+  //   );
+  // } else {
+  //   if (user.username === "esraa") {
+      return (
+        <div className={styles.container}>
+          {/* title */}
+          <div>
+            <h1 className={styles.title}>الموردين</h1>
           </div>
-          <div style={{ marginBottom: "10px", marginTop: "10px" }}>
-            <label
-              style={{
-                display: "block",
-                marginBottom: "5px",
-                textAlign: "right",
-                fontWeight: "bold",
-                color: errors.description ? "#d32f2f" : "#555",
-              }}
-            >
-              الباركود
-            </label>
-            <input
-              type="text"
-              value={newItem.description}
-              onChange={(e) =>
-                setNewItem({ ...newItem, description: e.target.value })
+
+          {/* delete dialog */}
+          <DeleteRow
+            deleteDialogOpen={deleteDialogOpen}
+            setDeleteDialogOpen={setDeleteDialogOpen}
+            deleteConfirmationText={deleteConfirmationText}
+            setDeleteConfirmationText={setDeleteConfirmationText}
+            handleDelete={handleDelete}
+            message={"هل أنت متأكد من رغبتك في حذف هذا المورد؟"}
+            loader={isDeleting}
+          />
+
+          {/* table */}
+          <CustomDataGrid
+            rows={initialItems}
+            columns={columns}
+            paginationModel={paginationModel}
+            onPageChange={handlePageChange}
+            pageCount={pageCount}
+            CustomToolbar={CustomToolbar}
+            initialItems={initialItems}
+            fetchItemsData={fetchItemsData}
+            excelURL={"machine"}
+            primaryColor={primaryColor}
+            API_BASE_URL={API_BASE_URL}
+            setOpenDialog={setOpenDialog}
+            loader={isMachinesLoading}
+            onCellKeyDown={(params, event) => {
+              if ([" ", "ArrowLeft", "ArrowRight"].includes(event.key)) {
+                event.stopPropagation();
+                event.preventDefault();
               }
-              style={{
-                width: "100%",
-                padding: "10px",
-                fontSize: "1rem",
-                border: errors.description
-                  ? "1px solid #d32f2f"
-                  : "1px solid #ccc",
-                borderRadius: "4px",
-                direction: "rtl",
-                textAlign: "right",
-                outline: "none",
-                transition: "border-color 0.2s",
-              }}
-              onFocus={(e) => (e.target.style.borderColor = "#1976d2")}
-              onBlur={(e) => (e.target.style.borderColor = "#ccc")}
-            />
-            {errors.description && (
-              <span
-                style={{
-                  color: "#d32f2f",
-                  fontSize: "0.875rem",
-                  marginTop: "5px",
-                  display: "block",
-                  textAlign: "right",
-                }}
-              >
-                {errors.description}
-              </span>
-            )}
-          </div>
-          <DialogActions
+            }}
+          />
+
+          {/* add dialog */}
+          <Dialog
+            open={openDialog}
+            onClose={() => {
+              setOpenDialog(false);
+              setNewItem({
+                name: "",
+              });
+              setErrors({});
+            }}
             sx={{
-              display: "flex",
-              justifyContent: "space-around",
+              marginTop: "30px",
+              zIndex: "99999",
             }}
           >
-            <Button
-              variant="contained"
-              color="error"
-              onClick={() => {
-                setOpenDialog(false);
-                setNewItem({
-                  name: "",
-                  description: "",
-                });
-                setErrors({});
+            <DialogTitle
+              sx={{
+                textAlign: "center",
               }}
-              className={`${styles.cancelCommentButton} ${styles.infoBtn}`}
             >
-              الغاء
-            </Button>
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={handleAddItem}
-              className={`${styles.saveButton} ${styles.infoBtn}`}
-              disabled={isAdding}
-            >
-              {isAdding ? <CircularProgress size={24} /> : "إضافة"}
-            </Button>
-          </DialogActions>
-        </DialogContent>
-      </Dialog>
+              إضافة مورد جديد
+            </DialogTitle>
+            <DialogContent sx={{ width: "500px" }}>
+              <div style={{ marginBottom: "10px", marginTop: "10px" }}>
+                <label
+                  style={{
+                    display: "block",
+                    marginBottom: "5px",
+                    textAlign: "right",
+                    fontWeight: "bold",
+                    color: errors.name ? "#d32f2f" : "#555",
+                  }}
+                >
+                  الاسم
+                </label>
+                <input
+                  type="text"
+                  value={newItem.name}
+                  onChange={(e) =>
+                    setNewItem({ ...newItem, name: e.target.value })
+                  }
+                  style={{
+                    width: "100%",
+                    padding: "10px",
+                    fontSize: "1rem",
+                    border: errors.name
+                      ? "1px solid #d32f2f"
+                      : "1px solid #ccc",
+                    borderRadius: "4px",
+                    direction: "rtl",
+                    textAlign: "right",
+                    outline: "none",
+                    transition: "border-color 0.2s",
+                  }}
+                  onFocus={(e) => (e.target.style.borderColor = "#1976d2")}
+                  onBlur={(e) => (e.target.style.borderColor = "#ccc")}
+                />
+                {errors.name && (
+                  <span
+                    style={{
+                      color: "#d32f2f",
+                      fontSize: "0.875rem",
+                      marginTop: "5px",
+                      display: "block",
+                      textAlign: "right",
+                    }}
+                  >
+                    {errors.name}
+                  </span>
+                )}
+              </div>
+              <div style={{ marginBottom: "10px", marginTop: "10px" }}>
+                <label
+                  style={{
+                    display: "block",
+                    marginBottom: "5px",
+                    textAlign: "right",
+                    fontWeight: "bold",
+                    color: errors.description ? "#d32f2f" : "#555",
+                  }}
+                >
+                  الباركود
+                </label>
+                <input
+                  type="text"
+                  value={newItem.description}
+                  onChange={(e) =>
+                    setNewItem({ ...newItem, description: e.target.value })
+                  }
+                  style={{
+                    width: "100%",
+                    padding: "10px",
+                    fontSize: "1rem",
+                    border: errors.description
+                      ? "1px solid #d32f2f"
+                      : "1px solid #ccc",
+                    borderRadius: "4px",
+                    direction: "rtl",
+                    textAlign: "right",
+                    outline: "none",
+                    transition: "border-color 0.2s",
+                  }}
+                  onFocus={(e) => (e.target.style.borderColor = "#1976d2")}
+                  onBlur={(e) => (e.target.style.borderColor = "#ccc")}
+                />
+                {errors.description && (
+                  <span
+                    style={{
+                      color: "#d32f2f",
+                      fontSize: "0.875rem",
+                      marginTop: "5px",
+                      display: "block",
+                      textAlign: "right",
+                    }}
+                  >
+                    {errors.description}
+                  </span>
+                )}
+              </div>
+              <DialogActions
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-around",
+                }}
+              >
+                <Button
+                  variant="contained"
+                  color="error"
+                  onClick={() => {
+                    setOpenDialog(false);
+                    setNewItem({
+                      name: "",
+                      description: "",
+                    });
+                    setErrors({});
+                  }}
+                  className={`${styles.cancelCommentButton} ${styles.infoBtn}`}
+                >
+                  الغاء
+                </Button>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={handleAddItem}
+                  className={`${styles.saveButton} ${styles.infoBtn}`}
+                  disabled={isAdding}
+                >
+                  {isAdding ? <CircularProgress size={24} /> : "إضافة"}
+                </Button>
+              </DialogActions>
+            </DialogContent>
+          </Dialog>
 
-      {/* Snackbar */}
-      <SnackBar
-        open={openSnackbar}
-        message={snackbarMessage}
-        type={snackBarType}
-        onClose={handleCloseSnackbar}
-      />
-    </div>
-  );
+          {/* Snackbar */}
+          <SnackBar
+            open={openSnackbar}
+            message={snackbarMessage}
+            type={snackBarType}
+            onClose={handleCloseSnackbar}
+          />
+        </div>
+      );
+  //   } else {
+  //     return (
+  //       <div
+  //         style={{
+  //           height: "100vh",
+  //           display: "flex",
+  //           justifyContent: "center",
+  //           alignItems: "center",
+  //         }}
+  //       >
+  //         <h1 className={styles.head}>هذه الصفحة غير متوفره</h1>
+  //       </div>
+  //     );
+  //   }
+  // }
 }

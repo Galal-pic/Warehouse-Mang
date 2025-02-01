@@ -4,6 +4,7 @@ import { Box, IconButton, Menu, MenuItem } from "@mui/material";
 import AddCircleIcon from "@mui/icons-material/AddCircle";
 import ImportExportIcon from "@mui/icons-material/ImportExport";
 import * as XLSX from "xlsx";
+import SnackBar from "../../components/snackBar/SnackBar";
 
 const CustomToolbar = ({
   initialItems,
@@ -11,7 +12,17 @@ const CustomToolbar = ({
   setOpenDialog,
   API_BASE_URL,
   excelURL,
+  fetchItemsData,
 }) => {
+  // snackbar
+  const [openSnackbar, setOpenSnackbar] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [snackBarType, setSnackBarType] = useState("");
+  // Handle close snack
+  const handleCloseSnackbar = () => {
+    setOpenSnackbar(false);
+  };
+
   const [anchorEl, setAnchorEl] = useState(null);
   const open = Boolean(anchorEl);
 
@@ -36,12 +47,25 @@ const CustomToolbar = ({
         body: JSON.stringify({ data }),
       });
       if (response.ok) {
+        await fetchItemsData();
+        console.error("Failed to send data");
+        setOpenSnackbar(true);
+        setSnackbarMessage("تم إضافة البيانات بنجاح");
+        setSnackBarType("success");
         console.log("Data sent successfully");
       } else {
         console.error("Failed to send data");
+        setOpenSnackbar(true);
+        setSnackbarMessage("البيانات غير متوافقه");
+        setSnackBarType("error");
       }
     } catch (error) {
       console.error("Error:", error);
+      setOpenSnackbar(true);
+      setSnackbarMessage(
+        "حدث خطأ الرجاء اعادة تحميل الصفحة والمحاوله مره اخرى"
+      );
+      setSnackBarType("error");
     }
   };
 
@@ -167,6 +191,13 @@ const CustomToolbar = ({
           </Menu>
         </Box>
       </Box>
+      {/* Snackbar */}
+      <SnackBar
+        open={openSnackbar}
+        message={snackbarMessage}
+        type={snackBarType}
+        onClose={handleCloseSnackbar}
+      />
     </GridToolbarContainer>
   );
 };

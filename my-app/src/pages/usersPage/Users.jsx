@@ -85,6 +85,49 @@ function CustomToolbar() {
 
 export default function Users() {
   const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+
+  // get user information
+  const [isUserLoading, setIsUserLoading] = useState(false);
+  const [user, setUser] = useState({});
+  useEffect(() => {
+    const fetchUserData = async () => {
+      const accessToken = localStorage.getItem("access_token");
+
+      if (!accessToken) {
+        console.error("No access token found.");
+        return;
+      }
+
+      setIsUserLoading(true);
+      setTimeout(async () => {
+        try {
+          const response = await fetch(`${API_BASE_URL}/auth/user`, {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          });
+
+          if (!response.ok) {
+            throw new Error(
+              `Failed to fetch user data: ${response.statusText}`
+            );
+          }
+
+          const data = await response.json();
+          setUser(data);
+          return data;
+        } catch (err) {
+          console.error("Error fetching user data:", err);
+        } finally {
+          setIsUserLoading(false);
+        }
+      }, 2000);
+    };
+
+    fetchUserData();
+  }, [API_BASE_URL]);
+
   const [users, setUsers] = useState([]);
   const [editedRow, setEditedRow] = useState(null);
   const [selectedRow, setSelectedRow] = useState(null);
@@ -452,52 +495,88 @@ export default function Users() {
     };
 
     fetchUserData();
-  }, []);
+  }, [API_BASE_URL]);
 
-  return (
-    <div className={styles.container}>
-      <h1 className={styles.head}>بيانات الموظفين</h1>
-      {/* dialog */}
-      <DeleteRow
-        deleteDialogOpen={deleteDialogOpen}
-        setDeleteDialogOpen={setDeleteDialogOpen}
-        deleteConfirmationText={deleteConfirmationText}
-        setDeleteConfirmationText={setDeleteConfirmationText}
-        handleDelete={handleDelete}
-        message={"هل أنت متأكد من رغبتك في حذف هذا المستخدم؟"}
-        loader={isDeleting}
-      />
+  // if (isUserLoading) {
+  //   return (
+  //     <div
+  //       style={{
+  //         height: "100vh",
+  //         display: "flex",
+  //         justifyContent: "center",
+  //         alignItems: "center",
+  //       }}
+  //     >
+  //       <h1 className={styles.head}>
+  //         {" "}
+  //         <CircularProgress />
+  //       </h1>
+  //     </div>
+  //   );
+  // } else {
+  //   if (user.username === "esraa") {
+      return (
+        <div className={styles.container}>
+          <h1 className={styles.head}>بيانات الموظفين</h1>
+          {/* dialog */}
+          <DeleteRow
+            deleteDialogOpen={deleteDialogOpen}
+            setDeleteDialogOpen={setDeleteDialogOpen}
+            deleteConfirmationText={deleteConfirmationText}
+            setDeleteConfirmationText={setDeleteConfirmationText}
+            handleDelete={handleDelete}
+            message={"هل أنت متأكد من رغبتك في حذف هذا المستخدم؟"}
+            loader={isDeleting}
+          />
 
-      <CustomDataGrid
-        rows={users}
-        columns={columns}
-        paginationModel={paginationModel}
-        onPageChange={handlePageChange}
-        pageCount={pageCount}
-        CustomToolbar={CustomToolbar}
-        loader={isLoading}
-        onCellKeyDown={(params, event) => {
-          if ([" ", "ArrowLeft", "ArrowRight"].includes(event.key)) {
-            event.stopPropagation();
-            event.preventDefault();
-          }
-        }}
-      />
+          <CustomDataGrid
+            rows={users}
+            columns={columns}
+            paginationModel={paginationModel}
+            onPageChange={handlePageChange}
+            pageCount={pageCount}
+            CustomToolbar={CustomToolbar}
+            loader={isLoading}
+            onCellKeyDown={(params, event) => {
+              if ([" ", "ArrowLeft", "ArrowRight"].includes(event.key)) {
+                event.stopPropagation();
+                event.preventDefault();
+              }
+            }}
+          />
 
-      {/* snack bar */}
-      <Snackbar
-        open={openSnackbar}
-        autoHideDuration={2000}
-        onClose={() => setOpenSnackbar(false)}
-        anchorOrigin={{ vertical: "top", horizontal: "center" }}
-        sx={{
-          zIndex: "9999999999999999999999999999999999",
-        }}
-      >
-        <Alert onClose={() => setOpenSnackbar(false)} severity={snackBarType}>
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
-    </div>
-  );
+          {/* snack bar */}
+          <Snackbar
+            open={openSnackbar}
+            autoHideDuration={2000}
+            onClose={() => setOpenSnackbar(false)}
+            anchorOrigin={{ vertical: "top", horizontal: "center" }}
+            sx={{
+              zIndex: "9999999999999999999999999999999999",
+            }}
+          >
+            <Alert
+              onClose={() => setOpenSnackbar(false)}
+              severity={snackBarType}
+            >
+              {snackbarMessage}
+            </Alert>
+          </Snackbar>
+        </div>
+      );
+  //   } else {
+  //     return (
+  //       <div
+  //         style={{
+  //           height: "100vh",
+  //           display: "flex",
+  //           justifyContent: "center",
+  //           alignItems: "center",
+  //         }}
+  //       >
+  //         <h1 className={styles.head}>هذه الصفحة غير متوفره</h1>
+  //       </div>
+  //     );
+  //   }
+  // }
 }
