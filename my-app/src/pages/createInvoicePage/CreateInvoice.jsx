@@ -256,6 +256,7 @@ export default function Type1() {
 
   // Clear Invoice
   const clearInvoice = () => {
+    localStorage.removeItem(LOCAL_STORAGE_KEY);
     setNewInvoice({
       suplier_name: "",
       type: lastSelected,
@@ -317,6 +318,64 @@ export default function Type1() {
   const handleCloseSnackbar = () => {
     setOpenSnackbar(false);
   };
+
+  // handle local storage
+  const LOCAL_STORAGE_KEY = "invoiceDraft";
+  useEffect(() => {
+    if (!isWareHousesLoading) {
+      const savedDraft = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (savedDraft) {
+        const draft = JSON.parse(savedDraft);
+        const updatedRows = draft.rows.map((row) => {
+          const warehouseItem = warehouse?.find(
+            (item) => item.item_name === row.item_name
+          );
+          return {
+            ...row,
+            locations: warehouseItem?.locations || [],
+            maxquantity:
+              warehouseItem?.locations?.find((l) => l.location === row.location)
+                ?.quantity || 0,
+          };
+        });
+
+        setNewInvoice(draft.newInvoice);
+        setRows(updatedRows);
+        setOperationType(draft.operationType);
+        setPurchasesType(draft.purchasesType);
+        setLastSelected(draft.lastSelected);
+        setShowCommentField(draft.showCommentField);
+        setIsInvoiceSaved(draft.isInvoiceSaved || false);
+      }
+    }
+  }, [isWareHousesLoading, warehouse]);
+  useEffect(() => {
+    if (!isInvoiceSaved && !isWareHousesLoading) {
+      const draft = {
+        newInvoice,
+        rows: rows.map((row) => ({
+          ...row,
+          locations: [],
+          maxquantity: 0,
+        })),
+        operationType,
+        purchasesType,
+        lastSelected,
+        showCommentField,
+        isInvoiceSaved,
+      };
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(draft));
+    }
+  }, [
+    newInvoice,
+    rows,
+    operationType,
+    purchasesType,
+    lastSelected,
+    showCommentField,
+    isInvoiceSaved,
+    isWareHousesLoading,
+  ]);
 
   // save invoice
   const [createInvoice, { isLoading: isSaving }] = useCreateInvoiceMutation();
@@ -394,6 +453,7 @@ export default function Type1() {
     try {
       await createInvoice(updatedInvoice).unwrap();
       setIsInvoiceSaved(true);
+      localStorage.removeItem(LOCAL_STORAGE_KEY);
       setRows(newRows);
       setSnackbarMessage("تم حفظ الفاتورة بنجاح");
       setSnackBarType("success");
@@ -1177,7 +1237,11 @@ export default function Type1() {
             <Box className={styles.infoItemBox}>
               <Box className={styles.infoLabel}>اسم الموظف</Box>
               <Box className={styles.infoValue}>
-                {isLoadingUser ? <CircularProgress size={15} /> : user.username}
+                {isLoadingUser ? (
+                  <CircularProgress size={15} />
+                ) : (
+                  user?.username
+                )}
               </Box>
             </Box>
             <Box className={styles.infoItemBox}>

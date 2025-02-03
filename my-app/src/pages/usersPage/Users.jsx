@@ -367,7 +367,7 @@ export default function Users() {
       },
     },
     {
-      field: "rowNumber",
+      field: "id",
       headerName: "#",
       width: 100,
       sortable: false,
