@@ -25,7 +25,40 @@ export const invoiceApi = createApi({
       }),
       invalidatesTags: ["Invoice"],
     }),
+    getInvoices: builder.query({
+      query: (type) => `/invoice/${type}`,
+      providesTags: ["Invoice"],
+    }),
+    updateInvoice: builder.mutation({
+      query: ({ id, ...body }) => ({
+        url: `/invoice/${id}`,
+        method: "PUT",
+        body,
+      }),
+      invalidatesTags: ["Invoice"],
+    }),
+    deleteInvoice: builder.mutation({
+      query: (id) => ({
+        url: `/invoice/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Invoice"],
+    }),
+    confirmInvoice: builder.mutation({
+      query: (id) => ({
+        url: `/invoice/${id}/confirm`,
+        method: "POST",
+      }),
+      invalidatesTags: ["Invoice"],
+    }),
   }),
 });
 
-export const { useGetLastInvoiceIdQuery, useCreateInvoiceMutation } = invoiceApi;
+export const {
+  useGetLastInvoiceIdQuery,
+  useCreateInvoiceMutation,
+  useGetInvoicesQuery,
+  useUpdateInvoiceMutation,
+  useDeleteInvoiceMutation,
+  useConfirmInvoiceMutation,
+} = invoiceApi;

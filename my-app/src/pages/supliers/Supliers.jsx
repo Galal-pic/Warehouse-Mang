@@ -1,5 +1,5 @@
 import styles from "./Supliers.module.css";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   Dialog,
   DialogActions,
@@ -17,40 +17,27 @@ import DeleteRow from "../../components/deleteItem/DeleteRow";
 import CustomDataGrid from "../../components/dataGrid/CustomDataGrid";
 import CustomInput from "../../components/customEditTextField/CustomInput";
 import CustomToolbar from "../../components/customToolBar/CustomToolBar";
+import {
+  useGetSuppliersQuery,
+  useAddSupplierMutation,
+  useUpdateSupplierMutation,
+  useDeleteSupplierMutation,
+} from "../services/supplierApi";
+import { useGetUserQuery } from "../services/userApi";
 
 export default function Supliers() {
-  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
-
-  // loaders
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [isAdding, setIsAdding] = useState(false);
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [isMachinesLoading, setIsMachinesLoading] = useState(false);
-
-  const [initialItems, setInitialItems] = useState([]);
-
-  // fetch invoices
-  const fetchItemsData = async () => {
-    const accessToken = localStorage.getItem("access_token");
-    if (!accessToken) return;
-    setIsMachinesLoading(true);
-    try {
-      const response = await fetch(`${API_BASE_URL}/supplier/`, {
-        method: "GET",
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-      const data = await response.json();
-
-      setInitialItems(data);
-    } catch (err) {
-      console.error("Error fetching user data:", err);
-    } finally {
-      setIsMachinesLoading(false);
-    }
-  };
-  useEffect(() => {
-    fetchItemsData();
-  }, []);
+  // RTK Query Hooks
+  const { data: user, isLoading: isLoadingUser } = useGetUserQuery();
+  const {
+    data: initialItems = [],
+    isLoading: isMachinesLoading,
+    refetch,
+  } = useGetSuppliersQuery();
+  const [addSupplier, { isLoading: isAdding }] = useAddSupplierMutation();
+  const [updateSupplier, { isLoading: isUpdating }] =
+    useUpdateSupplierMutation();
+  const [deleteSupplier, { isLoading: isDeleting }] =
+    useDeleteSupplierMutation();
 
   // collors
   const primaryColor = getComputedStyle(
@@ -99,38 +86,21 @@ export default function Supliers() {
       return;
     }
 
-    setIsAdding(true);
     try {
-      const accessToken = localStorage.getItem("access_token");
+      await addSupplier(newItem).unwrap();
+      await refetch();
 
-      const response = await fetch(`${API_BASE_URL}/supplier/`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify(newItem),
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to create invoice");
-      }
-      await fetchItemsData();
-      setNewItem({
-        name: "",
-      });
+      setNewItem({ name: "", description: "" });
       setErrors({});
       setOpenDialog(false);
       setOpenSnackbar(true);
       setSnackbarMessage("تمت اضافة المورد");
       setSnackBarType("success");
     } catch (error) {
-      console.error("Error creating invoice:", error);
+      console.error("Error creating supplier:", error);
       setOpenSnackbar(true);
       setSnackbarMessage("اسم المورد موجود بالفعل");
       setSnackBarType("error");
-    } finally {
-      setIsAdding(false);
     }
   };
 
@@ -159,25 +129,9 @@ export default function Supliers() {
       return;
     }
 
-    const accessToken = localStorage.getItem("access_token");
-    setIsUpdating(true);
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/supplier/${editingItem.id}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify(editingItem),
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Failed to update user: ${response.status}`);
-      }
-      await fetchItemsData();
+      await updateSupplier({ id: editingItem.id, ...editingItem }).unwrap();
+      await refetch();
 
       setSelectedItem(editingItem);
       setEditingItem(null);
@@ -186,12 +140,10 @@ export default function Supliers() {
       setSnackbarMessage("تم تحديث المورد");
       setSnackBarType("success");
     } catch (error) {
-      console.error("Error updating user:", error);
+      console.error("Error updating supplier:", error);
       setOpenSnackbar(true);
       setSnackbarMessage("اسم المورد موجود بالفعل");
       setSnackBarType("error");
-    } finally {
-      setIsUpdating(false);
     }
   };
 
@@ -324,27 +276,10 @@ export default function Supliers() {
   // delete
   const handleDelete = async () => {
     if (deleteConfirmationText.trim().toLowerCase() === "نعم") {
-      const accessToken = localStorage.getItem("access_token");
-      setIsDeleting(true);
       try {
-        const response = await fetch(
-          `${API_BASE_URL}/supplier/${selectedUserId}`,
-          {
-            method: "DELETE",
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-            },
-          }
-        );
+        await deleteSupplier(selectedUserId).unwrap();
+        await refetch();
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || "Failed to delete user");
-        }
-
-        setInitialItems((prev) =>
-          prev.filter((item) => item.id !== selectedUserId)
-        );
         setOpenSnackbar(true);
         setSnackbarMessage("تم حذف المورد");
         setSnackBarType("success");
@@ -352,61 +287,15 @@ export default function Supliers() {
         setSelectedUserId(null);
         setDeleteDialogOpen(false);
       } catch (error) {
-        console.error("Error deleting user:", error);
+        console.error("Error deleting supplier:", error);
         setOpenSnackbar(true);
         setSnackbarMessage(
           "خطأ في حذف المورد اذا استمرت المشكلة حاول اعادة تحميل الصفحة"
         );
         setSnackBarType("error");
-        setDeleteConfirmationText("");
-        setSelectedUserId(null);
-        setDeleteDialogOpen(false);
-      } finally {
-        setIsDeleting(false);
       }
     }
   };
-
-  const [isUserLoading, setIsUserLoading] = useState(false);
-  const [user, setUser] = useState({});
-  useEffect(() => {
-    const fetchUserData = async () => {
-      const accessToken = localStorage.getItem("access_token");
-
-      if (!accessToken) {
-        console.error("No access token found.");
-        return;
-      }
-
-      setIsUserLoading(true);
-      setTimeout(async () => {
-        try {
-          const response = await fetch(`${API_BASE_URL}/auth/user`, {
-            method: "GET",
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-            },
-          });
-
-          if (!response.ok) {
-            throw new Error(
-              `Failed to fetch user data: ${response.statusText}`
-            );
-          }
-
-          const data = await response.json();
-          setUser(data);
-          return data;
-        } catch (err) {
-          console.error("Error fetching user data:", err);
-        } finally {
-          setIsUserLoading(false);
-        }
-      }, 2000);
-    };
-
-    fetchUserData();
-  }, [API_BASE_URL]);
   // if (isUserLoading) {
   //   return (
   //     <div
@@ -425,209 +314,203 @@ export default function Supliers() {
   //   );
   // } else {
   //   if (user.username === "esraa") {
-      return (
-        <div className={styles.container}>
-          {/* title */}
-          <div>
-            <h1 className={styles.title}>الموردين</h1>
-          </div>
+  return (
+    <div className={styles.container}>
+      {/* title */}
+      <div>
+        <h1 className={styles.title}>الموردين</h1>
+      </div>
 
-          {/* delete dialog */}
-          <DeleteRow
-            deleteDialogOpen={deleteDialogOpen}
-            setDeleteDialogOpen={setDeleteDialogOpen}
-            deleteConfirmationText={deleteConfirmationText}
-            setDeleteConfirmationText={setDeleteConfirmationText}
-            handleDelete={handleDelete}
-            message={"هل أنت متأكد من رغبتك في حذف هذا المورد؟"}
-            loader={isDeleting}
-          />
+      {/* delete dialog */}
+      <DeleteRow
+        deleteDialogOpen={deleteDialogOpen}
+        setDeleteDialogOpen={setDeleteDialogOpen}
+        deleteConfirmationText={deleteConfirmationText}
+        setDeleteConfirmationText={setDeleteConfirmationText}
+        handleDelete={handleDelete}
+        message={"هل أنت متأكد من رغبتك في حذف هذا المورد؟"}
+        loader={isDeleting}
+      />
 
-          {/* table */}
-          <CustomDataGrid
-            rows={initialItems}
-            columns={columns}
-            paginationModel={paginationModel}
-            onPageChange={handlePageChange}
-            pageCount={pageCount}
-            CustomToolbar={CustomToolbar}
-            initialItems={initialItems}
-            fetchItemsData={fetchItemsData}
-            excelURL={"machine"}
-            primaryColor={primaryColor}
-            API_BASE_URL={API_BASE_URL}
-            setOpenDialog={setOpenDialog}
-            loader={isMachinesLoading}
-            onCellKeyDown={(params, event) => {
-              if ([" ", "ArrowLeft", "ArrowRight"].includes(event.key)) {
-                event.stopPropagation();
-                event.preventDefault();
-              }
-            }}
-          />
+      {/* table */}
+      <CustomDataGrid
+        rows={initialItems}
+        columns={columns}
+        paginationModel={paginationModel}
+        onPageChange={handlePageChange}
+        pageCount={pageCount}
+        CustomToolbar={CustomToolbar}
+        initialItems={initialItems}
+        excelURL={"machine"}
+        primaryColor={primaryColor}
+        setOpenDialog={setOpenDialog}
+        loader={isMachinesLoading}
+        onCellKeyDown={(params, event) => {
+          if ([" ", "ArrowLeft", "ArrowRight"].includes(event.key)) {
+            event.stopPropagation();
+            event.preventDefault();
+          }
+        }}
+      />
 
-          {/* add dialog */}
-          <Dialog
-            open={openDialog}
-            onClose={() => {
-              setOpenDialog(false);
-              setNewItem({
-                name: "",
-              });
-              setErrors({});
-            }}
-            sx={{
-              marginTop: "30px",
-              zIndex: "99999",
-            }}
-          >
-            <DialogTitle
-              sx={{
-                textAlign: "center",
+      {/* add dialog */}
+      <Dialog
+        open={openDialog}
+        onClose={() => {
+          setOpenDialog(false);
+          setNewItem({
+            name: "",
+          });
+          setErrors({});
+        }}
+        sx={{
+          marginTop: "30px",
+          zIndex: "99999",
+        }}
+      >
+        <DialogTitle
+          sx={{
+            textAlign: "center",
+          }}
+        >
+          إضافة مورد جديد
+        </DialogTitle>
+        <DialogContent sx={{ width: "500px" }}>
+          <div style={{ marginBottom: "10px", marginTop: "10px" }}>
+            <label
+              style={{
+                display: "block",
+                marginBottom: "5px",
+                textAlign: "right",
+                fontWeight: "bold",
+                color: errors.name ? "#d32f2f" : "#555",
               }}
             >
-              إضافة مورد جديد
-            </DialogTitle>
-            <DialogContent sx={{ width: "500px" }}>
-              <div style={{ marginBottom: "10px", marginTop: "10px" }}>
-                <label
-                  style={{
-                    display: "block",
-                    marginBottom: "5px",
-                    textAlign: "right",
-                    fontWeight: "bold",
-                    color: errors.name ? "#d32f2f" : "#555",
-                  }}
-                >
-                  الاسم
-                </label>
-                <input
-                  type="text"
-                  value={newItem.name}
-                  onChange={(e) =>
-                    setNewItem({ ...newItem, name: e.target.value })
-                  }
-                  style={{
-                    width: "100%",
-                    padding: "10px",
-                    fontSize: "1rem",
-                    border: errors.name
-                      ? "1px solid #d32f2f"
-                      : "1px solid #ccc",
-                    borderRadius: "4px",
-                    direction: "rtl",
-                    textAlign: "right",
-                    outline: "none",
-                    transition: "border-color 0.2s",
-                  }}
-                  onFocus={(e) => (e.target.style.borderColor = "#1976d2")}
-                  onBlur={(e) => (e.target.style.borderColor = "#ccc")}
-                />
-                {errors.name && (
-                  <span
-                    style={{
-                      color: "#d32f2f",
-                      fontSize: "0.875rem",
-                      marginTop: "5px",
-                      display: "block",
-                      textAlign: "right",
-                    }}
-                  >
-                    {errors.name}
-                  </span>
-                )}
-              </div>
-              <div style={{ marginBottom: "10px", marginTop: "10px" }}>
-                <label
-                  style={{
-                    display: "block",
-                    marginBottom: "5px",
-                    textAlign: "right",
-                    fontWeight: "bold",
-                    color: errors.description ? "#d32f2f" : "#555",
-                  }}
-                >
-                  الباركود
-                </label>
-                <input
-                  type="text"
-                  value={newItem.description}
-                  onChange={(e) =>
-                    setNewItem({ ...newItem, description: e.target.value })
-                  }
-                  style={{
-                    width: "100%",
-                    padding: "10px",
-                    fontSize: "1rem",
-                    border: errors.description
-                      ? "1px solid #d32f2f"
-                      : "1px solid #ccc",
-                    borderRadius: "4px",
-                    direction: "rtl",
-                    textAlign: "right",
-                    outline: "none",
-                    transition: "border-color 0.2s",
-                  }}
-                  onFocus={(e) => (e.target.style.borderColor = "#1976d2")}
-                  onBlur={(e) => (e.target.style.borderColor = "#ccc")}
-                />
-                {errors.description && (
-                  <span
-                    style={{
-                      color: "#d32f2f",
-                      fontSize: "0.875rem",
-                      marginTop: "5px",
-                      display: "block",
-                      textAlign: "right",
-                    }}
-                  >
-                    {errors.description}
-                  </span>
-                )}
-              </div>
-              <DialogActions
-                sx={{
-                  display: "flex",
-                  justifyContent: "space-around",
+              الاسم
+            </label>
+            <input
+              type="text"
+              value={newItem.name}
+              onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
+              style={{
+                width: "100%",
+                padding: "10px",
+                fontSize: "1rem",
+                border: errors.name ? "1px solid #d32f2f" : "1px solid #ccc",
+                borderRadius: "4px",
+                direction: "rtl",
+                textAlign: "right",
+                outline: "none",
+                transition: "border-color 0.2s",
+              }}
+              onFocus={(e) => (e.target.style.borderColor = "#1976d2")}
+              onBlur={(e) => (e.target.style.borderColor = "#ccc")}
+            />
+            {errors.name && (
+              <span
+                style={{
+                  color: "#d32f2f",
+                  fontSize: "0.875rem",
+                  marginTop: "5px",
+                  display: "block",
+                  textAlign: "right",
                 }}
               >
-                <Button
-                  variant="contained"
-                  color="error"
-                  onClick={() => {
-                    setOpenDialog(false);
-                    setNewItem({
-                      name: "",
-                      description: "",
-                    });
-                    setErrors({});
-                  }}
-                  className={`${styles.cancelCommentButton} ${styles.infoBtn}`}
-                >
-                  الغاء
-                </Button>
-                <Button
-                  variant="contained"
-                  color="primary"
-                  onClick={handleAddItem}
-                  className={`${styles.saveButton} ${styles.infoBtn}`}
-                  disabled={isAdding}
-                >
-                  {isAdding ? <CircularProgress size={24} /> : "إضافة"}
-                </Button>
-              </DialogActions>
-            </DialogContent>
-          </Dialog>
+                {errors.name}
+              </span>
+            )}
+          </div>
+          <div style={{ marginBottom: "10px", marginTop: "10px" }}>
+            <label
+              style={{
+                display: "block",
+                marginBottom: "5px",
+                textAlign: "right",
+                fontWeight: "bold",
+                color: errors.description ? "#d32f2f" : "#555",
+              }}
+            >
+              الباركود
+            </label>
+            <input
+              type="text"
+              value={newItem.description}
+              onChange={(e) =>
+                setNewItem({ ...newItem, description: e.target.value })
+              }
+              style={{
+                width: "100%",
+                padding: "10px",
+                fontSize: "1rem",
+                border: errors.description
+                  ? "1px solid #d32f2f"
+                  : "1px solid #ccc",
+                borderRadius: "4px",
+                direction: "rtl",
+                textAlign: "right",
+                outline: "none",
+                transition: "border-color 0.2s",
+              }}
+              onFocus={(e) => (e.target.style.borderColor = "#1976d2")}
+              onBlur={(e) => (e.target.style.borderColor = "#ccc")}
+            />
+            {errors.description && (
+              <span
+                style={{
+                  color: "#d32f2f",
+                  fontSize: "0.875rem",
+                  marginTop: "5px",
+                  display: "block",
+                  textAlign: "right",
+                }}
+              >
+                {errors.description}
+              </span>
+            )}
+          </div>
+          <DialogActions
+            sx={{
+              display: "flex",
+              justifyContent: "space-around",
+            }}
+          >
+            <Button
+              variant="contained"
+              color="error"
+              onClick={() => {
+                setOpenDialog(false);
+                setNewItem({
+                  name: "",
+                  description: "",
+                });
+                setErrors({});
+              }}
+              className={`${styles.cancelCommentButton} ${styles.infoBtn}`}
+            >
+              الغاء
+            </Button>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handleAddItem}
+              className={`${styles.saveButton} ${styles.infoBtn}`}
+              disabled={isAdding}
+            >
+              {isAdding ? <CircularProgress size={24} /> : "إضافة"}
+            </Button>
+          </DialogActions>
+        </DialogContent>
+      </Dialog>
 
-          {/* Snackbar */}
-          <SnackBar
-            open={openSnackbar}
-            message={snackbarMessage}
-            type={snackBarType}
-            onClose={handleCloseSnackbar}
-          />
-        </div>
-      );
+      {/* Snackbar */}
+      <SnackBar
+        open={openSnackbar}
+        message={snackbarMessage}
+        type={snackBarType}
+        onClose={handleCloseSnackbar}
+      />
+    </div>
+  );
   //   } else {
   //     return (
   //       <div

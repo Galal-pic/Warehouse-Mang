@@ -5,8 +5,8 @@ import {
   TextField,
   Snackbar,
   Alert,
-  Button,
   Autocomplete,
+  IconButton,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import ClearOutlinedIcon from "@mui/icons-material/ClearOutlined";
@@ -26,69 +26,6 @@ import {
   useDeleteUserMutation,
 } from "../services/userApi";
 
-function CustomToolbar() {
-  const navigate = useNavigate();
-
-  const handleClick = () => {
-    navigate("/register");
-  };
-  return (
-    <GridToolbarContainer>
-      <Button
-        sx={{
-          width: "25%",
-          fontSize: "1rem",
-          fontWeight: "bold",
-          borderRadius: "8px",
-          border: "2px solid #1976d2",
-          padding: "8px 24px",
-          color: "#1976d2",
-          backgroundColor: "white",
-          transition: "all 0.3s ease",
-          "&:hover": {
-            backgroundColor: "#1976d2",
-            color: "#fff",
-            borderColor: "#1976d2",
-          },
-        }}
-        color="primary"
-        onClick={handleClick}
-      >
-        <GroupAddIcon
-          sx={{
-            margin: "0px 8px 3px",
-          }}
-        />
-        إضافة موظف
-      </Button>
-
-      <GridToolbarQuickFilter
-        sx={{
-          direction: "rtl",
-          width: "35%",
-          "& .MuiInputBase-root": {
-            borderRadius: "8px",
-            border: "2px solid #1976d2",
-            padding: "8px 16px",
-            boxShadow: "none",
-            backgroundColor: "white",
-          },
-          "& .MuiInputBase-root:hover": {
-            outline: "none",
-          },
-          "& .MuiSvgIcon-root": {
-            color: "#1976d2",
-            fontSize: "1.5rem",
-            marginLeft: "8px",
-          },
-          overflow: "hidden",
-        }}
-        placeholder="ابحث هنا..."
-      />
-    </GridToolbarContainer>
-  );
-}
-
 export default function Users() {
   const [editedRow, setEditedRow] = useState(null);
   const [selectedRow, setSelectedRow] = useState(null);
@@ -107,6 +44,60 @@ export default function Users() {
     { value: "مدير", label: "مدير" },
     { value: "مشرف", label: "مشرف" },
   ];
+
+  // collors
+  const primaryColor = getComputedStyle(
+    document.documentElement
+  ).getPropertyValue("--primary-color");
+
+  function CustomToolbar() {
+    const navigate = useNavigate();
+
+    const handleClick = () => {
+      navigate("/register");
+    };
+    return (
+      <GridToolbarContainer>
+        <IconButton
+          sx={{
+            padding: "10px",
+            color: primaryColor,
+          }}
+          color="primary"
+          onClick={handleClick}
+        >
+          <GroupAddIcon
+            sx={{
+              // margin: "0px 8px 3px",
+              fontSize: "3rem",
+            }}
+          />
+        </IconButton>
+
+        <GridToolbarQuickFilter
+          sx={{
+            direction: "rtl",
+            width: "50%",
+            "& .MuiInputBase-root": {
+              padding: "8px 16px",
+              boxShadow: "none",
+              backgroundColor: "white",
+            },
+            "& .MuiInputBase-root:hover": {
+              outline: "none",
+            },
+            "& .MuiSvgIcon-root": {
+              color: "#1976d2",
+              fontSize: "1.5rem",
+              marginLeft: "8px",
+            },
+            overflow: "hidden",
+          }}
+          placeholder="ابحث هنا..."
+        />
+      </GridToolbarContainer>
+    );
+  }
 
   // pagination
   const [paginationModel, setPaginationModel] = useState({

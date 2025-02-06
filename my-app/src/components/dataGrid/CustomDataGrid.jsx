@@ -127,11 +127,16 @@ export default function CustomDataGrid({
   return (
     <DataGrid
       rows={rows}
-      columns={columns.map((col) => ({
+      columns={columns.map((col, index) => ({
         ...col,
         align: "center",
         headerAlign: "center",
-        headerClassName: "custom-header",
+        headerClassName:
+          index === 0
+            ? "custom-header first-column-header"
+            : index === columns.length - 1
+            ? "custom-header last-column-header"
+            : "custom-header",
       }))}
       loading={loader}
       components={{
@@ -157,12 +162,36 @@ export default function CustomDataGrid({
       paginationModel={paginationModel}
       onPaginationModelChange={onPageChange}
       disableVirtualization={false}
+      getRowClassName={(params) => {
+        const { page, pageSize } = paginationModel;
+        const startIndex = page * pageSize;
+        const endIndex = startIndex + pageSize - 1;
+        const currentIndex = startIndex + params.indexRelativeToCurrentPage;
+        if (rows.length === 1)
+          return `${params.row.classname} first-row last-row`;
+        if (currentIndex === startIndex)
+          return `${params.row.classname} first-row`;
+        if (currentIndex === endIndex || currentIndex === rows.length - 1)
+          return `${params.row.classname} last-row`;
+        return `${params.row.classname}`;
+      }}
       sx={{
         "& .custom-header": {
           backgroundColor: primaryColor,
           fontWeight: "bold",
           fontSize: "1.5rem",
           color: "white",
+        },
+        "& .first-column-header": {
+          borderTopLeftRadius: "20px",
+          borderBottomLeftRadius: "20px",
+        },
+        "& .last-column-header": {
+          borderTopRightRadius: "20px",
+          borderBottomRightRadius: "20px",
+        },
+        '& .MuiDataGrid-columnHeaders div[role="row"]': {
+          backgroundColor: "transparent",
         },
         "& .MuiDataGrid-filterIcon, & .MuiDataGrid-sortIcon, & .MuiDataGrid-menuIconButton":
           {
@@ -174,19 +203,57 @@ export default function CustomDataGrid({
           display: "flex",
           justifyContent: "space-between",
           backgroundColor: "transparent",
+          borderRadius: "20px",
         },
-        "& .MuiDataGrid-cell": { border: "1px solid #ddd" },
-        "&.MuiDataGrid-row:hover": { backgroundColor: "#f7f7f7" },
+        "& .MuiDataGrid-cell": {
+          border: "1px solid #ddd",
+        },
+        "& .zero-total-price .MuiDataGrid-cell": {
+          backgroundColor: "#f88282 !important",
+        },
         "& .MuiDataGrid-columnSeparator": {},
         "& .MuiDataGrid-cell:focus, & .MuiDataGrid-cell:focus-within": {
           outline: "none",
         },
         "& .MuiDataGrid-virtualScroller": {
-          backgroundColor: "white",
-          borderRadius: "4px",
+          borderRadius: "20px",
         },
         border: "none",
         margin: "0 20px",
+        "& .zero-total-price": {
+          backgroundColor: "#f88282 !important",
+          borderRadius: "20px",
+        },
+        "& .MuiDataGrid-row.zero-total-price:hover": {
+          backgroundColor: "#f88282 !important",
+          borderRadius: "20px",
+        },
+        "& .MuiDataGrid-row.first-row .MuiDataGrid-cell:nth-of-type(2)": {
+          borderTopLeftRadius: "20px",
+        },
+        "& .MuiDataGrid-row.first-row .MuiDataGrid-cell:last-of-type": {
+          borderTopRightRadius: "20px",
+        },
+        "& .MuiDataGrid-row.last-row .MuiDataGrid-cell:nth-of-type(2)": {
+          borderBottomLeftRadius: "20px",
+        },
+        "& .MuiDataGrid-row.last-row .MuiDataGrid-cell:last-of-type": {
+          borderBottomRightRadius: "20px",
+        },
+        "& .MuiDataGrid-row:nth-of-type(1)": {
+          borderTopRightRadius: "20px",
+          borderTopLeftRadius: "20px",
+        },
+        "& .MuiDataGrid-row": {
+          backgroundColor: "white",
+        },
+        "& .MuiDataGrid-row:hover": {
+          backgroundColor: "#f0f0f0 !important",
+          color: "#333",
+        },
+        "& .MuiDataGrid-row.Mui-selected": {
+          backgroundColor: "#d3e8ff !important",
+        },
       }}
       {...props}
     />

@@ -36,7 +36,6 @@ import {
 } from "../services/invoiceApi";
 
 export default function Type1() {
-
   // Operation Type Selection
   const [lastSelected, setLastSelected] = useState("");
   const operationTypes = ["صرف", "أمانات", "مرتجع", "توالف", "حجز"];
@@ -547,7 +546,10 @@ export default function Type1() {
         }}
       >
         <div className={styles.operationTypeSelection}>
-          <FormControl variant="standard" sx={{ m: 1, minWidth: 220 }}>
+          <FormControl
+            variant="standard"
+            sx={{ m: 1, minWidth: 220, backgroundColor: "white" }}
+          >
             <InputLabel
               id="purchases-select-label"
               sx={{
@@ -574,6 +576,9 @@ export default function Type1() {
               value={purchasesType}
               onChange={(e) => setPurchasesType(e.target.value)}
               label="مشتريات"
+              sx={{
+                padding: "0 0 10px 0",
+              }}
             >
               {purchasesTypes.map((type, index) => (
                 <MenuItem
@@ -593,7 +598,10 @@ export default function Type1() {
         </div>
 
         <div className={styles.operationTypeSelection}>
-          <FormControl variant="standard" sx={{ m: 1, minWidth: 220 }}>
+          <FormControl
+            variant="standard"
+            sx={{ m: 1, minWidth: 220, backgroundColor: "white" }}
+          >
             <InputLabel
               id="purchases-select-label"
               sx={{
@@ -620,6 +628,9 @@ export default function Type1() {
               value={operationType}
               onChange={(e) => setOperationType(e.target.value)}
               label="عمليات"
+              sx={{
+                padding: "0 0 10px 0",
+              }}
             >
               {operationTypes.map((type, index) => (
                 <MenuItem
@@ -1246,17 +1257,21 @@ export default function Type1() {
             </Box>
             <Box className={styles.infoItemBox}>
               <Box className={styles.infoLabel}>اسم المستلم</Box>
-              <input
-                type="text"
-                value={newInvoice.client_name}
-                onChange={(e) =>
-                  setNewInvoice({
-                    ...newInvoice,
-                    client_name: e.target.value,
-                  })
-                }
-                className={styles.infoInput}
-              />
+              {isInvoiceSaved ? (
+                <div>{newInvoice.client_name}</div>
+              ) : (
+                <input
+                  type="text"
+                  value={newInvoice.client_name}
+                  onChange={(e) =>
+                    setNewInvoice({
+                      ...newInvoice,
+                      client_name: e.target.value,
+                    })
+                  }
+                  className={styles.infoInput}
+                />
+              )}
             </Box>
             <Box className={styles.infoItemBox}>
               <Box className={styles.infoLabel}>عامل المخازن </Box>

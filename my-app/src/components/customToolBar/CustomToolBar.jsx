@@ -5,15 +5,17 @@ import AddCircleIcon from "@mui/icons-material/AddCircle";
 import ImportExportIcon from "@mui/icons-material/ImportExport";
 import * as XLSX from "xlsx";
 import SnackBar from "../../components/snackBar/SnackBar";
+import { useImportMachinesMutation } from "../../pages/services/machineApi"; // Update the path
 
 const CustomToolbar = ({
   initialItems,
   primaryColor,
   setOpenDialog,
-  API_BASE_URL,
   excelURL,
   fetchItemsData,
 }) => {
+  const [importMachines] = useImportMachinesMutation();
+
   // snackbar
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
@@ -36,35 +38,16 @@ const CustomToolbar = ({
 
   const sendDataToEndpoint = async (data) => {
     console.log("Sending data to API:", data);
-    const accessToken = localStorage.getItem("access_token");
     try {
-      const response = await fetch(`${API_BASE_URL}/${excelURL}/excel`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({ data }),
-      });
-      if (response.ok) {
-        await fetchItemsData();
-        console.error("Failed to send data");
-        setOpenSnackbar(true);
-        setSnackbarMessage("تم إضافة البيانات بنجاح");
-        setSnackBarType("success");
-        console.log("Data sent successfully");
-      } else {
-        console.error("Failed to send data");
-        setOpenSnackbar(true);
-        setSnackbarMessage("البيانات غير متوافقه");
-        setSnackBarType("error");
-      }
+      const result = await importMachines(data).unwrap();
+      setOpenSnackbar(true);
+      setSnackbarMessage("تم إضافة البيانات بنجاح");
+      setSnackBarType("success");
+      console.log("Data sent successfully", result);
     } catch (error) {
       console.error("Error:", error);
       setOpenSnackbar(true);
-      setSnackbarMessage(
-        "حدث خطأ الرجاء اعادة تحميل الصفحة والمحاوله مره اخرى"
-      );
+      setSnackbarMessage(error.data?.message || "البيانات غير متوافقه");
       setSnackBarType("error");
     }
   };
@@ -86,13 +69,28 @@ const CustomToolbar = ({
   };
 
   const handleExport = () => {
-    const ws = XLSX.utils.json_to_sheet(initialItems || []);
+    const flattenedItems =
+      initialItems?.flatMap((item) =>
+        item.locations && Array.isArray(item.locations)
+          ? item.locations.map((location) => ({
+              item_name: item.item_name,
+              item_bar: item.item_bar,
+              location: location.location,
+              price_unit: location.price_unit,
+              quantity: location.quantity,
+            }))
+          : item
+      ) || initialItems;
+
+    const ws = XLSX.utils.json_to_sheet(flattenedItems);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+
     XLSX.writeFile(wb, "exported_data.xlsx", {
       bookType: "xlsx",
       type: "binary",
     });
+
     handleClose();
   };
 

@@ -6,9 +6,7 @@ export const supplierApi = createApi({
     baseUrl: process.env.REACT_APP_API_BASE_URL,
     prepareHeaders: (headers) => {
       const token = localStorage.getItem("access_token");
-      if (token) {
-        headers.set("Authorization", `Bearer ${token}`);
-      }
+      if (token) headers.set("Authorization", `Bearer ${token}`);
       return headers;
     },
   }),
@@ -18,7 +16,35 @@ export const supplierApi = createApi({
       query: () => "/supplier/",
       providesTags: ["Supplier"],
     }),
+    addSupplier: builder.mutation({
+      query: (newSupplier) => ({
+        url: "/supplier/",
+        method: "POST",
+        body: newSupplier,
+      }),
+      invalidatesTags: ["Supplier"],
+    }),
+    updateSupplier: builder.mutation({
+      query: ({ id, ...patch }) => ({
+        url: `/supplier/${id}`,
+        method: "PUT",
+        body: patch,
+      }),
+      invalidatesTags: ["Supplier"],
+    }),
+    deleteSupplier: builder.mutation({
+      query: (id) => ({
+        url: `/supplier/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Supplier"],
+    }),
   }),
 });
 
-export const { useGetSuppliersQuery } = supplierApi;
+export const { 
+  useGetSuppliersQuery,
+  useAddSupplierMutation,
+  useUpdateSupplierMutation,
+  useDeleteSupplierMutation 
+} = supplierApi;

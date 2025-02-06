@@ -14,11 +14,9 @@
     display: flex;
     flex-direction: column;
     margin-bottom: 20px;
-    background-color: white;
 }
 
 .operationTypeLabel {
-    margin-bottom: 20px;
     font-size: 1.4rem;
     color: #1976d2;
     font-weight: bold;

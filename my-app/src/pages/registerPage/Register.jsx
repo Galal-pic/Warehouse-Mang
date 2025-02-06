@@ -9,85 +9,112 @@ import {
 import ArrowBackOutlinedIcon from "@mui/icons-material/ArrowBackOutlined";
 import styles from "./Register.module.css";
 import { useNavigate } from "react-router-dom";
-import CustomSelectField from "../../components/customSelectField/CustomSelectField";
 import SnackBar from "../../components/snackBar/SnackBar";
 import { CustomTextField } from "../../components/customTextField/CustomTextField";
+import CustomSelectField from "../../components/customSelectField/CustomSelectField";
 import { useAddUserMutation } from "../services/userApi";
+import {
+  FormControl,
+  FormControlLabel,
+  Radio,
+  RadioGroup,
+  FormLabel,
+  FormHelperText,
+} from "@mui/material";
+
+const CustomRadioField = ({ label, value, setValue, options, error }) => {
+  return (
+    <FormControl component="fieldset" error={error}>
+      <FormLabel component="legend">{label}</FormLabel>
+      <RadioGroup value={value} onChange={(e) => setValue(e.target.value)}>
+        {options.map((option) => (
+          <FormControlLabel
+            key={option.value}
+            value={option.value}
+            control={<Radio />}
+            label={option.label}
+          />
+        ))}
+      </RadioGroup>
+      {error && <FormHelperText>{error}</FormHelperText>}
+    </FormControl>
+  );
+};
 
 export default function Register() {
-  // requires
-  const [username, setUserName] = useState("");
-  const [job, setJob] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const [formData, setFormData] = useState({
+    username: "",
+    job: "",
+    phoneNumber: "",
+    password: "",
+    confirmPassword: "",
+    privilegeUsersPage: "عدم العرض او التعديل",
+    privilegeCreateInvoicePage: "عدم العرض او التعديل",
+    privilegeInvoicesPage: "عدم العرض او التعديل",
+    privilegeItemsPage: "عدم العرض او التعديل",
+    privilegeSuppliersPage: "عدم العرض او التعديل",
+    privilegeMachinesPage: "عدم العرض او التعديل",
+    privilegeMechanismPage: "عدم العرض او التعديل",
+  });
 
-  // errors
-  const [nameError, setNameError] = useState("");
-  const [jobError, setJobError] = useState("");
-  const [passwordError, setPasswordError] = useState("");
-  const [confirmPasswordError, setConfirmPasswordError] = useState("");
-
-  // snackbar
+  const [errors, setErrors] = useState({});
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackBarType, setSnackBarType] = useState("");
 
   const [addUser, { isLoading: mutationLoading }] = useAddUserMutation();
-
-  const handleCloseSnackbar = () => {
-    setOpenSnackbar(false);
-  };
-
   const navigate = useNavigate();
 
   const jobs = [
     { value: "موظف", label: "موظف" },
     { value: "مدير", label: "مدير" },
+    { value: "مشرف", label: "مشرف" },
   ];
+
+  const privileges = [
+    { value: "العرض والتعديل", label: "العرض والتعديل" },
+    { value: "العرض فقط", label: "العرض فقط" },
+    { value: "عدم العرض او التعديل", label: "عدم العرض او التعديل" },
+  ];
+
+  const handleChange = (field, value) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setNameError("");
-    setJobError("");
-    setPasswordError("");
-    setConfirmPasswordError("");
+    setErrors({});
 
-    if (!username) {
-      setNameError("يرجى ادخال الاسم");
-      return;
-    } else if (username.length > 80) {
-      setNameError("الاسم لا يمكن أن يكون أطول من 80 حرفًا");
-      return;
-    }
+    let newErrors = {};
+    if (!formData.username) newErrors.username = "يرجى ادخال الاسم";
+    if (!formData.job) newErrors.job = "يرجى ادخال اسم الوظيفة";
+    if (!formData.password) newErrors.password = "يرجى ادخال كلمة المرور";
+    else if (formData.password.length < 6 || formData.password.length > 120)
+      newErrors.password = "يجب أن تتراوح كلمة المرور بين 6 و 120 حرفًا";
+    if (!formData.confirmPassword)
+      newErrors.confirmPassword = "يرجى تأكيد كلمة المرور";
+    else if (formData.password !== formData.confirmPassword)
+      newErrors.confirmPassword = "كلمات المرور غير متطابقة";
 
-    if (!job) {
-      setJobError("يرجى ادخال اسم الوظيفة");
-      return;
-    }
-
-    if (!password) {
-      setPasswordError("يرجى ادخال كلمة المرور");
-      return;
-    } else if (password.length < 6 || password.length > 120) {
-      setPasswordError("يجب أن تتراوح كلمة المرور بين 6 و 120 حرفًا");
-      return;
-    }
-
-    if (!confirmPassword) {
-      setConfirmPasswordError("يرجى تأكيد كلمة المرور");
-      return;
-    } else if (password !== confirmPassword) {
-      setConfirmPasswordError("كلمات المرور غير متطابقة");
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
       return;
     }
 
     const dataToSend = {
-      username,
-      password,
-      phone_number: phoneNumber,
-      job_name: job,
+      username: formData.username,
+      password: formData.password,
+      phone_number: formData.phoneNumber,
+      job_name: formData.job,
+      privilege_users_page: formData.privilegeUsersPage,
+      privilege_create_invoice_page: formData.privilegeCreateInvoicePage,
+      privilege_invoices_page: formData.privilegeInvoicesPage,
+      privilege_items_page: formData.privilegeItemsPage,
+      privilege_suppliers_page: formData.privilegeSuppliersPage,
+      privilege_machines_page: formData.privilegeMachinesPage,
+      privilege_mechanism_page: formData.privilegeMechanismPage,
     };
+    console.log(dataToSend);
 
     try {
       const response = await addUser(dataToSend).unwrap();
@@ -99,7 +126,7 @@ export default function Register() {
       }
     } catch (error) {
       if (error?.data?.message === "Username already exists") {
-        setNameError("الاسم غير متاح");
+        setErrors((prev) => ({ ...prev, username: "الاسم غير متاح" }));
         setSnackbarMessage("اسم المستخدم موجود بالفعل. يرجى اختيار اسم آخر.");
         setSnackBarType("info");
       } else {
@@ -111,10 +138,6 @@ export default function Register() {
     }
   };
 
-  const handleBack = () => {
-    navigate(-1);
-  };
-
   return (
     <div className={styles.container}>
       <Box
@@ -124,7 +147,7 @@ export default function Register() {
         className={styles.boxForm}
       >
         <Paper className={styles.paper}>
-          <IconButton className={styles.iconBtn} onClick={handleBack}>
+          <IconButton className={styles.iconBtn} onClick={() => navigate(-1)}>
             <ArrowBackOutlinedIcon className={styles.arrow} />
           </IconButton>
           <h2 className={styles.subTitle}>التسجيل</h2>
@@ -133,42 +156,112 @@ export default function Register() {
             onSubmit={handleSubmit}
             className={styles.textFields}
           >
-            <CustomTextField
-              label="الاسم"
-              value={username}
-              setValue={setUserName}
-              valueError={nameError}
-              className={styles.textField}
-            />
-            <CustomTextField
-              label="رقم الهاتف"
-              value={phoneNumber}
-              setValue={setPhoneNumber}
-              className={styles.textField}
-            />
-            <CustomSelectField
-              label="اختر الوظيفة"
-              value={job}
-              setValue={setJob}
-              options={jobs}
-              error={!!jobError}
-            />
-            <CustomTextField
-              label="كلمة المرور"
-              type={"password"}
-              value={password}
-              setValue={setPassword}
-              valueError={passwordError}
-              className={styles.textField}
-            />
-            <CustomTextField
-              label="تأكيد كلمة المرور"
-              type={"password"}
-              value={confirmPassword}
-              setValue={setConfirmPassword}
-              valueError={confirmPasswordError}
-              className={styles.textField}
-            />
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: "15px",
+                justifyContent: "center",
+              }}
+            >
+              <CustomTextField
+                label="الاسم"
+                value={formData.username}
+                setValue={(value) => handleChange("username", value)}
+                valueError={errors.username}
+                className={styles.textField}
+              />
+              <CustomTextField
+                label="رقم الهاتف"
+                value={formData.phoneNumber}
+                setValue={(value) => handleChange("phoneNumber", value)}
+                className={styles.textField}
+              />
+              <CustomSelectField
+                label="اختر الوظيفة"
+                value={formData.job}
+                setValue={(value) => handleChange("job", value)}
+                options={jobs}
+                error={!!errors.job}
+              />
+              <CustomTextField
+                label="كلمة المرور"
+                type="password"
+                value={formData.password}
+                setValue={(value) => handleChange("password", value)}
+                valueError={errors.password}
+                className={styles.textField}
+              />
+              <CustomTextField
+                label="تأكيد كلمة المرور"
+                type="password"
+                value={formData.confirmPassword}
+                setValue={(value) => handleChange("confirmPassword", value)}
+                valueError={errors.confirmPassword}
+                className={styles.textField}
+              />
+            </div>
+            <div>
+              <CustomRadioField
+                label="صلاحيات صفحة الموظفين"
+                value={formData.privilegeUsersPage}
+                setValue={(value) => handleChange("privilegeUsersPage", value)}
+                options={privileges}
+                error={!!errors.privilegeUsersPage}
+              />
+              <CustomRadioField
+                label="صلاحيات صفحة إنشاء عملية"
+                value={formData.privilegeCreateInvoicePage}
+                setValue={(value) =>
+                  handleChange("privilegeCreateInvoicePage", value)
+                }
+                options={privileges}
+                error={!!errors.privilegeCreateInvoicePage}
+              />
+              <CustomRadioField
+                label="صلاحيات صفحة إدارة العمليات"
+                value={formData.privilegeInvoicesPage}
+                setValue={(value) =>
+                  handleChange("privilegeInvoicesPage", value)
+                }
+                options={privileges}
+                error={!!errors.privilegeInvoicesPage}
+              />
+              <CustomRadioField
+                label="صلاحيات صفحة الأصناف"
+                value={formData.privilegeItemsPage}
+                setValue={(value) => handleChange("privilegeItemsPage", value)}
+                options={privileges}
+                error={!!errors.privilegeItemsPage}
+              />
+              <CustomRadioField
+                label="صلاحيات صفحة الموردين"
+                value={formData.privilegeSuppliersPage}
+                setValue={(value) =>
+                  handleChange("privilegeSuppliersPage", value)
+                }
+                options={privileges}
+                error={!!errors.privilegeSuppliersPage}
+              />
+              <CustomRadioField
+                label="صلاحيات صفحة الماكينات"
+                value={formData.privilegeMachinesPage}
+                setValue={(value) =>
+                  handleChange("privilegeMachinesPage", value)
+                }
+                options={privileges}
+                error={!!errors.privilegeMachinesPage}
+              />
+              <CustomRadioField
+                label="صلاحيات صفحة الميكانيزم"
+                value={formData.privilegeMechanismPage}
+                setValue={(value) =>
+                  handleChange("privilegeMechanismPage", value)
+                }
+                options={privileges}
+                error={!!errors.privilegeMechanismPage}
+              />
+            </div>
           </Box>
           <Button
             type="submit"
@@ -182,12 +275,11 @@ export default function Register() {
           <Box>{mutationLoading ? <CircularProgress size={24} /> : ""}</Box>
         </Paper>
       </Box>
-
       <SnackBar
         open={openSnackbar}
         message={snackbarMessage}
         type={snackBarType}
-        onClose={handleCloseSnackbar}
+        onClose={() => setOpenSnackbar(false)}
       />
     </div>
   );

@@ -1,5 +1,5 @@
 import styles from "./Items.module.css";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   Dialog,
   DialogActions,
@@ -25,39 +25,27 @@ import CustomDataGrid from "../../components/dataGrid/CustomDataGrid";
 import NumberInput from "../../components/number/NumberInput";
 import { isNumber } from "@mui/x-data-grid/internals";
 import CustomToolbar from "../../components/customToolBar/CustomToolBar";
+import {
+  useGetWarehousesQuery,
+  useAddWarehouseMutation,
+  useUpdateWarehouseMutation,
+  useDeleteWarehouseMutation,
+} from "../services/warehouseApi";
+import { useGetUserQuery } from "../services/userApi";
 
 export default function Items() {
-  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
-
-  // loaders
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [isAdding, setIsAdding] = useState(false);
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [isMachinesLoading, setIsMachinesLoading] = useState(false);
-
-  const [initialItems, setInitialItems] = useState([]);
-
-  // fetch invoices
-  const fetchItemsData = async () => {
-    const accessToken = localStorage.getItem("access_token");
-    if (!accessToken) return;
-    setIsMachinesLoading(true);
-    try {
-      const response = await fetch(`${API_BASE_URL}/warehouse/`, {
-        method: "GET",
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-      const data = await response.json();
-      setInitialItems(data);
-    } catch (err) {
-      console.error("Error fetching user data:", err);
-    } finally {
-      setIsMachinesLoading(false);
-    }
-  };
-  useEffect(() => {
-    fetchItemsData();
-  }, []);
+  // RTK Query Hooks
+  const { data: user, isLoading: isLoadingUser } = useGetUserQuery();
+  const {
+    data: initialItems = [],
+    isLoading: isMachinesLoading,
+    refetch,
+  } = useGetWarehousesQuery();
+  const [addWarehouse, { isLoading: isAdding }] = useAddWarehouseMutation();
+  const [updateWarehouse, { isLoading: isUpdating }] =
+    useUpdateWarehouseMutation();
+  const [deleteWarehouse, { isLoading: isDeleting }] =
+    useDeleteWarehouseMutation();
 
   // collors
   const primaryColor = getComputedStyle(
@@ -142,34 +130,14 @@ export default function Items() {
         },
       ],
     };
-
-    setIsAdding(true);
     try {
-      const accessToken = localStorage.getItem("access_token");
+      await addWarehouse(updatedItems).unwrap();
+      await refetch();
 
-      const response = await fetch(`${API_BASE_URL}/warehouse/`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify(updatedItems),
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to create invoice");
-      }
-      await fetchItemsData();
       setNewItem({
         item_name: "",
         item_bar: "",
-        locations: [
-          {
-            location: "",
-            price_unit: 0,
-            quantity: 0,
-          },
-        ],
+        locations: [{ location: "", price_unit: 0, quantity: 0 }],
       });
       setErrors({});
       setOpenDialog(false);
@@ -177,24 +145,18 @@ export default function Items() {
       setSnackbarMessage("تمت اضافة المنتج");
       setSnackBarType("success");
     } catch (error) {
-      console.error("Error creating invoice:", error);
+      console.error("Error creating item:", error);
       setOpenSnackbar(true);
       setSnackbarMessage("اسم العنصر او الرمز موجود بالفعل");
       setSnackBarType("error");
-    } finally {
-      setIsAdding(false);
     }
   };
 
   // filters invoices
-  const filteredAndFormattedData = Array.isArray(initialItems)
-    ? initialItems.map((item) => ({
-        ...item,
-        locations: Array.isArray(item.locations)
-          ? item.locations.map((loc) => loc.location).join(", ")
-          : "",
-      }))
-    : [];
+  const filteredAndFormattedData = initialItems.map((item) => ({
+    ...item,
+    locations: item.locations.map((loc) => loc.location).join(", "),
+  }));
 
   // columns
   const columns = [
@@ -290,25 +252,9 @@ export default function Items() {
       ...editingItem,
       locations: newItems,
     };
-    const accessToken = localStorage.getItem("access_token");
-    setIsUpdating(true);
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/warehouse/${editingItem.id}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify(updatedItems),
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Failed to update user: ${response.status}`);
-      }
-      await fetchItemsData();
+      await updateWarehouse({ id: editingItem.id, ...updatedItems }).unwrap();
+      await refetch();
 
       setSelectedItem(updatedItems);
       setEditingItem(null);
@@ -318,12 +264,10 @@ export default function Items() {
       setSnackbarMessage("تم تعديل المنتج");
       setSnackBarType("success");
     } catch (error) {
-      console.error("Error updating user:", error);
+      console.error("Error updating item:", error);
       setOpenSnackbar(true);
       setSnackbarMessage("اسم العنصر او الرمز موجود بالفعل");
       setSnackBarType("error");
-    } finally {
-      setIsUpdating(false);
     }
   };
 
@@ -341,27 +285,10 @@ export default function Items() {
   // delete item
   const handleDelete = async () => {
     if (deleteConfirmationText.trim().toLowerCase() === "نعم") {
-      const accessToken = localStorage.getItem("access_token");
-      setIsDeleting(true);
       try {
-        const response = await fetch(
-          `${API_BASE_URL}/warehouse/${selectedUserId}`,
-          {
-            method: "DELETE",
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-            },
-          }
-        );
+        await deleteWarehouse(selectedUserId).unwrap();
+        await refetch();
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || "Failed to delete user");
-        }
-
-        setInitialItems((prev) =>
-          prev.filter((item) => item.id !== selectedUserId)
-        );
         setOpenSnackbar(true);
         setSnackbarMessage("تم حذف المنتج");
         setSnackBarType("success");
@@ -369,17 +296,12 @@ export default function Items() {
         setSelectedUserId(null);
         setDeleteDialogOpen(false);
       } catch (error) {
-        console.error("Error deleting user:", error);
+        console.error("Error deleting item:", error);
         setOpenSnackbar(true);
         setSnackbarMessage(
           "خطأ في حذف العنصر اذا استمرت المشكلة حاول اعادة تحميل الصفحة"
         );
         setSnackBarType("error");
-        setDeleteConfirmationText("");
-        setSelectedUserId(null);
-        setDeleteDialogOpen(false);
-      } finally {
-        setIsDeleting(false);
       }
     }
   };
@@ -415,46 +337,6 @@ export default function Items() {
     setDeleteDialogLocationOpen(false);
   };
 
-  const [isUserLoading, setIsUserLoading] = useState(false);
-  const [user, setUser] = useState({});
-  useEffect(() => {
-    const fetchUserData = async () => {
-      const accessToken = localStorage.getItem("access_token");
-
-      if (!accessToken) {
-        console.error("No access token found.");
-        return;
-      }
-
-      setIsUserLoading(true);
-      setTimeout(async () => {
-        try {
-          const response = await fetch(`${API_BASE_URL}/auth/user`, {
-            method: "GET",
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-            },
-          });
-
-          if (!response.ok) {
-            throw new Error(
-              `Failed to fetch user data: ${response.statusText}`
-            );
-          }
-
-          const data = await response.json();
-          setUser(data);
-          return data;
-        } catch (err) {
-          console.error("Error fetching user data:", err);
-        } finally {
-          setIsUserLoading(false);
-        }
-      }, 2000);
-    };
-
-    fetchUserData();
-  }, [API_BASE_URL]);
   // if (isUserLoading) {
   //   return (
   //     <div
@@ -473,853 +355,826 @@ export default function Items() {
   //   );
   // } else {
   //   if (user.username === "esraa") {
-      return (
-        <div className={styles.container}>
-          {/* title */}
-          <div>
-            <h1 className={styles.title}>المنتجات</h1>
+  return (
+    <div className={styles.container}>
+      {/* title */}
+      <div>
+        <h1 className={styles.title}>المنتجات</h1>
+      </div>
+
+      {/* delete dialog item */}
+      <DeleteRow
+        deleteDialogOpen={deleteDialogOpen}
+        setDeleteDialogOpen={setDeleteDialogOpen}
+        deleteConfirmationText={deleteConfirmationText}
+        setDeleteConfirmationText={setDeleteConfirmationText}
+        handleDelete={handleDelete}
+        message={"هل أنت متأكد من رغبتك في حذف هذا العنصر؟"}
+        loader={isDeleting}
+      />
+
+      {/* delete dialog location */}
+      <DeleteRow
+        deleteDialogOpen={deleteDialogLocationOpen}
+        setDeleteDialogOpen={setDeleteDialogLocationOpen}
+        deleteConfirmationText={deleteLocationConfirmationText}
+        setDeleteConfirmationText={setDeleteLocationConfirmationText}
+        handleDelete={() => handleDeleteLocation(selectedLocationId)}
+        message={"هل أنت متأكد من رغبتك في حذف هذا الموقع؟"}
+        isNessary={false}
+      />
+
+      {/* table */}
+      <CustomDataGrid
+        rows={filteredAndFormattedData}
+        columns={columns}
+        paginationModel={paginationModel}
+        onPageChange={handlePageChange}
+        pageCount={pageCount}
+        CustomToolbar={CustomToolbar}
+        initialItems={initialItems}
+        excelURL={"machine"}
+        primaryColor={primaryColor}
+        setOpenDialog={setOpenDialog}
+        loader={isMachinesLoading}
+      />
+
+      {/* add dialog */}
+      <Dialog
+        open={openDialog}
+        onClose={() => {
+          setOpenDialog(false);
+          setErrors({});
+        }}
+        sx={{
+          marginTop: "30px",
+          zIndex: "99999",
+        }}
+      >
+        <DialogTitle
+          sx={{
+            textAlign: "center",
+          }}
+        >
+          إضافة عنصر جديد
+        </DialogTitle>
+        <DialogContent sx={{ width: "500px" }}>
+          <div style={{ marginBottom: "10px", marginTop: "10px" }}>
+            <label
+              style={{
+                display: "block",
+                marginBottom: "5px",
+                textAlign: "right",
+                fontWeight: "bold",
+                color: errors.item_name ? "#d32f2f" : "#555",
+              }}
+            >
+              الاسم
+            </label>
+            <input
+              type="text"
+              value={newItem.item_name}
+              onChange={(e) =>
+                setNewItem({ ...newItem, item_name: e.target.value })
+              }
+              style={{
+                width: "100%",
+                padding: "10px",
+                fontSize: "1rem",
+                border: errors.item_name
+                  ? "1px solid #d32f2f"
+                  : "1px solid #ccc",
+                borderRadius: "4px",
+                direction: "rtl",
+                textAlign: "right",
+                outline: "none",
+                transition: "border-color 0.2s",
+              }}
+              onFocus={(e) => (e.target.style.borderColor = "#1976d2")}
+              onBlur={(e) => (e.target.style.borderColor = "#ccc")}
+            />
+            {errors.item_name && (
+              <span
+                style={{
+                  color: "#d32f2f",
+                  fontSize: "0.875rem",
+                  marginTop: "5px",
+                  display: "block",
+                  textAlign: "right",
+                }}
+              >
+                {errors.item_name}
+              </span>
+            )}
           </div>
 
-          {/* delete dialog item */}
-          <DeleteRow
-            deleteDialogOpen={deleteDialogOpen}
-            setDeleteDialogOpen={setDeleteDialogOpen}
-            deleteConfirmationText={deleteConfirmationText}
-            setDeleteConfirmationText={setDeleteConfirmationText}
-            handleDelete={handleDelete}
-            message={"هل أنت متأكد من رغبتك في حذف هذا العنصر؟"}
-            loader={isDeleting}
-          />
-
-          {/* delete dialog location */}
-          <DeleteRow
-            deleteDialogOpen={deleteDialogLocationOpen}
-            setDeleteDialogOpen={setDeleteDialogLocationOpen}
-            deleteConfirmationText={deleteLocationConfirmationText}
-            setDeleteConfirmationText={setDeleteLocationConfirmationText}
-            handleDelete={() => handleDeleteLocation(selectedLocationId)}
-            message={"هل أنت متأكد من رغبتك في حذف هذا الموقع؟"}
-            isNessary={false}
-          />
-
-          {/* table */}
-          <CustomDataGrid
-            rows={filteredAndFormattedData}
-            columns={columns}
-            paginationModel={paginationModel}
-            onPageChange={handlePageChange}
-            pageCount={pageCount}
-            CustomToolbar={CustomToolbar}
-            fetchItemsData={fetchItemsData}
-            initialItems={initialItems}
-            excelURL={"machine"}
-            primaryColor={primaryColor}
-            API_BASE_URL={API_BASE_URL}
-            setOpenDialog={setOpenDialog}
-            loader={isMachinesLoading}
-          />
-
-          {/* add dialog */}
-          <Dialog
-            open={openDialog}
-            onClose={() => {
-              setOpenDialog(false);
-              setNewItem({
-                item_name: "",
-                item_bar: "",
-                locations: [
-                  {
-                    location: "",
-                    price_unit: 0,
-                    quantity: 0,
-                  },
-                ],
-              });
-              setErrors({});
-            }}
-            sx={{
-              marginTop: "30px",
-              zIndex: "99999",
-            }}
-          >
-            <DialogTitle
-              sx={{
-                textAlign: "center",
+          <div style={{ marginBottom: "10px", marginTop: "10px" }}>
+            <label
+              style={{
+                display: "block",
+                marginBottom: "5px",
+                textAlign: "right",
+                fontWeight: "bold",
+                color: errors.item_bar ? "#d32f2f" : "#555",
               }}
             >
-              إضافة عنصر جديد
-            </DialogTitle>
-            <DialogContent sx={{ width: "500px" }}>
-              <div style={{ marginBottom: "10px", marginTop: "10px" }}>
-                <label
-                  style={{
-                    display: "block",
-                    marginBottom: "5px",
-                    textAlign: "right",
-                    fontWeight: "bold",
-                    color: errors.item_name ? "#d32f2f" : "#555",
-                  }}
-                >
-                  الاسم
-                </label>
-                <input
-                  type="text"
-                  value={newItem.item_name}
-                  onChange={(e) =>
-                    setNewItem({ ...newItem, item_name: e.target.value })
-                  }
-                  style={{
-                    width: "100%",
-                    padding: "10px",
-                    fontSize: "1rem",
-                    border: errors.item_name
-                      ? "1px solid #d32f2f"
-                      : "1px solid #ccc",
-                    borderRadius: "4px",
-                    direction: "rtl",
-                    textAlign: "right",
-                    outline: "none",
-                    transition: "border-color 0.2s",
-                  }}
-                  onFocus={(e) => (e.target.style.borderColor = "#1976d2")}
-                  onBlur={(e) => (e.target.style.borderColor = "#ccc")}
-                />
-                {errors.item_name && (
-                  <span
-                    style={{
-                      color: "#d32f2f",
-                      fontSize: "0.875rem",
-                      marginTop: "5px",
-                      display: "block",
-                      textAlign: "right",
-                    }}
-                  >
-                    {errors.item_name}
-                  </span>
-                )}
-              </div>
-
-              <div style={{ marginBottom: "10px", marginTop: "10px" }}>
-                <label
-                  style={{
-                    display: "block",
-                    marginBottom: "5px",
-                    textAlign: "right",
-                    fontWeight: "bold",
-                    color: errors.item_bar ? "#d32f2f" : "#555",
-                  }}
-                >
-                  الرمز
-                </label>
-                <input
-                  type="text"
-                  value={newItem.item_bar}
-                  onChange={(e) =>
-                    setNewItem({ ...newItem, item_bar: e.target.value })
-                  }
-                  style={{
-                    width: "100%",
-                    padding: "10px",
-                    fontSize: "1rem",
-                    border: errors.item_bar
-                      ? "1px solid #d32f2f"
-                      : "1px solid #ccc",
-                    borderRadius: "4px",
-                    direction: "rtl",
-                    textAlign: "right",
-                    outline: "none",
-                    transition: "border-color 0.2s",
-                  }}
-                  onFocus={(e) => (e.target.style.borderColor = "#1976d2")}
-                  onBlur={(e) => (e.target.style.borderColor = "#ccc")}
-                />
-                {errors.item_bar && (
-                  <span
-                    style={{
-                      color: "#d32f2f",
-                      fontSize: "0.875rem",
-                      marginTop: "5px",
-                      display: "block",
-                      textAlign: "right",
-                    }}
-                  >
-                    {errors.item_bar}
-                  </span>
-                )}
-              </div>
-
-              <div style={{ marginBottom: "10px", marginTop: "10px" }}>
-                <label
-                  style={{
-                    display: "block",
-                    marginBottom: "5px",
-                    textAlign: "right",
-                    fontWeight: "bold",
-                    color: errors?.locations?.[0]?.location
-                      ? "#d32f2f"
-                      : "#555",
-                  }}
-                >
-                  الموقع
-                </label>
-                <input
-                  type="text"
-                  value={newItem?.locations?.[0]?.location || ""}
-                  onChange={(e) => {
-                    const updatedLocations = [...newItem.locations];
-                    updatedLocations[0].location = e.target.value;
-                    setNewItem({ ...newItem, locations: updatedLocations });
-                  }}
-                  style={{
-                    width: "100%",
-                    padding: "10px",
-                    fontSize: "1rem",
-                    border: `1px solid ${
-                      errors?.locations?.[0]?.location ? "#d32f2f" : "#ccc"
-                    }`,
-                    borderRadius: "4px",
-                    direction: "rtl",
-                    textAlign: "right",
-                    outline: "none",
-                    transition: "border-color 0.2s",
-                  }}
-                  onFocus={(e) => (e.target.style.borderColor = "#1976d2")}
-                  onBlur={(e) => (e.target.style.borderColor = "#ccc")}
-                />
-                {errors?.locations?.[0]?.location && (
-                  <span
-                    style={{
-                      color: "#d32f2f",
-                      fontSize: "0.875rem",
-                      marginTop: "5px",
-                      display: "block",
-                      textAlign: "right",
-                    }}
-                  >
-                    {errors.locations[0].location}
-                  </span>
-                )}
-              </div>
-
-              <div style={{ marginBottom: "10px", marginTop: "10px" }}>
-                <label
-                  style={{
-                    display: "block",
-                    marginBottom: "5px",
-                    textAlign: "right",
-                    fontWeight: "bold",
-                    color: errors?.locations?.[0]?.quantity
-                      ? "#d32f2f"
-                      : "#555",
-                  }}
-                >
-                  الكمية
-                </label>
-                <NumberInput
-                  value={newItem.locations[0]?.quantity ?? ""}
-                  onChange={(e) => {
-                    const value =
-                      e.target.value === ""
-                        ? ""
-                        : Math.max(0, Number(e.target.value));
-                    const updatedLocations = [...newItem.locations];
-                    updatedLocations[0].quantity = value;
-                    setNewItem({ ...newItem, locations: updatedLocations });
-                  }}
-                  style={{
-                    width: "100%",
-                    padding: "10px",
-                    fontSize: "1rem",
-                    border: errors?.locations?.[0]?.quantity
-                      ? "1px solid #d32f2f"
-                      : "1px solid #ccc",
-                    borderRadius: "4px",
-                    direction: "rtl",
-                    textAlign: "right",
-                    outline: "none",
-                    transition: "border-color 0.2s",
-                  }}
-                  onFocus={(e) => (e.target.style.borderColor = "#1976d2")}
-                  onBlur={(e) => (e.target.style.borderColor = "#ccc")}
-                />
-
-                {errors?.locations?.[0]?.quantity && (
-                  <span
-                    style={{
-                      color: "#d32f2f",
-                      fontSize: "0.875rem",
-                      marginTop: "5px",
-                      display: "block",
-                      textAlign: "right",
-                    }}
-                  >
-                    {errors.locations[0].quantity}
-                  </span>
-                )}
-              </div>
-
-              <div style={{ marginBottom: "10px", marginTop: "10px" }}>
-                <label
-                  style={{
-                    display: "block",
-                    marginBottom: "5px",
-                    textAlign: "right",
-                    fontWeight: "bold",
-                    color: errors?.locations?.[0]?.price_unit
-                      ? "#d32f2f"
-                      : "#555",
-                  }}
-                >
-                  سعر القطعة
-                </label>
-                <NumberInput
-                  value={newItem.locations[0]?.price_unit ?? ""}
-                  onChange={(e) => {
-                    const value =
-                      e.target.value === ""
-                        ? ""
-                        : Math.max(0, Number(e.target.value));
-                    const updatedLocations = [...newItem.locations];
-                    updatedLocations[0].price_unit = value;
-                    setNewItem({ ...newItem, locations: updatedLocations });
-                  }}
-                  style={{
-                    width: "100%",
-                    padding: "10px",
-                    fontSize: "1rem",
-                    border: errors?.locations?.[0]?.price_unit
-                      ? "1px solid #d32f2f"
-                      : "1px solid #ccc",
-                    borderRadius: "4px",
-                    direction: "rtl",
-                    textAlign: "right",
-                    outline: "none",
-                    transition: "border-color 0.2s",
-                  }}
-                  onFocus={(e) => (e.target.style.borderColor = "#1976d2")}
-                  onBlur={(e) => (e.target.style.borderColor = "#ccc")}
-                />
-
-                {errors?.locations?.[0]?.price_unit && (
-                  <span
-                    style={{
-                      color: "#d32f2f",
-                      fontSize: "0.875rem",
-                      marginTop: "5px",
-                      display: "block",
-                      textAlign: "right",
-                    }}
-                  >
-                    {errors.locations[0].price_unit}
-                  </span>
-                )}
-              </div>
-
-              <DialogActions
-                sx={{
-                  display: "flex",
-                  justifyContent: "space-around",
-                }}
-              >
-                <Button
-                  variant="contained"
-                  color="error"
-                  onClick={() => {
-                    setOpenDialog(false);
-                    setNewItem({
-                      item_name: "",
-                      item_bar: "",
-                      locations: [
-                        {
-                          location: "",
-                          price_unit: 0,
-                          quantity: 0,
-                        },
-                      ],
-                    });
-                    setErrors({});
-                  }}
-                  className={`${styles.cancelCommentButton} ${styles.infoBtn}`}
-                >
-                  الغاء
-                </Button>
-                <Button
-                  variant="contained"
-                  color="primary"
-                  onClick={handleAddItem}
-                  className={`${styles.saveButton} ${styles.infoBtn}`}
-                  disabled={isAdding}
-                >
-                  {isAdding ? <CircularProgress size={25} /> : "إضافة"}
-                </Button>
-              </DialogActions>
-            </DialogContent>
-          </Dialog>
-
-          {/* invoice data */}
-          <Modal
-            open={isModalOpen}
-            onClose={closeModal}
-            aria-labelledby="modal-title"
-            aria-describedby="modal-description"
-            sx={{ zIndex: "99999" }}
-          >
-            <Box
-              sx={{
-                position: "absolute",
-                top: "50%",
-                left: "50%",
-                transform: "translate(-50%, -50%)",
-                width: "500px",
-                bgcolor: "#fff",
-                boxShadow: 24,
-                backgroundColor: "#f6f6f6",
-                p: 4,
-                borderRadius: 2,
-                maxHeight: "75vh",
-                overflowY: "auto",
-                "&::-webkit-scrollbar": {
-                  width: "8px",
-                },
-                "&::-webkit-scrollbar-thumb": {
-                  backgroundColor: primaryColor,
-                  borderRadius: "10px",
-                },
-                "&::-webkit-scrollbar-thumb:hover": {
-                  backgroundColor: "#145a9c",
-                },
-                "&::-webkit-scrollbar-track": {
-                  backgroundColor: "#f0f0f0",
-                  borderRadius: "10px",
-                },
+              الرمز
+            </label>
+            <input
+              type="text"
+              value={newItem.item_bar}
+              onChange={(e) =>
+                setNewItem({ ...newItem, item_bar: e.target.value })
+              }
+              style={{
+                width: "100%",
+                padding: "10px",
+                fontSize: "1rem",
+                border: errors.item_bar
+                  ? "1px solid #d32f2f"
+                  : "1px solid #ccc",
+                borderRadius: "4px",
+                direction: "rtl",
+                textAlign: "right",
+                outline: "none",
+                transition: "border-color 0.2s",
               }}
-            >
-              <h5
-                id="modal-title"
-                variant="h6"
-                component="h2"
+              onFocus={(e) => (e.target.style.borderColor = "#1976d2")}
+              onBlur={(e) => (e.target.style.borderColor = "#ccc")}
+            />
+            {errors.item_bar && (
+              <span
                 style={{
-                  textAlign: "center",
-                  fontWeight: "bold",
-                  fontSize: "1.2rem",
-                  marginBottom: "16px",
-                  color: "#1976d2",
-                  position: "relative",
-                  margin: "0 0 20px 0",
+                  color: "#d32f2f",
+                  fontSize: "0.875rem",
+                  marginTop: "5px",
+                  display: "block",
+                  textAlign: "right",
                 }}
               >
-                تفاصيل المنتج
-                {isEditingItem ? (
-                  <div>
-                    <button
-                      onClick={() => {
-                        setIsEditingItem(false);
-                      }}
-                      className={styles.iconBtn}
-                      style={{
-                        position: "absolute",
-                        top: "0px",
-                        left: "-10px",
-                      }}
-                    >
-                      <ClearOutlinedIcon
-                        sx={{
-                          fontSize: "30px",
-                          color: "#d32f2f",
-                        }}
-                      />
-                    </button>
-                    <button
-                      disabled={isUpdating}
-                      onClick={() => {
-                        handleSave();
-                      }}
-                      className={styles.iconBtn}
-                      style={{
-                        color: "#1976d2",
-                        position: "absolute",
-                        top: "0px",
-                        left: "20px",
-                      }}
-                    >
-                      {isUpdating ? (
-                        <CircularProgress size={25} />
-                      ) : (
-                        <SaveIcon />
-                      )}
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => {
-                      setIsEditingItem(true);
-                      setEditingItem(selectedItem);
-                    }}
-                    className={styles.iconBtn}
-                    style={{
-                      color: "#1976d2",
-                      position: "absolute",
-                      top: "0px",
-                      left: "-7px",
-                    }}
-                  >
-                    <EditIcon />
-                  </button>
-                )}
-              </h5>
-              {selectedItem && (
-                <Box id="modal-description" sx={{ direction: "rtl" }}>
-                  <Box
-                    style={{
-                      display: "flex",
-                      m: 1.5,
-                    }}
-                  >
-                    <h5
-                      style={{
-                        fontWeight: "bold",
-                        minWidth: "150px",
-                        color: "#717171",
-                      }}
-                    >
-                      اسم المنتج:
-                    </h5>
-                    <h5 style={{ flex: 1 }}>
-                      {isEditingItem ? (
-                        <input
-                          type="text"
-                          value={editingItem.item_name}
-                          onChange={(e) =>
-                            setEditingItem({
-                              ...editingItem,
-                              item_name: e.target.value,
-                            })
-                          }
-                          style={{
-                            width: "100%",
-                            outline: "none",
-                            fontSize: "15px",
-                            textAlign: "right",
-                            border: "none",
-                            padding: "10px",
-                          }}
-                        />
-                      ) : (
-                        selectedItem.item_name
-                      )}
-                    </h5>
-                  </Box>
-                  <Divider />
-                  <Box
-                    style={{
-                      display: "flex",
-                      m: 1.5,
-                    }}
-                  >
-                    <h5
-                      style={{
-                        fontWeight: "bold",
-                        minWidth: "150px",
-                        color: "#717171",
-                      }}
-                    >
-                      رمز المنتج:
-                    </h5>
-                    <h5 style={{ flex: 1 }}>
-                      {isEditingItem ? (
-                        <input
-                          type="text"
-                          value={editingItem.item_bar}
-                          onChange={(e) =>
-                            setEditingItem({
-                              ...editingItem,
-                              item_bar: e.target.value,
-                            })
-                          }
-                          style={{
-                            width: "100%",
-                            outline: "none",
-                            fontSize: "15px",
-                            textAlign: "right",
-                            border: "none",
-                            padding: "10px",
-                          }}
-                        />
-                      ) : (
-                        selectedItem.item_bar
-                      )}
-                    </h5>
-                  </Box>
-                  <Divider />
+                {errors.item_bar}
+              </span>
+            )}
+          </div>
 
-                  <List sx={{ marginTop: 1 }}>
-                    {(
-                      (isEditingItem && editingItem) ||
-                      selectedItem
-                    ).locations.map((item, index) => (
-                      <ListItem
-                        key={index}
-                        sx={{
-                          display: "flex",
-                          flexDirection: "column",
-                          backgroundColor: "#fafafa",
-                          borderRadius: "5px",
-                          marginBottom: "15px",
-                          boxShadow: "0 2px 4px rgba(0, 0, 0, 0.42)",
-                          position: "relative",
-                        }}
-                      >
-                        {isEditingItem ? (
-                          <button
-                            onClick={(e) =>
-                              handleDeleteLocationClick(item.location, index)
-                            }
-                            className={styles.iconBtn}
-                            style={{
-                              position: "absolute",
-                              left: "0px",
-                              top: "3px",
-                            }}
-                          >
-                            <ClearOutlinedIcon
-                              sx={{
-                                fontSize: "30px",
-                                color: "#d32f2f",
-                              }}
-                            />
-                          </button>
-                        ) : (
-                          ""
-                        )}
-                        <Box
-                          sx={{
-                            display: "flex",
-                            width: "100%",
+          <div style={{ marginBottom: "10px", marginTop: "10px" }}>
+            <label
+              style={{
+                display: "block",
+                marginBottom: "5px",
+                textAlign: "right",
+                fontWeight: "bold",
+                color: errors?.locations?.[0]?.location ? "#d32f2f" : "#555",
+              }}
+            >
+              الموقع
+            </label>
+            <input
+              type="text"
+              value={newItem?.locations?.[0]?.location || ""}
+              onChange={(e) => {
+                const updatedLocations = [...newItem.locations];
+                updatedLocations[0].location = e.target.value;
+                setNewItem({ ...newItem, locations: updatedLocations });
+              }}
+              style={{
+                width: "100%",
+                padding: "10px",
+                fontSize: "1rem",
+                border: `1px solid ${
+                  errors?.locations?.[0]?.location ? "#d32f2f" : "#ccc"
+                }`,
+                borderRadius: "4px",
+                direction: "rtl",
+                textAlign: "right",
+                outline: "none",
+                transition: "border-color 0.2s",
+              }}
+              onFocus={(e) => (e.target.style.borderColor = "#1976d2")}
+              onBlur={(e) => (e.target.style.borderColor = "#ccc")}
+            />
+            {errors?.locations?.[0]?.location && (
+              <span
+                style={{
+                  color: "#d32f2f",
+                  fontSize: "0.875rem",
+                  marginTop: "5px",
+                  display: "block",
+                  textAlign: "right",
+                }}
+              >
+                {errors.locations[0].location}
+              </span>
+            )}
+          </div>
+
+          <div style={{ marginBottom: "10px", marginTop: "10px" }}>
+            <label
+              style={{
+                display: "block",
+                marginBottom: "5px",
+                textAlign: "right",
+                fontWeight: "bold",
+                color: errors?.locations?.[0]?.quantity ? "#d32f2f" : "#555",
+              }}
+            >
+              الكمية
+            </label>
+            <NumberInput
+              value={newItem.locations[0]?.quantity ?? ""}
+              onChange={(e) => {
+                const value =
+                  e.target.value === ""
+                    ? ""
+                    : Math.max(0, Number(e.target.value));
+                const updatedLocations = [...newItem.locations];
+                updatedLocations[0].quantity = value;
+                setNewItem({ ...newItem, locations: updatedLocations });
+              }}
+              style={{
+                width: "100%",
+                padding: "10px",
+                fontSize: "1rem",
+                border: errors?.locations?.[0]?.quantity
+                  ? "1px solid #d32f2f"
+                  : "1px solid #ccc",
+                borderRadius: "4px",
+                direction: "rtl",
+                textAlign: "right",
+                outline: "none",
+                transition: "border-color 0.2s",
+              }}
+              onFocus={(e) => (e.target.style.borderColor = "#1976d2")}
+              onBlur={(e) => (e.target.style.borderColor = "#ccc")}
+            />
+
+            {errors?.locations?.[0]?.quantity && (
+              <span
+                style={{
+                  color: "#d32f2f",
+                  fontSize: "0.875rem",
+                  marginTop: "5px",
+                  display: "block",
+                  textAlign: "right",
+                }}
+              >
+                {errors.locations[0].quantity}
+              </span>
+            )}
+          </div>
+
+          <div style={{ marginBottom: "10px", marginTop: "10px" }}>
+            <label
+              style={{
+                display: "block",
+                marginBottom: "5px",
+                textAlign: "right",
+                fontWeight: "bold",
+                color: errors?.locations?.[0]?.price_unit ? "#d32f2f" : "#555",
+              }}
+            >
+              سعر القطعة
+            </label>
+            <NumberInput
+              value={newItem.locations[0]?.price_unit ?? ""}
+              onChange={(e) => {
+                const value =
+                  e.target.value === ""
+                    ? ""
+                    : Math.max(0, Number(e.target.value));
+                const updatedLocations = [...newItem.locations];
+                updatedLocations[0].price_unit = value;
+                setNewItem({ ...newItem, locations: updatedLocations });
+              }}
+              style={{
+                width: "100%",
+                padding: "10px",
+                fontSize: "1rem",
+                border: errors?.locations?.[0]?.price_unit
+                  ? "1px solid #d32f2f"
+                  : "1px solid #ccc",
+                borderRadius: "4px",
+                direction: "rtl",
+                textAlign: "right",
+                outline: "none",
+                transition: "border-color 0.2s",
+              }}
+              onFocus={(e) => (e.target.style.borderColor = "#1976d2")}
+              onBlur={(e) => (e.target.style.borderColor = "#ccc")}
+            />
+
+            {errors?.locations?.[0]?.price_unit && (
+              <span
+                style={{
+                  color: "#d32f2f",
+                  fontSize: "0.875rem",
+                  marginTop: "5px",
+                  display: "block",
+                  textAlign: "right",
+                }}
+              >
+                {errors.locations[0].price_unit}
+              </span>
+            )}
+          </div>
+
+          <DialogActions
+            sx={{
+              display: "flex",
+              justifyContent: "space-around",
+            }}
+          >
+            <Button
+              variant="contained"
+              color="error"
+              onClick={() => {
+                setOpenDialog(false);
+                setNewItem({
+                  item_name: "",
+                  item_bar: "",
+                  locations: [
+                    {
+                      location: "",
+                      price_unit: 0,
+                      quantity: 0,
+                    },
+                  ],
+                });
+                setErrors({});
+              }}
+              className={`${styles.cancelCommentButton} ${styles.infoBtn}`}
+            >
+              الغاء
+            </Button>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handleAddItem}
+              className={`${styles.saveButton} ${styles.infoBtn}`}
+              disabled={isAdding}
+            >
+              {isAdding ? <CircularProgress size={25} /> : "إضافة"}
+            </Button>
+          </DialogActions>
+        </DialogContent>
+      </Dialog>
+
+      {/* invoice data */}
+      <Modal
+        open={isModalOpen}
+        onClose={closeModal}
+        aria-labelledby="modal-title"
+        aria-describedby="modal-description"
+        sx={{ zIndex: "99999" }}
+      >
+        <Box
+          sx={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            width: "500px",
+            bgcolor: "#fff",
+            boxShadow: 24,
+            backgroundColor: "#f6f6f6",
+            p: 4,
+            borderRadius: 2,
+            maxHeight: "75vh",
+            overflowY: "auto",
+            "&::-webkit-scrollbar": {
+              width: "8px",
+            },
+            "&::-webkit-scrollbar-thumb": {
+              backgroundColor: primaryColor,
+              borderRadius: "10px",
+            },
+            "&::-webkit-scrollbar-thumb:hover": {
+              backgroundColor: "#145a9c",
+            },
+            "&::-webkit-scrollbar-track": {
+              backgroundColor: "#f0f0f0",
+              borderRadius: "10px",
+            },
+          }}
+        >
+          <h5
+            id="modal-title"
+            variant="h6"
+            component="h2"
+            style={{
+              textAlign: "center",
+              fontWeight: "bold",
+              fontSize: "1.2rem",
+              marginBottom: "16px",
+              color: "#1976d2",
+              position: "relative",
+              margin: "0 0 20px 0",
+            }}
+          >
+            تفاصيل المنتج
+            {isEditingItem ? (
+              <div>
+                <button
+                  onClick={() => {
+                    setIsEditingItem(false);
+                  }}
+                  className={styles.iconBtn}
+                  style={{
+                    position: "absolute",
+                    top: "0px",
+                    left: "-10px",
+                  }}
+                >
+                  <ClearOutlinedIcon
+                    sx={{
+                      fontSize: "30px",
+                      color: "#d32f2f",
+                    }}
+                  />
+                </button>
+                <button
+                  disabled={isUpdating}
+                  onClick={() => {
+                    handleSave();
+                  }}
+                  className={styles.iconBtn}
+                  style={{
+                    color: "#1976d2",
+                    position: "absolute",
+                    top: "0px",
+                    left: "20px",
+                  }}
+                >
+                  {isUpdating ? <CircularProgress size={25} /> : <SaveIcon />}
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => {
+                  setIsEditingItem(true);
+                  setEditingItem(selectedItem);
+                }}
+                className={styles.iconBtn}
+                style={{
+                  color: "#1976d2",
+                  position: "absolute",
+                  top: "0px",
+                  left: "-7px",
+                }}
+              >
+                <EditIcon />
+              </button>
+            )}
+          </h5>
+          {selectedItem && (
+            <Box id="modal-description" sx={{ direction: "rtl" }}>
+              <Box
+                style={{
+                  display: "flex",
+                  m: 1.5,
+                }}
+              >
+                <h5
+                  style={{
+                    fontWeight: "bold",
+                    minWidth: "150px",
+                    color: "#717171",
+                  }}
+                >
+                  اسم المنتج:
+                </h5>
+                <h5 style={{ flex: 1 }}>
+                  {isEditingItem ? (
+                    <input
+                      type="text"
+                      value={editingItem.item_name}
+                      onChange={(e) =>
+                        setEditingItem({
+                          ...editingItem,
+                          item_name: e.target.value,
+                        })
+                      }
+                      style={{
+                        width: "100%",
+                        outline: "none",
+                        fontSize: "15px",
+                        textAlign: "right",
+                        border: "none",
+                        padding: "10px",
+                      }}
+                    />
+                  ) : (
+                    selectedItem.item_name
+                  )}
+                </h5>
+              </Box>
+              <Divider />
+              <Box
+                style={{
+                  display: "flex",
+                  m: 1.5,
+                }}
+              >
+                <h5
+                  style={{
+                    fontWeight: "bold",
+                    minWidth: "150px",
+                    color: "#717171",
+                  }}
+                >
+                  رمز المنتج:
+                </h5>
+                <h5 style={{ flex: 1 }}>
+                  {isEditingItem ? (
+                    <input
+                      type="text"
+                      value={editingItem.item_bar}
+                      onChange={(e) =>
+                        setEditingItem({
+                          ...editingItem,
+                          item_bar: e.target.value,
+                        })
+                      }
+                      style={{
+                        width: "100%",
+                        outline: "none",
+                        fontSize: "15px",
+                        textAlign: "right",
+                        border: "none",
+                        padding: "10px",
+                      }}
+                    />
+                  ) : (
+                    selectedItem.item_bar
+                  )}
+                </h5>
+              </Box>
+              <Divider />
+
+              <List sx={{ marginTop: 1 }}>
+                {((isEditingItem && editingItem) || selectedItem).locations.map(
+                  (item, index) => (
+                    <ListItem
+                      key={index}
+                      sx={{
+                        display: "flex",
+                        flexDirection: "column",
+                        backgroundColor: "#fafafa",
+                        borderRadius: "5px",
+                        marginBottom: "15px",
+                        boxShadow: "0 2px 4px rgba(0, 0, 0, 0.42)",
+                        position: "relative",
+                      }}
+                    >
+                      {isEditingItem ? (
+                        <button
+                          onClick={(e) =>
+                            handleDeleteLocationClick(item.location, index)
+                          }
+                          className={styles.iconBtn}
+                          style={{
+                            position: "absolute",
+                            left: "0px",
+                            top: "3px",
                           }}
                         >
-                          <h5
-                            style={{
-                              width: "100px",
-                              fontWeight: "bold",
-                              textAlign: "right",
+                          <ClearOutlinedIcon
+                            sx={{
+                              fontSize: "30px",
+                              color: "#d32f2f",
                             }}
-                          >
-                            الموقع:
+                          />
+                        </button>
+                      ) : (
+                        ""
+                      )}
+                      <Box
+                        sx={{
+                          display: "flex",
+                          width: "100%",
+                        }}
+                      >
+                        <h5
+                          style={{
+                            width: "100px",
+                            fontWeight: "bold",
+                            textAlign: "right",
+                          }}
+                        >
+                          الموقع:
+                        </h5>
+                        <Box>
+                          <h5>
+                            {isEditingItem ? (
+                              <input
+                                type="text"
+                                value={
+                                  editingItem.locations[index]?.location || ""
+                                }
+                                onChange={(e) => {
+                                  const updatedLocations = [
+                                    ...editingItem.locations,
+                                  ];
+                                  updatedLocations[index] = {
+                                    ...updatedLocations[index],
+                                    location: e.target.value,
+                                  };
+                                  setEditingItem({
+                                    ...editingItem,
+                                    locations: updatedLocations,
+                                  });
+                                }}
+                                style={{
+                                  width: "100%",
+                                  outline: "none",
+                                  fontSize: "15px",
+                                  textAlign: "right",
+                                  border: "none",
+                                  padding: "10px",
+                                }}
+                              />
+                            ) : (
+                              item.location
+                            )}
                           </h5>
-                          <Box>
-                            <h5>
-                              {isEditingItem ? (
-                                <input
-                                  type="text"
-                                  value={
-                                    editingItem.locations[index]?.location || ""
-                                  }
-                                  onChange={(e) => {
+                        </Box>
+                      </Box>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          width: "100%",
+                        }}
+                      >
+                        <h5
+                          style={{
+                            width: "100px",
+                            fontWeight: "bold",
+                            textAlign: "right",
+                          }}
+                        >
+                          الكمية:
+                        </h5>
+                        <Box>
+                          <h5>
+                            {isEditingItem ? (
+                              <NumberInput
+                                value={
+                                  editingItem.locations[index]?.quantity !==
+                                  undefined
+                                    ? editingItem.locations[index].quantity
+                                    : ""
+                                }
+                                onChange={(e) => {
+                                  const newQuantity = e.target.value;
+
+                                  if (!isNaN(newQuantity) && newQuantity >= 0) {
                                     const updatedLocations = [
                                       ...editingItem.locations,
                                     ];
                                     updatedLocations[index] = {
                                       ...updatedLocations[index],
-                                      location: e.target.value,
+                                      quantity: newQuantity,
                                     };
                                     setEditingItem({
                                       ...editingItem,
                                       locations: updatedLocations,
                                     });
-                                  }}
-                                  style={{
-                                    width: "100%",
-                                    outline: "none",
-                                    fontSize: "15px",
-                                    textAlign: "right",
-                                    border: "none",
-                                    padding: "10px",
-                                  }}
-                                />
-                              ) : (
-                                item.location
-                              )}
-                            </h5>
-                          </Box>
-                        </Box>
-                        <Box
-                          sx={{
-                            display: "flex",
-                            width: "100%",
-                          }}
-                        >
-                          <h5
-                            style={{
-                              width: "100px",
-                              fontWeight: "bold",
-                              textAlign: "right",
-                            }}
-                          >
-                            الكمية:
-                          </h5>
-                          <Box>
-                            <h5>
-                              {isEditingItem ? (
-                                <NumberInput
-                                  value={
-                                    editingItem.locations[index]?.quantity !==
-                                    undefined
-                                      ? editingItem.locations[index].quantity
-                                      : ""
                                   }
-                                  onChange={(e) => {
-                                    const newQuantity = e.target.value;
-
-                                    if (
-                                      !isNaN(newQuantity) &&
-                                      newQuantity >= 0
-                                    ) {
-                                      const updatedLocations = [
-                                        ...editingItem.locations,
-                                      ];
-                                      updatedLocations[index] = {
-                                        ...updatedLocations[index],
-                                        quantity: newQuantity,
-                                      };
-                                      setEditingItem({
-                                        ...editingItem,
-                                        locations: updatedLocations,
-                                      });
-                                    }
-                                  }}
-                                  style={{
-                                    width: "100%",
-                                    outline: "none",
-                                    fontSize: "15px",
-                                    textAlign: "right",
-                                    border: "none",
-                                    padding: "10px",
-                                  }}
-                                />
-                              ) : (
-                                item.quantity
-                              )}
-                            </h5>
-                          </Box>
-                        </Box>
-                        <Box
-                          sx={{
-                            display: "flex",
-                            width: "100%",
-                          }}
-                        >
-                          <h5
-                            style={{
-                              width: "100px",
-                              fontWeight: "bold",
-                              textAlign: "right",
-                            }}
-                          >
-                            السعر:
+                                }}
+                                style={{
+                                  width: "100%",
+                                  outline: "none",
+                                  fontSize: "15px",
+                                  textAlign: "right",
+                                  border: "none",
+                                  padding: "10px",
+                                }}
+                              />
+                            ) : (
+                              item.quantity
+                            )}
                           </h5>
-                          <Box>
-                            <h5>
-                              {isEditingItem ? (
-                                <NumberInput
-                                  value={
-                                    editingItem.locations[index]?.price_unit !==
-                                    undefined
-                                      ? editingItem.locations[index].price_unit
-                                      : ""
-                                  }
-                                  onChange={(e) => {
-                                    const newPriceUnit = e.target.value;
-                                    if (
-                                      !isNaN(newPriceUnit) &&
-                                      newPriceUnit >= 0
-                                    ) {
-                                      const updatedLocations = [
-                                        ...editingItem.locations,
-                                      ];
-                                      updatedLocations[index] = {
-                                        ...updatedLocations[index],
-                                        price_unit: newPriceUnit,
-                                      };
-                                      setEditingItem({
-                                        ...editingItem,
-                                        locations: updatedLocations,
-                                      });
-                                    }
-                                  }}
-                                  style={{
-                                    width: "100%",
-                                    outline: "none",
-                                    fontSize: "15px",
-                                    textAlign: "right",
-                                    border: "none",
-                                    padding: "10px",
-                                  }}
-                                />
-                              ) : (
-                                item.price_unit
-                              )}
-                            </h5>
-                          </Box>
                         </Box>
-                      </ListItem>
-                    ))}
-                    {isEditingItem && (
-                      <button
-                        onClick={() => {
-                          const newItem = {
-                            location: "",
-                            quantity: 0,
-                            price_unit: 0,
-                          };
-                          setEditingItem({
-                            ...editingItem,
-                            locations: [...editingItem.locations, newItem],
-                          });
-                        }}
-                        className={styles.iconBtn}
-                        style={{
-                          padding: "4px",
-                          backgroundColor: "#1976d2",
-                          color: "white",
-                          borderRadius: "50%",
-                          border: "none",
-                          cursor: "pointer",
+                      </Box>
+                      <Box
+                        sx={{
                           display: "flex",
-                          alignItems: "center",
+                          width: "100%",
                         }}
                       >
-                        <AddIcon sx={{ fontSize: "30px" }} />
-                      </button>
-                    )}
-                  </List>
-                </Box>
-              )}
-
-              <Box sx={{ mt: 3, textAlign: "center" }}>
-                <Button
-                  onClick={closeModal}
-                  variant="contained"
-                  color="primary"
-                  sx={{
-                    borderRadius: "20px",
-                    padding: "8px 20px",
-                  }}
-                >
-                  إغلاق
-                </Button>
-              </Box>
+                        <h5
+                          style={{
+                            width: "100px",
+                            fontWeight: "bold",
+                            textAlign: "right",
+                          }}
+                        >
+                          السعر:
+                        </h5>
+                        <Box>
+                          <h5>
+                            {isEditingItem ? (
+                              <NumberInput
+                                value={
+                                  editingItem.locations[index]?.price_unit !==
+                                  undefined
+                                    ? editingItem.locations[index].price_unit
+                                    : ""
+                                }
+                                onChange={(e) => {
+                                  const newPriceUnit = e.target.value;
+                                  if (
+                                    !isNaN(newPriceUnit) &&
+                                    newPriceUnit >= 0
+                                  ) {
+                                    const updatedLocations = [
+                                      ...editingItem.locations,
+                                    ];
+                                    updatedLocations[index] = {
+                                      ...updatedLocations[index],
+                                      price_unit: newPriceUnit,
+                                    };
+                                    setEditingItem({
+                                      ...editingItem,
+                                      locations: updatedLocations,
+                                    });
+                                  }
+                                }}
+                                style={{
+                                  width: "100%",
+                                  outline: "none",
+                                  fontSize: "15px",
+                                  textAlign: "right",
+                                  border: "none",
+                                  padding: "10px",
+                                }}
+                              />
+                            ) : (
+                              item.price_unit
+                            )}
+                          </h5>
+                        </Box>
+                      </Box>
+                    </ListItem>
+                  )
+                )}
+                {isEditingItem && (
+                  <button
+                    onClick={() => {
+                      const newItem = {
+                        location: "",
+                        quantity: 0,
+                        price_unit: 0,
+                      };
+                      setEditingItem({
+                        ...editingItem,
+                        locations: [...editingItem.locations, newItem],
+                      });
+                    }}
+                    className={styles.iconBtn}
+                    style={{
+                      padding: "4px",
+                      backgroundColor: "#1976d2",
+                      color: "white",
+                      borderRadius: "50%",
+                      border: "none",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                    }}
+                  >
+                    <AddIcon sx={{ fontSize: "30px" }} />
+                  </button>
+                )}
+              </List>
             </Box>
-          </Modal>
+          )}
 
-          {/* Snackbar */}
-          <SnackBar
-            open={openSnackbar}
-            message={snackbarMessage}
-            type={snackBarType}
-            onClose={handleCloseSnackbar}
-          />
-        </div>
-      );
+          <Box sx={{ mt: 3, textAlign: "center" }}>
+            <Button
+              onClick={closeModal}
+              variant="contained"
+              color="primary"
+              sx={{
+                borderRadius: "20px",
+                padding: "8px 20px",
+              }}
+            >
+              إغلاق
+            </Button>
+          </Box>
+        </Box>
+      </Modal>
+
+      {/* Snackbar */}
+      <SnackBar
+        open={openSnackbar}
+        message={snackbarMessage}
+        type={snackBarType}
+        onClose={handleCloseSnackbar}
+      />
+    </div>
+  );
   //   } else {
   //     return (
   //       <div
