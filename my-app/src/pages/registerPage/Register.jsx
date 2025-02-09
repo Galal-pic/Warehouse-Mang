@@ -1,17 +1,9 @@
 import React, { useState } from "react";
-import {
-  Box,
-  Button,
-  Paper,
-  IconButton,
-  CircularProgress,
-} from "@mui/material";
+import { Box, Button, IconButton, CircularProgress } from "@mui/material";
 import ArrowBackOutlinedIcon from "@mui/icons-material/ArrowBackOutlined";
 import styles from "./Register.module.css";
 import { useNavigate } from "react-router-dom";
 import SnackBar from "../../components/snackBar/SnackBar";
-import { CustomTextField } from "../../components/customTextField/CustomTextField";
-import CustomSelectField from "../../components/customSelectField/CustomSelectField";
 import { useAddUserMutation } from "../services/userApi";
 import {
   FormControl,
@@ -19,13 +11,20 @@ import {
   Radio,
   RadioGroup,
   FormLabel,
-  FormHelperText,
 } from "@mui/material";
 
 const CustomRadioField = ({ label, value, setValue, options, error }) => {
   return (
-    <FormControl component="fieldset" error={error}>
-      <FormLabel component="legend">{label}</FormLabel>
+    <FormControl component="fieldset" error={error} sx={{}}>
+      <FormLabel
+        sx={{
+          fontWeight: "bold",
+          color: "#555",
+        }}
+        component="legend"
+      >
+        {label}
+      </FormLabel>
       <RadioGroup value={value} onChange={(e) => setValue(e.target.value)}>
         {options.map((option) => (
           <FormControlLabel
@@ -36,7 +35,6 @@ const CustomRadioField = ({ label, value, setValue, options, error }) => {
           />
         ))}
       </RadioGroup>
-      {error && <FormHelperText>{error}</FormHelperText>}
     </FormControl>
   );
 };
@@ -48,13 +46,13 @@ export default function Register() {
     phoneNumber: "",
     password: "",
     confirmPassword: "",
-    privilegeUsersPage: "عدم العرض او التعديل",
-    privilegeCreateInvoicePage: "عدم العرض او التعديل",
-    privilegeInvoicesPage: "عدم العرض او التعديل",
-    privilegeItemsPage: "عدم العرض او التعديل",
-    privilegeSuppliersPage: "عدم العرض او التعديل",
-    privilegeMachinesPage: "عدم العرض او التعديل",
-    privilegeMechanismPage: "عدم العرض او التعديل",
+    privilegeUsersPage: "-",
+    privilegeCreateInvoicePage: "-",
+    privilegeInvoicesPage: "-",
+    privilegeItemsPage: "-",
+    privilegeSuppliersPage: "-",
+    privilegeMachinesPage: "-",
+    privilegeMechanismPage: "-",
   });
 
   const [errors, setErrors] = useState({});
@@ -72,9 +70,9 @@ export default function Register() {
   ];
 
   const privileges = [
+    { value: "العرض", label: "العرض" },
     { value: "العرض والتعديل", label: "العرض والتعديل" },
-    { value: "العرض فقط", label: "العرض فقط" },
-    { value: "عدم العرض او التعديل", label: "عدم العرض او التعديل" },
+    { value: "-", label: "-" },
   ];
 
   const handleChange = (field, value) => {
@@ -137,6 +135,7 @@ export default function Register() {
       console.error("Error:", error);
     }
   };
+  console.log(errors);
 
   return (
     <div className={styles.container}>
@@ -146,71 +145,151 @@ export default function Register() {
         }}
         className={styles.boxForm}
       >
-        <Paper className={styles.paper}>
-          <IconButton className={styles.iconBtn} onClick={() => navigate(-1)}>
-            <ArrowBackOutlinedIcon className={styles.arrow} />
-          </IconButton>
-          <h2 className={styles.subTitle}>التسجيل</h2>
-          <Box
-            component="form"
-            onSubmit={handleSubmit}
-            className={styles.textFields}
-          >
+        <IconButton className={styles.iconBtn} onClick={() => navigate(-1)}>
+          <ArrowBackOutlinedIcon className={styles.arrow} />
+        </IconButton>
+        <h2 className={styles.subTitle}>التسجيل</h2>
+        <Box
+          component="form"
+          onSubmit={handleSubmit}
+          className={styles.textFields}
+        >
+          <div className={styles.privilegesContainer}>
+            <h3>المعلومات الأساسية</h3>
+            <div className={styles.inputGroup}>
+              {[
+                { label: "الاسم", field: "username", type: "text" },
+                { label: "رقم الهاتف", field: "phoneNumber", type: "text" },
+                { label: "كلمة المرور", field: "password", type: "password" },
+                {
+                  label: "تأكيد كلمة المرور",
+                  field: "confirmPassword",
+                  type: "password",
+                },
+              ].map(({ label, field, type }) => (
+                <div key={field} className={styles.inputContainer}>
+                  <label
+                    style={{
+                      display: "block",
+                      marginBottom: "5px",
+                      textAlign: "right",
+                      fontWeight: "bold",
+                      color: errors[field] ? "#d32f2f" : "#555",
+                    }}
+                  >
+                    {label}
+                  </label>
+                  <input
+                    type={type}
+                    value={formData[field]}
+                    onChange={(e) => handleChange(field, e.target.value)}
+                    onFocus={(e) => (e.target.style.borderColor = "#1976d2")}
+                    onBlur={(e) => (e.target.style.borderColor = "#ccc")}
+                    style={{
+                      width: "100%",
+                      padding: "10px",
+                      fontSize: "1rem",
+                      border: errors[field]
+                        ? "1px solid #d32f2f"
+                        : "1px solid #ccc",
+                      borderRadius: "4px",
+                      direction: "rtl",
+                      textAlign: "right",
+                      outline: "none",
+                      transition: "border-color 0.2s",
+                    }}
+                  />
+                  {errors[field] && (
+                    <span
+                      style={{
+                        color: "#d32f2f",
+                        fontSize: "0.875rem",
+                        marginTop: "5px",
+                        display: "block",
+                        textAlign: "right",
+                      }}
+                    >
+                      {errors[field]}
+                    </span>
+                  )}
+                </div>
+              ))}
+              <div className={styles.inputContainer}>
+                <label
+                  style={{
+                    display: "block",
+                    marginBottom: "5px",
+                    textAlign: "right",
+                    fontWeight: "bold",
+                    color: errors.job ? "#d32f2f" : "#555",
+                  }}
+                >
+                  اختر الوظيفة
+                </label>
+                <select
+                  value={formData.job}
+                  onChange={(e) => handleChange("job", e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "10px",
+                    fontSize: "1rem",
+                    border: errors.job ? "1px solid #d32f2f" : "1px solid #ccc",
+                    borderRadius: "4px",
+                    direction: "rtl",
+                    textAlign: "right",
+                    outline: "none",
+                    transition: "border-color 0.2s",
+                    backgroundColor: "#fff",
+                    appearance: "none",
+                  }}
+                  onFocus={(e) => (e.target.style.borderColor = "#1976d2")}
+                  onBlur={(e) => (e.target.style.borderColor = "#ccc")}
+                >
+                  <option value="" disabled>
+                    -- اختر الوظيفة --
+                  </option>
+                  {jobs.map((job) => (
+                    <option key={job.value} value={job.value}>
+                      {job.label}
+                    </option>
+                  ))}
+                </select>
+                {errors.job && (
+                  <span
+                    style={{
+                      color: "#d32f2f",
+                      fontSize: "0.875rem",
+                      marginTop: "5px",
+                      display: "block",
+                      textAlign: "right",
+                    }}
+                  >
+                    {errors.job}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className={styles.privilegesContainer}>
+            <h3>الصلاحيات</h3>
             <div
               style={{
                 display: "flex",
-                flexWrap: "wrap",
-                gap: "15px",
                 justifyContent: "center",
+                alignItems: "center",
+                flexWrap: "wrap",
+                gap: 20,
               }}
             >
-              <CustomTextField
-                label="الاسم"
-                value={formData.username}
-                setValue={(value) => handleChange("username", value)}
-                valueError={errors.username}
-                className={styles.textField}
-              />
-              <CustomTextField
-                label="رقم الهاتف"
-                value={formData.phoneNumber}
-                setValue={(value) => handleChange("phoneNumber", value)}
-                className={styles.textField}
-              />
-              <CustomSelectField
-                label="اختر الوظيفة"
-                value={formData.job}
-                setValue={(value) => handleChange("job", value)}
-                options={jobs}
-                error={!!errors.job}
-              />
-              <CustomTextField
-                label="كلمة المرور"
-                type="password"
-                value={formData.password}
-                setValue={(value) => handleChange("password", value)}
-                valueError={errors.password}
-                className={styles.textField}
-              />
-              <CustomTextField
-                label="تأكيد كلمة المرور"
-                type="password"
-                value={formData.confirmPassword}
-                setValue={(value) => handleChange("confirmPassword", value)}
-                valueError={errors.confirmPassword}
-                className={styles.textField}
-              />
-            </div>
-            <div>
               <CustomRadioField
-                label="صلاحيات صفحة الموظفين"
+                label="صفحة الموظفين"
                 value={formData.privilegeUsersPage}
                 setValue={(value) => handleChange("privilegeUsersPage", value)}
                 options={privileges}
                 error={!!errors.privilegeUsersPage}
               />
               <CustomRadioField
-                label="صلاحيات صفحة إنشاء عملية"
+                label="صفحة إنشاء عملية"
                 value={formData.privilegeCreateInvoicePage}
                 setValue={(value) =>
                   handleChange("privilegeCreateInvoicePage", value)
@@ -219,7 +298,7 @@ export default function Register() {
                 error={!!errors.privilegeCreateInvoicePage}
               />
               <CustomRadioField
-                label="صلاحيات صفحة إدارة العمليات"
+                label="صفحة إدارة العمليات"
                 value={formData.privilegeInvoicesPage}
                 setValue={(value) =>
                   handleChange("privilegeInvoicesPage", value)
@@ -228,23 +307,14 @@ export default function Register() {
                 error={!!errors.privilegeInvoicesPage}
               />
               <CustomRadioField
-                label="صلاحيات صفحة الأصناف"
+                label="صفحة الأصناف"
                 value={formData.privilegeItemsPage}
                 setValue={(value) => handleChange("privilegeItemsPage", value)}
                 options={privileges}
                 error={!!errors.privilegeItemsPage}
               />
               <CustomRadioField
-                label="صلاحيات صفحة الموردين"
-                value={formData.privilegeSuppliersPage}
-                setValue={(value) =>
-                  handleChange("privilegeSuppliersPage", value)
-                }
-                options={privileges}
-                error={!!errors.privilegeSuppliersPage}
-              />
-              <CustomRadioField
-                label="صلاحيات صفحة الماكينات"
+                label="صفحة الماكينات"
                 value={formData.privilegeMachinesPage}
                 setValue={(value) =>
                   handleChange("privilegeMachinesPage", value)
@@ -253,7 +323,7 @@ export default function Register() {
                 error={!!errors.privilegeMachinesPage}
               />
               <CustomRadioField
-                label="صلاحيات صفحة الميكانيزم"
+                label="صفحة الميكانيزم"
                 value={formData.privilegeMechanismPage}
                 setValue={(value) =>
                   handleChange("privilegeMechanismPage", value)
@@ -261,19 +331,31 @@ export default function Register() {
                 options={privileges}
                 error={!!errors.privilegeMechanismPage}
               />
+              <CustomRadioField
+                label="صفحة الموردين"
+                value={formData.privilegeSuppliersPage}
+                setValue={(value) =>
+                  handleChange("privilegeSuppliersPage", value)
+                }
+                options={privileges}
+                error={!!errors.privilegeSuppliersPage}
+              />
             </div>
-          </Box>
-          <Button
-            type="submit"
-            variant="contained"
-            className={styles.btn}
-            onClick={handleSubmit}
-            disabled={mutationLoading}
-          >
-            إضافة موظف
-          </Button>
-          <Box>{mutationLoading ? <CircularProgress size={24} /> : ""}</Box>
-        </Paper>
+          </div>
+        </Box>
+        <Button
+          type="submit"
+          variant="contained"
+          className={styles.btn}
+          onClick={handleSubmit}
+          disabled={mutationLoading}
+          sx={{
+            transition: "0.3s"
+          }}
+        >
+          
+          {mutationLoading ? <CircularProgress color="white" size={24} /> : "إضافة موظف"}
+        </Button>
       </Box>
       <SnackBar
         open={openSnackbar}

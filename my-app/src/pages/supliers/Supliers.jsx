@@ -16,7 +16,6 @@ import SnackBar from "../../components/snackBar/SnackBar";
 import DeleteRow from "../../components/deleteItem/DeleteRow";
 import CustomDataGrid from "../../components/dataGrid/CustomDataGrid";
 import CustomInput from "../../components/customEditTextField/CustomInput";
-import CustomToolbar from "../../components/customToolBar/CustomToolBar";
 import {
   useGetSuppliersQuery,
   useAddSupplierMutation,
@@ -32,17 +31,12 @@ export default function Supliers() {
     data: initialItems = [],
     isLoading: isMachinesLoading,
     refetch,
-  } = useGetSuppliersQuery();
+  } = useGetSuppliersQuery(undefined, { pollingInterval: 300000 });
   const [addSupplier, { isLoading: isAdding }] = useAddSupplierMutation();
   const [updateSupplier, { isLoading: isUpdating }] =
     useUpdateSupplierMutation();
   const [deleteSupplier, { isLoading: isDeleting }] =
     useDeleteSupplierMutation();
-
-  // collors
-  const primaryColor = getComputedStyle(
-    document.documentElement
-  ).getPropertyValue("--primary-color");
 
   // snackbar
   const [openSnackbar, setOpenSnackbar] = useState(false);
@@ -339,10 +333,6 @@ export default function Supliers() {
         paginationModel={paginationModel}
         onPageChange={handlePageChange}
         pageCount={pageCount}
-        CustomToolbar={CustomToolbar}
-        initialItems={initialItems}
-        excelURL={"machine"}
-        primaryColor={primaryColor}
         setOpenDialog={setOpenDialog}
         loader={isMachinesLoading}
         onCellKeyDown={(params, event) => {

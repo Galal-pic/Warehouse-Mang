@@ -24,7 +24,6 @@ import DeleteRow from "../../components/deleteItem/DeleteRow";
 import CustomDataGrid from "../../components/dataGrid/CustomDataGrid";
 import NumberInput from "../../components/number/NumberInput";
 import { isNumber } from "@mui/x-data-grid/internals";
-import CustomToolbar from "../../components/customToolBar/CustomToolBar";
 import {
   useGetWarehousesQuery,
   useAddWarehouseMutation,
@@ -40,7 +39,8 @@ export default function Items() {
     data: initialItems = [],
     isLoading: isMachinesLoading,
     refetch,
-  } = useGetWarehousesQuery();
+  } = useGetWarehousesQuery(undefined, { pollingInterval: 300000 });
+
   const [addWarehouse, { isLoading: isAdding }] = useAddWarehouseMutation();
   const [updateWarehouse, { isLoading: isUpdating }] =
     useUpdateWarehouseMutation();
@@ -147,7 +147,7 @@ export default function Items() {
     } catch (error) {
       console.error("Error creating item:", error);
       setOpenSnackbar(true);
-      setSnackbarMessage("اسم العنصر او الرمز موجود بالفعل");
+      setSnackbarMessage("اسم العنصر او الباركود موجود بالفعل");
       setSnackBarType("error");
     }
   };
@@ -156,6 +156,7 @@ export default function Items() {
   const filteredAndFormattedData = initialItems.map((item) => ({
     ...item,
     locations: item.locations.map((loc) => loc.location).join(", "),
+    totalPrice: item.locations.reduce((sum, loc) => sum + loc.price_unit, 0),
   }));
 
   // columns
@@ -182,15 +183,19 @@ export default function Items() {
       ),
     },
     {
-      field: "locations",
-      headerName: "الموقع",
-      width: 300,
+      field: "totalPrice",
+      headerName: "إجمالي السعر",
       flex: 1,
     },
-    { field: "item_bar", headerName: "الرمز", width: 200, flex: 1 },
+    {
+      field: "locations",
+      headerName: "الموقع",
+      flex: 1,
+    },
+    { field: "item_bar", headerName: "الباركود", flex: 1 },
 
-    { field: "item_name", headerName: "اسم المنتج", width: 100, flex: 1 },
-    { field: "id", headerName: "#", width: 100 },
+    { field: "item_name", headerName: "اسم المنتج", flex: 1 },
+    { field: "id", headerName: "#" },
   ];
 
   // modal
@@ -266,7 +271,7 @@ export default function Items() {
     } catch (error) {
       console.error("Error updating item:", error);
       setOpenSnackbar(true);
-      setSnackbarMessage("اسم العنصر او الرمز موجود بالفعل");
+      setSnackbarMessage("اسم العنصر او الباركود موجود بالفعل");
       setSnackBarType("error");
     }
   };
@@ -391,10 +396,6 @@ export default function Items() {
         paginationModel={paginationModel}
         onPageChange={handlePageChange}
         pageCount={pageCount}
-        CustomToolbar={CustomToolbar}
-        initialItems={initialItems}
-        excelURL={"machine"}
-        primaryColor={primaryColor}
         setOpenDialog={setOpenDialog}
         loader={isMachinesLoading}
       />
@@ -478,7 +479,7 @@ export default function Items() {
                 color: errors.item_bar ? "#d32f2f" : "#555",
               }}
             >
-              الرمز
+              الباركود
             </label>
             <input
               type="text"
@@ -882,7 +883,7 @@ export default function Items() {
                     color: "#717171",
                   }}
                 >
-                  رمز المنتج:
+                  باركود المنتج:
                 </h5>
                 <h5 style={{ flex: 1 }}>
                   {isEditingItem ? (

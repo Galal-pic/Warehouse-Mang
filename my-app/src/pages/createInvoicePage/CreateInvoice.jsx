@@ -95,16 +95,24 @@ export default function Type1() {
 
   // Fetch data using RTK Query
   const { data: user, isLoading: isLoadingUser } = useGetUserQuery();
-  const { data: supliers, isLoading: isSupliersLoading } =
-    useGetSuppliersQuery();
-  const { data: machines, isLoading: isMachinesLoading } =
-    useGetMachinesQuery();
+  const { data: supliers, isLoading: isSupliersLoading } = useGetSuppliersQuery(
+    undefined,
+    { pollingInterval: 300000 }
+  );
+
+  const { data: machines, isLoading: isMachinesLoading } = useGetMachinesQuery(
+    undefined,
+    { pollingInterval: 300000 }
+  );
+
   const { data: mechanisms, isLoading: isMechanismsLoading } =
-    useGetMechanismsQuery();
+    useGetMechanismsQuery(undefined, { pollingInterval: 300000 });
+
   const { data: warehouse, isLoading: isWareHousesLoading } =
-    useGetWarehousesQuery();
+    useGetWarehousesQuery(undefined, { pollingInterval: 300000 });
+
   const { data: voucherNumber, isLoading: isLoadingVoucher } =
-    useGetLastInvoiceIdQuery();
+    useGetLastInvoiceIdQuery(undefined, { pollingInterval: 300000 });
 
   // comment field
   const [showCommentField, setShowCommentField] = useState(false);

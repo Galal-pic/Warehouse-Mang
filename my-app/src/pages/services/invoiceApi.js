@@ -14,9 +14,11 @@ export const invoiceApi = createApi({
   }),
   tagTypes: ["Invoice"],
   endpoints: (builder) => ({
+    // get last id
     getLastInvoiceId: builder.query({
       query: () => "/invoice/last-id",
     }),
+    // create invoice
     createInvoice: builder.mutation({
       query: (invoice) => ({
         url: "/invoice/",
@@ -25,10 +27,12 @@ export const invoiceApi = createApi({
       }),
       invalidatesTags: ["Invoice"],
     }),
+    // get invoices
     getInvoices: builder.query({
       query: (type) => `/invoice/${type}`,
       providesTags: ["Invoice"],
     }),
+    // edit invoice
     updateInvoice: builder.mutation({
       query: ({ id, ...body }) => ({
         url: `/invoice/${id}`,
@@ -37,6 +41,7 @@ export const invoiceApi = createApi({
       }),
       invalidatesTags: ["Invoice"],
     }),
+    // delete invoice
     deleteInvoice: builder.mutation({
       query: (id) => ({
         url: `/invoice/${id}`,
@@ -44,11 +49,21 @@ export const invoiceApi = createApi({
       }),
       invalidatesTags: ["Invoice"],
     }),
+    // confirm invoice
     confirmInvoice: builder.mutation({
       query: (id) => ({
         url: `/invoice/${id}/confirm`,
         method: "POST",
       }),
+      invalidatesTags: ["Invoice"],
+    }),
+    // refresh invoice
+    refreshInvoice: builder.mutation({
+      query: (id) => ({
+        url: `/invoice/${id}`,
+        method: "GET",
+      }),
+      refetchOnFocus: true,
       invalidatesTags: ["Invoice"],
     }),
   }),
@@ -61,4 +76,5 @@ export const {
   useUpdateInvoiceMutation,
   useDeleteInvoiceMutation,
   useConfirmInvoiceMutation,
+  useRefreshInvoiceMutation,
 } = invoiceApi;

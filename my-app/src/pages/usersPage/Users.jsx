@@ -34,7 +34,13 @@ export default function Users() {
   const [snackBarType, setSnackBarType] = useState("");
 
   // loader
-  const { data: users = [], isLoading, isError } = useGetUsersQuery();
+  const {
+    data: users = [],
+    isLoading,
+    isError,
+  } = useGetUsersQuery(undefined, {
+    pollingInterval: 300000,
+  });
   const [updateUser, { isLoading: isUpdating }] = useUpdateUserMutation();
   const [deleteUser, { isLoading: isDeleting }] = useDeleteUserMutation();
 
@@ -403,7 +409,7 @@ export default function Users() {
         paginationModel={paginationModel}
         onPageChange={handlePageChange}
         pageCount={pageCount}
-        CustomToolbar={CustomToolbar}
+        CustomToolbarFromComponent={CustomToolbar}
         loader={isLoading}
         onCellKeyDown={(params, event) => {
           if ([" ", "ArrowLeft", "ArrowRight"].includes(event.key)) {

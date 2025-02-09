@@ -6,6 +6,7 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import { PaginationItem } from "@mui/material";
 import CircularProgress from "@mui/material/CircularProgress";
+import CustomToolbar from "../../components/customToolBar/CustomToolBar";
 
 const CustomLoadingOverlay = () => (
   <div
@@ -52,7 +53,8 @@ export default function CustomDataGrid({
   paginationModel,
   onPageChange,
   pageCount,
-  CustomToolbar,
+  CustomToolbarFromComponent = CustomToolbar,
+  setOpenDialog,
   loader,
   ...props
 }) {
@@ -147,11 +149,16 @@ export default function CustomDataGrid({
       editMode="row"
       onCellDoubleClick={(params, event) => event.stopPropagation()}
       slots={{
-        toolbar: CustomToolbar,
+        toolbar: CustomToolbarFromComponent,
         pagination: CustomPagination,
       }}
       slotProps={{
-        toolbar: props,
+        toolbar: {
+          ...props,
+          paginationModel,
+          initialItems: rows,
+          setOpenDialog
+        },
         pagination: {
           page: paginationModel.page,
           count: pageCount,

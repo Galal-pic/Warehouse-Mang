@@ -7,13 +7,11 @@ import * as XLSX from "xlsx";
 import SnackBar from "../../components/snackBar/SnackBar";
 import { useImportMachinesMutation } from "../../pages/services/machineApi"; // Update the path
 
-const CustomToolbar = ({
-  initialItems,
-  primaryColor,
-  setOpenDialog,
-  excelURL,
-  fetchItemsData,
-}) => {
+const CustomToolbar = ({ initialItems, setOpenDialog, paginationModel }) => {
+  const primaryColor = getComputedStyle(
+    document.documentElement
+  ).getPropertyValue("--primary-color");
+
   const [importMachines] = useImportMachinesMutation();
 
   // snackbar
@@ -69,23 +67,31 @@ const CustomToolbar = ({
   };
 
   const handleExport = () => {
-    const flattenedItems =
-      initialItems?.flatMap((item) =>
-        item.locations && Array.isArray(item.locations)
-          ? item.locations.map((location) => ({
-              item_name: item.item_name,
-              item_bar: item.item_bar,
-              location: location.location,
-              price_unit: location.price_unit,
-              quantity: location.quantity,
-            }))
-          : item
-      ) || initialItems;
+    if (!paginationModel) {
+      console.error("paginationModel is undefined");
+      return;
+    }
+
+    const { page, pageSize } = paginationModel;
+    const start = page * pageSize;
+    const end = start + pageSize;
+    const currentPageRows = initialItems.slice(start, end);
+
+    const flattenedItems = currentPageRows.flatMap((item) =>
+      item.locations && Array.isArray(item.locations)
+        ? item.locations.map((location) => ({
+            item_name: item.item_name,
+            item_bar: item.item_bar,
+            location: location.location,
+            price_unit: location.price_unit,
+            quantity: location.quantity,
+          }))
+        : item
+    );
 
     const ws = XLSX.utils.json_to_sheet(flattenedItems);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
-
     XLSX.writeFile(wb, "exported_data.xlsx", {
       bookType: "xlsx",
       type: "binary",

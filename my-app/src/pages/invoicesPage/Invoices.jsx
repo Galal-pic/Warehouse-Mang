@@ -24,12 +24,11 @@ import AddIcon from "@mui/icons-material/Add";
 import "../../colors.css";
 import SnackBar from "../../components/snackBar/SnackBar";
 import DeleteRow from "../../components/deleteItem/DeleteRow";
-import PublishedWithChangesIcon from "@mui/icons-material/PublishedWithChanges";
+// import PublishedWithChangesIcon from "@mui/icons-material/PublishedWithChanges";
 import CustomDataGrid from "../../components/dataGrid/CustomDataGrid";
 import NumberInput from "../../components/number/NumberInput";
 import CustomAutoCompleteField from "../../components/customAutoCompleteField/CustomAutoCompleteField";
 import FilterTabs from "../../components/filter/Filter";
-import InvoiceDetails from "../../components/invoiceDetails/InvoiceDetails";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 // Import RTK Query hooks
@@ -43,6 +42,7 @@ import {
   useDeleteInvoiceMutation,
   useUpdateInvoiceMutation,
   useConfirmInvoiceMutation,
+  useRefreshInvoiceMutation,
 } from "../services/invoiceApi";
 
 export default function Invoices() {
@@ -62,30 +62,34 @@ export default function Invoices() {
   const [isArrayDeleting, setIsArrayDeleting] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [isInvoiceDeleting, setIsInvoiceDeleting] = useState(false);
-  const [isRefresh, setIsRefresh] = useState(false);
 
   // RTK Query Hooks
   const { data: suppliers = [], isLoading: isSupliersLoading } =
-    useGetSuppliersQuery();
+    useGetSuppliersQuery(undefined, { pollingInterval: 300000 });
+
   const { data: machines = [], isLoading: isMachinesLoading } =
-    useGetMachinesQuery();
+    useGetMachinesQuery(undefined, { pollingInterval: 300000 });
+
   const { data: mechanisms = [], isLoading: isMechanismsLoading } =
-    useGetMechanismsQuery();
+    useGetMechanismsQuery(undefined, { pollingInterval: 300000 });
+
   const { data: warehouse = [], isLoading: isWareHousesLoading } =
-    useGetWarehousesQuery();
+    useGetWarehousesQuery(undefined, { pollingInterval: 300000 });
+
   const { data: user, isLoading: isUserLoading } = useGetUserQuery();
 
   // Invoices query with automatic refetch
-  const {
-    data: invoicesData = [],
-    isLoading: isInvoicesLoading,
-    refetch: refetchInvoices,
-  } = useGetInvoicesQuery(selectedNowType.label);
+  const { data: invoicesData = [], isLoading: isInvoicesLoading } =
+    useGetInvoicesQuery(selectedNowType.label, {
+      pollingInterval: 300000,
+    });
 
   // Mutations
   const [deleteInvoice] = useDeleteInvoiceMutation();
   const [updateInvoice] = useUpdateInvoiceMutation();
   const [confirmInvoice] = useConfirmInvoiceMutation();
+  const [refreshInvoice, { isLoading, originalArgs }] =
+    useRefreshInvoiceMutation();
 
   // Helper function
   const formatTime = (datetime) => {
@@ -107,18 +111,6 @@ export default function Invoices() {
       .slice()
       .reverse()
       .map((invoice) => {
-        const items = invoice.items.map((item) => {
-          const matchedItem = warehouseMap.get(item.item_name);
-          const location = matchedItem?.locations?.find(
-            (l) => l.location === item.location
-          );
-          return {
-            ...item,
-            priceunit: location?.price_unit || 0,
-            maxquantity: (location?.quantity || 0) + item.quantity,
-            availableLocations: matchedItem?.locations || [],
-          };
-        });
         return {
           ...invoice,
           itemsNames: invoice.items.map((item) => item.item_name).join(", "),
@@ -127,7 +119,6 @@ export default function Invoices() {
           classname: invoice.items.some((item) => item.total_price === 0)
             ? "zero-total-price"
             : "",
-          items,
         };
       });
   }, [invoicesData, warehouse]);
@@ -136,7 +127,9 @@ export default function Invoices() {
   const handleDeleteSelectedRows = async (selectedIds) => {
     setIsArrayDeleting(true);
     try {
-      await Promise.all(selectedIds.map((id) => deleteInvoice(id).unwrap()));
+      await Promise.all(
+        selectedRows.map((invoice) => deleteInvoice(invoice.id).unwrap())
+      );
       setOpenSnackbar(true);
       setSnackbarMessage("تم الحذف بنجاح");
       setSnackBarType("success");
@@ -148,6 +141,29 @@ export default function Invoices() {
       setIsArrayDeleting(false);
       setDeleteDialogCheckBoxOpen(false);
       setDeleteCheckBoxConfirmationText("");
+    }
+  };
+
+  // Simplified delete handler
+  const [isRefreshArrayLoading, setIsRefreshArrayLoading] = useState(false);
+  const handleRefreshSelectedRows = async (selectedRows) => {
+    setIsRefreshArrayLoading(true);
+    try {
+      await Promise.all(
+        selectedRows.map((invoice) => refreshInvoice(invoice.id).unwrap())
+      );
+      setOpenSnackbar(true);
+      setSnackbarMessage("تم التحديث بنجاح");
+      setSnackBarType("success");
+    } catch (error) {
+      setOpenSnackbar(true);
+      setSnackbarMessage("حدث خطأ أثناء التحديث");
+      setSnackBarType("error");
+    } finally {
+      setIsRefreshArrayLoading(false);
+      setDeleteDialogCheckBoxOpen(false);
+      setDeleteCheckBoxConfirmationText("");
+      setSelectedRows([]);
     }
   };
 
@@ -167,7 +183,6 @@ export default function Invoices() {
       setIsConfirmDone((prev) => ({ ...prev, [id]: false }));
     }
   };
-  console.log(isConfirmDone);
 
   // Save Invoice
   const handleSave = async () => {
@@ -263,20 +278,34 @@ export default function Invoices() {
     }
   };
 
-  // Refresh Data
-  const handleRefresh = async () => {
-    setIsRefresh(true);
+  // Recovery
+  const handleRecovery = async (id) => {
     try {
-      await refetchInvoices();
-      setOpenSnackbar(true);
+      await refreshInvoice(id).unwrap();
       setSnackbarMessage("تم التحديث بنجاح");
       setSnackBarType("success");
     } catch (error) {
-      setOpenSnackbar(true);
       setSnackbarMessage("حدث خطأ أثناء التحديث");
       setSnackBarType("error");
     } finally {
-      setIsRefresh(false);
+      setOpenSnackbar(true);
+    }
+  };
+
+  // Refresh Data
+  const [loadingRows, setLoadingRows] = useState({});
+  const handleRefresh = async (id) => {
+    setLoadingRows((prev) => ({ ...prev, [id]: true }));
+    try {
+      await refreshInvoice(id).unwrap();
+      setSnackbarMessage("تم التحديث بنجاح");
+      setSnackBarType("success");
+    } catch (error) {
+      setSnackbarMessage("حدث خطأ أثناء التحديث");
+      setSnackBarType("error");
+    } finally {
+      setOpenSnackbar(true);
+      setLoadingRows((prev) => ({ ...prev, [id]: false }));
     }
   };
 
@@ -319,9 +348,27 @@ export default function Invoices() {
   // open close modal
   const openInvoice = (id) => {
     const invoice = invoices.find((item) => item.id === id);
-    setSelectedInvoice(invoice);
+    if (!invoice) {
+      console.error("Invoice not found:", id);
+      return;
+    }
+    const items =
+      invoice.items?.map((item) => {
+        const matchedItem = warehouseMap.get(item.item_name);
+        const location = matchedItem?.locations?.find(
+          (l) => l.location === item.location
+        );
+        return {
+          ...item,
+          priceunit: location?.price_unit ?? 0,
+          maxquantity: (location?.quantity ?? 0) + (item.quantity ?? 0),
+          availableLocations: matchedItem?.locations ?? [],
+        };
+      }) ?? [];
+    setSelectedInvoice({ ...invoice, items });
     setIsModalOpen(true);
   };
+
   const closeModal = () => {
     setSelectedInvoice(null);
     setIsModalOpen(false);
@@ -342,16 +389,31 @@ export default function Invoices() {
 
   // select with checkboxes
   const [selectedRows, setSelectedRows] = useState([]);
-  const handleCheckboxChange = (event, id) => {
+
+  const handleCheckboxChange = (event, invoice) => {
     setSelectedRows((prev) =>
       event.target.checked
-        ? [...prev, id]
-        : prev.filter((rowId) => rowId !== id)
+        ? [...prev, invoice]
+        : prev.filter((row) => row.id !== invoice.id)
     );
   };
   const handleSelectAll = (event) => {
     if (selectedRows.length === 0) {
-      setSelectedRows(invoices.map((row) => row.id));
+      const { page, pageSize } = paginationModel;
+      const start = page * pageSize;
+      const end = start + pageSize;
+      const currentPageRows = invoices.slice(start, end);
+
+      if (selectedRows.length === currentPageRows.length) {
+        setSelectedRows(
+          selectedRows.filter((row) => !currentPageRows.includes(row))
+        );
+      } else {
+        setSelectedRows([
+          ...selectedRows,
+          ...currentPageRows.filter((row) => !selectedRows.includes(row)),
+        ]);
+      }
     } else {
       setSelectedRows([]);
     }
@@ -365,21 +427,6 @@ export default function Invoices() {
           textAlign: "center",
         }}
       >
-        {/* Add Delete Button */}
-        <Button
-          variant="contained"
-          color="success"
-          startIcon={<PublishedWithChangesIcon />}
-          onClick={handleRefresh}
-          sx={{
-            position: "absolute",
-            top: "15px",
-            fontWeight: "bold",
-          }}
-          disabled={isRefresh}
-        >
-          {isRefresh ? <CircularProgress size={24} /> : "استكمال البيانات"}
-        </Button>
         <GridToolbarQuickFilter
           sx={{
             width: "500px",
@@ -408,21 +455,44 @@ export default function Invoices() {
           placeholder="ابحث هنا..."
         />
         {selectedRows.length > 0 && (
-          <Button
-            variant="contained"
-            color="error"
-            startIcon={<ClearOutlinedIcon />}
-            onClick={handleDeleteCheckBoxClick}
-            sx={{
-              backgroundColor: "#d32f2f",
-              "&:hover": { backgroundColor: "#b71c1c" },
-              position: "absolute",
-              top: "15px",
-              right: "0",
-            }}
-          >
-            حذف المحدد ({selectedRows.length})
-          </Button>
+          <>
+            <Button
+              variant="contained"
+              color="error"
+              startIcon={<ClearOutlinedIcon />}
+              onClick={handleDeleteCheckBoxClick}
+              sx={{
+                backgroundColor: "#d32f2f",
+                "&:hover": { backgroundColor: "#b71c1c" },
+                position: "absolute",
+                top: "15px",
+                right: "0",
+              }}
+            >
+              حذف المحدد ({selectedRows.length})
+            </Button>
+            {!selectedRows.some(
+              (invoice) => invoice.status === "confirmed"
+            ) && (
+              <Button
+                variant="contained"
+                startIcon={<ClearOutlinedIcon />}
+                onClick={() => handleRefreshSelectedRows(selectedRows)}
+                sx={{
+                  position: "absolute",
+                  top: "15px",
+                  right: "150px",
+                }}
+                disabled={isRefreshArrayLoading}
+              >
+                {isRefreshArrayLoading ? (
+                  <CircularProgress size={24} />
+                ) : (
+                  `تحديث اسعار المحدد (${selectedRows.length})`
+                )}
+              </Button>
+            )}
+          </>
         )}
       </GridToolbarContainer>
     );
@@ -459,28 +529,13 @@ export default function Invoices() {
     }
   };
 
-  // handle middle button
-  const handleChangeStatus = () => {
-    console.log(selectedInvoiceDialog);
-    handleInvoiceAction(selectedInvoiceDialog.id);
-  };
-
-  // details invoice button
-  const [displayDialogOpen, setDisplayDialogOpen] = useState(false);
-  const [selectedInvoiceDialog, setSelectedInvoiceDialog] = useState(null);
-  const handleDisplayClick = (invoice) => {
-    setSelectedInvoiceDialog(invoice);
-    setDisplayDialogOpen(true);
-  };
-
   // columns
   const columns = [
     {
       field: "actions",
       headerName: "فتح الفاتورة",
-      width: selectedNowType.label === "أمانات" ? 180 : 100,
+      width: selectedNowType.label === "أمانات" ? 300 : 200,
       renderCell: (params) => {
-        // const isLoading = isConfirmDone[params.row.id] || false;
         return (
           <div
             style={{
@@ -508,18 +563,40 @@ export default function Invoices() {
                 <Button
                   variant="contained"
                   color="info"
-                  onClick={() => console.log(params.row)}
+                  onClick={() => handleRecovery(params.row.id)}
                   sx={{
                     borderRadius: "8px",
                     padding: "6px 16px",
                   }}
-                  // disabled={isLoading}
+                  disabled={isLoading && originalArgs === params.row.id}
                 >
-                  استرداد
+                  {isLoading && originalArgs === params.row.id ? (
+                    <CircularProgress size={24} />
+                  ) : (
+                    "استرداد"
+                  )}
                 </Button>
               ) : (
                 "تم الاسترداد"
               ))}
+            {params.row.status !== "confirmed" && (
+              <Button
+                variant="contained"
+                color="info"
+                onClick={() => handleRefresh(params.row.id)}
+                sx={{
+                  borderRadius: "8px",
+                  padding: "6px 16px",
+                }}
+                disabled={loadingRows[params.row.id]}
+              >
+                {loadingRows[params.row.id] ? (
+                  <CircularProgress size={24} />
+                ) : (
+                  "تحديث اسعار"
+                )}
+              </Button>
+            )}
           </div>
         );
       },
@@ -552,7 +629,7 @@ export default function Invoices() {
                 <Button
                   variant="contained"
                   color={buttonColor}
-                  onClick={() => handleDisplayClick(params.row)}
+                  onClick={() => handleInvoiceAction(params.row.id)}
                   sx={{
                     borderRadius: "8px",
                     padding: "6px 16px",
@@ -601,8 +678,8 @@ export default function Invoices() {
       ),
       renderCell: (params) => (
         <Checkbox
-          checked={selectedRows.includes(params.id)}
-          onChange={(e) => handleCheckboxChange(e, params.id)}
+          checked={selectedRows.some((row) => row.id === params.row.id)}
+          onChange={(e) => handleCheckboxChange(e, params.row)}
           sx={{
             color: secondColor,
             "&.Mui-checked": { color: secondColor },
@@ -805,7 +882,7 @@ export default function Invoices() {
         paginationModel={paginationModel}
         onPageChange={handlePageChange}
         pageCount={pageCount}
-        CustomToolbar={CustomToolbar}
+        CustomToolbarFromComponent={CustomToolbar}
         loader={isInvoicesLoading}
       />
 
@@ -868,7 +945,7 @@ export default function Invoices() {
                       color: "#d32f2f",
                       position: "absolute",
                       top: "0px",
-                      left: "0px",
+                      left: "30px",
                     }}
                   >
                     <ClearOutlinedIcon />
@@ -883,7 +960,7 @@ export default function Invoices() {
                       color: "#1976d2",
                       position: "absolute",
                       top: "0px",
-                      left: "30px",
+                      left: "60px",
                     }}
                   >
                     {isSaved ? <CircularProgress size={24} /> : <SaveIcon />}
@@ -891,37 +968,41 @@ export default function Invoices() {
                 </div>
               ) : (
                 <div>
-                  <button
-                    onClick={() => {
-                      handleEditInfo(selectedInvoice);
-                    }}
-                    className={styles.iconBtn}
-                    style={{
-                      color: "#1976d2",
-                      position: "absolute",
-                      top: "0px",
-                      left: "0px",
-                    }}
-                  >
-                    <EditIcon />
-                  </button>
-                  <button
-                    onClick={() => {
-                      const newShow = !show;
-                      setShow(newShow);
-                    }}
-                    className={styles.iconBtn}
-                    style={{
-                      color: "#1976d2",
-                      position: "absolute",
-                      top: "0px",
-                      left: "40px",
-                    }}
-                  >
-                    {show ? <Visibility /> : <VisibilityOff />}
-                  </button>
+                  {selectedInvoice.status === "confirmed" ? (
+                    ""
+                  ) : (
+                    <button
+                      onClick={() => {
+                        handleEditInfo(selectedInvoice);
+                      }}
+                      className={styles.iconBtn}
+                      style={{
+                        color: "#1976d2",
+                        position: "absolute",
+                        top: "0px",
+                        left: "30px",
+                      }}
+                    >
+                      <EditIcon />
+                    </button>
+                  )}
                 </div>
               )}
+              <button
+                onClick={() => {
+                  const newShow = !show;
+                  setShow(newShow);
+                }}
+                className={styles.iconBtn}
+                style={{
+                  color: "#1976d2",
+                  position: "absolute",
+                  top: "0px",
+                  left: "0px",
+                }}
+              >
+                {show ? <Visibility /> : <VisibilityOff />}
+              </button>
             </Typography>
             <div className="printable-box">
               {isModalOpen && (
@@ -1429,7 +1510,7 @@ export default function Invoices() {
                             {(show || selectedNowType.type === "purchase") && (
                               <>
                                 <TableCell className={styles.tableCellRow}>
-                                  {row.priceunit}
+                                  {row.total_price / row.quantity}
                                 </TableCell>
                                 <TableCell className={styles.tableCellRow}>
                                   {isEditingInvoice
@@ -1795,15 +1876,6 @@ export default function Invoices() {
         }}
         message={"هل أنت متأكد من رغبتك في حذف العناصر المحددة؟"}
         loader={isArrayDeleting}
-      />
-
-      {/* details dialog */}
-      <InvoiceDetails
-        invoice={selectedInvoiceDialog}
-        displayDialogOpen={displayDialogOpen}
-        setDisplayDialogOpen={setDisplayDialogOpen}
-        loader={isConfirmDone}
-        handleDisplay={handleChangeStatus}
       />
 
       {/* Snackbar */}

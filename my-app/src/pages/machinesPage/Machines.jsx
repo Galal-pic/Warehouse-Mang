@@ -16,7 +16,6 @@ import SnackBar from "../../components/snackBar/SnackBar";
 import DeleteRow from "../../components/deleteItem/DeleteRow";
 import CustomDataGrid from "../../components/dataGrid/CustomDataGrid";
 import CustomInput from "../../components/customEditTextField/CustomInput";
-import CustomToolbar from "../../components/customToolBar/CustomToolBar";
 import {
   useGetMachinesQuery,
   useAddMachineMutation,
@@ -32,15 +31,10 @@ export default function Machines() {
     data: initialItems = [],
     isLoading: isMachinesLoading,
     refetch,
-  } = useGetMachinesQuery();
+  } = useGetMachinesQuery(undefined, { pollingInterval: 300000 });
   const [addMachine, { isLoading: isAdding }] = useAddMachineMutation();
   const [updateMachine, { isLoading: isUpdating }] = useUpdateMachineMutation();
   const [deleteMachine, { isLoading: isDeleting }] = useDeleteMachineMutation();
-
-  // collors
-  const primaryColor = getComputedStyle(
-    document.documentElement
-  ).getPropertyValue("--primary-color");
 
   // snackbar
   const [openSnackbar, setOpenSnackbar] = useState(false);
@@ -202,7 +196,7 @@ export default function Machines() {
     },
     {
       field: "description",
-      headerName: "الوصف",
+      headerName: "الباركود",
       flex: 1,
       renderCell: (params) => {
         if (isEditingItem && editingItem?.id === params.id) {
@@ -331,10 +325,6 @@ export default function Machines() {
         paginationModel={paginationModel}
         onPageChange={handlePageChange}
         pageCount={pageCount}
-        CustomToolbar={CustomToolbar}
-        initialItems={initialItems}
-        excelURL={"machine"}
-        primaryColor={primaryColor}
         setOpenDialog={setOpenDialog}
         loader={isMachinesLoading}
         onCellKeyDown={(params, event) => {
@@ -424,7 +414,7 @@ export default function Machines() {
                 color: errors.description ? "#d32f2f" : "#555",
               }}
             >
-              الوصف
+              الباركود
             </label>
             <input
               type="text"

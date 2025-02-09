@@ -16,7 +16,6 @@ import SnackBar from "../../components/snackBar/SnackBar";
 import DeleteRow from "../../components/deleteItem/DeleteRow";
 import CustomDataGrid from "../../components/dataGrid/CustomDataGrid";
 import CustomInput from "../../components/customEditTextField/CustomInput";
-import CustomToolbar from "../../components/customToolBar/CustomToolBar";
 import {
   useGetMechanismsQuery,
   useAddMechanismMutation,
@@ -32,17 +31,12 @@ export default function Mechanisms() {
     data: initialItems = [],
     isLoading: isMachinesLoading,
     refetch,
-  } = useGetMechanismsQuery();
+  } = useGetMechanismsQuery(undefined, { pollingInterval: 300000 });
   const [addMechanism, { isLoading: isAdding }] = useAddMechanismMutation();
   const [updateMechanism, { isLoading: isUpdating }] =
     useUpdateMechanismMutation();
   const [deleteMechanism, { isLoading: isDeleting }] =
     useDeleteMechanismMutation();
-
-  // collors
-  const primaryColor = getComputedStyle(
-    document.documentElement
-  ).getPropertyValue("--primary-color");
 
   // snackbar
   const [openSnackbar, setOpenSnackbar] = useState(false);
@@ -216,7 +210,7 @@ export default function Mechanisms() {
     },
     {
       field: "description",
-      headerName: "الوصف",
+      headerName: "الباركود",
       width: 200,
       flex: 1,
       renderCell: (params) => {
@@ -341,10 +335,6 @@ export default function Mechanisms() {
         paginationModel={paginationModel}
         onPageChange={handlePageChange}
         pageCount={pageCount}
-        CustomToolbar={CustomToolbar}
-        initialItems={initialItems}
-        excelURL={"machine"}
-        primaryColor={primaryColor}
         setOpenDialog={setOpenDialog}
         loader={isMachinesLoading}
         onCellKeyDown={(params, event) => {
@@ -434,7 +424,7 @@ export default function Mechanisms() {
                 color: errors.description ? "#d32f2f" : "#555",
               }}
             >
-              الوصف
+              الباركود
             </label>
             <input
               type="text"
