@@ -49,6 +49,7 @@ const CustomPagination = ({ page, count, onChange }) => {
 };
 export default function CustomDataGrid({
   rows,
+  initialItems,
   columns,
   paginationModel,
   onPageChange,
@@ -156,7 +157,7 @@ export default function CustomDataGrid({
         toolbar: {
           ...props,
           paginationModel,
-          initialItems: rows,
+          initialItems: initialItems,
           setOpenDialog
         },
         pagination: {

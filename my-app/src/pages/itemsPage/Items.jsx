@@ -398,6 +398,7 @@ export default function Items() {
         pageCount={pageCount}
         setOpenDialog={setOpenDialog}
         loader={isMachinesLoading}
+        initialItems={initialItems}
       />
 
       {/* add dialog */}
