@@ -156,7 +156,7 @@ export default function Items() {
   const filteredAndFormattedData = initialItems.map((item) => ({
     ...item,
     locations: item.locations.map((loc) => loc.location).join(", "),
-    totalPrice: item.locations.reduce((sum, loc) => sum + loc.price_unit, 0),
+    totalPrice: item.locations.reduce((sum, loc) => sum + loc.quantity, 0),
   }));
 
   // columns
@@ -184,7 +184,7 @@ export default function Items() {
     },
     {
       field: "totalPrice",
-      headerName: "إجمالي السعر",
+      headerName: "إجمالي الكمية",
       flex: 1,
     },
     {

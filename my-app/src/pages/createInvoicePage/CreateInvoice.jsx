@@ -108,8 +108,11 @@ export default function Type1() {
   const { data: mechanisms, isLoading: isMechanismsLoading } =
     useGetMechanismsQuery(undefined, { pollingInterval: 300000 });
 
-  const { data: warehouse, isLoading: isWareHousesLoading } =
-    useGetWarehousesQuery(undefined, { pollingInterval: 300000 });
+  const {
+    data: warehouse,
+    isLoading: isWareHousesLoading,
+    refetch,
+  } = useGetWarehousesQuery(undefined, { pollingInterval: 300000 });
 
   const { data: voucherNumber, isLoading: isLoadingVoucher } =
     useGetLastInvoiceIdQuery(undefined, { pollingInterval: 300000 });
@@ -465,6 +468,7 @@ export default function Type1() {
       setSnackbarMessage("تم حفظ الفاتورة بنجاح");
       setSnackBarType("success");
       setOpenSnackbar(true);
+      refetch();
     } catch (err) {
       console.error("Error saving invoice:", err);
       setSnackbarMessage(

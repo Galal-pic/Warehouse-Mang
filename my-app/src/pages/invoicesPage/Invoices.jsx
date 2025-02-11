@@ -265,6 +265,7 @@ export default function Invoices() {
 
     try {
       await updateInvoice(updatedInvoice).unwrap();
+      setSelectedInvoice(updatedInvoice);
       setOpenSnackbar(true);
       setSnackbarMessage("تم التعديل بنجاح");
       setSnackBarType("success");

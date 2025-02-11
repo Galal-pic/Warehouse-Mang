@@ -216,7 +216,7 @@ export default function CustomDataGrid({
           border: "1px solid #ddd",
         },
         "& .zero-total-price .MuiDataGrid-cell": {
-          backgroundColor: "#f88282 !important",
+          backgroundColor: "#f88282",
         },
         "& .MuiDataGrid-columnSeparator": {},
         "& .MuiDataGrid-cell:focus, & .MuiDataGrid-cell:focus-within": {
@@ -228,11 +228,11 @@ export default function CustomDataGrid({
         border: "none",
         margin: "0 20px",
         "& .zero-total-price": {
-          backgroundColor: "#f88282 !important",
+          backgroundColor: "#f88282",
           borderRadius: "20px",
         },
         "& .MuiDataGrid-row.zero-total-price:hover": {
-          backgroundColor: "#f88282 !important",
+          backgroundColor: "#f88282",
           borderRadius: "20px",
         },
         "& .MuiDataGrid-row.first-row .MuiDataGrid-cell:nth-of-type(2)": {
