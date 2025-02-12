@@ -729,17 +729,21 @@ export default function Type1() {
                         padding: "0px !important",
                       }}
                     >
-                      <CustomAutoCompleteField
-                        loading={isSupliersLoading}
-                        values={supliers}
-                        editingItem={newInvoice}
-                        setEditingItem={setNewInvoice}
-                        fieldName="suplier_name"
-                        placeholder="اسم المورد"
-                        isOptionEqualToValue={(option, value) =>
-                          option.name === value.name
-                        }
-                      />
+                      {isInvoiceSaved ? (
+                        newInvoice.suplier_name
+                      ) : (
+                        <CustomAutoCompleteField
+                          loading={isSupliersLoading}
+                          values={supliers}
+                          editingItem={newInvoice}
+                          setEditingItem={setNewInvoice}
+                          fieldName="suplier_name"
+                          placeholder="اسم المورد"
+                          isOptionEqualToValue={(option, value) =>
+                            option.name === value.name
+                          }
+                        />
+                      )}
                     </TableCell>
                   </TableRow>
                 )}
@@ -754,17 +758,21 @@ export default function Type1() {
                       padding: "0px !important",
                     }}
                   >
-                    <CustomAutoCompleteField
-                      loading={isMachinesLoading}
-                      values={machines}
-                      editingItem={newInvoice}
-                      setEditingItem={setNewInvoice}
-                      fieldName="machine_name"
-                      placeholder="اسم الماكينة"
-                      isOptionEqualToValue={(option, value) =>
-                        option.name === value.name
-                      }
-                    />
+                    {isInvoiceSaved ? (
+                      newInvoice.machine_name
+                    ) : (
+                      <CustomAutoCompleteField
+                        loading={isMachinesLoading}
+                        values={machines}
+                        editingItem={newInvoice}
+                        setEditingItem={setNewInvoice}
+                        fieldName="machine_name"
+                        placeholder="اسم الماكينة"
+                        isOptionEqualToValue={(option, value) =>
+                          option.name === value.name
+                        }
+                      />
+                    )}
                   </TableCell>
                 </TableRow>
                 <TableRow className={styles.tableRow}>
@@ -778,17 +786,21 @@ export default function Type1() {
                       padding: "0px !important",
                     }}
                   >
-                    <CustomAutoCompleteField
-                      loading={isMechanismsLoading}
-                      values={mechanisms}
-                      editingItem={newInvoice}
-                      setEditingItem={setNewInvoice}
-                      fieldName="mechanism_name"
-                      placeholder="اسم الميكانيزم"
-                      isOptionEqualToValue={(option, value) =>
-                        option.name === value.name
-                      }
-                    />
+                    {isInvoiceSaved ? (
+                      newInvoice.mechanism_name
+                    ) : (
+                      <CustomAutoCompleteField
+                        loading={isMechanismsLoading}
+                        values={mechanisms}
+                        editingItem={newInvoice}
+                        setEditingItem={setNewInvoice}
+                        fieldName="mechanism_name"
+                        placeholder="اسم الميكانيزم"
+                        isOptionEqualToValue={(option, value) =>
+                          option.name === value.name
+                        }
+                      />
+                    )}
                   </TableCell>
                 </TableRow>
                 {/* Headers for Items */}

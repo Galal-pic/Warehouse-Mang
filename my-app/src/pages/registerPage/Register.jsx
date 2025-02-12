@@ -12,6 +12,8 @@ import {
   RadioGroup,
   FormLabel,
 } from "@mui/material";
+import Visibility from "@mui/icons-material/Visibility";
+import VisibilityOff from "@mui/icons-material/VisibilityOff";
 
 const CustomRadioField = ({ label, value, setValue, options, error }) => {
   return (
@@ -135,7 +137,17 @@ export default function Register() {
       console.error("Error:", error);
     }
   };
-  console.log(errors);
+
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const togglePasswordVisibility = () => {
+    setShowPassword((prev) => !prev);
+  };
+
+  const toggleConfirmPasswordVisibility = () => {
+    setShowConfirmPassword((prev) => !prev);
+  };
 
   return (
     <div className={styles.container}>
@@ -160,12 +172,6 @@ export default function Register() {
               {[
                 { label: "الاسم", field: "username", type: "text" },
                 { label: "رقم الهاتف", field: "phoneNumber", type: "text" },
-                { label: "كلمة المرور", field: "password", type: "password" },
-                {
-                  label: "تأكيد كلمة المرور",
-                  field: "confirmPassword",
-                  type: "password",
-                },
               ].map(({ label, field, type }) => (
                 <div key={field} className={styles.inputContainer}>
                   <label
@@ -214,6 +220,124 @@ export default function Register() {
                   )}
                 </div>
               ))}
+              <div key="password" className={styles.inputContainer}>
+                <label
+                  style={{
+                    display: "block",
+                    marginBottom: "5px",
+                    textAlign: "right",
+                    fontWeight: "bold",
+                    color: errors.password ? "#d32f2f" : "#555",
+                  }}
+                >
+                  كلمة المرور
+                </label>
+                <div style={{ position: "relative", width: "100%" }}>
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={formData.password}
+                    onChange={(e) => handleChange("password", e.target.value)}
+                    style={{
+                      width: "100%",
+                      padding: "10px 10px 10px 40px",
+                      fontSize: "1rem",
+                      border: errors.password
+                        ? "1px solid #d32f2f"
+                        : "1px solid #ccc",
+                      borderRadius: "4px",
+                      direction: "rtl",
+                      textAlign: "right",
+                      outline: "none",
+                      transition: "border-color 0.2s",
+                    }}
+                  />
+                  <IconButton
+                    onClick={togglePasswordVisibility}
+                    sx={{
+                      position: "absolute",
+                      top: "50%",
+                      left: "5px",
+                      transform: "translateY(-50%)",
+                    }}
+                  >
+                    {showPassword ? <Visibility /> : <VisibilityOff />}
+                  </IconButton>
+                </div>
+                {errors.password && (
+                  <span
+                    style={{
+                      color: "#d32f2f",
+                      fontSize: "0.875rem",
+                      marginTop: "5px",
+                      display: "block",
+                      textAlign: "right",
+                    }}
+                  >
+                    {errors.password}
+                  </span>
+                )}
+              </div>
+
+              <div key="confirmPassword" className={styles.inputContainer}>
+                <label
+                  style={{
+                    display: "block",
+                    marginBottom: "5px",
+                    textAlign: "right",
+                    fontWeight: "bold",
+                    color: errors.confirmPassword ? "#d32f2f" : "#555",
+                  }}
+                >
+                  تأكيد كلمة المرور
+                </label>
+                <div style={{ position: "relative", width: "100%" }}>
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={formData.confirmPassword}
+                    onChange={(e) =>
+                      handleChange("confirmPassword", e.target.value)
+                    }
+                    style={{
+                      width: "100%",
+                      padding: "10px 10px 10px 40px",
+                      fontSize: "1rem",
+                      border: errors.confirmPassword
+                        ? "1px solid #d32f2f"
+                        : "1px solid #ccc",
+                      borderRadius: "4px",
+                      direction: "rtl",
+                      textAlign: "right",
+                      outline: "none",
+                      transition: "border-color 0.2s",
+                    }}
+                  />
+                  <IconButton
+                    onClick={toggleConfirmPasswordVisibility}
+                    sx={{
+                      position: "absolute",
+                      top: "50%",
+                      left: "5px",
+                      transform: "translateY(-50%)",
+                    }}
+                  >
+                    {showConfirmPassword ? <Visibility /> : <VisibilityOff />}
+                  </IconButton>
+                </div>
+                {errors.confirmPassword && (
+                  <span
+                    style={{
+                      color: "#d32f2f",
+                      fontSize: "0.875rem",
+                      marginTop: "5px",
+                      display: "block",
+                      textAlign: "right",
+                    }}
+                  >
+                    {errors.confirmPassword}
+                  </span>
+                )}
+              </div>
+
               <div className={styles.inputContainer}>
                 <label
                   style={{
@@ -350,11 +474,14 @@ export default function Register() {
           onClick={handleSubmit}
           disabled={mutationLoading}
           sx={{
-            transition: "0.3s"
+            transition: "0.3s",
           }}
         >
-          
-          {mutationLoading ? <CircularProgress color="white" size={24} /> : "إضافة موظف"}
+          {mutationLoading ? (
+            <CircularProgress color="white" size={24} />
+          ) : (
+            "إضافة موظف"
+          )}
         </Button>
       </Box>
       <SnackBar
