@@ -9,6 +9,12 @@ class Employee(db.Model):
     password_hash = db.Column(db.String(120), nullable=False)
     phone_number = db.Column(db.String(20))
     job_name = db.Column(db.String(100), nullable=False)
+    create_invoice_status = db.Column(db.String(20), nullable=False)
+    manage_operation_status = db.Column(db.String(20), nullable=False)
+    items_access_status = db.Column(db.String(20), nullable=False)
+    machine_access_status = db.Column(db.String(20), nullable=False)
+    mechanism_access_status = db.Column(db.String(20), nullable=False)
+    supplier_access_status = db.Column(db.String(20), nullable=False)
 
     # Relationship with Invoice
     invoices = db.relationship('Invoice', back_populates='employee', lazy=True)
@@ -17,7 +23,7 @@ class Supplier(db.Model):
     __tablename__ = 'supplier'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), unique=True, nullable=False, index=True)
-    description = db.Column(db.Text)
+    description = db.Column(db.Text,unique=True, nullable=False)
 
     # Relationship with Invoice
     invoices = db.relationship('Invoice', back_populates='supplier', lazy=True)
@@ -27,7 +33,7 @@ class Machine(db.Model):
     __tablename__ = 'machine'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), unique=True, nullable=False, index=True)
-    description = db.Column(db.Text)
+    description = db.Column(db.Text,unique=True, nullable=False)
 
     # Relationship with Invoice
     invoices = db.relationship('Invoice', back_populates='machine', lazy=True)
@@ -37,7 +43,7 @@ class Mechanism(db.Model):
     __tablename__ = 'mechanism'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), unique=True, nullable=False, index=True)
-    description = db.Column(db.Text)
+    description = db.Column(db.Text,unique=True, nullable=False)
 
     # Relationship with Invoice
     invoices = db.relationship('Invoice', back_populates='mechanism', lazy=True)
@@ -54,7 +60,7 @@ class Invoice(db.Model):
     paid = db.Column(db.Float)
     residual = db.Column(db.Float)
     comment = db.Column(db.String(255))
-    status = db.Column(db.String(50),default="Done")
+    status = db.Column(db.String(50),default="draft")
     employee_name = db.Column(db.String(50), nullable=False)
     employee_id = db.Column(db.Integer, db.ForeignKey('employee.id'), nullable=False)
     machine_id = db.Column(db.Integer, db.ForeignKey('machine.id'), nullable=True)
