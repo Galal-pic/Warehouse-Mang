@@ -1698,14 +1698,7 @@ export default function Invoices() {
                     </Box>
                   )}
                   {/* comment */}
-                  {selectedInvoice.comment.trim() === "" ? (
-                    ""
-                  ) : (
-                    <Box className={styles.commentFieldBox}>
-                      {selectedInvoice.comment}
-                    </Box>
-                  )}
-                  {isEditingInvoice && (
+                  {isEditingInvoice ? (
                     <Box className={styles.commentFieldBox}>
                       <input
                         style={{
@@ -1726,6 +1719,12 @@ export default function Invoices() {
                         }
                       />
                     </Box>
+                  ) : (
+                    selectedInvoice.comment && (
+                      <Box className={styles.commentFieldBox}>
+                        {selectedInvoice.comment}
+                      </Box>
+                    )
                   )}
 
                   {/* note

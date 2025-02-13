@@ -48,7 +48,6 @@ export default function Register() {
     phoneNumber: "",
     password: "",
     confirmPassword: "",
-    privilegeUsersPage: "-",
     privilegeCreateInvoicePage: "-",
     privilegeInvoicesPage: "-",
     privilegeItemsPage: "-",
@@ -106,13 +105,12 @@ export default function Register() {
       password: formData.password,
       phone_number: formData.phoneNumber,
       job_name: formData.job,
-      privilege_users_page: formData.privilegeUsersPage,
-      privilege_create_invoice_page: formData.privilegeCreateInvoicePage,
-      privilege_invoices_page: formData.privilegeInvoicesPage,
-      privilege_items_page: formData.privilegeItemsPage,
-      privilege_suppliers_page: formData.privilegeSuppliersPage,
-      privilege_machines_page: formData.privilegeMachinesPage,
-      privilege_mechanism_page: formData.privilegeMechanismPage,
+      create_invoice_status: formData.privilegeCreateInvoicePage,
+      manage_operation_status: formData.privilegeInvoicesPage,
+      items_access_status: formData.privilegeItemsPage,
+      supplier_access_status: formData.privilegeSuppliersPage,
+      machine_access_status: formData.privilegeMachinesPage,
+      mechanism_access_status: formData.privilegeMechanismPage,
     };
     console.log(dataToSend);
 
@@ -405,13 +403,6 @@ export default function Register() {
                 gap: 20,
               }}
             >
-              <CustomRadioField
-                label="صفحة الموظفين"
-                value={formData.privilegeUsersPage}
-                setValue={(value) => handleChange("privilegeUsersPage", value)}
-                options={privileges}
-                error={!!errors.privilegeUsersPage}
-              />
               <CustomRadioField
                 label="صفحة إنشاء عملية"
                 value={formData.privilegeCreateInvoicePage}
