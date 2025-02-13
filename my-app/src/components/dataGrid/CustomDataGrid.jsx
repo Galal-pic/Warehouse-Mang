@@ -49,7 +49,6 @@ const CustomPagination = ({ page, count, onChange }) => {
 };
 export default function CustomDataGrid({
   rows,
-  initialItems,
   columns,
   paginationModel,
   onPageChange,
@@ -57,6 +56,7 @@ export default function CustomDataGrid({
   CustomToolbarFromComponent = CustomToolbar,
   setOpenDialog,
   loader,
+  type,
   ...props
 }) {
   // translate
@@ -127,9 +127,19 @@ export default function CustomDataGrid({
     document.documentElement
   ).getPropertyValue("--primary-color");
 
+  let filteredAndFormattedData;
+  if (type === "items") {
+    filteredAndFormattedData = rows.map((item) => ({
+      ...item,
+      locations: item.locations.map((loc) => loc.location).join(", "),
+      totalPrice: item.locations.reduce((sum, loc) => sum + loc.quantity, 0),
+    }));
+  }
+
+  console.log(rows)
   return (
     <DataGrid
-      rows={rows}
+      rows={type === "items" ? filteredAndFormattedData : rows}
       columns={columns.map((col, index) => ({
         ...col,
         align: "center",
@@ -157,8 +167,9 @@ export default function CustomDataGrid({
         toolbar: {
           ...props,
           paginationModel,
-          initialItems: initialItems,
-          setOpenDialog
+          initialItems: rows,
+          type,
+          setOpenDialog,
         },
         pagination: {
           page: paginationModel.page,

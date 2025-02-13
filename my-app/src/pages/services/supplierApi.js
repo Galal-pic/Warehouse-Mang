@@ -39,6 +39,14 @@ export const supplierApi = createApi({
       }),
       invalidatesTags: ["Supplier"],
     }),
+    importSupplier: builder.mutation({
+      query: (data) => ({
+        url: "/supplier/excel",
+        method: "POST",
+        body: { data },
+      }),
+      invalidatesTags: ["Supplier"],
+    }),
   }),
 });
 
@@ -46,5 +54,6 @@ export const {
   useGetSuppliersQuery,
   useAddSupplierMutation,
   useUpdateSupplierMutation,
-  useDeleteSupplierMutation 
+  useDeleteSupplierMutation,
+  useImportSupplierMutation
 } = supplierApi;

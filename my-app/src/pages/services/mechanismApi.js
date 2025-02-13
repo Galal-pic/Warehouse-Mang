@@ -39,6 +39,14 @@ export const mechanismApi = createApi({
       }),
       invalidatesTags: ["Mechanism"],
     }),
+    importMechanism: builder.mutation({
+      query: (data) => ({
+        url: "/mechanism/excel",
+        method: "POST",
+        body: { data },
+      }),
+      invalidatesTags: ["Mechanism"],
+    }),
   }),
 });
 
@@ -46,5 +54,6 @@ export const {
   useGetMechanismsQuery,
   useAddMechanismMutation,
   useUpdateMechanismMutation,
-  useDeleteMechanismMutation 
+  useDeleteMechanismMutation,
+  useImportMechanismMutation
 } = mechanismApi;

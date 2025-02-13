@@ -331,6 +331,7 @@ export default function Mechanisms() {
       {/* table */}
       <CustomDataGrid
         rows={initialItems}
+        type="mechanism"
         columns={columns}
         paginationModel={paginationModel}
         onPageChange={handlePageChange}

@@ -329,6 +329,7 @@ export default function Supliers() {
       {/* table */}
       <CustomDataGrid
         rows={initialItems}
+        type="supplier"
         columns={columns}
         paginationModel={paginationModel}
         onPageChange={handlePageChange}

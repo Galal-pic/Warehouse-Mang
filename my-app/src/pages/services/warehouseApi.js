@@ -39,6 +39,14 @@ export const warehouseApi = createApi({
       }),
       invalidatesTags: ["Warehouse"],
     }),
+    importWarehouse: builder.mutation({
+      query: (data) => ({
+        url: "/warehouse/excel",
+        method: "POST",
+        body: { data },
+      }),
+      invalidatesTags: ["Warehouse"],
+    }),
   }),
 });
 
@@ -47,4 +55,5 @@ export const {
   useAddWarehouseMutation,
   useUpdateWarehouseMutation,
   useDeleteWarehouseMutation,
+  useImportWarehouseMutation,
 } = warehouseApi;

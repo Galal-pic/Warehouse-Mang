@@ -321,6 +321,7 @@ export default function Machines() {
       {/* table */}
       <CustomDataGrid
         rows={initialItems}
+        type="machine"
         columns={columns}
         paginationModel={paginationModel}
         onPageChange={handlePageChange}

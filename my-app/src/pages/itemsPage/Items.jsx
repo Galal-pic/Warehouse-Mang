@@ -152,13 +152,6 @@ export default function Items() {
     }
   };
 
-  // filters invoices
-  const filteredAndFormattedData = initialItems.map((item) => ({
-    ...item,
-    locations: item.locations.map((loc) => loc.location).join(", "),
-    totalPrice: item.locations.reduce((sum, loc) => sum + loc.quantity, 0),
-  }));
-
   // columns
   const columns = [
     {
@@ -391,7 +384,8 @@ export default function Items() {
 
       {/* table */}
       <CustomDataGrid
-        rows={filteredAndFormattedData}
+        rows={initialItems}
+        type="items"
         columns={columns}
         paginationModel={paginationModel}
         onPageChange={handlePageChange}

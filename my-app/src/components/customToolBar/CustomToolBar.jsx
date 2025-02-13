@@ -5,14 +5,26 @@ import AddCircleIcon from "@mui/icons-material/AddCircle";
 import ImportExportIcon from "@mui/icons-material/ImportExport";
 import * as XLSX from "xlsx";
 import SnackBar from "../../components/snackBar/SnackBar";
-import { useImportMachinesMutation } from "../../pages/services/machineApi"; // Update the path
+import { useImportMachinesMutation } from "../../pages/services/machineApi";
+import { useImportMechanismMutation } from "../../pages/services/mechanismApi";
+import { useImportSupplierMutation } from "../../pages/services/supplierApi";
+import { useImportWarehouseMutation } from "../../pages/services/warehouseApi";
 
-const CustomToolbar = ({ initialItems, setOpenDialog, paginationModel }) => {
+
+const CustomToolbar = ({
+  initialItems,
+  setOpenDialog,
+  paginationModel,
+  type,
+}) => {
   const primaryColor = getComputedStyle(
     document.documentElement
   ).getPropertyValue("--primary-color");
 
   const [importMachines] = useImportMachinesMutation();
+  const [importMechanisms] = useImportMechanismMutation();
+  const [importSuppliers] = useImportSupplierMutation();
+  const [importWarehouses] = useImportWarehouseMutation();
 
   // snackbar
   const [openSnackbar, setOpenSnackbar] = useState(false);
@@ -37,7 +49,15 @@ const CustomToolbar = ({ initialItems, setOpenDialog, paginationModel }) => {
   const sendDataToEndpoint = async (data) => {
     console.log("Sending data to API:", data);
     try {
-      const result = await importMachines(data).unwrap();
+      let result;
+      if (type === "machine") result = await importMachines(data).unwrap();
+      else if (type === "mechanism")
+        result = await importMechanisms(data).unwrap();
+      else if (type === "supplier")
+        result = await importSuppliers(data).unwrap();
+      else if (type === "items")
+        result = await importWarehouses(data).unwrap();
+
       setOpenSnackbar(true);
       setSnackbarMessage("تم إضافة البيانات بنجاح");
       setSnackBarType("success");
@@ -45,7 +65,11 @@ const CustomToolbar = ({ initialItems, setOpenDialog, paginationModel }) => {
     } catch (error) {
       console.error("Error:", error);
       setOpenSnackbar(true);
-      setSnackbarMessage(error.data?.message || "البيانات غير متوافقه");
+      setSnackbarMessage(
+        error.data?.message === "Machine already exists"
+          ? "الماكينات موجودة بالفعل"
+          : "البيانات غير متوافقة"
+      );
       setSnackBarType("error");
     }
   };
@@ -80,6 +104,7 @@ const CustomToolbar = ({ initialItems, setOpenDialog, paginationModel }) => {
     const flattenedItems = currentPageRows.flatMap((item) =>
       item.locations && Array.isArray(item.locations)
         ? item.locations.map((location) => ({
+            id: item.id,
             item_name: item.item_name,
             item_bar: item.item_bar,
             location: location.location,
@@ -99,6 +124,7 @@ const CustomToolbar = ({ initialItems, setOpenDialog, paginationModel }) => {
 
     handleClose();
   };
+  console.log(type);
 
   return (
     <GridToolbarContainer>
