@@ -11,6 +11,25 @@ mechanism_model = mechanism_ns.model('Mechanism', {
     'description': fields.String(required=False),
 })
 
+@mechanism_ns.route('/excel')
+class MachineExcel(Resource):
+
+    @mechanism_ns.marshal_with(mechanism_model)
+    @jwt_required()
+    def post(self):
+        """Create a new mechanism"""
+        data = mechanism_ns.payload
+        data = data.get("data",[])
+        for mechanism in data:
+            if Mechanism.query.filter_by(name=mechanism["name"]).first() or Mechanism.query.filter_by(name=mechanism["description"]).first():
+                return mechanism_ns.abort(400, "mechanism already exists")
+            new_mechanism = Mechanism(
+                name=mechanism["name"],
+                description=str(mechanism.get("description"))
+            )
+            db.session.add(new_mechanism)
+            db.session.commit()
+        return new_mechanism, 201
 
 # Mechanism Endpoints
 @mechanism_ns.route('/')

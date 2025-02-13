@@ -13,6 +13,25 @@ supplier_model = supplier_ns.model('Supplier', {
 })
 
 
+@supplier_ns.route('/excel')
+class MachineExcel(Resource):
+
+    @supplier_ns.marshal_with(supplier_model)
+    @jwt_required()
+    def post(self):
+        """Create a new mechanism"""
+        data = supplier_ns.payload
+        data = data.get("data",[])
+        for supplier in data:
+            if Supplier.query.filter_by(name=supplier["name"]).first() or Supplier.query.filter_by(name=supplier["description"]).first():
+                return supplier_ns.abort(400, "Supplier already exists")
+            new_supplier = Supplier(
+                name=supplier["name"],
+                description=str(supplier.get("description"))
+            )
+            db.session.add(new_supplier)
+            db.session.commit()
+        return new_supplier, 201
 # Machine Endpoints
 @supplier_ns.route('/')
 class SupplierList(Resource):

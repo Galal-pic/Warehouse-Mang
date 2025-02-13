@@ -19,7 +19,17 @@ class MachineExcel(Resource):
     def post(self):
         """Create a new machine"""
         data = machine_ns.payload
-        print(data)
+        data = data.get("data",[])
+        for machine in data:
+            if Machine.query.filter_by(name=machine["name"]).first() or Machine.query.filter_by(name=machine["description"]).first():
+                return machine_ns.abort(400, "Machine already exists")
+            new_machine = Machine(
+                name=machine["name"],
+                description=str(machine.get("description"))
+            )
+            db.session.add(new_machine)
+            db.session.commit()
+        return new_machine, 201
         
 # Machine Endpoints
 @machine_ns.route('/')
