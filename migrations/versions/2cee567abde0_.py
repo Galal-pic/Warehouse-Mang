@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: 6e93da82c236
+Revision ID: 2cee567abde0
 Revises: 
-Create Date: 2025-01-28 13:30:51.051236
+Create Date: 2025-02-13 11:58:22.341518
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '6e93da82c236'
+revision = '2cee567abde0'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -24,6 +24,12 @@ def upgrade():
     sa.Column('password_hash', sa.String(length=120), nullable=False),
     sa.Column('phone_number', sa.String(length=20), nullable=True),
     sa.Column('job_name', sa.String(length=100), nullable=False),
+    sa.Column('create_invoice_status', sa.String(length=20), nullable=True),
+    sa.Column('manage_operation_status', sa.String(length=20), nullable=True),
+    sa.Column('items_access_status', sa.String(length=20), nullable=True),
+    sa.Column('machine_access_status', sa.String(length=20), nullable=True),
+    sa.Column('mechanism_access_status', sa.String(length=20), nullable=True),
+    sa.Column('supplier_access_status', sa.String(length=20), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
     with op.batch_alter_table('employee', schema=None) as batch_op:
@@ -32,8 +38,9 @@ def upgrade():
     op.create_table('machine',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(length=255), nullable=False),
-    sa.Column('description', sa.Text(), nullable=True),
-    sa.PrimaryKeyConstraint('id')
+    sa.Column('description', sa.String(length=200), nullable=True),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('description')
     )
     with op.batch_alter_table('machine', schema=None) as batch_op:
         batch_op.create_index(batch_op.f('ix_machine_name'), ['name'], unique=True)
@@ -41,8 +48,9 @@ def upgrade():
     op.create_table('mechanism',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(length=255), nullable=False),
-    sa.Column('description', sa.Text(), nullable=True),
-    sa.PrimaryKeyConstraint('id')
+    sa.Column('description', sa.String(length=200), nullable=True),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('description')
     )
     with op.batch_alter_table('mechanism', schema=None) as batch_op:
         batch_op.create_index(batch_op.f('ix_mechanism_name'), ['name'], unique=True)
@@ -50,8 +58,9 @@ def upgrade():
     op.create_table('supplier',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(length=255), nullable=False),
-    sa.Column('description', sa.Text(), nullable=True),
-    sa.PrimaryKeyConstraint('id')
+    sa.Column('description', sa.String(length=200), nullable=True),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('description')
     )
     with op.batch_alter_table('supplier', schema=None) as batch_op:
         batch_op.create_index(batch_op.f('ix_supplier_name'), ['name'], unique=True)

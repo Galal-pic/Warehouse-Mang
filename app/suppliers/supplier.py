@@ -13,7 +13,25 @@ supplier_model = supplier_ns.model('Supplier', {
 })
 
 
-# Machine Endpoints
+@supplier_ns.route('/excel')
+class MechanismExcel(Resource):
+
+    @supplier_ns.marshal_with(supplier_model)
+    @jwt_required()
+    def post(self):
+        """Create a new supplier"""
+        data = supplier_ns.payload
+        data = data.get("data",[])
+        for Supplier in data:
+            if Supplier.query.filter_by(name=Supplier["name"]).first() or Supplier.query.filter_by(name=Supplier["description"]).first():
+                return supplier_ns.abort(400, "supplier already exists")
+            new_Supplier = Supplier(
+                name=Supplier["name"],
+                description=Supplier.get("description")
+            )
+            db.session.add(new_Supplier)
+            db.session.commit()
+# Supplier Endpoints
 @supplier_ns.route('/')
 class SupplierList(Resource):
     @supplier_ns.marshal_list_with(supplier_model)
@@ -23,7 +41,7 @@ class SupplierList(Resource):
         suppliers = Supplier.query.all()
         return suppliers
 
-    # @machine_ns.expect(machine_model)
+    # @Supplier_ns.expect(Supplier_model)
     @supplier_ns.marshal_with(supplier_model)
     @jwt_required()
     def post(self):
@@ -46,7 +64,7 @@ class SupplierDetail(Resource):
     @jwt_required()
     def get(self, supplier_id):
         """Get a supplier by ID"""
-        supplier = Machine.query.get_or_404(supplier_id)
+        supplier = Supplier.query.get_or_404(supplier_id)
         return supplier
 
     @supplier_ns.marshal_with(supplier_model)
