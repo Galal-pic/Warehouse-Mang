@@ -454,6 +454,7 @@ export default function Type1() {
         location: row.location,
         total_price: row.total_price,
         description: row.description,
+        unit_price: row.total_price / row.quantity,
       })),
     };
     console.log("new invoice being set: ", updatedInvoice);
