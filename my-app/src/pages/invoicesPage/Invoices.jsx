@@ -73,10 +73,21 @@ export default function Invoices() {
   const { data: mechanisms = [], isLoading: isMechanismsLoading } =
     useGetMechanismsQuery(undefined, { pollingInterval: 300000 });
 
-  const { data: warehouse = [], isLoading: isWareHousesLoading } =
-    useGetWarehousesQuery(undefined, { pollingInterval: 300000 });
+  const {
+    data: warehouse = [],
+    isLoading: isWareHousesLoading,
+    refetch,
+  } = useGetWarehousesQuery(undefined, { pollingInterval: 300000 });
 
-  const { data: user, isLoading: isUserLoading } = useGetUserQuery();
+  const {
+    data: user,
+    isLoading: isLoadingUser,
+    refetch: refetchUser,
+  } = useGetUserQuery();
+
+  useEffect(() => {
+    refetchUser();
+  }, []);
 
   // Invoices query with automatic refetch
   const { data: invoicesData = [], isLoading: isInvoicesLoading } =
@@ -130,6 +141,7 @@ export default function Invoices() {
       await Promise.all(
         selectedRows.map((invoice) => deleteInvoice(invoice.id).unwrap())
       );
+      refetch()
       setOpenSnackbar(true);
       setSnackbarMessage("تم الحذف بنجاح");
       setSnackBarType("success");
@@ -316,6 +328,7 @@ export default function Invoices() {
       setIsInvoiceDeleting(true);
       try {
         await deleteInvoice(selectedUserId).unwrap();
+        refetch()
         setOpenSnackbar(true);
         setSnackbarMessage("تم الحذف بنجاح");
         setSnackBarType("success");
@@ -851,25 +864,29 @@ export default function Invoices() {
       setDeleteDialogCheckBoxOpen(true);
     }
   };
+  console.log(editingInvoice)
 
-  // if (isUserLoading) {
-  //   return (
-  //     <div
-  //       style={{
-  //         height: "100vh",
-  //         display: "flex",
-  //         justifyContent: "center",
-  //         alignItems: "center",
-  //       }}
-  //     >
-  //       <h1 className={styles.head}>
-  //         {" "}
-  //         <CircularProgress />
-  //       </h1>
-  //     </div>
-  //   );
-  // } else {
-  //   if (user.username === "esraa") {
+  if (isLoadingUser) {
+    return (
+      <div
+        style={{
+          height: "100vh",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        <h1 className={styles.head}>
+          {" "}
+          <CircularProgress />
+        </h1>
+      </div>
+    );
+  } else {
+    if (
+      user.manage_operation_status === "العرض والتعديل" ||
+      user.manage_operation_status === "العرض"
+    ) {
   return (
     <div className={styles.container}>
       <h1 className={styles.head}> العمليات</h1>
@@ -1386,7 +1403,7 @@ export default function Invoices() {
                                       ...updatedItems[index],
                                       location: newValue?.location || "",
                                       quantity: 0,
-                                      priceunit: newValue?.price_unit,
+                                      priceunit: newValue?.price_unit ? newValue.price_unit : 0,
                                       total_price: 0,
                                       maxquantity:
                                         newValue?.quantity + row.quantity,
@@ -1889,19 +1906,19 @@ export default function Invoices() {
       />
     </div>
   );
-  //   } else {
-  //     return (
-  //       <div
-  //         style={{
-  //           height: "100vh",
-  //           display: "flex",
-  //           justifyContent: "center",
-  //           alignItems: "center",
-  //         }}
-  //       >
-  //         <h1 className={styles.head}>هذه الصفحة غير متوفره</h1>
-  //       </div>
-  //     );
-  //   }
-  // }
+    } else {
+      return (
+        <div
+          style={{
+            height: "100vh",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          <h1 className={styles.head}>هذه الصفحة غير متوفره</h1>
+        </div>
+      );
+    }
+  }
 }

@@ -1,5 +1,5 @@
 import styles from "./Supliers.module.css";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Dialog,
   DialogActions,
@@ -26,7 +26,15 @@ import { useGetUserQuery } from "../services/userApi";
 
 export default function Supliers() {
   // RTK Query Hooks
-  const { data: user, isLoading: isLoadingUser } = useGetUserQuery();
+  const {
+    data: user,
+    isLoading: isLoadingUser,
+    refetch: refetchUser,
+  } = useGetUserQuery();
+
+  useEffect(() => {
+    refetchUser();
+  }, []);
   const {
     data: initialItems = [],
     isLoading: isMachinesLoading,
@@ -290,24 +298,27 @@ export default function Supliers() {
       }
     }
   };
-  // if (isUserLoading) {
-  //   return (
-  //     <div
-  //       style={{
-  //         height: "100vh",
-  //         display: "flex",
-  //         justifyContent: "center",
-  //         alignItems: "center",
-  //       }}
-  //     >
-  //       <h1 className={styles.head}>
-  //         {" "}
-  //         <CircularProgress />
-  //       </h1>
-  //     </div>
-  //   );
-  // } else {
-  //   if (user.username === "esraa") {
+  if (isLoadingUser) {
+    return (
+      <div
+        style={{
+          height: "100vh",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        <h1 className={styles.head}>
+          {" "}
+          <CircularProgress />
+        </h1>
+      </div>
+    );
+  } else {
+    if (
+      user.supplier_access_status === "العرض والتعديل" ||
+      user.supplier_access_status === "العرض"
+    ) {
   return (
     <div className={styles.container}>
       {/* title */}
@@ -502,19 +513,19 @@ export default function Supliers() {
       />
     </div>
   );
-  //   } else {
-  //     return (
-  //       <div
-  //         style={{
-  //           height: "100vh",
-  //           display: "flex",
-  //           justifyContent: "center",
-  //           alignItems: "center",
-  //         }}
-  //       >
-  //         <h1 className={styles.head}>هذه الصفحة غير متوفره</h1>
-  //       </div>
-  //     );
-  //   }
-  // }
+    } else {
+      return (
+        <div
+          style={{
+            height: "100vh",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          <h1 className={styles.head}>هذه الصفحة غير متوفره</h1>
+        </div>
+      );
+    }
+  }
 }

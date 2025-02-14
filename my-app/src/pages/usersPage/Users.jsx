@@ -24,6 +24,7 @@ import {
   useGetUsersQuery,
   useUpdateUserMutation,
   useDeleteUserMutation,
+  useGetUserQuery,
 } from "../services/userApi";
 
 export default function Users() {
@@ -34,6 +35,9 @@ export default function Users() {
   const [snackBarType, setSnackBarType] = useState("");
 
   // loader
+  const {
+    refetch: refetchUser,
+  } = useGetUserQuery();
   const {
     data: users = [],
     isLoading,
@@ -49,6 +53,11 @@ export default function Users() {
     { value: "موظف", label: "موظف" },
     { value: "مدير", label: "مدير" },
     { value: "مشرف", label: "مشرف" },
+  ];
+  const privileges = [
+    { value: "العرض", label: "العرض" },
+    { value: "العرض والتعديل", label: "العرض والتعديل" },
+    { value: "-", label: "-" },
   ];
 
   // collors
@@ -148,6 +157,7 @@ export default function Users() {
 
     try {
       await updateUser({ id, ...editedRow }).unwrap();
+      refetchUser()
       setOpenSnackbar(true);
       setSnackbarMessage("تم تحديث بيانات الموظف بنجاح");
       setSnackBarType("success");
@@ -252,6 +262,426 @@ export default function Users() {
             </div>
           </>
         );
+      },
+    },
+    {
+      field: "create_invoice_status",
+      headerName: "صفحة إنشاء عملية",
+      flex: 1,
+      renderCell: (params) => {
+        if (editedRow && editedRow.id === params.id) {
+          return (
+            <Autocomplete
+              slotProps={{
+                paper: {
+                  sx: {
+                    "& .MuiAutocomplete-listbox": {
+                      "& .MuiAutocomplete-option": {
+                        direction: "rtl",
+                      },
+                    },
+                  },
+                },
+              }}
+              options={privileges}
+              value={
+                privileges.find(
+                  (pri) => pri.value === editedRow.create_invoice_status
+                ) || null
+              }
+              getOptionLabel={(option) => option.label}
+              onChange={(event, newValue) => {
+                setEditedRow({
+                  ...editedRow,
+                  create_invoice_status: newValue?.value || "",
+                });
+              }}
+              renderInput={(params) => (
+                <TextField
+                  sx={{
+                    backgroundColor: "white",
+                    borderRadius: "5px",
+                    margin: "5px 0",
+                    height: "50px",
+                    "& .MuiOutlinedInput-input": {
+                      textAlign: "center",
+                    },
+                  }}
+                  {...params}
+                  placeholder="اسم الوظيفة"
+                />
+              )}
+              isOptionEqualToValue={(option, value) =>
+                option.value === value?.value
+              }
+              fullWidth
+              sx={{
+                "& .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline": {
+                  border: "none",
+                },
+                "& .MuiAutocomplete-clearIndicator": {
+                  display: "none",
+                },
+                "& .MuiAutocomplete-popupIndicator": {},
+                "& .MuiOutlinedInput-root": {
+                  padding: "10px",
+                  fontSize: "14px",
+                },
+              }}
+            />
+          );
+        }
+        return params.value;
+      },
+    },
+    {
+      field: "manage_operation_status",
+      headerName: "صفحة إدارة العمليات",
+      flex: 1,
+      renderCell: (params) => {
+        if (editedRow && editedRow.id === params.id) {
+          return (
+            <Autocomplete
+              slotProps={{
+                paper: {
+                  sx: {
+                    "& .MuiAutocomplete-listbox": {
+                      "& .MuiAutocomplete-option": {
+                        direction: "rtl",
+                      },
+                    },
+                  },
+                },
+              }}
+              options={privileges}
+              value={
+                privileges.find(
+                  (pri) => pri.value === editedRow.manage_operation_status
+                ) || null
+              }
+              getOptionLabel={(option) => option.label}
+              onChange={(event, newValue) => {
+                setEditedRow({
+                  ...editedRow,
+                  manage_operation_status: newValue?.value || "",
+                });
+              }}
+              renderInput={(params) => (
+                <TextField
+                  sx={{
+                    backgroundColor: "white",
+                    borderRadius: "5px",
+                    margin: "5px 0",
+                    height: "50px",
+                    "& .MuiOutlinedInput-input": {
+                      textAlign: "center",
+                    },
+                  }}
+                  {...params}
+                  placeholder="اسم الوظيفة"
+                />
+              )}
+              isOptionEqualToValue={(option, value) =>
+                option.value === value?.value
+              }
+              fullWidth
+              sx={{
+                "& .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline": {
+                  border: "none",
+                },
+                "& .MuiAutocomplete-clearIndicator": {
+                  display: "none",
+                },
+                "& .MuiAutocomplete-popupIndicator": {},
+                "& .MuiOutlinedInput-root": {
+                  padding: "10px",
+                  fontSize: "14px",
+                },
+              }}
+            />
+          );
+        }
+        return params.value;
+      },
+    },
+    {
+      field: "items_access_status",
+      headerName: "صفحة الاصناف",
+      flex: 1,
+      renderCell: (params) => {
+        if (editedRow && editedRow.id === params.id) {
+          return (
+            <Autocomplete
+              slotProps={{
+                paper: {
+                  sx: {
+                    "& .MuiAutocomplete-listbox": {
+                      "& .MuiAutocomplete-option": {
+                        direction: "rtl",
+                      },
+                    },
+                  },
+                },
+              }}
+              options={privileges}
+              value={
+                privileges.find(
+                  (pri) => pri.value === editedRow.items_access_status
+                ) || null
+              }
+              getOptionLabel={(option) => option.label}
+              onChange={(event, newValue) => {
+                setEditedRow({
+                  ...editedRow,
+                  items_access_status: newValue?.value || "",
+                });
+              }}
+              renderInput={(params) => (
+                <TextField
+                  sx={{
+                    backgroundColor: "white",
+                    borderRadius: "5px",
+                    margin: "5px 0",
+                    height: "50px",
+                    "& .MuiOutlinedInput-input": {
+                      textAlign: "center",
+                    },
+                  }}
+                  {...params}
+                  placeholder="اسم الوظيفة"
+                />
+              )}
+              isOptionEqualToValue={(option, value) =>
+                option.value === value?.value
+              }
+              fullWidth
+              sx={{
+                "& .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline": {
+                  border: "none",
+                },
+                "& .MuiAutocomplete-clearIndicator": {
+                  display: "none",
+                },
+                "& .MuiAutocomplete-popupIndicator": {},
+                "& .MuiOutlinedInput-root": {
+                  padding: "10px",
+                  fontSize: "14px",
+                },
+              }}
+            />
+          );
+        }
+        return params.value;
+      },
+    },
+    {
+      field: "machine_access_status",
+      headerName: "صفحة المكينات",
+      flex: 1,
+      renderCell: (params) => {
+        if (editedRow && editedRow.id === params.id) {
+          return (
+            <Autocomplete
+              slotProps={{
+                paper: {
+                  sx: {
+                    "& .MuiAutocomplete-listbox": {
+                      "& .MuiAutocomplete-option": {
+                        direction: "rtl",
+                      },
+                    },
+                  },
+                },
+              }}
+              options={privileges}
+              value={
+                privileges.find(
+                  (pri) => pri.value === editedRow.machine_access_status
+                ) || null
+              }
+              getOptionLabel={(option) => option.label}
+              onChange={(event, newValue) => {
+                setEditedRow({
+                  ...editedRow,
+                  machine_access_status: newValue?.value || "",
+                });
+              }}
+              renderInput={(params) => (
+                <TextField
+                  sx={{
+                    backgroundColor: "white",
+                    borderRadius: "5px",
+                    margin: "5px 0",
+                    height: "50px",
+                    "& .MuiOutlinedInput-input": {
+                      textAlign: "center",
+                    },
+                  }}
+                  {...params}
+                  placeholder="اسم الوظيفة"
+                />
+              )}
+              isOptionEqualToValue={(option, value) =>
+                option.value === value?.value
+              }
+              fullWidth
+              sx={{
+                "& .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline": {
+                  border: "none",
+                },
+                "& .MuiAutocomplete-clearIndicator": {
+                  display: "none",
+                },
+                "& .MuiAutocomplete-popupIndicator": {},
+                "& .MuiOutlinedInput-root": {
+                  padding: "10px",
+                  fontSize: "14px",
+                },
+              }}
+            />
+          );
+        }
+        return params.value;
+      },
+    },
+    {
+      field: "mechanism_access_status",
+      headerName: "صفحة الميكانيزم",
+      flex: 1,
+      renderCell: (params) => {
+        if (editedRow && editedRow.id === params.id) {
+          return (
+            <Autocomplete
+              slotProps={{
+                paper: {
+                  sx: {
+                    "& .MuiAutocomplete-listbox": {
+                      "& .MuiAutocomplete-option": {
+                        direction: "rtl",
+                      },
+                    },
+                  },
+                },
+              }}
+              options={privileges}
+              value={
+                privileges.find(
+                  (pri) => pri.value === editedRow.mechanism_access_status
+                ) || null
+              }
+              getOptionLabel={(option) => option.label}
+              onChange={(event, newValue) => {
+                setEditedRow({
+                  ...editedRow,
+                  mechanism_access_status: newValue?.value || "",
+                });
+              }}
+              renderInput={(params) => (
+                <TextField
+                  sx={{
+                    backgroundColor: "white",
+                    borderRadius: "5px",
+                    margin: "5px 0",
+                    height: "50px",
+                    "& .MuiOutlinedInput-input": {
+                      textAlign: "center",
+                    },
+                  }}
+                  {...params}
+                  placeholder="اسم الوظيفة"
+                />
+              )}
+              isOptionEqualToValue={(option, value) =>
+                option.value === value?.value
+              }
+              fullWidth
+              sx={{
+                "& .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline": {
+                  border: "none",
+                },
+                "& .MuiAutocomplete-clearIndicator": {
+                  display: "none",
+                },
+                "& .MuiAutocomplete-popupIndicator": {},
+                "& .MuiOutlinedInput-root": {
+                  padding: "10px",
+                  fontSize: "14px",
+                },
+              }}
+            />
+          );
+        }
+        return params.value;
+      },
+    },
+    {
+      field: "supplier_access_status",
+      headerName: "صفحة الموردين",
+      flex: 1,
+      renderCell: (params) => {
+        if (editedRow && editedRow.id === params.id) {
+          return (
+            <Autocomplete
+              slotProps={{
+                paper: {
+                  sx: {
+                    "& .MuiAutocomplete-listbox": {
+                      "& .MuiAutocomplete-option": {
+                        direction: "rtl",
+                      },
+                    },
+                  },
+                },
+              }}
+              options={privileges}
+              value={
+                privileges.find(
+                  (pri) => pri.value === editedRow.supplier_access_status
+                ) || null
+              }
+              getOptionLabel={(option) => option.label}
+              onChange={(event, newValue) => {
+                setEditedRow({
+                  ...editedRow,
+                  supplier_access_status: newValue?.value || "",
+                });
+              }}
+              renderInput={(params) => (
+                <TextField
+                  sx={{
+                    backgroundColor: "white",
+                    borderRadius: "5px",
+                    margin: "5px 0",
+                    height: "50px",
+                    "& .MuiOutlinedInput-input": {
+                      textAlign: "center",
+                    },
+                  }}
+                  {...params}
+                  placeholder="اسم الوظيفة"
+                />
+              )}
+              isOptionEqualToValue={(option, value) =>
+                option.value === value?.value
+              }
+              fullWidth
+              sx={{
+                "& .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline": {
+                  border: "none",
+                },
+                "& .MuiAutocomplete-clearIndicator": {
+                  display: "none",
+                },
+                "& .MuiAutocomplete-popupIndicator": {},
+                "& .MuiOutlinedInput-root": {
+                  padding: "10px",
+                  fontSize: "14px",
+                },
+              }}
+            />
+          );
+        }
+        return params.value;
       },
     },
     {

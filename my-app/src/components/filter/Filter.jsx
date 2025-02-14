@@ -53,7 +53,7 @@ export default function FilterTabs({ setNowType, setSelectedRows }) {
     { label: "مرتجع", type: "operation", url: "/invoice/مرتجع", status: true },
     { label: "توالف", type: "operation", url: "/invoice/توالف", status: false },
     { label: "حجز", type: "operation", url: "/invoice/حجز", status: true },
-    { label: "اضافه", type: "purchase", url: "/invoice/اضافه", status: false },
+    { label: "اضافه", type: "purchase", url: "/invoice/اضافه", status: true },
   ];
 
   return (

@@ -23,6 +23,7 @@ import SettingsIcon from "@mui/icons-material/Settings";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import GroupsIcon from "@mui/icons-material/Groups";
 import CircularProgress from "@mui/material/CircularProgress";
+import { useGetUserQuery } from "../../pages/services/userApi";
 
 // liks
 const resourceManagementLinks = [
@@ -67,48 +68,14 @@ const links = [
 ];
 
 export default function Header() {
-  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
-
-  // loader
-  const [isUserLoading, setIsUserLoading] = useState(false);
-  const [isLogoutLoading, setIsLogoutLoading] = useState(false);
-
   // get user data
-  const [user, setUser] = useState({});
-  useEffect(() => {
-    const fetchUserData = async () => {
-      const accessToken = localStorage.getItem("access_token");
-
-      if (!accessToken) {
-        console.error("No access token found.");
-        return;
-      }
-
-      setIsUserLoading(true);
-      try {
-        const response = await fetch(`${API_BASE_URL}/auth/user`, {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch user data: ${response.statusText}`);
-        }
-
-        const data = await response.json();
-        setUser(data);
-        return data;
-      } catch (err) {
-        console.error("Error fetching user data:", err);
-      } finally {
-        setIsUserLoading(false);
-      }
-    };
-
-    fetchUserData();
-  }, [API_BASE_URL]);
+  const [isLogoutLoading, setIsLogoutLoading] = useState(false);
+  const {
+    data: user,
+    isLoading: isUserLoading,
+    refetch: refetchUser,
+  } = useGetUserQuery();
+  console.log(user);
 
   // selected link
   const [selectedLink, setSelectedLink] = useState("");
@@ -186,6 +153,38 @@ export default function Header() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  // تصفية الروابط الرئيسية بناءً على الصلاحيات
+  const filteredLinks = links.filter((link) => {
+    if (link.text === "إنشاء عملية") return user?.create_invoice_status !== "-";
+    if (link.text === "إدارة العمليات")
+      return user?.manage_operation_status !== "-";
+    if (link.text === "إدارة الموارد") return true; // سنتعامل معها لاحقًا
+    return true;
+  });
+
+  // تصفية قائمة إدارة الموارد
+  const filteredResourceManagementLinks = resourceManagementLinks.filter(
+    (resource) => {
+      if (resource.text === "المنتجات")
+        return user?.items_access_status !== "-";
+      if (resource.text === "الماكينات")
+        return user?.machine_access_status !== "-";
+      if (resource.text === "الميكانيزم")
+        return user?.mechanism_access_status !== "-";
+      if (resource.text === "الموردين")
+        return user?.supplier_access_status !== "-";
+      return false;
+    }
+  );
+
+  // تعديل الروابط الرئيسية لتحديث إدارة الموارد بناءً على الصلاحيات
+  const updatedFilteredLinks = filteredLinks.map((link) => {
+    if (link.text === "إدارة الموارد") {
+      return { ...link, submenu: filteredResourceManagementLinks };
+    }
+    return link;
+  });
+
   return (
     <div className={styles.header} ref={headerRef}>
       {/* logo */}
@@ -206,7 +205,7 @@ export default function Header() {
       {/* links */}
       {!isMobile && (
         <div className={styles.navbarContainer}>
-          {links.map((link) => (
+          {filteredLinks.map((link) => (
             <li
               key={link.text}
               className={`${styles.navItem} ${
@@ -240,7 +239,7 @@ export default function Header() {
                     }}
                     className={styles.menuContainer}
                   >
-                    {resourceManagementLinks.map((resource) => {
+                    {filteredResourceManagementLinks.map((resource) => {
                       return (
                         <MenuItem
                           key={resource.text}
@@ -411,7 +410,10 @@ export default function Header() {
                   margin: "10px 0 20px",
                 }}
               >
-                {[...links, ...resourceManagementLinks].map((link) => (
+                {[
+                  ...updatedFilteredLinks,
+                  ...filteredResourceManagementLinks,
+                ].map((link) => (
                   <li className={styles.liDrawer} key={link.text} data-nav-item>
                     {link.href && (
                       <Link

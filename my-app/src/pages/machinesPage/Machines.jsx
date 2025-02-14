@@ -1,5 +1,5 @@
 import styles from "./Machines.module.css";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Dialog,
   DialogActions,
@@ -25,7 +25,15 @@ import {
 import { useGetUserQuery } from "../services/userApi";
 
 export default function Machines() {
-  const { data: user, isLoading: isLoadingUser } = useGetUserQuery();
+  const {
+    data: user,
+    isLoading: isLoadingUser,
+    refetch: refetchUser,
+  } = useGetUserQuery();
+
+  useEffect(() => {
+    refetchUser();
+  }, []);
   // RTK Query Hooks
   const {
     data: initialItems = [],
@@ -282,24 +290,27 @@ export default function Machines() {
     }
   };
 
-  // if (isUserLoading) {
-  //   return (
-  //     <div
-  //       style={{
-  //         height: "100vh",
-  //         display: "flex",
-  //         justifyContent: "center",
-  //         alignItems: "center",
-  //       }}
-  //     >
-  //       <h1 className={styles.head}>
-  //         {" "}
-  //         <CircularProgress />
-  //       </h1>
-  //     </div>
-  //   );
-  // } else {
-  //   if (user.username === "esraa") {
+  if (isLoadingUser) {
+    return (
+      <div
+        style={{
+          height: "100vh",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        <h1 className={styles.head}>
+          {" "}
+          <CircularProgress />
+        </h1>
+      </div>
+    );
+  } else {
+    if (
+      user.machine_access_status === "العرض والتعديل" ||
+      user.machine_access_status === "العرض"
+    ) {
   return (
     <div className={styles.container}>
       {/* title */}
@@ -497,19 +508,19 @@ export default function Machines() {
       />
     </div>
   );
-  //   } else {
-  //     return (
-  //       <div
-  //         style={{
-  //           height: "100vh",
-  //           display: "flex",
-  //           justifyContent: "center",
-  //           alignItems: "center",
-  //         }}
-  //       >
-  //         <h1 className={styles.head}>هذه الصفحة غير متوفره</h1>
-  //       </div>
-  //     );
-  //   }
-  // }
+    } else {
+      return (
+        <div
+          style={{
+            height: "100vh",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          <h1 className={styles.head}>هذه الصفحة غير متوفره</h1>
+        </div>
+      );
+    }
+  }
 }
