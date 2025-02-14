@@ -28,9 +28,14 @@ login_model = auth_ns.model('Login', {
 
 user_model = auth_ns.model('User', {
     'id': fields.Integer(readOnly=True, description='User ID'),
-    'username': fields.String(description='Username'),
-    'phone_number': fields.String(description='Phone number'),
-    'job_name': fields.String(description='Job title')
+    'phone_number': fields.String(required=False, description='Phone number'),
+    'job_name': fields.String(required=False, description='Job title'),
+    'create_invoice_status': fields.String(required=False, description='Create invoice status'),
+    'manage_operation_status': fields.String(required=False, description='Manage operation status'),
+    'items_access_status': fields.String(required=False, description='Items access status'),
+    'machine_access_status': fields.String(required=False, description='Machine access status'),
+    'mechanism_access_status': fields.String(required=False, description='Mechanism access status'),
+    'supplier_access_status': fields.String(required=False, description='Supplier access status')
 })
 
 update_user_model = auth_ns.model('UpdateUser', {
