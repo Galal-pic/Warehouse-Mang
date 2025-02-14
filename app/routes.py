@@ -24,6 +24,7 @@ invoice_item_model = invoice_ns.model('InvoiceItem', {
     'quantity': fields.Integer(required=True),
     'location': fields.String(required=True),
     'total_price': fields.Float(required=True),  # pre unit
+    'unit_price': fields.Float(required=True),
     'description': fields.String(required=False),
 })
 # Invoice Model
@@ -83,6 +84,7 @@ class invoices_get(Resource):
                         "quantity": item.quantity,
                         "location": item.location,
                         "total_price": item.total_price,
+                        'unit_price':item.unit_price,
                         "description": item.description
                     }
                     for item in items
@@ -136,6 +138,7 @@ class InvoiceList(Resource):
                         "quantity": item.quantity,
                         "location": item.location,
                         "total_price": item.total_price,
+                        'unit_price': item.unit_price,
                         "description": item.description
                     }
                     for item in items
@@ -211,6 +214,7 @@ class InvoiceDetail(Resource):
                     "quantity": item.quantity,
                     "location": item.location,
                     "total_price": item.total_price,
+                    'unit_price': item.unit_price,
                     "description": item.description
                 }
                 for item in items
@@ -301,22 +305,21 @@ class UpdateInvoicePrice(Resource):
         """Update invoice item prices from warehouse and item locations"""
         invoice = Invoice.query.get_or_404(invoice_id)
 
-        updated_total = 0  # To recalculate the total invoice amount
+        updated_total = 0  # To store the new total invoice amount
 
         for item in invoice.items:
-            # Find the latest price from ItemLocations based on item_id and location
+            # Fetch the latest price from ItemLocations based on item_id and location
             item_location = ItemLocations.query.filter_by(item_id=item.item_id, location=item.location).first()
-            print(item_location)
+
             if item_location:
-                new_price = item_location.price_unit
+                new_unit_price = item_location.price_unit
+                item.unit_price = new_unit_price  # Update unit price
+                item.total_price = new_unit_price * item.quantity  # Update total price
+                updated_total += item.total_price
             else:
-                continue  # Skip if no price is found
+                continue  # Skip if no price found
 
-            # Update invoice item total price
-            item.total_price = new_price * item.quantity
-            updated_total += item.total_price
-
-        # Update total invoice amount
+        # Update invoice total amount
         invoice.total_amount = updated_total
         db.session.commit()
 

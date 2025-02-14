@@ -82,6 +82,7 @@ class InvoiceItem(db.Model):
     location = db.Column(db.String(255),primary_key=True)
     quantity = db.Column(db.Integer, nullable=False)
     total_price = db.Column(db.Float, nullable=False)
+    unit_price = db.Column(db.Float, nullable=False)
     description = db.Column(db.Text)
 
     # Relationships

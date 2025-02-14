@@ -45,6 +45,7 @@ def Return_Operations(data, machine, mechanism,supplier,employee, machine_ns,war
                 warehouse=warehouse_item,  # Link to the warehouse item
                 quantity=item_data["quantity"],
                 location=item_data["location"],
+                unit_price=item_data["unit_price"],
                 total_price=item_data['total_price'],  # Calculate total price
                 description=item_data.get("description"),
             )
@@ -134,6 +135,7 @@ def put_return(data, invoice, machine, mechanism, invoice_ns):
                         item_id=warehouse_item.id,
                         quantity=new_quantity,
                         location=location,
+                        unit_price = item_location.price_unit,
                         total_price=new_quantity * item_location.price_unit,
                         description=item_data.get("description")
                     )

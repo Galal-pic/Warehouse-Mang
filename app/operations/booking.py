@@ -49,6 +49,7 @@ def Booking_Operations(data, machine, mechanism,supplier,employee, machine_ns,wa
                 quantity=item_data["quantity"],
                 location=item_data["location"],
                 total_price=item_data['total_price'],  
+                unit_price = item_data["unit_price"],
                 description=item_data.get("description"),
             )
         db.session.add(new_item)
@@ -138,6 +139,7 @@ def put_booking(data, invoice, machine, mechanism, invoice_ns):
                         item_id=warehouse_item.id,
                         quantity=new_quantity,
                         location=location,
+                        unit_price = item_location.price_unit,
                         total_price=new_quantity * item_location.price_unit,
                         description=item_data.get("description")
                     )
