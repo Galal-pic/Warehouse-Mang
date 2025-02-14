@@ -472,9 +472,11 @@ export default function Invoices() {
             >
               حذف المحدد ({selectedRows.length})
             </Button>
-            {!selectedRows.some(
-              (invoice) => invoice.status === "confirmed"
-            ) && (
+            {selectedRows.some((invoice) =>
+              invoice.items.some((item) => item.total_price !== 0)
+            ) ? (
+              ""
+            ) : (
               <Button
                 variant="contained"
                 startIcon={<ClearOutlinedIcon />}
@@ -580,7 +582,7 @@ export default function Invoices() {
               ) : (
                 "تم الاسترداد"
               ))}
-            {params.row.status !== "confirmed" && (
+            {params.row.items.some((item) => item.total_price === 0) && (
               <Button
                 variant="contained"
                 color="info"
