@@ -155,10 +155,12 @@ export default function Register() {
         }}
         className={styles.boxForm}
       >
-        <IconButton className={styles.iconBtn} onClick={() => navigate(-1)}>
-          <ArrowBackOutlinedIcon className={styles.arrow} />
-        </IconButton>
-        <h2 className={styles.subTitle}>التسجيل</h2>
+        <h2 className={styles.subTitle}>
+          <IconButton className={styles.iconBtn} onClick={() => navigate(-1)}>
+            <ArrowBackOutlinedIcon className={styles.arrow} />
+          </IconButton>
+          التسجيل
+        </h2>
         <Box
           component="form"
           onSubmit={handleSubmit}
@@ -187,8 +189,6 @@ export default function Register() {
                     type={type}
                     value={formData[field]}
                     onChange={(e) => handleChange(field, e.target.value)}
-                    onFocus={(e) => (e.target.style.borderColor = "#1976d2")}
-                    onBlur={(e) => (e.target.style.borderColor = "#ccc")}
                     style={{
                       width: "100%",
                       padding: "10px",
@@ -202,6 +202,12 @@ export default function Register() {
                       outline: "none",
                       transition: "border-color 0.2s",
                     }}
+                    onFocus={(e) =>
+                      (e.target.style.borderColor = !errors[field] && "#1976d2")
+                    }
+                    onBlur={(e) =>
+                      (e.target.style.borderColor = !errors[field] && "#ccc")
+                    }
                   />
                   {errors[field] && (
                     <span
@@ -248,6 +254,13 @@ export default function Register() {
                       outline: "none",
                       transition: "border-color 0.2s",
                     }}
+                    onFocus={(e) =>
+                      (e.target.style.borderColor =
+                        !errors.password && "#1976d2")
+                    }
+                    onBlur={(e) =>
+                      (e.target.style.borderColor = !errors.password && "#ccc")
+                    }
                   />
                   <IconButton
                     onClick={togglePasswordVisibility}
@@ -308,6 +321,14 @@ export default function Register() {
                       outline: "none",
                       transition: "border-color 0.2s",
                     }}
+                    onFocus={(e) =>
+                      (e.target.style.borderColor =
+                        !errors.confirmPassword && "#1976d2")
+                    }
+                    onBlur={(e) =>
+                      (e.target.style.borderColor =
+                        !errors.confirmPassword && "#ccc")
+                    }
                   />
                   <IconButton
                     onClick={toggleConfirmPasswordVisibility}
@@ -364,8 +385,12 @@ export default function Register() {
                     backgroundColor: "#fff",
                     appearance: "none",
                   }}
-                  onFocus={(e) => (e.target.style.borderColor = "#1976d2")}
-                  onBlur={(e) => (e.target.style.borderColor = "#ccc")}
+                  onFocus={(e) =>
+                    (e.target.style.borderColor = !errors.job && "#1976d2")
+                  }
+                  onBlur={(e) =>
+                    (e.target.style.borderColor = !errors.job && "#ccc")
+                  }
                 >
                   <option value="" disabled>
                     -- اختر الوظيفة --

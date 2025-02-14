@@ -124,7 +124,6 @@ const CustomToolbar = ({
 
     handleClose();
   };
-  console.log(type);
 
   return (
     <GridToolbarContainer>

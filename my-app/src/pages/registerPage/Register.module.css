@@ -28,8 +28,7 @@
 
 .iconBtn {
     position: absolute !important;
-    left: 10px !important;
-    top: 10px !important;
+    left: 0px !important;
 }
 
 .arrow {
@@ -42,6 +41,7 @@
     font-size: 30px;
     font-weight: 400;
     color: var(--primary-color);
+    position: relative;
 }
 
 .textFields {

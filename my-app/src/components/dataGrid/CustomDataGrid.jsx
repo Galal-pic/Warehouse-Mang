@@ -136,7 +136,6 @@ export default function CustomDataGrid({
     }));
   }
 
-  console.log(rows)
   return (
     <DataGrid
       rows={type === "items" ? filteredAndFormattedData : rows}
