@@ -259,7 +259,7 @@ class InvoiceDetail(Resource):
             delete_warranty(invoice, invoice_ns)
         elif invoice.type =='مرتجع':
             delete_return(invoice, invoice_ns)
-        elif invoice.type =='تالف':
+        elif invoice.type =="توالف":
             delete_void(invoice, invoice_ns)
         elif invoice.type =='حجز':
             delete_booking(invoice, invoice_ns)
@@ -292,3 +292,35 @@ class ConfirmInvoice(Resource):
         invoice.warehouse_manager = employee.username
         db.session.commit()
         return {"message": "Invoice confirmed successfully"}, 200
+    
+@invoice_ns.route('/<int:invoice_id>/updateprice')
+class UpdateInvoicePrice(Resource):
+    @invoice_ns.doc('update_invoice_price')
+    @jwt_required()
+    def post(self, invoice_id):
+        """Update invoice item prices from warehouse and item locations"""
+        invoice = Invoice.query.get_or_404(invoice_id)
+
+        updated_total = 0  # To recalculate the total invoice amount
+
+        for item in invoice.items:
+            # Find the latest price from ItemLocations based on item_id and location
+            item_location = ItemLocations.query.filter_by(item_id=item.item_id, location=item.location).first()
+            print(item_location)
+            if item_location:
+                new_price = item_location.price_unit
+            else:
+                continue  # Skip if no price is found
+
+            # Update invoice item total price
+            item.total_price = new_price * item.quantity
+            updated_total += item.total_price
+
+        # Update total invoice amount
+        invoice.total_amount = updated_total
+        db.session.commit()
+
+        return {
+            "message": "Invoice prices updated successfully",
+            "total_amount": invoice.total_amount
+        }, 200
