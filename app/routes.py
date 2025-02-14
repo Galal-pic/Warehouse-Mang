@@ -305,21 +305,20 @@ class UpdateInvoicePrice(Resource):
         """Update invoice item prices from warehouse and item locations"""
         invoice = Invoice.query.get_or_404(invoice_id)
 
-        updated_total = 0  # To store the new total invoice amount
+        updated_total = invoice.total_amount  # Keep track of total amount
 
         for item in invoice.items:
-            # Fetch the latest price from ItemLocations based on item_id and location
-            item_location = ItemLocations.query.filter_by(item_id=item.item_id, location=item.location).first()
+            # Only update items with unit_price = 0
+            if item.unit_price == 0:
+                item_location = ItemLocations.query.filter_by(item_id=item.item_id, location=item.location).first()
 
-            if item_location:
-                new_unit_price = item_location.price_unit
-                item.unit_price = new_unit_price  # Update unit price
-                item.total_price = new_unit_price * item.quantity  # Update total price
-                updated_total += item.total_price
-            else:
-                continue  # Skip if no price found
+                if item_location:
+                    new_unit_price = item_location.price_unit
+                    item.unit_price = new_unit_price  # Update unit price
+                    item.total_price = new_unit_price * item.quantity  # Update total price
+                    updated_total += item.total_price  # Add new total price to invoice
 
-        # Update invoice total amount
+        # Update the invoice's total amount
         invoice.total_amount = updated_total
         db.session.commit()
 
