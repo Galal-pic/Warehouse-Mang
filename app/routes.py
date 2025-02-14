@@ -288,7 +288,7 @@ class ConfirmInvoice(Resource):
     @jwt_required()
     def post(self, invoice_id):
         invoice = Invoice.query.get_or_404(invoice_id)
-        if invoice.type != 'صرف' or invoice.status != 'draft':
+        if  invoice.status != 'draft':
             invoice_ns.abort(400, "Invoice cannot be confirmed")
         # Update invoice status to confirmed
         invoice.status = 'confirmed'
