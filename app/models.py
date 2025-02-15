@@ -56,6 +56,7 @@ class Invoice(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.now, index=True)
     client_name = db.Column(db.String(50))
     warehouse_manager = db.Column(db.String(255))
+    accreditation_manager = db.Column(db.String(255))
     total_amount = db.Column(db.Float)
     paid = db.Column(db.Float)
     residual = db.Column(db.Float)

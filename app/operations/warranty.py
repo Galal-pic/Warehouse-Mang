@@ -9,6 +9,7 @@ def Warranty_Operations(data, machine, mechanism,supplier,employee, machine_ns,w
             type=data["type"],
             client_name=data.get("client_name"),
             warehouse_manager=data.get("warehouse_manager"),
+            accreditation_manager = data.get("accreditation_manager"),
             total_amount=data.get("total_amount", 0),  
             paid=data.get("paid", 0),  
             residual=data.get("residual", 0),  

@@ -33,6 +33,7 @@ invoice_model = invoice_ns.model('Invoice', {
     'type': fields.String(required=True),
     'client_name': fields.String(required=False),
     'warehouse_manager': fields.String(required=False),
+    'accreditation_manager': fields.String(required=False),
     'total_amount': fields.Float(required=False),
     'paid': fields.Float(required=False),
     'residual':fields.Float(required=False),
@@ -67,6 +68,7 @@ class invoices_get(Resource):
                 "type": invoice.type,
                 "client_name": invoice.client_name,
                 "warehouse_manager": invoice.warehouse_manager,
+                'accreditation_manager': invoice.accreditation_manager,
                 "total_amount": invoice.total_amount,
                 'paid': invoice.paid,
                 'residual': invoice.residual,
@@ -121,6 +123,7 @@ class InvoiceList(Resource):
                 "type": invoice.type,
                 "client_name": invoice.client_name,
                 "warehouse_manager": invoice.warehouse_manager,
+                "accreditation_manager":invoice.accreditation_manager,
                 "total_amount": invoice.total_amount,
                 'paid': invoice.paid,
                 'residual': invoice.residual,
@@ -198,6 +201,7 @@ class InvoiceDetail(Resource):
                 "type": invoice.type,
                 "client_name": invoice.client_name,
                 "Warehouse_manager": invoice.warehouse_manager,
+                "accreditation_manager": invoice.accreditation_manager,
                 "total_amount": invoice.total_amount,
                 'paid': invoice.paid,
                 'residual': invoice.residual,
@@ -288,12 +292,17 @@ class ConfirmInvoice(Resource):
     @jwt_required()
     def post(self, invoice_id):
         invoice = Invoice.query.get_or_404(invoice_id)
-        if  invoice.status != 'draft':
+        if  invoice.status == 'draft':
+            invoice.status = 'accreditation'
+            employee = Employee.query.get(get_jwt_identity())
+            invoice.accreditation_manager = employee.username
+        elif invoice.status == 'accreditation':
+            invoice.status = 'confirmed'
+            employee = Employee.query.get(get_jwt_identity())
+            invoice.warehouse_manager = employee.username
+        else :
             invoice_ns.abort(400, "Invoice cannot be confirmed")
         # Update invoice status to confirmed
-        invoice.status = 'confirmed'
-        employee = Employee.query.get(get_jwt_identity())
-        invoice.warehouse_manager = employee.username
         db.session.commit()
         return {"message": "Invoice confirmed successfully"}, 200
     

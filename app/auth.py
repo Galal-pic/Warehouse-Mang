@@ -28,6 +28,7 @@ login_model = auth_ns.model('Login', {
 
 user_model = auth_ns.model('User', {
     'id': fields.Integer(readOnly=True, description='User ID'),
+    'username': fields.String(required=False, description='Username'),
     'phone_number': fields.String(required=False, description='Phone number'),
     'job_name': fields.String(required=False, description='Job title'),
     'create_invoice_status': fields.String(required=False, description='Create invoice status'),
