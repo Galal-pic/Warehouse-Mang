@@ -221,6 +221,7 @@ export default function Invoices() {
       setEditingInvoice(null);
       return;
     }
+    console.log(editingInvoice);
 
     // Step 2: Validate required fields
     if (selectedNowType.type === "purchase") {
@@ -262,6 +263,7 @@ export default function Invoices() {
       quantity: row.quantity,
       location: row.location,
       total_price: row.total_price,
+      unit_price: selectedNowType.type !== "purchase" ? Number(row.priceunit) : Number(row.unit_price),
       description: row.description,
     }));
 
@@ -285,6 +287,7 @@ export default function Invoices() {
         location: row.location,
         quantity: Number(row.quantity),
         total_price: row.total_price,
+        unit_price: selectedNowType.type !== "purchase" ? Number(row.priceunit) : Number(row.unit_price),
         description: row.description,
       })),
     };
@@ -294,11 +297,13 @@ export default function Invoices() {
 
     try {
       await updateInvoice(updatedInvoice).unwrap();
-      setSelectedInvoice(updatedInvoice);
       setOpenSnackbar(true);
       setSnackbarMessage("تم التعديل بنجاح");
       setSnackBarType("success");
       setIsEditingInvoice(false);
+      setIsModalOpen(true);
+      openInvoice(updatedInvoice.id);
+      setSelectedInvoice(updatedInvoice);
     } catch (error) {
       setOpenSnackbar(true);
       setSnackbarMessage("حدث خطأ أثناء التحديث");
@@ -378,7 +383,7 @@ export default function Invoices() {
 
   // open close modal
   const openInvoice = (id) => {
-    const invoice = invoices.find((item) => item.id === id);
+    const invoice = invoices?.find((item) => item.id === id);
     if (!invoice) {
       console.error("Invoice not found:", id);
       return;
@@ -497,13 +502,13 @@ export default function Invoices() {
                 "&:hover": { backgroundColor: "#b71c1c" },
                 position: "absolute",
                 top: "15px",
-                right: "0",
+                left: "0",
               }}
             >
               حذف المحدد ({selectedRows.length})
             </Button>
             {selectedRows.some((invoice) =>
-              invoice.items.some((item) => item.total_price !== 0)
+              invoice.items.every((item) => item.total_price !== 0)
             ) ? (
               ""
             ) : (
@@ -514,7 +519,7 @@ export default function Invoices() {
                 sx={{
                   position: "absolute",
                   top: "15px",
-                  right: "150px",
+                  left: "150px",
                 }}
                 disabled={isRefreshArrayLoading}
               >
@@ -897,7 +902,6 @@ export default function Invoices() {
     refetchSupliers,
     refetchUser,
   ]);
-  console.log(selectedRows);
 
   if (isLoadingUser) {
     return (
@@ -1306,7 +1310,7 @@ export default function Invoices() {
                                         },
                                       }}
                                       value={
-                                        itemNames.find(
+                                        itemNames?.find(
                                           (item) => item === row.item_name
                                         ) || ""
                                       }
@@ -1405,7 +1409,7 @@ export default function Invoices() {
                                         },
                                       }}
                                       value={
-                                        row.availableLocations.find(
+                                        row?.availableLocations?.find(
                                           (location1) =>
                                             location1.location === row.location
                                         ) || null
@@ -1439,7 +1443,7 @@ export default function Invoices() {
                                         }
 
                                         const matchedItem =
-                                          editingInvoice.items.find(
+                                          editingInvoice?.items?.find(
                                             (row11) =>
                                               row11.barcode === row.barcode &&
                                               row11.location ===
@@ -1462,9 +1466,11 @@ export default function Invoices() {
                                           ...updatedItems[index],
                                           location: newValue?.location || "",
                                           quantity: 0,
-                                          priceunit: newValue?.price_unit
-                                            ? newValue.price_unit
-                                            : 0,
+                                          priceunit:
+                                            newValue?.price_unit &&
+                                            selectedNowType.type !== "purchase"
+                                              ? newValue.price_unit
+                                              : 0,
                                           total_price: 0,
                                           maxquantity:
                                             newValue?.quantity + row.quantity,
@@ -1572,7 +1578,9 @@ export default function Invoices() {
                                           ...row,
                                           quantity: e.target.value,
                                           total_price:
-                                            newQuantity * row.priceunit,
+                                            selectedNowType.type === "purchase"
+                                              ? newQuantity * row.unit_price
+                                              : newQuantity * row.priceunit,
                                         };
                                         const totalAmount = updatedItems.reduce(
                                           (sum, item) =>
@@ -1593,9 +1601,137 @@ export default function Invoices() {
                                 {(show ||
                                   selectedNowType.type === "purchase") && (
                                   <>
-                                    <TableCell className={styles.tableCellRow}>
-                                      {row.total_price / row.quantity}
-                                    </TableCell>
+                                    {!isEditingInvoice ? (
+                                      <TableCell
+                                        className={styles.tableCellRow}
+                                      >
+                                        {row.unit_price}
+                                      </TableCell>
+                                    ) : selectedNowType.type !== "purchase" ? (
+                                      <TableCell
+                                        className={styles.tableCellRow}
+                                      >
+                                        {row.priceunit}
+                                      </TableCell>
+                                    ) : (
+                                      <TableCell
+                                        className={styles.tableCellRow}
+                                        sx={{
+                                          width: "100px",
+                                        }}
+                                      >
+                                        <NumberInput
+                                          style={{
+                                            width: "100px",
+                                            outline: "none",
+                                            fontSize: "15px",
+                                            textAlign: "center",
+                                            border: "none",
+                                            padding: "10px",
+                                          }}
+                                          value={
+                                            row.unit_price ?? row?.unit_price
+                                          }
+                                          onInput={(e) => {
+                                            console.log(row);
+                                            if (e.target.value < 0) {
+                                              e.target.value = 0;
+                                            }
+                                            if (
+                                              (selectedNowType.type ===
+                                                "operation") &
+                                              (e.target.value > row.maxquantity)
+                                            ) {
+                                              e.target.value = row.maxquantity;
+                                            }
+                                          }}
+                                          // onChange={(e) => {
+                                          //   const newValue = e.target.value;
+                                          //   const newTotalPrice =
+                                          //     (e.target.value || 0) *
+                                          //     (row.quantity || 0);
+                                          //   console.log(newTotalPrice);
+                                          //   setRows((prevRows) => {
+                                          //     const newRows = [...prevRows];
+                                          //     newRows[index] = {
+                                          //       ...newRows[index],
+                                          //       priceunit: newValue,
+                                          //       total_price:
+                                          //         Number(newTotalPrice),
+                                          //     };
+                                          //     return newRows;
+                                          //   });
+                                          // }}
+                                          onChange={(e) => {
+                                            if (
+                                              row.location === undefined ||
+                                              row.location === ""
+                                            ) {
+                                              setSnackbarMessage(
+                                                "يجب تحديد موقع العنصر اولا"
+                                              );
+                                              setSnackBarType("info");
+                                              setOpenSnackbar(true);
+                                              e.target.blur();
+                                              return;
+                                            }
+                                            const newValue = e.target.value;
+                                            const newTotalPrice =
+                                              (e.target.value || 0) *
+                                              (row.quantity || 0);
+
+                                            const updatedItems = [
+                                              ...editingInvoice.items,
+                                            ];
+                                            updatedItems[index] = {
+                                              ...row,
+                                              unit_price: newValue,
+                                              total_price: newTotalPrice,
+                                            };
+                                            const totalAmount =
+                                              updatedItems.reduce(
+                                                (sum, item) =>
+                                                  sum + (item.total_price || 0),
+                                                0
+                                              );
+                                            setEditingInvoice({
+                                              ...editingInvoice,
+                                              items: updatedItems,
+                                              total_amount: totalAmount,
+                                            });
+                                          }}
+                                          onClick={(event) => {
+                                            if (
+                                              row.location === undefined ||
+                                              row.location === ""
+                                            ) {
+                                              setSnackbarMessage(
+                                                "يجب تحديد موقع العنصر اولا"
+                                              );
+                                              setSnackBarType("info");
+                                              setOpenSnackbar(true);
+                                              event.target.blur();
+                                              return;
+                                            }
+                                          }}
+                                          onDoubleClick={(event) => {
+                                            if (
+                                              row.location === undefined ||
+                                              row.location === ""
+                                            ) {
+                                              setSnackbarMessage(
+                                                "يجب تحديد موقع العنصر اولا"
+                                              );
+                                              setSnackBarType("info");
+                                              setOpenSnackbar(true);
+                                              event.target.blur();
+
+                                              return;
+                                            }
+                                          }}
+                                        />
+                                      </TableCell>
+                                    )}
                                     <TableCell className={styles.tableCellRow}>
                                       {isEditingInvoice
                                         ? row?.total_price

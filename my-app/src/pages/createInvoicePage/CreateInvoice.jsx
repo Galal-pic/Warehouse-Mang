@@ -234,13 +234,15 @@ export default function Type1() {
             setOpenSnackbar(true);
             return prevRows;
           }
-
+          const newUnitPrice = !purchasesType
+            ? selectedLocation.price_unit
+            : prevRows[index].price_unit;
           const newRows = [...prevRows];
           newRows[index] = {
             ...newRows[index],
             location: selectedLocation.location,
             quantity: 0,
-            price_unit: selectedLocation.price_unit,
+            price_unit: newUnitPrice,
             total_price: 0,
             maxquantity: selectedLocation.quantity,
           };
@@ -249,7 +251,7 @@ export default function Type1() {
         return prevRows;
       });
     },
-    []
+    [purchasesType]
   );
   const handleQuantityChange = useCallback(
     (index, value, maxquantity, priceunit) => {
@@ -468,7 +470,7 @@ export default function Type1() {
         location: row.location,
         total_price: row.total_price,
         description: row.description,
-        unit_price: row.price_unit,
+        unit_price: Number(row.price_unit),
       })),
     };
     console.log("new invoice being set: ", updatedInvoice);
@@ -549,7 +551,14 @@ export default function Type1() {
     refetchMachines();
     refetchMechanisms();
     refetchVoucherNum();
-  }, [refetch, refetchMachines, refetchMechanisms, refetchSupliers, refetchUser, refetchVoucherNum]);
+  }, [
+    refetch,
+    refetchMachines,
+    refetchMechanisms,
+    refetchSupliers,
+    refetchUser,
+    refetchVoucherNum,
+  ]);
 
   if (isLoadingUser) {
     return (
@@ -1092,21 +1101,99 @@ export default function Type1() {
                             />
                           )}
                         </TableCell>
+                        {!purchasesType ? (
+                          <TableCell
+                            sx={{
+                              display: purchasesType ? "" : "none",
+                            }}
+                            className={styles.tableCellRow}
+                          >
+                            {row.price_unit}
+                          </TableCell>
+                        ) : (
+                          <TableCell
+                            className={styles.tableCellRow}
+                            sx={{
+                              width: isInvoiceSaved ? "" : "100px",
+                            }}
+                          >
+                            {isInvoiceSaved
+                              ? row.price_unit
+                              : purchasesType && (
+                                  <NumberInput
+                                    style={{
+                                      width: "100px",
+                                    }}
+                                    value={row.price_unit ?? row?.price_unit}
+                                    onInput={(e) => {
+                                      if (
+                                        lastSelected !== "" &&
+                                        row.location !== ""
+                                      ) {
+                                        if (e.target.value < 0) {
+                                          e.target.value = 0;
+                                        }
+                                      } else {
+                                        e.target.value = 0;
+                                      }
+                                    }}
+                                    onChange={(e) => {
+                                      const newValue = e.target.value;
+                                      const newTotalPrice =
+                                        (e.target.value || 0) *
+                                        (row.quantity || 0);
+                                      setRows((prevRows) => {
+                                        const newRows = [...prevRows];
+                                        newRows[index] = {
+                                          ...newRows[index],
+                                          price_unit: newValue,
+                                          total_price: Number(newTotalPrice),
+                                        };
+                                        return newRows;
+                                      });
+                                    }}
+                                    onClick={(event) => {
+                                      if (
+                                        lastSelected === "" ||
+                                        row.location === ""
+                                      ) {
+                                        setSnackbarMessage(
+                                          "يجب تحديد نوع العملية وموقع العنصر اولا"
+                                        );
+                                        setSnackBarType("info");
+                                        setOpenSnackbar(true);
+                                        event.target.blur();
+                                      }
+                                    }}
+                                    onDoubleClick={(event) => {
+                                      if (
+                                        lastSelected === "" ||
+                                        row.location === ""
+                                      ) {
+                                        setSnackbarMessage(
+                                          "يجب تحديد نوع العملية وموقع العنصر اولا"
+                                        );
+                                        setSnackBarType("info");
+                                        setOpenSnackbar(true);
+                                        event.target.blur();
+                                      }
+                                    }}
+                                    className={styles.cellInput}
+                                  />
+                                )}
+                          </TableCell>
+                        )}
                         <TableCell
                           sx={{
                             display: purchasesType ? "" : "none",
                           }}
                           className={styles.tableCellRow}
                         >
-                          {row.price_unit}
-                        </TableCell>
-                        <TableCell
-                          sx={{
-                            display: purchasesType ? "" : "none",
-                          }}
-                          className={styles.tableCellRow}
-                        >
-                          {row.total_price}
+                          {
+                            // operationType ?
+                            row.total_price
+                            // : (row.unit_price || 0) * (row.quantity || 0)
+                          }
                         </TableCell>
                         <TableCell
                           className={styles.tableCellRow}

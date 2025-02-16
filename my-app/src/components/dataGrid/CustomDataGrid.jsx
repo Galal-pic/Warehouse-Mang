@@ -313,7 +313,6 @@ export default function CustomDataGrid({
           backgroundColor: primaryColor,
           borderTopLeftRadius: "20px",
           borderBottomLeftRadius: "20px",
-          borderColor: "red"
         },
         "& .MuiDataGrid-columnHeaders": {
           backgroundColor: "transparent",
