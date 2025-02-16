@@ -40,15 +40,16 @@ export default function Items() {
     refetch: refetchUser,
   } = useGetUserQuery();
 
-  useEffect(() => {
-    refetchUser();
-  }, []);
-
   const {
     data: initialItems = [],
     isLoading: isMachinesLoading,
     refetch,
   } = useGetWarehousesQuery(undefined, { pollingInterval: 300000 });
+
+  useEffect(() => {
+    refetch();
+    refetchUser();
+  }, [refetch, refetchUser]);
 
   const [addWarehouse, { isLoading: isAdding }] = useAddWarehouseMutation();
   const [updateWarehouse, { isLoading: isUpdating }] =
@@ -355,7 +356,6 @@ export default function Items() {
         }}
       >
         <h1 className={styles.head}>
-          {" "}
           <CircularProgress />
         </h1>
       </div>

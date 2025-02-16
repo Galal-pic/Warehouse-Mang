@@ -1,5 +1,5 @@
 import styles from "./Users.module.css";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { GridToolbarContainer, GridToolbarQuickFilter } from "@mui/x-data-grid";
 import {
   TextField,
@@ -35,13 +35,11 @@ export default function Users() {
   const [snackBarType, setSnackBarType] = useState("");
 
   // loader
-  const {
-    refetch: refetchUser,
-  } = useGetUserQuery();
+  const { refetch: refetchUser } = useGetUserQuery();
   const {
     data: users = [],
     isLoading,
-    isError,
+    refetch: refetchUsers,
   } = useGetUsersQuery(undefined, {
     pollingInterval: 300000,
   });
@@ -157,7 +155,7 @@ export default function Users() {
 
     try {
       await updateUser({ id, ...editedRow }).unwrap();
-      refetchUser()
+      refetchUser();
       setOpenSnackbar(true);
       setSnackbarMessage("تم تحديث بيانات الموظف بنجاح");
       setSnackBarType("success");
@@ -819,6 +817,10 @@ export default function Users() {
   //   );
   // } else {
   //   if (user.username === "esraa") {
+  useEffect(() => {
+    refetchUsers();
+    refetchUser();
+  }, [refetchUser, refetchUsers]);
   return (
     <div className={styles.container}>
       <h1 className={styles.head}>بيانات الموظفين</h1>

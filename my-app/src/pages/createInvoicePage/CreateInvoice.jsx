@@ -100,22 +100,23 @@ export default function Type1() {
     refetch: refetchUser,
   } = useGetUserQuery();
 
-  useEffect(() => {
-    refetchUser();
-  }, []);
+  const {
+    data: supliers,
+    isLoading: isSupliersLoading,
+    refetch: refetchSupliers,
+  } = useGetSuppliersQuery(undefined, { pollingInterval: 300000 });
 
-  const { data: supliers, isLoading: isSupliersLoading } = useGetSuppliersQuery(
-    undefined,
-    { pollingInterval: 300000 }
-  );
+  const {
+    data: machines,
+    isLoading: isMachinesLoading,
+    refetch: refetchMachines,
+  } = useGetMachinesQuery(undefined, { pollingInterval: 300000 });
 
-  const { data: machines, isLoading: isMachinesLoading } = useGetMachinesQuery(
-    undefined,
-    { pollingInterval: 300000 }
-  );
-
-  const { data: mechanisms, isLoading: isMechanismsLoading } =
-    useGetMechanismsQuery(undefined, { pollingInterval: 300000 });
+  const {
+    data: mechanisms,
+    isLoading: isMechanismsLoading,
+    refetch: refetchMechanisms,
+  } = useGetMechanismsQuery(undefined, { pollingInterval: 300000 });
 
   const {
     data: warehouse,
@@ -123,8 +124,11 @@ export default function Type1() {
     refetch,
   } = useGetWarehousesQuery(undefined, { pollingInterval: 300000 });
 
-  const { data: voucherNumber, isLoading: isLoadingVoucher } =
-    useGetLastInvoiceIdQuery(undefined, { pollingInterval: 300000 });
+  const {
+    data: voucherNumber,
+    isLoading: isLoadingVoucher,
+    refetch: refetchVoucherNum,
+  } = useGetLastInvoiceIdQuery(undefined, { pollingInterval: 300000 });
 
   // comment field
   const [showCommentField, setShowCommentField] = useState(false);
@@ -537,6 +541,15 @@ export default function Type1() {
     window.print();
     document.head.removeChild(style);
   };
+
+  useEffect(() => {
+    refetch();
+    refetchUser();
+    refetchSupliers();
+    refetchMachines();
+    refetchMechanisms();
+    refetchVoucherNum();
+  }, [refetch, refetchMachines, refetchMechanisms, refetchSupliers, refetchUser, refetchVoucherNum]);
 
   if (isLoadingUser) {
     return (

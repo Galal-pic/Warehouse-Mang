@@ -73,9 +73,7 @@ export default function Header() {
   const {
     data: user,
     isLoading: isUserLoading,
-    refetch: refetchUser,
   } = useGetUserQuery();
-  console.log(user);
 
   // selected link
   const [selectedLink, setSelectedLink] = useState("");

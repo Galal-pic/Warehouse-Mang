@@ -57,6 +57,8 @@ export default function CustomDataGrid({
   setOpenDialog,
   loader,
   type,
+  checkBox = false,
+  setSelectedRows = null,
   ...props
 }) {
   // translate
@@ -126,7 +128,9 @@ export default function CustomDataGrid({
   const primaryColor = getComputedStyle(
     document.documentElement
   ).getPropertyValue("--primary-color");
-
+  const secondColor = getComputedStyle(
+    document.documentElement
+  ).getPropertyValue("--second-color");
   let filteredAndFormattedData;
   if (type === "items") {
     filteredAndFormattedData = rows.map((item) => ({
@@ -136,9 +140,28 @@ export default function CustomDataGrid({
     }));
   }
 
+  const handleSelectionChange = (selectedIds) => {
+    if (setSelectedRows) {
+      const selectedData = rows.filter((row) => selectedIds.includes(row.id));
+      setSelectedRows(selectedData);
+    }
+  };
+
   return (
     <DataGrid
       rows={type === "items" ? filteredAndFormattedData : rows}
+      // columns={columns.map((col, index) => ({
+      //   ...col,
+      //   align: "center",
+      //   headerAlign: "center",
+      //   headerClassName:
+      //     index === 0
+      //       ? "custom-header first-column-header"
+      //       : index === columns.length - 1
+      //       ? "custom-header last-column-header"
+      //       : "custom-header",
+      //   checkboxSelection: checkBox && index === 0,
+      // }))}
       columns={columns.map((col, index) => ({
         ...col,
         align: "center",
@@ -149,11 +172,24 @@ export default function CustomDataGrid({
             : index === columns.length - 1
             ? "custom-header last-column-header"
             : "custom-header",
+        checkboxSelection: checkBox && index === 0,
       }))}
       loading={loader}
       components={{
         LoadingOverlay: CustomLoadingOverlay,
+        Toolbar: CustomToolbarFromComponent,
+        Pagination: CustomPagination,
       }}
+      onRowSelectionModelChange={handleSelectionChange}
+      // filterModel={{
+      //   items: [
+      //     {
+      //       columnField: "yourColumnName", // استبدلها باسم العمود المراد البحث فيه
+      //       operatorValue: "contains",
+      //       value: "", // هنا يتم تعيين قيمة البحث تلقائيًا
+      //     },
+      //   ],
+      // }}
       localeText={localeText}
       rowHeight={62}
       editMode="row"
@@ -193,6 +229,7 @@ export default function CustomDataGrid({
           return `${params.row.classname} last-row`;
         return `${params.row.classname}`;
       }}
+      checkboxSelection={checkBox}
       sx={{
         "& .custom-header": {
           backgroundColor: primaryColor,
@@ -201,8 +238,8 @@ export default function CustomDataGrid({
           color: "white",
         },
         "& .first-column-header": {
-          borderTopLeftRadius: "20px",
-          borderBottomLeftRadius: "20px",
+          borderTopLeftRadius: !checkBox && "20px",
+          borderBottomLeftRadius: !checkBox && "20px",
         },
         "& .last-column-header": {
           borderTopRightRadius: "20px",
@@ -272,6 +309,22 @@ export default function CustomDataGrid({
         "& .MuiDataGrid-row.Mui-selected": {
           backgroundColor: "#d3e8ff !important",
         },
+        "& .MuiDataGrid-columnHeader[data-field='__check__']": {
+          backgroundColor: primaryColor,
+          borderTopLeftRadius: "20px",
+          borderBottomLeftRadius: "20px",
+          borderColor: "red"
+        },
+        "& .MuiDataGrid-columnHeaders": {
+          backgroundColor: "transparent",
+        },
+          "& .MuiDataGrid-columnHeader[data-field='__check__'] .MuiCheckbox-root": {
+            color: secondColor,
+          },
+          "& .MuiDataGrid-cell .MuiCheckbox-root": {
+            color: secondColor,
+          },
+        
       }}
       {...props}
     />
