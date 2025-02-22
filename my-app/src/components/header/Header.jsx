@@ -70,10 +70,7 @@ const links = [
 export default function Header() {
   // get user data
   const [isLogoutLoading, setIsLogoutLoading] = useState(false);
-  const {
-    data: user,
-    isLoading: isUserLoading,
-  } = useGetUserQuery();
+  const { data: user, isLoading: isUserLoading } = useGetUserQuery();
 
   // selected link
   const [selectedLink, setSelectedLink] = useState("");
@@ -153,24 +150,37 @@ export default function Header() {
 
   // تصفية الروابط الرئيسية بناءً على الصلاحيات
   const filteredLinks = links.filter((link) => {
-    if (link.text === "إنشاء عملية") return user?.create_invoice_status !== "-";
+    if (link.text === "الموظفين") return user?.username === "admin";
+    if (link.text === "إنشاء عملية")
+      return (
+        user?.username === "admin" ||
+        user?.job_name === "مدير المخازن" ||
+        user?.job_name === "مدير المشتريات" ||
+        user?.job_name === "مسئول المشتريات" ||
+        user?.job_name === "رئيس قسم العمليات" ||
+        user?.job_name === "مسئول قسم العمليات"
+      );
     if (link.text === "إدارة العمليات")
-      return user?.manage_operation_status !== "-";
-    if (link.text === "إدارة الموارد") return true; // سنتعامل معها لاحقًا
+      return (
+        user?.username === "admin" ||
+        user?.job_name === "مدير المخازن" ||
+        user?.job_name === "مدير المشتريات" ||
+        user?.job_name === "امين المخزن" ||
+        user?.job_name === "رئيس قسم العمليات" ||
+        user?.job_name === "موظف قسم الحسابات" ||
+        user?.job_name === "موظف"
+      );
+    if (link.text === "إدارة الموارد") return user?.username === "admin";
     return true;
   });
 
   // تصفية قائمة إدارة الموارد
   const filteredResourceManagementLinks = resourceManagementLinks.filter(
     (resource) => {
-      if (resource.text === "المنتجات")
-        return user?.items_access_status !== "-";
-      if (resource.text === "الماكينات")
-        return user?.machine_access_status !== "-";
-      if (resource.text === "الميكانيزم")
-        return user?.mechanism_access_status !== "-";
-      if (resource.text === "الموردين")
-        return user?.supplier_access_status !== "-";
+      if (resource.text === "المنتجات") return true;
+      if (resource.text === "الماكينات") return true;
+      if (resource.text === "الميكانيزم") return true;
+      if (resource.text === "الموردين") return true;
       return false;
     }
   );

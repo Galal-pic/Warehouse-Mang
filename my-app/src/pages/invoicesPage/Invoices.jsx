@@ -46,16 +46,35 @@ import {
 } from "../services/invoiceApi";
 
 export default function Invoices() {
+  const {
+    data: user,
+    isLoading: isLoadingUser,
+    refetch: refetchUser,
+  } = useGetUserQuery();
+
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-
-  // select Now Type
-  const [selectedNowType, setSelectedNowType] = useState({
-    label: "صرف",
-    type: "operation",
-    url: "/invoice/صرف",
-    status: true,
-  });
+  const [selectedNowType, setSelectedNowType] = useState(null);
+  useEffect(() => {
+    if (user) {
+      setSelectedNowType(
+        user?.username === "admin" ||
+          ["مدير المشتريات"].includes(user?.job_name)
+          ? {
+              label: "اضافه",
+              type: "purchase",
+              url: "/invoice/اضافه",
+              status: true,
+            }
+          : {
+              label: "صرف",
+              type: "operation",
+              url: "/invoice/صرف",
+              status: true,
+            }
+      );
+    }
+  }, [user]);
 
   // Loaders - Only keep UI-specific loading states
   const [isConfirmDone, setIsConfirmDone] = useState(false);
@@ -88,18 +107,12 @@ export default function Invoices() {
     refetch,
   } = useGetWarehousesQuery(undefined, { pollingInterval: 300000 });
 
-  const {
-    data: user,
-    isLoading: isLoadingUser,
-    refetch: refetchUser,
-  } = useGetUserQuery();
-
   // Invoices query with automatic refetch
   const {
     data: invoicesData = [],
     isLoading: isInvoicesLoading,
     refetch: refetchInvoices,
-  } = useGetInvoicesQuery(selectedNowType.label, {
+  } = useGetInvoicesQuery(selectedNowType?.label, {
     pollingInterval: 300000,
   });
 
@@ -139,8 +152,8 @@ export default function Invoices() {
             invoice.status === "confirmed"
               ? "تم"
               : invoice.status === "draft"
-              ? "صرف الفاتورة"
-              : "تأكيد صرف الفاتورة",
+              ? "لم تراجع"
+              : "لم تؤكد",
           itemsNames: invoice.items.map((item) => item.item_name).join(", "),
           date: invoice.created_at.split(" ")[0],
           time: formatTime(invoice.created_at),
@@ -224,7 +237,7 @@ export default function Invoices() {
     console.log(editingInvoice);
 
     // Step 2: Validate required fields
-    if (selectedNowType.type === "purchase") {
+    if (selectedNowType?.type === "purchase") {
       if (
         !editingInvoice.machine_name ||
         !editingInvoice.mechanism_name ||
@@ -263,7 +276,10 @@ export default function Invoices() {
       quantity: row.quantity,
       location: row.location,
       total_price: row.total_price,
-      unit_price: selectedNowType.type !== "purchase" ? Number(row.priceunit) : Number(row.unit_price),
+      unit_price:
+        selectedNowType?.type !== "purchase"
+          ? Number(row.priceunit)
+          : Number(row.unit_price),
       description: row.description,
     }));
 
@@ -287,7 +303,10 @@ export default function Invoices() {
         location: row.location,
         quantity: Number(row.quantity),
         total_price: row.total_price,
-        unit_price: selectedNowType.type !== "purchase" ? Number(row.priceunit) : Number(row.unit_price),
+        unit_price:
+          selectedNowType?.type !== "purchase"
+            ? Number(row.priceunit)
+            : Number(row.unit_price),
         description: row.description,
       })),
     };
@@ -492,44 +511,48 @@ export default function Invoices() {
         />
         {selectedRows.length > 0 && (
           <>
-            <Button
-              variant="contained"
-              color="error"
-              startIcon={<ClearOutlinedIcon />}
-              onClick={handleDeleteCheckBoxClick}
-              sx={{
-                backgroundColor: "#d32f2f",
-                "&:hover": { backgroundColor: "#b71c1c" },
-                position: "absolute",
-                top: "15px",
-                left: "0",
-              }}
-            >
-              حذف المحدد ({selectedRows.length})
-            </Button>
-            {selectedRows.some((invoice) =>
-              invoice.items.every((item) => item.total_price !== 0)
-            ) ? (
-              ""
-            ) : (
+            {(["مدير المخازن", "مدير المشتريات"].includes(user?.job_name) ||
+              user?.username === "admin") && (
               <Button
                 variant="contained"
+                color="error"
                 startIcon={<ClearOutlinedIcon />}
-                onClick={() => handleRefreshSelectedRows(selectedRows)}
+                onClick={handleDeleteCheckBoxClick}
                 sx={{
+                  backgroundColor: "#d32f2f",
+                  "&:hover": { backgroundColor: "#b71c1c" },
                   position: "absolute",
                   top: "15px",
-                  left: "150px",
+                  left: "0",
                 }}
-                disabled={isRefreshArrayLoading}
               >
-                {isRefreshArrayLoading ? (
-                  <CircularProgress size={24} />
-                ) : (
-                  `تحديث اسعار المحدد (${selectedRows.length})`
-                )}
+                حذف المحدد ({selectedRows.length})
               </Button>
             )}
+            {selectedRows.some((invoice) =>
+              invoice.items.every((item) => item.total_price !== 0)
+            )
+              ? ""
+              : (["موظف قسم الحسابات"].includes(user?.job_name) ||
+                  user?.username === "admin") && (
+                  <Button
+                    variant="contained"
+                    startIcon={<ClearOutlinedIcon />}
+                    onClick={() => handleRefreshSelectedRows(selectedRows)}
+                    sx={{
+                      position: "absolute",
+                      top: "15px",
+                      left: user?.username === "admin" ? "150px" : "0",
+                    }}
+                    disabled={isRefreshArrayLoading}
+                  >
+                    {isRefreshArrayLoading ? (
+                      <CircularProgress size={24} />
+                    ) : (
+                      `تحديث اسعار المحدد (${selectedRows.length})`
+                    )}
+                  </Button>
+                )}
           </>
         )}
       </GridToolbarContainer>
@@ -540,30 +563,30 @@ export default function Invoices() {
   const getButtonText = (invoiceType) => {
     switch (invoiceType) {
       case "صرف":
-        return "صرف الفاتورة";
+        return "لم تراجع";
       case "أمانات":
-        return "صرف الأمانة";
+        return "لم تراجع";
       case "حجز":
-        return "تاكيد الحجز";
+        return "لم تراجع";
       case "مرتجع":
-        return "تاكيد الاسترجاع";
+        return "لم تراجع";
       default:
-        return "صرف الفاتورة";
+        return "لم تراجع";
     }
   };
   // handle confirm
   const getButtonTextStatge = (invoiceType) => {
     switch (invoiceType) {
       case "صرف":
-        return "تأكيد صرف الفاتورة";
+        return "لم تؤكد";
       case "أمانات":
-        return "تأكيد صرف الأمانة";
+        return "لم تؤكد";
       case "حجز":
-        return "تاكيد الحجز";
+        return "لم تؤكد";
       case "مرتجع":
-        return "تاكيد الاسترجاع";
+        return "لم تؤكد";
       default:
-        return "صرف الفاتورة";
+        return "لم تؤكد";
     }
   };
 
@@ -572,7 +595,7 @@ export default function Invoices() {
     {
       field: "refresh",
       headerName: "فتح الفاتورة",
-      width: selectedNowType.label === "أمانات" ? 300 : 200,
+      width: selectedNowType?.label === "أمانات" ? 300 : 200,
       renderCell: (params) => {
         return (
           <div
@@ -589,14 +612,17 @@ export default function Invoices() {
             >
               <LaunchIcon />
             </button>
-            <button
-              className={styles.iconBtn}
-              onClick={() => handleDeleteClick(params.id)}
-              style={{ color: "#d32f2f" }}
-            >
-              <ClearOutlinedIcon />
-            </button>
-            {selectedNowType.label === "أمانات" &&
+            {(["مدير المخازن", "مدير المشتريات"].includes(user?.job_name) ||
+              user?.username === "admin") && (
+              <button
+                className={styles.iconBtn}
+                onClick={() => handleDeleteClick(params.id)}
+                style={{ color: "#d32f2f" }}
+              >
+                <ClearOutlinedIcon />
+              </button>
+            )}
+            {selectedNowType?.label === "أمانات" &&
               (params.row.test !== "" ? (
                 <Button
                   variant="contained"
@@ -617,29 +643,31 @@ export default function Invoices() {
               ) : (
                 "تم الاسترداد"
               ))}
-            {params.row.items.some((item) => item.total_price === 0) && (
-              <Button
-                variant="contained"
-                color="info"
-                onClick={() => handleRefresh(params.row.id)}
-                sx={{
-                  borderRadius: "8px",
-                  padding: "6px 16px",
-                }}
-                disabled={loadingRows[params.row.id]}
-              >
-                {loadingRows[params.row.id] ? (
-                  <CircularProgress size={24} />
-                ) : (
-                  "تحديث اسعار"
-                )}
-              </Button>
-            )}
+            {params.row.items.some((item) => item.total_price === 0) &&
+              (["موظف قسم الحسابات"].includes(user?.job_name) ||
+                user?.username === "admin") && (
+                <Button
+                  variant="contained"
+                  color="info"
+                  onClick={() => handleRefresh(params.row.id)}
+                  sx={{
+                    borderRadius: "8px",
+                    padding: "6px 16px",
+                  }}
+                  disabled={loadingRows[params.row.id]}
+                >
+                  {loadingRows[params.row.id] ? (
+                    <CircularProgress size={24} />
+                  ) : (
+                    "تحديث اسعار"
+                  )}
+                </Button>
+              )}
           </div>
         );
       },
     },
-    ...(selectedNowType.status
+    ...(selectedNowType?.status
       ? [
           {
             width: 150,
@@ -655,7 +683,7 @@ export default function Invoices() {
 
               if (status === "تم") {
                 return "تم";
-              } else if (status === "تأكيد صرف الفاتورة") {
+              } else if (status === "لم تؤكد") {
                 buttonText = getButtonTextStatge(invoiceType);
                 buttonColor = "primary";
               } else {
@@ -672,7 +700,21 @@ export default function Invoices() {
                     borderRadius: "8px",
                     padding: "6px 16px",
                   }}
-                  disabled={isLoading}
+                  disabled={
+                    isLoading ||
+                    (status === "لم تراجع" &&
+                      !(
+                        ["رئيس قسم العمليات", "مدير المشتريات"].includes(
+                          user?.job_name
+                        ) || user?.username === "admin"
+                      )) ||
+                    (status === "لم تؤكد" &&
+                      !(
+                        ["امين المخزن", "مدير المشتريات"].includes(
+                          user?.job_name
+                        ) || user?.username === "admin"
+                      ))
+                  }
                 >
                   {isLoading ? <CircularProgress size={24} /> : buttonText}
                 </Button>
@@ -686,7 +728,7 @@ export default function Invoices() {
     { flex: 1, field: "machine_name", headerName: "الماكينة" },
     { flex: 1, field: "employee_name", headerName: "اسم الموظف" },
     { flex: 1, field: "warehouse_manager", headerName: "عامل المخازن" },
-    { flex: 1, field: "accreditation_manager", headerName: "مدير المخازن" },
+    { flex: 1, field: "accreditation_manager", headerName: "المراجع" },
     { flex: 1, field: "client_name", headerName: "اسم العميل" },
     { flex: 1, field: "time", headerName: "وقت اصدار الفاتورة" },
     {
@@ -921,8 +963,15 @@ export default function Invoices() {
     );
   } else {
     if (
-      user.manage_operation_status === "العرض والتعديل" ||
-      user.manage_operation_status === "العرض"
+      [
+        "مدير المخازن",
+        "امين المخزن",
+        "مدير المشتريات",
+        "رئيس قسم العمليات",
+        "موظف قسم الحسابات",
+        "موظف",
+      ].includes(user?.job_name) ||
+      user?.username === "admin"
     ) {
       return (
         <div className={styles.container}>
@@ -1032,41 +1081,47 @@ export default function Invoices() {
                     </div>
                   ) : (
                     <div>
-                      {selectedInvoice.status === "confirmed" ? (
-                        ""
-                      ) : (
-                        <button
-                          onClick={() => {
-                            handleEditInfo(selectedInvoice);
-                          }}
-                          className={styles.iconBtn}
-                          style={{
-                            color: "#1976d2",
-                            position: "absolute",
-                            top: "0px",
-                            left: "30px",
-                          }}
-                        >
-                          <EditIcon />
-                        </button>
-                      )}
+                      {selectedInvoice.status === "confirmed"
+                        ? ""
+                        : (["مدير المخازن", "مدير المشتريات"].includes(
+                            user?.job_name
+                          ) ||
+                            user?.username === "admin") && (
+                            <button
+                              onClick={() => {
+                                handleEditInfo(selectedInvoice);
+                              }}
+                              className={styles.iconBtn}
+                              style={{
+                                color: "#1976d2",
+                                position: "absolute",
+                                top: "0px",
+                                left: "30px",
+                              }}
+                            >
+                              <EditIcon />
+                            </button>
+                          )}
                     </div>
                   )}
-                  <button
-                    onClick={() => {
-                      const newShow = !show;
-                      setShow(newShow);
-                    }}
-                    className={styles.iconBtn}
-                    style={{
-                      color: "#1976d2",
-                      position: "absolute",
-                      top: "0px",
-                      left: "0px",
-                    }}
-                  >
-                    {show ? <Visibility /> : <VisibilityOff />}
-                  </button>
+                  {(["موظف قسم الحسابات"].includes(user?.job_name) ||
+                    user?.username === "admin") && (
+                    <button
+                      onClick={() => {
+                        const newShow = !show;
+                        setShow(newShow);
+                      }}
+                      className={styles.iconBtn}
+                      style={{
+                        color: "#1976d2",
+                        position: "absolute",
+                        top: "0px",
+                        left: "0px",
+                      }}
+                    >
+                      {show ? <Visibility /> : <VisibilityOff />}
+                    </button>
+                  )}
                 </Typography>
                 <div className="printable-box">
                   {isModalOpen && (
@@ -1127,7 +1182,7 @@ export default function Invoices() {
                         >
                           <TableBody>
                             {/* Inputs for Suplier, Machine and Mechanism Names */}
-                            {selectedNowType.type === "purchase" && (
+                            {selectedNowType?.type === "purchase" && (
                               <TableRow className={styles.tableRow}>
                                 <TableCell
                                   className={styles.tableCell}
@@ -1238,7 +1293,7 @@ export default function Invoices() {
                                 الكمية
                               </TableCell>
                               {(show ||
-                                selectedNowType.type === "purchase") && (
+                                selectedNowType?.type === "purchase") && (
                                 <>
                                   <TableCell className={styles.tableCell}>
                                     السعر
@@ -1468,7 +1523,7 @@ export default function Invoices() {
                                           quantity: 0,
                                           priceunit:
                                             newValue?.price_unit &&
-                                            selectedNowType.type !== "purchase"
+                                            selectedNowType?.type !== "purchase"
                                               ? newValue.price_unit
                                               : 0,
                                           total_price: 0,
@@ -1508,7 +1563,7 @@ export default function Invoices() {
                                         padding: "10px",
                                       }}
                                       max={
-                                        selectedNowType.type === "purchase" &&
+                                        selectedNowType?.type === "purchase" &&
                                         row.maxquantity
                                       }
                                       value={row?.quantity}
@@ -1517,7 +1572,7 @@ export default function Invoices() {
                                           e.target.value = 0;
                                         }
                                         if (
-                                          (selectedNowType.type ===
+                                          (selectedNowType?.type ===
                                             "operation") &
                                           (e.target.value > row.maxquantity)
                                         ) {
@@ -1578,7 +1633,7 @@ export default function Invoices() {
                                           ...row,
                                           quantity: e.target.value,
                                           total_price:
-                                            selectedNowType.type === "purchase"
+                                            selectedNowType?.type === "purchase"
                                               ? newQuantity * row.unit_price
                                               : newQuantity * row.priceunit,
                                         };
@@ -1599,7 +1654,7 @@ export default function Invoices() {
                                   )}
                                 </TableCell>
                                 {(show ||
-                                  selectedNowType.type === "purchase") && (
+                                  selectedNowType?.type === "purchase") && (
                                   <>
                                     {!isEditingInvoice ? (
                                       <TableCell
@@ -1607,7 +1662,7 @@ export default function Invoices() {
                                       >
                                         {row.unit_price}
                                       </TableCell>
-                                    ) : selectedNowType.type !== "purchase" ? (
+                                    ) : selectedNowType?.type !== "purchase" ? (
                                       <TableCell
                                         className={styles.tableCellRow}
                                       >
@@ -1638,7 +1693,7 @@ export default function Invoices() {
                                               e.target.value = 0;
                                             }
                                             if (
-                                              (selectedNowType.type ===
+                                              (selectedNowType?.type ===
                                                 "operation") &
                                               (e.target.value > row.maxquantity)
                                             ) {
@@ -1787,7 +1842,7 @@ export default function Invoices() {
                         </Table>
                       </Box>
                       {/* total amount */}
-                      {(show || selectedNowType.type === "purchase") && (
+                      {(show || selectedNowType?.type === "purchase") && (
                         <Box className={styles.MoneySection}>
                           <Box className={styles.MoneyBox}>
                             <Box className={styles.MoneyLabel}>الإجمالي</Box>

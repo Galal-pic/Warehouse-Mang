@@ -308,10 +308,7 @@ export default function Machines() {
       </div>
     );
   } else {
-    if (
-      user.machine_access_status === "العرض والتعديل" ||
-      user.machine_access_status === "العرض"
-    ) {
+    if (user?.username === "admin") {
       return (
         <div className={styles.container}>
           {/* title */}

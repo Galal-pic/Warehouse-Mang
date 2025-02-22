@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Box, Button, Paper } from "@mui/material";
 import styles from "./Login.module.css";
 import { useNavigate } from "react-router-dom";
@@ -9,8 +9,11 @@ import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import SnackBar from "../../components/snackBar/SnackBar";
 import { CustomTextField } from "../../components/customTextField/CustomTextField";
 import CircularProgress from "@mui/material/CircularProgress";
+import { useGetUserQuery } from "../services/userApi";
 
 const Login = () => {
+  const { data: user, isLoading: isLoadingUser, refetch } = useGetUserQuery();
+
   const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
   const [name, setName] = useState("");
@@ -34,9 +37,8 @@ const Login = () => {
     e.preventDefault();
     setNameError("");
     setPasswordError("");
-    setSnackbarMessage(""); // Reset snackbar message
+    setSnackbarMessage("");
 
-    // Input validation
     if (!name) {
       setNameError("يرجى ادخال الاسم");
       return;
@@ -71,8 +73,31 @@ const Login = () => {
 
       const data = await response.json();
       localStorage.setItem("access_token", data.access_token);
-      login(data); // Assuming login is a context or state function
-      navigate("/users");
+      login(data);
+
+      // الانتظار حتى انتهاء إعادة جلب البيانات والحصول على البيانات المحدثة
+      const { data: updatedUser } = await refetch();
+
+      // استخدام البيانات المحدثة مباشرة للتوجيه
+      if (updatedUser?.username === "admin") {
+        navigate("/users");
+      } else if (
+        [
+          "مدير المخازن",
+          "مدير المشتريات",
+          "مسئول المشتريات",
+          "مسئول قسم العمليات",
+          "رئيس قسم العمليات",
+        ].includes(updatedUser?.job_name)
+      ) {
+        navigate("/createinvoice");
+      } else if (
+        ["امين المخزن", "موظف قسم الحسابات", "موظف"].includes(
+          updatedUser?.job_name
+        )
+      ) {
+        navigate("/invoices");
+      }
     } catch (error) {
       console.error("Error:", error);
       setSnackbarMessage(
@@ -83,7 +108,6 @@ const Login = () => {
       setIsLoading(false);
     }
   };
-
   return (
     <div className={styles.container}>
       <div className={styles.boxText}>
@@ -146,11 +170,17 @@ const Login = () => {
                 variant="contained"
                 className={styles.btn}
                 onClick={handleSubmit}
-                disabled={isLoading}
+                disabled={isLoading || isLoadingUser}
               >
                 تسجيل الدخول
               </Button>
-              <Box>{isLoading ? <CircularProgress size={24} /> : ""}</Box>
+              <Box>
+                {isLoading || isLoadingUser ? (
+                  <CircularProgress size={24} />
+                ) : (
+                  ""
+                )}
+              </Box>
             </Box>
           </Paper>
         </motion.div>

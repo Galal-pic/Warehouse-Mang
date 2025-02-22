@@ -361,10 +361,7 @@ export default function Items() {
       </div>
     );
   } else {
-    if (
-      user.items_access_status === "العرض والتعديل" ||
-      user.items_access_status === "العرض"
-    ) {
+    if (user?.username === "admin") {
       return (
         <div className={styles.container}>
           {/* title */}

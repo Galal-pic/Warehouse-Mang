@@ -329,10 +329,7 @@ export default function Mechanisms() {
       </div>
     );
   } else {
-    if (
-      user.mechanism_access_status === "العرض والتعديل" ||
-      user.mechanism_access_status === "العرض"
-    ) {
+    if (user?.username === "admin") {
       return (
         <div className={styles.container}>
           {/* title */}
@@ -379,7 +376,7 @@ export default function Mechanisms() {
                 textAlign: "center",
               }}
             >
-              إضافة ماكينة جديدة
+              إضافة ميكانيزم جديد
             </DialogTitle>
             <DialogContent sx={{ width: "500px" }}>
               <div style={{ marginBottom: "10px", marginTop: "10px" }}>

@@ -577,8 +577,14 @@ export default function Type1() {
     );
   } else {
     if (
-      user.create_invoice_status === "العرض والتعديل" ||
-      user.create_invoice_status === "العرض"
+      [
+        "مدير المخازن",
+        "مدير المشتريات",
+        "مسئول المشتريات",
+        "مسئول قسم العمليات",
+        "رئيس قسم العمليات",
+      ].includes(user?.job_name) ||
+      user?.username === "admin"
     ) {
       return (
         <Box className={styles.mainBox}>
@@ -592,109 +598,118 @@ export default function Type1() {
               alignItems: "center",
             }}
           >
-            <div className={styles.operationTypeSelection}>
-              <FormControl
-                variant="standard"
-                sx={{ m: 1, minWidth: 220, backgroundColor: "white" }}
-              >
-                <InputLabel
-                  id="purchases-select-label"
-                  sx={{
-                    fontSize: "1.2rem",
-                    fontWeight: "600",
-                    marginBottom: "6px",
-                    color: "#1976d2",
-                    transition: "all 0.3s ease",
-                    position: "absolute",
-                    top: "50%",
-                    left: "48%",
-                    "&.Mui-focused": {
-                      transform: "translate(-37px, -60px)",
-                    },
-                    transform: purchasesType
-                      ? "translate(-37px, -60px)"
-                      : "translate(-50%, -50%)",
-                  }}
+            {(["مدير المشتريات", "مسئول المشتريات"].includes(user?.job_name) ||
+              user?.username === "admin") && (
+              <div className={styles.operationTypeSelection}>
+                <FormControl
+                  variant="standard"
+                  sx={{ m: 1, minWidth: 220, backgroundColor: "white" }}
                 >
-                  مشتريات
-                </InputLabel>
-                <Select
-                  labelId="purchases-select-label"
-                  value={purchasesType}
-                  onChange={(e) => setPurchasesType(e.target.value)}
-                  label="مشتريات"
-                  sx={{
-                    padding: "0 0 10px 0",
-                  }}
+                  <InputLabel
+                    id="purchases-select-label"
+                    sx={{
+                      fontSize: "1.2rem",
+                      fontWeight: "600",
+                      marginBottom: "6px",
+                      color: "#1976d2",
+                      transition: "all 0.3s ease",
+                      position: "absolute",
+                      top: "50%",
+                      left: "48%",
+                      "&.Mui-focused": {
+                        transform: "translate(-37px, -60px)",
+                      },
+                      transform: purchasesType
+                        ? "translate(-37px, -60px)"
+                        : "translate(-50%, -50%)",
+                    }}
+                  >
+                    مشتريات
+                  </InputLabel>
+                  <Select
+                    labelId="purchases-select-label"
+                    value={purchasesType}
+                    onChange={(e) => setPurchasesType(e.target.value)}
+                    label="مشتريات"
+                    sx={{
+                      padding: "0 0 10px 0",
+                    }}
+                  >
+                    {purchasesTypes.map((type, index) => (
+                      <MenuItem
+                        sx={{
+                          "&.MuiMenuItem-root": {
+                            direction: "rtl",
+                          },
+                        }}
+                        key={index}
+                        value={type}
+                      >
+                        {type}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </div>
+            )}
+            {([
+              "مدير المخازن",
+              "مسئول قسم العمليات",
+              "رئيس قسم العمليات",
+            ].includes(user?.job_name) ||
+              user?.username === "admin") && (
+              <div className={styles.operationTypeSelection}>
+                <FormControl
+                  variant="standard"
+                  sx={{ m: 1, minWidth: 220, backgroundColor: "white" }}
                 >
-                  {purchasesTypes.map((type, index) => (
-                    <MenuItem
-                      sx={{
-                        "&.MuiMenuItem-root": {
-                          direction: "rtl",
-                        },
-                      }}
-                      key={index}
-                      value={type}
-                    >
-                      {type}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </div>
-
-            <div className={styles.operationTypeSelection}>
-              <FormControl
-                variant="standard"
-                sx={{ m: 1, minWidth: 220, backgroundColor: "white" }}
-              >
-                <InputLabel
-                  id="purchases-select-label"
-                  sx={{
-                    fontSize: "1.2rem",
-                    fontWeight: "600",
-                    marginBottom: "6px",
-                    color: "#1976d2",
-                    transition: "all 0.3s ease",
-                    position: "absolute",
-                    top: "50%",
-                    left: "48%",
-                    "&.Mui-focused": {
-                      transform: "translate(-30px, -60px)",
-                    },
-                    transform: operationType
-                      ? "translate(-30px, -60px)"
-                      : "translate(-50%, -50%)",
-                  }}
-                >
-                  عمليات
-                </InputLabel>
-                <Select
-                  labelId="operation-select-label"
-                  value={operationType}
-                  onChange={(e) => setOperationType(e.target.value)}
-                  label="عمليات"
-                  sx={{
-                    padding: "0 0 10px 0",
-                  }}
-                >
-                  {operationTypes.map((type, index) => (
-                    <MenuItem
-                      sx={{
-                        "&.MuiMenuItem-root": {
-                          direction: "rtl",
-                        },
-                      }}
-                      key={index}
-                      value={type}
-                    >
-                      {type}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </div>
+                  <InputLabel
+                    id="purchases-select-label"
+                    sx={{
+                      fontSize: "1.2rem",
+                      fontWeight: "600",
+                      marginBottom: "6px",
+                      color: "#1976d2",
+                      transition: "all 0.3s ease",
+                      position: "absolute",
+                      top: "50%",
+                      left: "48%",
+                      "&.Mui-focused": {
+                        transform: "translate(-30px, -60px)",
+                      },
+                      transform: operationType
+                        ? "translate(-30px, -60px)"
+                        : "translate(-50%, -50%)",
+                    }}
+                  >
+                    عمليات
+                  </InputLabel>
+                  <Select
+                    labelId="operation-select-label"
+                    value={operationType}
+                    onChange={(e) => setOperationType(e.target.value)}
+                    label="عمليات"
+                    sx={{
+                      padding: "0 0 10px 0",
+                    }}
+                  >
+                    {operationTypes.map((type, index) => (
+                      <MenuItem
+                        sx={{
+                          "&.MuiMenuItem-root": {
+                            direction: "rtl",
+                          },
+                        }}
+                        key={index}
+                        value={type}
+                      >
+                        {type}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </div>
+            )}
           </Box>
 
           {/* invoice */}

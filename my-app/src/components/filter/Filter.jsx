@@ -3,6 +3,7 @@ import PropTypes from "prop-types";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
 import Box from "@mui/material/Box";
+import { useGetUserQuery } from "../../pages/services/userApi";
 
 function CustomTabPanel(props) {
   const { children, value, index, ...other } = props;
@@ -34,6 +35,7 @@ function a11yProps(index) {
 }
 
 export default function FilterTabs({ setNowType, setSelectedRows }) {
+  const { data: user } = useGetUserQuery();
   const [value, setValue] = React.useState(0);
 
   const handleChange = (event, newValue) => {
@@ -42,19 +44,87 @@ export default function FilterTabs({ setNowType, setSelectedRows }) {
     setSelectedRows([]);
   };
 
-  const filtersTypes = [
-    { label: "صرف", type: "operation", url: "/invoice/صرف", status: true },
-    {
-      label: "أمانات",
-      type: "operation",
-      url: "/invoice/أمانات",
-      status: true,
-    },
-    { label: "مرتجع", type: "operation", url: "/invoice/مرتجع", status: true },
-    { label: "توالف", type: "operation", url: "/invoice/توالف", status: false },
-    { label: "حجز", type: "operation", url: "/invoice/حجز", status: true },
-    { label: "اضافه", type: "purchase", url: "/invoice/اضافه", status: true },
-  ];
+  const filtersTypes =
+    user?.username === "admin"
+      ? [
+          {
+            label: "اضافه",
+            type: "purchase",
+            url: "/invoice/اضافه",
+            status: true,
+          },
+          {
+            label: "صرف",
+            type: "operation",
+            url: "/invoice/صرف",
+            status: true,
+          },
+          {
+            label: "أمانات",
+            type: "operation",
+            url: "/invoice/أمانات",
+            status: true,
+          },
+          {
+            label: "مرتجع",
+            type: "operation",
+            url: "/invoice/مرتجع",
+            status: true,
+          },
+          {
+            label: "توالف",
+            type: "operation",
+            url: "/invoice/توالف",
+            status: false,
+          },
+          {
+            label: "حجز",
+            type: "operation",
+            url: "/invoice/حجز",
+            status: true,
+          },
+        ]
+      : ["مدير المشتريات"].includes(user?.job_name)
+      ? [
+          {
+            label: "اضافه",
+            type: "purchase",
+            url: "/invoice/اضافه",
+            status: true,
+          },
+        ]
+      : [
+          {
+            label: "صرف",
+            type: "operation",
+            url: "/invoice/صرف",
+            status: true,
+          },
+          {
+            label: "أمانات",
+            type: "operation",
+            url: "/invoice/أمانات",
+            status: true,
+          },
+          {
+            label: "مرتجع",
+            type: "operation",
+            url: "/invoice/مرتجع",
+            status: true,
+          },
+          {
+            label: "توالف",
+            type: "operation",
+            url: "/invoice/توالف",
+            status: false,
+          },
+          {
+            label: "حجز",
+            type: "operation",
+            url: "/invoice/حجز",
+            status: true,
+          },
+        ];
 
   return (
     <Box

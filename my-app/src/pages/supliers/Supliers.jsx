@@ -316,10 +316,7 @@ export default function Supliers() {
       </div>
     );
   } else {
-    if (
-      user.supplier_access_status === "العرض والتعديل" ||
-      user.supplier_access_status === "العرض"
-    ) {
+    if (user?.username === "admin") {
       return (
         <div className={styles.container}>
           {/* title */}

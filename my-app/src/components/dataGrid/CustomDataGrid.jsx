@@ -234,7 +234,7 @@ export default function CustomDataGrid({
         "& .custom-header": {
           backgroundColor: primaryColor,
           fontWeight: "bold",
-          fontSize: "1.5rem",
+          // fontSize: "1.5rem",
           color: "white",
         },
         "& .first-column-header": {
@@ -261,6 +261,7 @@ export default function CustomDataGrid({
           borderRadius: "20px",
         },
         "& .MuiDataGrid-cell": {
+          fontSize: "0.85rem",
           border: "1px solid #ddd",
         },
         "& .zero-total-price .MuiDataGrid-cell": {
@@ -317,13 +318,13 @@ export default function CustomDataGrid({
         "& .MuiDataGrid-columnHeaders": {
           backgroundColor: "transparent",
         },
-          "& .MuiDataGrid-columnHeader[data-field='__check__'] .MuiCheckbox-root": {
+        "& .MuiDataGrid-columnHeader[data-field='__check__'] .MuiCheckbox-root":
+          {
             color: secondColor,
           },
-          "& .MuiDataGrid-cell .MuiCheckbox-root": {
-            color: secondColor,
-          },
-        
+        "& .MuiDataGrid-cell .MuiCheckbox-root": {
+          color: secondColor,
+        },
       }}
       {...props}
     />

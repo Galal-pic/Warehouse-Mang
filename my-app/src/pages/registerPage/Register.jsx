@@ -65,9 +65,14 @@ export default function Register() {
   const navigate = useNavigate();
 
   const jobs = [
+    { value: "مدير المخازن", label: "مدير المخازن" },
+    { value: "امين المخزن", label: "امين المخزن" },
+    { value: "مدير المشتريات", label: "مدير المشتريات" },
+    { value: "مسئول المشتريات", label: "مسئول المشتريات" },
+    { value: "رئيس قسم العمليات", label: "رئيس قسم العمليات" },
+    { value: "مسئول قسم العمليات", label: "مسئول قسم العمليات" },
+    { value: "موظف قسم الحسابات", label: "موظف قسم الحسابات" },
     { value: "موظف", label: "موظف" },
-    { value: "مدير", label: "مدير" },
-    { value: "مشرف", label: "مشرف" },
   ];
 
   const privileges = [
