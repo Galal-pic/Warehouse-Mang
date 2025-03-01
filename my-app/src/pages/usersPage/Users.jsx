@@ -26,6 +26,7 @@ import {
   useDeleteUserMutation,
   useGetUserQuery,
 } from "../services/userApi";
+import { Jobs } from "../../context/jobs";
 
 export default function Users() {
   const [editedRow, setEditedRow] = useState(null);
@@ -52,15 +53,16 @@ export default function Users() {
 
   // jobs
   const jobs = [
-    { value: "مدير المخازن", label: "مدير المخازن" },
-    { value: "امين المخزن", label: "امين المخزن" },
-    { value: "مدير المشتريات", label: "مدير المشتريات" },
-    { value: "مسئول المشتريات", label: "مسئول المشتريات" },
-    { value: "رئيس قسم العمليات", label: "رئيس قسم العمليات" },
-    { value: "مسئول قسم العمليات", label: "مسئول قسم العمليات" },
-    { value: "موظف قسم الحسابات", label: "موظف قسم الحسابات" },
-    { value: "موظف", label: "موظف" },
+    { value: Jobs[0], label: Jobs[0] },
+    { value: Jobs[1], label: Jobs[1] },
+    { value: Jobs[2], label: Jobs[2] },
+    { value: Jobs[3], label: Jobs[3] },
+    { value: Jobs[4], label: Jobs[4] },
+    { value: Jobs[5], label: Jobs[5] },
+    { value: Jobs[6], label: Jobs[6] },
+    { value: Jobs[7], label: Jobs[7] },
   ];
+  
   const privileges = [
     { value: "العرض", label: "العرض" },
     { value: "العرض والتعديل", label: "العرض والتعديل" },
@@ -786,7 +788,7 @@ export default function Users() {
         if (editedRow && editedRow.id === params.id) {
           return (
             <CustomInput
-              value={editedRow.username || ""}
+              value={editedRow?.username || ""}
               onChange={(newValue) =>
                 setEditedRow((prev) => ({
                   ...prev,
@@ -828,7 +830,7 @@ export default function Users() {
       </div>
     );
   } else {
-    if (user.username === "admin") {
+    if (user?.username === "admin") {
       return (
         <div className={styles.container}>
           <h1 className={styles.head}>بيانات الموظفين</h1>

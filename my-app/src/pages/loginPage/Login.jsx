@@ -10,6 +10,7 @@ import SnackBar from "../../components/snackBar/SnackBar";
 import { CustomTextField } from "../../components/customTextField/CustomTextField";
 import CircularProgress from "@mui/material/CircularProgress";
 import { useGetUserQuery } from "../services/userApi";
+import { Jobs } from "../../context/jobs";
 
 const Login = () => {
   const { data: user, isLoading: isLoadingUser, refetch } = useGetUserQuery();
@@ -82,20 +83,12 @@ const Login = () => {
       if (updatedUser?.username === "admin") {
         navigate("/users");
       } else if (
-        [
-          "مدير المخازن",
-          "مدير المشتريات",
-          "مسئول المشتريات",
-          "مسئول قسم العمليات",
-          "رئيس قسم العمليات",
-        ].includes(updatedUser?.job_name)
-      ) {
-        navigate("/createinvoice");
-      } else if (
-        ["امين المخزن", "موظف قسم الحسابات", "موظف"].includes(
+        [Jobs[0], Jobs[2], Jobs[3], Jobs[4], Jobs[5]].includes(
           updatedUser?.job_name
         )
       ) {
+        navigate("/createinvoice");
+      } else if ([Jobs[1], Jobs[6], Jobs[7]].includes(updatedUser?.job_name)) {
         navigate("/invoices");
       }
     } catch (error) {

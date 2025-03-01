@@ -4,7 +4,7 @@ import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
 import Box from "@mui/material/Box";
 import { useGetUserQuery } from "../../pages/services/userApi";
-
+import { Jobs } from "../../context/jobs";
 function CustomTabPanel(props) {
   const { children, value, index, ...other } = props;
 
@@ -84,7 +84,7 @@ export default function FilterTabs({ setNowType, setSelectedRows }) {
             status: true,
           },
         ]
-      : ["مدير المشتريات"].includes(user?.job_name)
+      : [Jobs[2]].includes(user?.job_name)
       ? [
           {
             label: "اضافه",
@@ -137,7 +137,14 @@ export default function FilterTabs({ setNowType, setSelectedRows }) {
     >
       <Box>
         <Tabs
-          sx={{ marginBottom: "20px", direction: "rtl" }}
+          sx={{
+            marginBottom: "20px",
+            direction: "rtl",
+            minHeight: "43px",
+            "& .MuiTabs-flexContainer": {
+              gap: "20px",
+            },
+          }}
           value={value}
           onChange={handleChange}
           aria-label="filter tabs"
@@ -150,14 +157,15 @@ export default function FilterTabs({ setNowType, setSelectedRows }) {
               sx={{
                 backgroundColor: "white",
                 padding: "0 !important",
-                margin: "3px 20px",
                 borderRadius: "10px",
                 transition: "0.3s",
                 fontWeight: "bold",
-                fontSize: "1.2rem",
+                fontSize: "1rem",
                 "&:hover": {
                   backgroundColor: "#f5f5f5",
                 },
+                minHeight: "40px",
+                minWidth: "70px",
               }}
             />
           ))}

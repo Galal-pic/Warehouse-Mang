@@ -24,6 +24,7 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import GroupsIcon from "@mui/icons-material/Groups";
 import CircularProgress from "@mui/material/CircularProgress";
 import { useGetUserQuery } from "../../pages/services/userApi";
+import { Jobs } from "../../context/jobs";
 
 // liks
 const resourceManagementLinks = [
@@ -154,21 +155,21 @@ export default function Header() {
     if (link.text === "إنشاء عملية")
       return (
         user?.username === "admin" ||
-        user?.job_name === "مدير المخازن" ||
-        user?.job_name === "مدير المشتريات" ||
-        user?.job_name === "مسئول المشتريات" ||
-        user?.job_name === "رئيس قسم العمليات" ||
-        user?.job_name === "مسئول قسم العمليات"
+        user?.job_name === Jobs[0] ||
+        user?.job_name === Jobs[2] ||
+        user?.job_name === Jobs[3] ||
+        user?.job_name === Jobs[4] ||
+        user?.job_name === Jobs[5]
       );
     if (link.text === "إدارة العمليات")
       return (
         user?.username === "admin" ||
-        user?.job_name === "مدير المخازن" ||
-        user?.job_name === "مدير المشتريات" ||
-        user?.job_name === "امين المخزن" ||
-        user?.job_name === "رئيس قسم العمليات" ||
-        user?.job_name === "موظف قسم الحسابات" ||
-        user?.job_name === "موظف"
+        user?.job_name === Jobs[0] ||
+        user?.job_name === Jobs[2] ||
+        user?.job_name === Jobs[1] ||
+        user?.job_name === Jobs[4] ||
+        user?.job_name === Jobs[6] ||
+        user?.job_name === Jobs[7]
       );
     if (link.text === "إدارة الموارد") return user?.username === "admin";
     return true;
@@ -371,7 +372,7 @@ export default function Header() {
                       <CircularProgress size={24} />
                     ) : (
                       <Typography sx={{ color: "#555", fontSize: "1.5rem" }}>
-                        {user.username}
+                        {user?.username}
                       </Typography>
                     )
                   }
@@ -403,7 +404,7 @@ export default function Header() {
                       <CircularProgress size={24} />
                     ) : (
                       <Typography sx={{ color: "#555", fontSize: "1.5rem" }}>
-                        {user.job_name}
+                        {user?.job_name}
                       </Typography>
                     )
                   }

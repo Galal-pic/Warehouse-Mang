@@ -34,6 +34,7 @@ import {
   useGetLastInvoiceIdQuery,
   useCreateInvoiceMutation,
 } from "../services/invoiceApi";
+import { Jobs } from "../../context/jobs";
 
 export default function Type1() {
   // Operation Type Selection
@@ -577,13 +578,7 @@ export default function Type1() {
     );
   } else {
     if (
-      [
-        "مدير المخازن",
-        "مدير المشتريات",
-        "مسئول المشتريات",
-        "مسئول قسم العمليات",
-        "رئيس قسم العمليات",
-      ].includes(user?.job_name) ||
+      [Jobs[0], Jobs[2], Jobs[3], Jobs[4], Jobs[5]].includes(user?.job_name) ||
       user?.username === "admin"
     ) {
       return (
@@ -598,7 +593,7 @@ export default function Type1() {
               alignItems: "center",
             }}
           >
-            {(["مدير المشتريات", "مسئول المشتريات"].includes(user?.job_name) ||
+            {([Jobs[2], Jobs[3]].includes(user?.job_name) ||
               user?.username === "admin") && (
               <div className={styles.operationTypeSelection}>
                 <FormControl
@@ -652,11 +647,7 @@ export default function Type1() {
                 </FormControl>
               </div>
             )}
-            {([
-              "مدير المخازن",
-              "مسئول قسم العمليات",
-              "رئيس قسم العمليات",
-            ].includes(user?.job_name) ||
+            {([Jobs[0], Jobs[4], Jobs[5]].includes(user?.job_name) ||
               user?.username === "admin") && (
               <div className={styles.operationTypeSelection}>
                 <FormControl

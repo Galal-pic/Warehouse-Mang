@@ -13,7 +13,6 @@ import {
   TableCell,
   Divider,
   CircularProgress,
-  Checkbox,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import ClearOutlinedIcon from "@mui/icons-material/ClearOutlined";
@@ -44,6 +43,7 @@ import {
   useConfirmInvoiceMutation,
   useRefreshInvoiceMutation,
 } from "../services/invoiceApi";
+import { Jobs } from "../../context/jobs";
 
 export default function Invoices() {
   const {
@@ -58,8 +58,7 @@ export default function Invoices() {
   useEffect(() => {
     if (user) {
       setSelectedNowType(
-        user?.username === "admin" ||
-          ["مدير المشتريات"].includes(user?.job_name)
+        user?.username === "admin" || [Jobs[2]].includes(user?.job_name)
           ? {
               label: "اضافه",
               type: "purchase",
@@ -511,7 +510,7 @@ export default function Invoices() {
         />
         {selectedRows.length > 0 && (
           <>
-            {(["مدير المخازن", "مدير المشتريات"].includes(user?.job_name) ||
+            {([Jobs[0], Jobs[2]].includes(user?.job_name) ||
               user?.username === "admin") && (
               <Button
                 variant="contained"
@@ -533,7 +532,7 @@ export default function Invoices() {
               invoice.items.every((item) => item.total_price !== 0)
             )
               ? ""
-              : (["موظف قسم الحسابات"].includes(user?.job_name) ||
+              : ([Jobs[6]].includes(user?.job_name) ||
                   user?.username === "admin") && (
                   <Button
                     variant="contained"
@@ -595,7 +594,7 @@ export default function Invoices() {
     {
       field: "refresh",
       headerName: "فتح الفاتورة",
-      width: selectedNowType?.label === "أمانات" ? 300 : 200,
+      width: selectedNowType?.label === "أمانات" ? 300 : 165,
       renderCell: (params) => {
         return (
           <div
@@ -612,7 +611,7 @@ export default function Invoices() {
             >
               <LaunchIcon />
             </button>
-            {(["مدير المخازن", "مدير المشتريات"].includes(user?.job_name) ||
+            {([Jobs[0], Jobs[2]].includes(user?.job_name) ||
               user?.username === "admin") && (
               <button
                 className={styles.iconBtn}
@@ -644,7 +643,7 @@ export default function Invoices() {
                 "تم الاسترداد"
               ))}
             {params.row.items.some((item) => item.total_price === 0) &&
-              (["موظف قسم الحسابات"].includes(user?.job_name) ||
+              ([Jobs[6]].includes(user?.job_name) ||
                 user?.username === "admin") && (
                 <Button
                   variant="contained"
@@ -670,7 +669,7 @@ export default function Invoices() {
     ...(selectedNowType?.status
       ? [
           {
-            width: 150,
+            width: 86,
             field: "status",
             headerName: "حالة العملية",
             renderCell: (params) => {
@@ -698,21 +697,19 @@ export default function Invoices() {
                   onClick={() => handleInvoiceAction(params.row.id)}
                   sx={{
                     borderRadius: "8px",
-                    padding: "6px 16px",
+                    padding: "6px 10px",
                   }}
                   disabled={
                     isLoading ||
                     (status === "لم تراجع" &&
                       !(
-                        ["رئيس قسم العمليات", "مدير المشتريات"].includes(
-                          user?.job_name
-                        ) || user?.username === "admin"
+                        [Jobs[2], Jobs[4]].includes(user?.job_name) ||
+                        user?.username === "admin"
                       )) ||
                     (status === "لم تؤكد" &&
                       !(
-                        ["امين المخزن", "مدير المشتريات"].includes(
-                          user?.job_name
-                        ) || user?.username === "admin"
+                        [Jobs[1], Jobs[2]].includes(user?.job_name) ||
+                        user?.username === "admin"
                       ))
                   }
                 >
@@ -730,14 +727,18 @@ export default function Invoices() {
     { flex: 1, field: "warehouse_manager", headerName: "عامل المخازن" },
     { flex: 1, field: "accreditation_manager", headerName: "المراجع" },
     { flex: 1, field: "client_name", headerName: "اسم العميل" },
-    { flex: 1, field: "time", headerName: "وقت اصدار الفاتورة" },
+    {
+      flex: 1,
+      field: "time",
+      headerName: "وقت اصدار الفاتورة",
+    },
     {
       flex: 1,
       field: "date",
       headerName: "تاريخ اصدار الفاتورة",
     },
     { flex: 1, field: "type", headerName: "نوع العملية" },
-    { field: "id", headerName: "#" },
+    { field: "id", headerName: "#", width: 50 },
     // {
     //   field: "select",
     //   headerName: "",
@@ -963,14 +964,9 @@ export default function Invoices() {
     );
   } else {
     if (
-      [
-        "مدير المخازن",
-        "امين المخزن",
-        "مدير المشتريات",
-        "رئيس قسم العمليات",
-        "موظف قسم الحسابات",
-        "موظف",
-      ].includes(user?.job_name) ||
+      [Jobs[0], Jobs[1], Jobs[2], Jobs[4], Jobs[6], Jobs[7]].includes(
+        user?.job_name
+      ) ||
       user?.username === "admin"
     ) {
       return (
@@ -1081,11 +1077,9 @@ export default function Invoices() {
                     </div>
                   ) : (
                     <div>
-                      {selectedInvoice.status === "confirmed"
+                      {selectedInvoice.status === "تم"
                         ? ""
-                        : (["مدير المخازن", "مدير المشتريات"].includes(
-                            user?.job_name
-                          ) ||
+                        : ([Jobs[0], Jobs[2]].includes(user?.job_name) ||
                             user?.username === "admin") && (
                             <button
                               onClick={() => {
@@ -1104,7 +1098,7 @@ export default function Invoices() {
                           )}
                     </div>
                   )}
-                  {(["موظف قسم الحسابات"].includes(user?.job_name) ||
+                  {([Jobs[6]].includes(user?.job_name) ||
                     user?.username === "admin") && (
                     <button
                       onClick={() => {

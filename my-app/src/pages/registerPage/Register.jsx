@@ -14,7 +14,7 @@ import {
 } from "@mui/material";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
-
+import { Jobs } from "../../context/jobs";
 const CustomRadioField = ({ label, value, setValue, options, error }) => {
   return (
     <FormControl component="fieldset" error={error} sx={{}}>
@@ -65,14 +65,14 @@ export default function Register() {
   const navigate = useNavigate();
 
   const jobs = [
-    { value: "مدير المخازن", label: "مدير المخازن" },
-    { value: "امين المخزن", label: "امين المخزن" },
-    { value: "مدير المشتريات", label: "مدير المشتريات" },
-    { value: "مسئول المشتريات", label: "مسئول المشتريات" },
-    { value: "رئيس قسم العمليات", label: "رئيس قسم العمليات" },
-    { value: "مسئول قسم العمليات", label: "مسئول قسم العمليات" },
-    { value: "موظف قسم الحسابات", label: "موظف قسم الحسابات" },
-    { value: "موظف", label: "موظف" },
+    { value: Jobs[0], label: Jobs[0] },
+    { value: Jobs[1], label: Jobs[1] },
+    { value: Jobs[2], label: Jobs[2] },
+    { value: Jobs[3], label: Jobs[3] },
+    { value: Jobs[4], label: Jobs[4] },
+    { value: Jobs[5], label: Jobs[5] },
+    { value: Jobs[6], label: Jobs[6] },
+    { value: Jobs[7], label: Jobs[7] },
   ];
 
   const privileges = [
@@ -422,7 +422,7 @@ export default function Register() {
               </div>
             </div>
           </div>
-          <div className={styles.privilegesContainer}>
+          {/* <div className={styles.privilegesContainer}>
             <h3>الصلاحيات</h3>
             <div
               style={{
@@ -486,7 +486,7 @@ export default function Register() {
                 error={!!errors.privilegeSuppliersPage}
               />
             </div>
-          </div>
+          </div> */}
         </Box>
         <Button
           type="submit"
