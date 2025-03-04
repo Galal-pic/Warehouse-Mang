@@ -5,42 +5,55 @@ import styles from "./Register.module.css";
 import { useNavigate } from "react-router-dom";
 import SnackBar from "../../components/snackBar/SnackBar";
 import { useAddUserMutation } from "../services/userApi";
-import {
-  FormControl,
-  FormControlLabel,
-  Radio,
-  RadioGroup,
-  FormLabel,
-} from "@mui/material";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import { Jobs } from "../../context/jobs";
-const CustomRadioField = ({ label, value, setValue, options, error }) => {
+
+const CustomCheckboxField = ({
+  label,
+  values,
+  section,
+  updatePrivileges,
+  options,
+  error,
+}) => {
   return (
-    <FormControl component="fieldset" error={error} sx={{}}>
-      <FormLabel
-        sx={{
-          fontWeight: "bold",
-          color: "#555",
-        }}
-        component="legend"
+    <div
+      style={{ display: "flex", alignItems: "center", marginBottom: "10px" }}
+    >
+      <p
+        style={{ fontWeight: "bold", color: "#555", width: "150px", margin: 0 }}
       >
         {label}
-      </FormLabel>
-      <RadioGroup value={value} onChange={(e) => setValue(e.target.value)}>
-        {options.map((option) => (
-          <FormControlLabel
-            key={option.value}
-            value={option.value}
-            control={<Radio />}
-            label={option.label}
-          />
+      </p>
+      <div style={{ display: "flex", flexWrap: "wrap", width: "100%" }}>
+        {Object.entries(options).map(([key, optionLabel]) => (
+          <label
+            key={key}
+            style={{
+              margin: "0 10px",
+              display: "flex",
+              width: "200px",
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={values[key]}
+              onChange={() => updatePrivileges(section, key, !values[key])}
+              style={{ marginLeft: "5px" }}
+            />
+            {optionLabel}
+          </label>
         ))}
-      </RadioGroup>
-    </FormControl>
+      </div>
+      {error && (
+        <p style={{ color: "red", fontSize: "14px", margin: 0 }}>
+          هناك خطأ في الاختيار
+        </p>
+      )}
+    </div>
   );
 };
-
 export default function Register() {
   const [formData, setFormData] = useState({
     username: "",
@@ -48,12 +61,48 @@ export default function Register() {
     phoneNumber: "",
     password: "",
     confirmPassword: "",
-    privilegeCreateInvoicePage: "-",
-    privilegeInvoicesPage: "-",
-    privilegeItemsPage: "-",
-    privilegeSuppliersPage: "-",
-    privilegeMachinesPage: "-",
-    privilegeMechanismPage: "-",
+    privileges: {
+      createInvoice: {
+        createInventoryOperations: false,
+        createAdditions: false,
+        canView: false,
+      },
+      manageOperations: {
+        viewAdditions: false,
+        viewWithdrawals: false,
+        viewDeposits: false,
+        viewReturns: false,
+        viewDamages: false,
+        viewReservations: false,
+        viewPrices: false,
+        canEdit: false,
+        canDelete: false,
+        canConfirmWithdrawal: false,
+        canWithdraw: false,
+        canUpdatePrices: false,
+        canRecoverDeposits: false,
+      },
+      items: {
+        canEdit: false,
+        canDelete: false,
+        canAdd: false,
+      },
+      machines: {
+        canEdit: false,
+        canDelete: false,
+        canAdd: false,
+      },
+      mechanism: {
+        canEdit: false,
+        canDelete: false,
+        canAdd: false,
+      },
+      suppliers: {
+        canEdit: false,
+        canDelete: false,
+        canAdd: false,
+      },
+    },
   });
 
   const [errors, setErrors] = useState({});
@@ -64,6 +113,7 @@ export default function Register() {
   const [addUser, { isLoading: mutationLoading }] = useAddUserMutation();
   const navigate = useNavigate();
 
+  // jobs
   const jobs = [
     { value: Jobs[0], label: Jobs[0] },
     { value: Jobs[1], label: Jobs[1] },
@@ -75,14 +125,47 @@ export default function Register() {
     { value: Jobs[7], label: Jobs[7] },
   ];
 
-  const privileges = [
-    { value: "العرض", label: "العرض" },
-    { value: "العرض والتعديل", label: "العرض والتعديل" },
-    { value: "-", label: "-" },
-  ];
+  const createInvoiceOptions = {
+    createInventoryOperations: "إنشاء العمليات المخزونية",
+    createAdditions: "إنشاء الإضافات",
+  };
+
+  const invoicesPageOptions = {
+    viewAdditions: "عرض الإضافات",
+    viewWithdrawals: "عرض الصرف",
+    viewDeposits: "عرض الأمانات",
+    viewReturns: "عرض الاسترجاع",
+    viewDamages: "عرض التوالفات",
+    viewReservations: "عرض الحجزات",
+    viewPrices: "عرض الأسعار",
+    canEdit: "التعديل",
+    canDelete: "الحذف",
+    canConfirmWithdrawal: "تأكيد الصرف",
+    canWithdraw: "الصرف",
+    canUpdatePrices: "تحديث الأسعار",
+    canRecoverDeposits: "استرداد الأمانات",
+  };
+
+  const fourPageOptions = {
+    canEdit: "التعديل",
+    canDelete: "الحذف",
+    canAdd: "الإضافة",
+  };
 
   const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+  const updatePrivileges = (section, key, value) => {
+    setFormData((prev) => ({
+      ...prev,
+      privileges: {
+        ...prev.privileges,
+        [section]: {
+          ...prev.privileges[section],
+          [key]: value,
+        },
+      },
+    }));
   };
 
   const handleSubmit = async (e) => {
@@ -110,12 +193,7 @@ export default function Register() {
       password: formData.password,
       phone_number: formData.phoneNumber,
       job_name: formData.job,
-      create_invoice_status: formData.privilegeCreateInvoicePage,
-      manage_operation_status: formData.privilegeInvoicesPage,
-      items_access_status: formData.privilegeItemsPage,
-      supplier_access_status: formData.privilegeSuppliersPage,
-      machine_access_status: formData.privilegeMachinesPage,
-      mechanism_access_status: formData.privilegeMechanismPage,
+      privileges: formData.privileges,
     };
     console.log(dataToSend);
 
@@ -362,7 +440,10 @@ export default function Register() {
                 )}
               </div>
 
-              <div className={styles.inputContainer}>
+              <div
+                style={{ minWidth: "200px" }}
+                className={styles.inputContainer}
+              >
                 <label
                   style={{
                     display: "block",
@@ -422,71 +503,63 @@ export default function Register() {
               </div>
             </div>
           </div>
-          {/* <div className={styles.privilegesContainer}>
+          <div className={styles.privilegesContainer}>
             <h3>الصلاحيات</h3>
             <div
-              style={{
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                flexWrap: "wrap",
-                gap: 20,
-              }}
+              className={styles.inputGroup}
+              style={{ justifyContent: "right", flexDirection: "column" }}
             >
-              <CustomRadioField
+              <CustomCheckboxField
                 label="صفحة إنشاء عملية"
-                value={formData.privilegeCreateInvoicePage}
-                setValue={(value) =>
-                  handleChange("privilegeCreateInvoicePage", value)
-                }
-                options={privileges}
-                error={!!errors.privilegeCreateInvoicePage}
+                values={formData.privileges.createInvoice}
+                section="createInvoice"
+                updatePrivileges={updatePrivileges}
+                options={createInvoiceOptions}
+                error={!!errors.privileges?.createInvoice}
               />
-              <CustomRadioField
+              <CustomCheckboxField
                 label="صفحة إدارة العمليات"
-                value={formData.privilegeInvoicesPage}
-                setValue={(value) =>
-                  handleChange("privilegeInvoicesPage", value)
-                }
-                options={privileges}
-                error={!!errors.privilegeInvoicesPage}
+                values={formData.privileges.manageOperations}
+                section="manageOperations"
+                updatePrivileges={updatePrivileges}
+                options={invoicesPageOptions}
+                error={!!errors.privileges?.manageOperations}
               />
-              <CustomRadioField
+
+              <CustomCheckboxField
                 label="صفحة الأصناف"
-                value={formData.privilegeItemsPage}
-                setValue={(value) => handleChange("privilegeItemsPage", value)}
-                options={privileges}
-                error={!!errors.privilegeItemsPage}
+                section="items"
+                updatePrivileges={updatePrivileges}
+                values={formData.privileges.items}
+                options={fourPageOptions}
+                error={!!errors.privileges?.items}
               />
-              <CustomRadioField
+              <CustomCheckboxField
                 label="صفحة الماكينات"
-                value={formData.privilegeMachinesPage}
-                setValue={(value) =>
-                  handleChange("privilegeMachinesPage", value)
-                }
-                options={privileges}
-                error={!!errors.privilegeMachinesPage}
+                section="machines"
+                updatePrivileges={updatePrivileges}
+                values={formData.privileges.machines}
+                options={fourPageOptions}
+                error={!!errors.privileges?.machines}
               />
-              <CustomRadioField
+              <CustomCheckboxField
                 label="صفحة الميكانيزم"
-                value={formData.privilegeMechanismPage}
-                setValue={(value) =>
-                  handleChange("privilegeMechanismPage", value)
-                }
-                options={privileges}
-                error={!!errors.privilegeMechanismPage}
+                section="mechanism"
+                updatePrivileges={updatePrivileges}
+                values={formData.privileges.mechanism}
+                options={fourPageOptions}
+                error={!!errors.privileges?.mechanism}
               />
-              <CustomRadioField
+              <CustomCheckboxField
                 label="صفحة الموردين"
-                value={formData.privilegeSuppliersPage}
-                setValue={(value) =>
-                  handleChange("privilegeSuppliersPage", value)
-                }
-                options={privileges}
-                error={!!errors.privilegeSuppliersPage}
+                section="suppliers"
+                updatePrivileges={updatePrivileges}
+                values={formData.privileges.suppliers}
+                options={fourPageOptions}
+                error={!!errors.privileges?.suppliers}
               />
             </div>
-          </div> */}
+          </div>
         </Box>
         <Button
           type="submit"
