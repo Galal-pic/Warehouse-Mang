@@ -19,28 +19,57 @@ const CustomCheckboxField = ({
 }) => {
   return (
     <div
-      style={{ display: "flex", alignItems: "center", marginBottom: "10px" }}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        marginBottom: "10px",
+        border: "1px solid #ddd",
+        borderRadius: "5px",
+        height: "100%",
+      }}
     >
       <p
-        style={{ fontWeight: "bold", color: "#555", width: "150px", margin: 0 }}
+        style={{
+          fontWeight: "bold",
+          color: "#555",
+          width: "200px",
+          margin: 0,
+          backgroundColor: "#ddd",
+          padding: "7px 10px",
+          display: "flex",
+          alignItems: "center",
+          alignSelf: "stretch",
+          borderRadius: "5px",
+        }}
       >
         {label}
       </p>
-      <div style={{ display: "flex", flexWrap: "wrap", width: "100%" }}>
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          width: "100%",
+          padding: "10px 15px 10px 0",
+        }}
+      >
         {Object.entries(options).map(([key, optionLabel]) => (
           <label
             key={key}
             style={{
               margin: "0 10px",
               display: "flex",
-              width: "200px",
+              width: "210px",
+              padding: "5px 15px",
+              cursor: "pointer",
+              transition: "0.1s",
             }}
+            className={styles.label}
           >
             <input
               type="checkbox"
               checked={values[key]}
               onChange={() => updatePrivileges(section, key, !values[key])}
-              style={{ marginLeft: "5px" }}
+              style={{ margin: "5px 0 0 5px", cursor: "pointer" }}
             />
             {optionLabel}
           </label>
@@ -65,7 +94,6 @@ export default function Register() {
       createInvoice: {
         createInventoryOperations: false,
         createAdditions: false,
-        canView: false,
       },
       manageOperations: {
         viewAdditions: false,
