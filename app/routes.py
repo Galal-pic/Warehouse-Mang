@@ -274,8 +274,6 @@ class InvoiceDetail(Resource):
         
         return {"message": "Invoice deleted successfully"}, 200
 
-
-
 @invoice_ns.route('/last-id')
 class LastInvoiceId(Resource):
     @jwt_required()
@@ -335,3 +333,42 @@ class UpdateInvoicePrice(Resource):
             "message": "Invoice prices updated successfully",
             "total_amount": invoice.total_amount
         }, 200
+    
+@invoice_ns.route('/<int:invoice_id>/ReturnWarranty')
+class ReturnWarranty(Resource):
+    @invoice_ns.doc('return_warranty')
+    @jwt_required()
+    def post(self, invoice_id):
+        """Return items from a warranty invoice and restore stock"""
+        invoice = Invoice.query.get_or_404(invoice_id)
+
+        # Check if it's a warranty invoice
+        if invoice.type != 'أمانات':
+            invoice_ns.abort(400, "Can only return warranty invoices with this method")
+
+        try:
+            # Restore quantities for each item in the invoice
+            for invoice_item in invoice.items:
+                # Find the item location
+                item_location = ItemLocations.query.filter_by(
+                    item_id=invoice_item.item_id,
+                    location=invoice_item.location
+                ).first()
+
+                if not item_location:
+                    raise ValueError(
+                        f"Item {Warehouse.query.get(invoice_item.item_id).item_name} not found in location {invoice_item.location}"
+                    )
+
+                # Restore the quantity
+                item_location.quantity += invoice_item.quantity
+
+            # Update the invoice status to indicate it has been returned
+            invoice.status = 'returned'
+            db.session.commit()
+
+            return {"message": "Warranty invoice returned and stock restored successfully"}, 200
+
+        except Exception as e:
+            db.session.rollback()
+            invoice_ns.abort(500, f"Error returning warranty invoice: {str(e)}")
