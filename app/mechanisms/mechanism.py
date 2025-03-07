@@ -47,7 +47,8 @@ class MechanismList(Resource):
     def post(self):
         """Create a new mechanism"""
         data = mechanism_ns.payload
-        if Mechanism.query.filter_by(name=data['name']).first():
+        print(data)
+        if Mechanism.query.filter_by(name=data['name']).first() or Mechanism.query.filter_by(description=data["description"]).first():
             return mechanism_ns.abort(400, "Mechanism already exists")
 
         new_mechanism = Mechanism(

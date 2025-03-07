@@ -8,7 +8,6 @@ item_location_ns = Namespace('item_location', description='Item Location operati
 
 item_location_model = item_location_ns.model('ItemLocation', {
     'location': fields.String(required=True, description='Location of the item in the warehouse'),
-    'price_unit': fields.Float(required=True, description='Price per unit of the item', example=0.0),
     'quantity': fields.Integer(required=True, description='Quantity of the item', example=0)
 })
 
@@ -43,7 +42,6 @@ class WarehouseList(Resource):
                 "locations": [
                     {
                         "location": loc.location,
-                        "price_unit": loc.price_unit,
                         "quantity": loc.quantity
                     }
                     for loc in locations
@@ -78,7 +76,6 @@ class WarehouseList(Resource):
             new_location = ItemLocations(
                 item_id=new_item.id,  # Use the ID of the newly created warehouse item
                 location=data["locations"][0]["location"],
-                price_unit=data["locations"][0]["price_unit"],
                 quantity=data["locations"][0]["quantity"]
             )
             db.session.add(new_location)
@@ -92,7 +89,6 @@ class WarehouseList(Resource):
                 "locations": [
                     {
                         "location": new_location.location,
-                        "price_unit": new_location.price_unit,
                         "quantity": new_location.quantity
                     }
                 ]
@@ -116,7 +112,6 @@ class WarehouseDetail(Resource):
             "locations": [
                 {
                     "location": loc.location,
-                    "price_unit": loc.price_unit,
                     "quantity": loc.quantity
                 }
                 for loc in locations
@@ -156,14 +151,12 @@ class WarehouseDetail(Resource):
 
             if location:
                 # Update existing location
-                location.price_unit = loc_data["price_unit"]
                 location.quantity = loc_data["quantity"]
             else:
                 # Add new location
                 new_location = ItemLocations(
                     item_id=item.id,
                     location=loc_data["location"],
-                    price_unit=loc_data["price_unit"],
                     quantity=loc_data["quantity"]
                 )
                 db.session.add(new_location)
@@ -178,7 +171,6 @@ class WarehouseDetail(Resource):
             "locations": [
                 {
                     "location": loc_data["location"],
-                    "price_unit": loc_data["price_unit"],
                     "quantity": loc_data["quantity"]
                 }
                 for loc_data in data["locations"]

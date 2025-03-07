@@ -23,7 +23,7 @@ class MachineExcel(Resource):
         data = supplier_ns.payload
         data = data.get("data",[])
         for supplier in data:
-            if Supplier.query.filter_by(name=supplier["name"]).first() or Supplier.query.filter_by(name=supplier["description"]).first():
+            if Supplier.query.filter_by(name=supplier["name"]).first() or Supplier.query.filter_by(description=supplier["description"]).first():
                 return supplier_ns.abort(400, "Supplier already exists")
             new_supplier = Supplier(
                 name=supplier["name"],
@@ -48,7 +48,7 @@ class SupplierList(Resource):
     def post(self):
         """Create a new supplier"""
         data = supplier_ns.payload
-        if Supplier.query.filter_by(name=data['name']).first():
+        if Supplier.query.filter_by(name=data['name']).first() or Supplier.query.filter_by(description=data['description']).first():
             return supplier_ns.abort(400, "supplier already exists")
 
         new_supplier = Supplier(

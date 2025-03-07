@@ -47,7 +47,7 @@ class MachineList(Resource):
     def post(self):
         """Create a new machine"""
         data = machine_ns.payload
-        if Machine.query.filter_by(name=data['name']).first():
+        if Machine.query.filter_by(name=data['name']).first() or Machine.query.filter_by(description=data['description']).first():
             return machine_ns.abort(400, "Machine already exists")
 
         new_machine = Machine(
