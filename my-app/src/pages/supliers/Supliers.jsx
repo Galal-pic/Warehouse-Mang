@@ -187,7 +187,7 @@ export default function Supliers() {
               <button
                 className={styles.iconBtn}
                 onClick={() => {
-                  if (user?.suppliers?.canEdit || user?.username === "admin") {
+                  if (user?.suppliers_can_edit || user?.username === "admin") {
                     setIsEditingItem(true);
                     setEditingItem(params.row);
                     setSelectedItem(params.row);
@@ -204,7 +204,7 @@ export default function Supliers() {
                 className={styles.iconBtn}
                 onClick={() => {
                   if (
-                    user?.suppliers?.canDelete ||
+                    user?.suppliers_can_delete ||
                     user?.username === "admin"
                   ) {
                     handleDeleteClick(params.id);
@@ -335,9 +335,9 @@ export default function Supliers() {
   } else {
     if (
       user?.username === "admin" ||
-      user?.suppliers?.canEdit ||
-      user?.suppliers?.canAdd ||
-      user?.suppliers?.canDelete
+      user?.suppliers_can_edit ||
+      user?.suppliers_can_add ||
+      user?.suppliers_can_delete
     ) {
       return (
         <div className={styles.container}>
@@ -374,7 +374,7 @@ export default function Supliers() {
               }
             }}
             addPermissions={
-              user?.suppliers?.canAdd || user?.username === "admin" || false
+              user?.suppliers_can_add || user?.username === "admin" || false
             }
           />
 

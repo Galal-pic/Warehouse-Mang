@@ -35,37 +35,35 @@ function a11yProps(index) {
 }
 
 export const filtersTypes = (user) => {
-  const hasPermission = (permission) =>
-    user?.username === "admin" ||
-    user?.permissions?.manageOperations?.[permission];
+  const hasPermission = (permission) => user?.[permission];
 
   return [
-    hasPermission("viewAdditions") && {
+    hasPermission("view_additions") && {
       label: "اضافه",
       type: "purchase",
       url: "/invoice/اضافه",
     },
-    hasPermission("viewWithdrawals") && {
+    hasPermission("view_withdrawals") && {
       label: "صرف",
       type: "operation",
       url: "/invoice/صرف",
     },
-    hasPermission("viewDeposits") && {
+    hasPermission("view_deposits") && {
       label: "أمانات",
       type: "operation",
       url: "/invoice/أمانات",
     },
-    hasPermission("viewReturns") && {
+    hasPermission("view_returns") && {
       label: "مرتجع",
       type: "operation",
       url: "/invoice/مرتجع",
     },
-    hasPermission("viewDamages") && {
+    hasPermission("view_damages") && {
       label: "توالف",
       type: "operation",
       url: "/invoice/توالف",
     },
-    hasPermission("viewReservations") && {
+    hasPermission("view_reservations") && {
       label: "حجز",
       type: "operation",
       url: "/invoice/حجز",

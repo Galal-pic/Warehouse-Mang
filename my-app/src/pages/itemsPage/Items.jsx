@@ -178,7 +178,7 @@ export default function Items() {
           <button
             className={styles.iconBtn}
             onClick={() => {
-              if (user?.items?.canDelete || user?.username === "admin") {
+              if (user?.items_can_delete || user?.username === "admin") {
                 handleDeleteClick(params.id);
               } else {
                 setOpenSnackbar(true);
@@ -371,9 +371,9 @@ export default function Items() {
   } else {
     if (
       user?.username === "admin" ||
-      user?.items?.canEdit ||
-      user?.items?.canAdd ||
-      user?.items?.canDelete
+      user?.items_can_edit ||
+      user?.items_can_add ||
+      user?.items_can_delete
     ) {
       return (
         <div className={styles.container}>
@@ -416,7 +416,7 @@ export default function Items() {
             loader={isMachinesLoading}
             initialItems={initialItems}
             addPermissions={
-              user?.items?.canAdd || user?.username === "admin" || false
+              user?.items_can_add || user?.username === "admin" || false
             }
           />
 
@@ -842,7 +842,7 @@ export default function Items() {
                 ) : (
                   <button
                     onClick={() => {
-                      if (user?.items?.canEdit || user?.username === "admin") {
+                      if (user?.items_can_edit || user?.username === "admin") {
                         setIsEditingItem(true);
                         setEditingItem(selectedItem);
                       } else {

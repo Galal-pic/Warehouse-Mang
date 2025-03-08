@@ -54,7 +54,7 @@ export default function Users() {
   const [deleteUser, { isLoading: isDeleting }] = useDeleteUserMutation();
 
   // jobs
-  const jobs = Jobs.map((job, index) => ({
+  const jobs = Jobs.map((job) => ({
     value: job,
     label: job,
   }));

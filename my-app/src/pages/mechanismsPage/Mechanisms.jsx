@@ -198,7 +198,7 @@ export default function Mechanisms() {
               <button
                 className={styles.iconBtn}
                 onClick={() => {
-                  if (user?.mechanism?.canEdit || user?.username === "admin") {
+                  if (user?.mechanism_can_edit || user?.username === "admin") {
                     setIsEditingItem(true);
                     setEditingItem(params.row);
                     setSelectedItem(params.row);
@@ -215,7 +215,7 @@ export default function Mechanisms() {
                 className={styles.iconBtn}
                 onClick={() => {
                   if (
-                    user?.mechanism?.canDelete ||
+                    user?.mechanism_can_delete ||
                     user?.username === "admin"
                   ) {
                     handleDeleteClick(params.id);
@@ -348,9 +348,9 @@ export default function Mechanisms() {
   } else {
     if (
       user?.username === "admin" ||
-      user?.mechanism?.canEdit ||
-      user?.mechanism?.canAdd ||
-      user?.mechanism?.canDelete
+      user?.mechanism_can_edit ||
+      user?.machines_can_add ||
+      user?.mechanism_can_delete
     ) {
       return (
         <div className={styles.container}>
@@ -376,7 +376,7 @@ export default function Mechanisms() {
               }
             }}
             addPermissions={
-              user?.mechanism?.canAdd || user?.username === "admin" || false
+              user?.machines_can_add || user?.username === "admin" || false
             }
           />
 

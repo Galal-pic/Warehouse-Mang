@@ -24,7 +24,6 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import GroupsIcon from "@mui/icons-material/Groups";
 import CircularProgress from "@mui/material/CircularProgress";
 import { useGetUserQuery } from "../../pages/services/userApi";
-import { Jobs } from "../../context/jobs";
 
 // liks
 const resourceManagementLinks = [
@@ -154,34 +153,34 @@ export default function Header() {
     if (link.text === "إنشاء عملية")
       return (
         user?.username === "admin" ||
-        user?.permissions?.createInvoice?.createInventoryOperations ||
-        user?.permissions?.createInvoice?.createAdditions
+        user?.create_inventory_operations ||
+        user?.create_additions
       );
     if (link.text === "إدارة العمليات")
       return (
         user?.username === "admin" ||
-        user?.permissions?.manageOperations?.viewAdditions ||
-        user?.permissions?.manageOperations?.viewWithdrawals ||
-        user?.permissions?.manageOperations?.viewDeposits ||
-        user?.permissions?.manageOperations?.viewReturns ||
-        user?.permissions?.manageOperations?.viewDamages ||
-        user?.permissions?.manageOperations?.viewReservations
+        user?.view_additions ||
+        user?.view_withdrawals ||
+        user?.view_deposits ||
+        user?.view_returns ||
+        user?.view_damages ||
+        user?.view_reservations
       );
     if (link.text === "إدارة الموارد")
       return (
         user?.username === "admin" ||
-        user?.permissions?.items?.canEdit ||
-        user?.permissions?.items?.canDelete ||
-        user?.permissions?.items?.canAdd ||
-        user?.permissions?.machines?.canEdit ||
-        user?.permissions?.machines?.canDelete ||
-        user?.permissions?.machines?.canAdd ||
-        user?.permissions?.mechanism?.canEdit ||
-        user?.permissions?.mechanism?.canDelete ||
-        user?.permissions?.mechanism?.canAdd ||
-        user?.permissions?.suppliers?.canEdit ||
-        user?.permissions?.suppliers?.canDelete ||
-        user?.permissions?.suppliers?.canAdd
+        user?.items_can_edit ||
+        user?.items_can_delete ||
+        user?.items_can_add ||
+        user?.machines_can_edit ||
+        user?.machines_can_delete ||
+        user?.machines_can_add ||
+        user?.mechanism_can_edit ||
+        user?.mechanism_can_delete ||
+        user?.mechanism_can_add ||
+        user?.suppliers_can_edit ||
+        user?.suppliers_can_delete ||
+        user?.suppliers_can_add
       );
     return true;
   });
@@ -191,30 +190,30 @@ export default function Header() {
       if (resource.text === "المنتجات")
         return (
           user?.username === "admin" ||
-          user?.permissions?.items?.canEdit ||
-          user?.permissions?.items?.canDelete ||
-          user?.permissions?.items?.canAdd
+          user?.items_can_edit ||
+          user?.items_can_delete ||
+          user?.items_can_add
         );
       if (resource.text === "الماكينات")
         return (
           user?.username === "admin" ||
-          user?.permissions?.machines?.canEdit ||
-          user?.permissions?.machines?.canDelete ||
-          user?.permissions?.machines?.canAdd
+          user?.machines_can_edit ||
+          user?.machines_can_delete ||
+          user?.machines_can_add
         );
       if (resource.text === "الميكانيزم")
         return (
           user?.username === "admin" ||
-          user?.permissions?.mechanism?.canEdit ||
-          user?.permissions?.mechanism?.canDelete ||
-          user?.permissions?.mechanism?.canAdd
+          user?.mechanism_can_edit ||
+          user?.mechanism_can_delete ||
+          user?.mechanism_can_add
         );
       if (resource.text === "الموردين")
         return (
           user?.username === "admin" ||
-          user?.permissions?.suppliers?.canEdit ||
-          user?.permissions?.suppliers?.canDelete ||
-          user?.permissions?.suppliers?.canAdd
+          user?.suppliers_can_edit ||
+          user?.suppliers_can_delete ||
+          user?.suppliers_can_add
         );
       return false;
     }

@@ -92,23 +92,23 @@ export default function Register() {
     confirmPassword: "",
     privileges: {
       createInvoice: {
-        createInventoryOperations: false,
-        createAdditions: false,
+        create_inventory_operations: false,
+        create_additions: false,
       },
       manageOperations: {
-        viewAdditions: false,
-        viewWithdrawals: false,
-        viewDeposits: false,
-        viewReturns: false,
-        viewDamages: false,
-        viewReservations: false,
-        viewPrices: false,
-        canEdit: false,
-        canDelete: false,
-        canConfirmWithdrawal: false,
-        canWithdraw: false,
-        canUpdatePrices: false,
-        canRecoverDeposits: false,
+        view_additions: false,
+        view_withdrawals: false,
+        view_deposits: false,
+        view_returns: false,
+        view_damages: false,
+        view_reservations: false,
+        view_prices: false,
+        can_edit: false,
+        can_delete: false,
+        can_confirm_withdrawal: false,
+        can_withdraw: false,
+        can_update_prices: false,
+        can_recover_deposits: false,
       },
       items: {
         canEdit: false,
@@ -142,36 +142,27 @@ export default function Register() {
   const navigate = useNavigate();
 
   // jobs
-  const jobs = [
-    { value: Jobs[0], label: Jobs[0] },
-    { value: Jobs[1], label: Jobs[1] },
-    { value: Jobs[2], label: Jobs[2] },
-    { value: Jobs[3], label: Jobs[3] },
-    { value: Jobs[4], label: Jobs[4] },
-    { value: Jobs[5], label: Jobs[5] },
-    { value: Jobs[6], label: Jobs[6] },
-    { value: Jobs[7], label: Jobs[7] },
-  ];
+  const jobs = Jobs.map((job) => ({ value: job, label: job }));
 
   const createInvoiceOptions = {
-    createInventoryOperations: "إنشاء العمليات المخزونية",
-    createAdditions: "إنشاء الإضافات",
+    create_inventory_operations: "إنشاء العمليات المخزونية",
+    create_additions: "إنشاء الإضافات",
   };
 
   const invoicesPageOptions = {
-    viewAdditions: "عرض الإضافات",
-    viewWithdrawals: "عرض الصرف",
-    viewDeposits: "عرض الأمانات",
-    viewReturns: "عرض الاسترجاع",
-    viewDamages: "عرض التوالفات",
-    viewReservations: "عرض الحجزات",
-    viewPrices: "عرض الأسعار",
-    canEdit: "التعديل",
-    canDelete: "الحذف",
-    canConfirmWithdrawal: "تأكيد الصرف",
-    canWithdraw: "الصرف",
-    canUpdatePrices: "تحديث الأسعار",
-    canRecoverDeposits: "استرداد الأمانات",
+    view_additions: "عرض الإضافات",
+    view_withdrawals: "عرض الصرف",
+    view_deposits: "عرض الأمانات",
+    view_returns: "عرض الاسترجاع",
+    view_damages: "عرض التوالفات",
+    view_reservations: "عرض الحجزات",
+    view_prices: "عرض الأسعار",
+    can_edit: "التعديل",
+    can_delete: "الحذف",
+    can_confirm_withdrawal: "تأكيد الصرف",
+    can_withdraw: "الصرف",
+    can_update_prices: "تحديث الأسعار",
+    can_recover_deposits: "استرداد الأمانات",
   };
 
   const fourPageOptions = {
@@ -221,7 +212,29 @@ export default function Register() {
       password: formData.password,
       phone_number: formData.phoneNumber,
       job_name: formData.job,
-      permissions: formData.privileges,
+      permissions: {
+        ...formData.privileges,
+        items: {
+          items_can_edit: formData.privileges.items.canEdit,
+          items_can_delete: formData.privileges.items.canDelete,
+          items_can_add: formData.privileges.items.canAdd,
+        },
+        machines: {
+          machines_can_edit: formData.privileges.machines.canEdit,
+          machines_can_delete: formData.privileges.machines.canDelete,
+          machines_can_add: formData.privileges.machines.canAdd,
+        },
+        mechanism: {
+          mechanism_can_edit: formData.privileges.mechanism.canEdit,
+          mechanism_can_delete: formData.privileges.mechanism.canDelete,
+          mechanism_can_add: formData.privileges.mechanism.canAdd,
+        },
+        suppliers: {
+          suppliers_can_edit: formData.privileges.suppliers.canEdit,
+          suppliers_can_delete: formData.privileges.suppliers.canDelete,
+          suppliers_can_add: formData.privileges.suppliers.canAdd,
+        },
+      },
     };
     console.log(dataToSend);
 

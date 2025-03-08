@@ -79,42 +79,39 @@ const Login = () => {
 
       if (updatedUser?.username === "admin") {
         navigate("/users");
-      } else if (
-        user?.permissions?.createInvoice?.createInventoryOperations ||
-        user?.permissions?.createInvoice?.createAdditions
-      ) {
+      } else if (user?.create_inventory_operations || user?.create_additions) {
         navigate("/createinvoice");
       } else if (
-        user?.permissions?.manageOperations?.viewAdditions ||
-        user?.permissions?.manageOperations?.viewWithdrawals ||
-        user?.permissions?.manageOperations?.viewDeposits ||
-        user?.permissions?.manageOperations?.viewReturns ||
-        user?.permissions?.manageOperations?.viewDamages ||
-        user?.permissions?.manageOperations?.viewReservations
+        user?.view_additions ||
+        user?.view_withdrawals ||
+        user?.view_deposits ||
+        user?.view_returns ||
+        user?.view_damages ||
+        user?.view_reservations
       ) {
         navigate("/invoices");
       } else if (
-        user?.permissions?.items?.canEdit ||
-        user?.permissions?.items?.canDelete ||
-        user?.permissions?.items?.canAdd
+        user?.items_can_edit ||
+        user?.items_can_delete ||
+        user?.items_can_add
       ) {
         navigate("/others/items");
       } else if (
-        user?.permissions?.machines?.canEdit ||
-        user?.permissions?.machines?.canDelete ||
-        user?.permissions?.machines?.canAdd
+        user?.machines_can_edit ||
+        user?.machines_can_delete ||
+        user?.machines_can_add
       ) {
         navigate("/others/machines");
       } else if (
-        user?.permissions?.mechanism?.canEdit ||
-        user?.permissions?.mechanism?.canDelete ||
-        user?.permissions?.mechanism?.canAdd
+        user?.mechanism_can_edit ||
+        user?.mechanism_can_delete ||
+        user?.mechanism_can_add
       ) {
         navigate("/others/mechanisms");
       } else if (
-        user?.permissions?.suppliers?.canEdit ||
-        user?.permissions?.suppliers?.canDelete ||
-        user?.permissions?.suppliers?.canAdd
+        user?.suppliers_can_edit ||
+        user?.suppliers_can_delete ||
+        user?.suppliers_can_add
       ) {
         navigate("/others/supliers");
       }

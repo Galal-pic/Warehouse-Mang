@@ -184,7 +184,7 @@ export default function Machines() {
               <button
                 className={styles.iconBtn}
                 onClick={() => {
-                  if (user?.machines?.canEdit || user?.username === "admin") {
+                  if (user?.machines_can_edit || user?.username === "admin") {
                     setIsEditingItem(true);
                     setEditingItem(params.row);
                     setSelectedItem(params.row);
@@ -200,7 +200,7 @@ export default function Machines() {
               <button
                 className={styles.iconBtn}
                 onClick={() => {
-                  if (user?.machines?.canDelete || user?.username === "admin") {
+                  if (user?.machines_can_delete || user?.username === "admin") {
                     handleDeleteClick(params.id);
                   } else {
                     setOpenSnackbar(true);
@@ -324,9 +324,9 @@ export default function Machines() {
   } else {
     if (
       user?.username === "admin" ||
-      user?.machines?.canEdit ||
-      user?.machines?.canAdd ||
-      user?.machines?.canDelete
+      user?.machines_can_edit ||
+      user?.machines_can_add ||
+      user?.machines_can_delete
     ) {
       return (
         <div className={styles.container}>
@@ -363,7 +363,7 @@ export default function Machines() {
               }
             }}
             addPermissions={
-              user?.machines?.canAdd || user?.username === "admin" || false
+              user?.machines_can_add || user?.username === "admin" || false
             }
           />
 

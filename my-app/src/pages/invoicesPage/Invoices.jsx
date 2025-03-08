@@ -523,8 +523,7 @@ export default function Invoices() {
         />
         {selectedRows.length > 0 && (
           <>
-            {(user?.permissions?.manageOperations?.canDelete ||
-              user?.username === "admin") && (
+            {(user?.can_delete || user?.username === "admin") && (
               <Button
                 variant="contained"
                 color="error"
@@ -545,8 +544,7 @@ export default function Invoices() {
               invoice.items.every((item) => item.total_price !== 0)
             )
               ? ""
-              : (user?.permissions?.manageOperations?.canUpdatePrices ||
-                  user?.username === "admin") && (
+              : (user?.can_update_prices || user?.username === "admin") && (
                   <Button
                     variant="contained"
                     startIcon={<ClearOutlinedIcon />}
@@ -643,8 +641,7 @@ export default function Invoices() {
             >
               <LaunchIcon />
             </button>
-            {(user?.permissions?.manageOperations?.canDelete ||
-              user?.username === "admin") && (
+            {(user?.can_delete || user?.username === "admin") && (
               <button
                 className={styles.iconBtn}
                 onClick={() => handleDeleteClick(params.id)}
@@ -665,9 +662,8 @@ export default function Invoices() {
                   }}
                   disabled={
                     loadingRowsReturn[params.row.id] ||
-                    (user?.permissions?.manageOperations?.canRecoverDeposits &&
-                      !user?.permissions?.manageOperations
-                        ?.canRecoverDeposits) ||
+                    (user?.can_recover_deposits &&
+                      !user?.can_recover_deposits) ||
                     user?.username !== "admin"
                   }
                 >
@@ -691,8 +687,7 @@ export default function Invoices() {
                 }}
                 disabled={
                   loadingRows[params.row.id] ||
-                  (user?.permissions?.manageOperations?.canUpdatePrices &&
-                    !user?.permissions?.manageOperations?.canUpdatePrices) ||
+                  (user?.can_update_prices && !user?.can_update_prices) ||
                   user?.username !== "admin"
                 }
               >
@@ -742,14 +737,10 @@ export default function Invoices() {
               isLoading ||
               (status === "لم تراجع" &&
                 !(
-                  user?.permissions?.manageOperations?.canConfirmWithdrawal ||
-                  user?.username === "admin"
+                  user?.can_confirm_withdrawal || user?.username === "admin"
                 )) ||
               (status === "لم تؤكد" &&
-                !(
-                  user?.permissions?.manageOperations?.canWithdraw ||
-                  user?.username === "admin"
-                ))
+                !(user?.can_withdraw || user?.username === "admin"))
             }
           >
             {isLoading ? <CircularProgress size={24} /> : buttonText}
@@ -967,12 +958,12 @@ export default function Invoices() {
     );
   } else {
     if (
-      user?.permissions?.manageOperations?.viewAdditions ||
-      user?.permissions?.manageOperations?.viewWithdrawals ||
-      user?.permissions?.manageOperations?.viewDeposits ||
-      user?.permissions?.manageOperations?.viewReturns ||
-      user?.permissions?.manageOperations?.viewDamages ||
-      user?.permissions?.manageOperations?.viewReservations ||
+      user?.view_additions ||
+      user?.view_withdrawals ||
+      user?.view_deposits ||
+      user?.view_returns ||
+      user?.view_damages ||
+      user?.view_reservations ||
       user?.username === "admin"
     ) {
       return (
@@ -1086,8 +1077,7 @@ export default function Invoices() {
                       {selectedInvoice.status === "تم" ||
                       selectedInvoice.status === "تم الاسترداد"
                         ? ""
-                        : (user?.permissions?.manageOperations?.canEdit ||
-                            user?.username === "admin") && (
+                        : (user?.can_edit || user?.username === "admin") && (
                             <button
                               onClick={() => {
                                 handleEditInfo(selectedInvoice);
@@ -1105,8 +1095,7 @@ export default function Invoices() {
                           )}
                     </div>
                   )}
-                  {(user?.permissions?.manageOperations?.viewPrices ||
-                    user?.username === "admin") && (
+                  {(user?.view_prices || user?.username === "admin") && (
                     <button
                       onClick={() => {
                         const newShow = !show;

@@ -578,8 +578,8 @@ export default function Type1() {
     );
   } else {
     if (
-      user.permissions?.createInvoice.createAdditions ||
-      user.permissions?.createInvoice.createInventoryOperations ||
+      user?.create_additions ||
+      user?.create_inventory_operations ||
       user?.username === "admin"
     ) {
       return (
@@ -594,8 +594,7 @@ export default function Type1() {
               alignItems: "center",
             }}
           >
-            {(user.permissions?.createInvoice.createAdditions ||
-              user?.username === "admin") && (
+            {(user?.create_additions || user?.username === "admin") && (
               <div className={styles.operationTypeSelection}>
                 <FormControl
                   variant="standard"
@@ -648,7 +647,7 @@ export default function Type1() {
                 </FormControl>
               </div>
             )}
-            {(user.permissions?.createInvoice.createInventoryOperations ||
+            {(user?.create_inventory_operations ||
               user?.username === "admin") && (
               <div className={styles.operationTypeSelection}>
                 <FormControl
