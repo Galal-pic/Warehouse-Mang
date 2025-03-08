@@ -566,7 +566,6 @@ export default function Register() {
                 options={invoicesPageOptions}
                 error={!!errors.privileges?.manageOperations}
               />
-
               <CustomCheckboxField
                 label="صفحة الأصناف"
                 section="items"

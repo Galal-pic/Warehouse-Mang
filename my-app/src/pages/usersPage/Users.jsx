@@ -1,20 +1,10 @@
 import styles from "./Users.module.css";
 import React, { useEffect, useState } from "react";
 import { GridToolbarContainer, GridToolbarQuickFilter } from "@mui/x-data-grid";
-import {
-  TextField,
-  Snackbar,
-  Alert,
-  Autocomplete,
-  IconButton,
-} from "@mui/material";
-import EditIcon from "@mui/icons-material/Edit";
+import { Snackbar, Alert, IconButton } from "@mui/material";
 import ClearOutlinedIcon from "@mui/icons-material/ClearOutlined";
-import SaveIcon from "@mui/icons-material/Save";
-import CancelIcon from "@mui/icons-material/Close";
 import { useNavigate } from "react-router-dom";
 import GroupAddIcon from "@mui/icons-material/GroupAdd";
-import CustomInput from "../../components/customEditTextField/CustomInput";
 
 import "../../colors.css";
 import DeleteRow from "../../components/deleteItem/DeleteRow";
@@ -22,15 +12,13 @@ import CustomDataGrid from "../../components/dataGrid/CustomDataGrid";
 import CircularProgress from "@mui/material/CircularProgress";
 import {
   useGetUsersQuery,
-  useUpdateUserMutation,
   useDeleteUserMutation,
   useGetUserQuery,
 } from "../services/userApi";
-import { Jobs } from "../../context/jobs";
+import LaunchIcon from "@mui/icons-material/Launch";
+import EditUser from "../../components/editUser/EditUser";
 
 export default function Users() {
-  const [editedRow, setEditedRow] = useState(null);
-  const [selectedRow, setSelectedRow] = useState(null);
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackBarType, setSnackBarType] = useState("");
@@ -50,14 +38,7 @@ export default function Users() {
   } = useGetUsersQuery(undefined, {
     pollingInterval: 300000,
   });
-  const [updateUser, { isLoading: isUpdating }] = useUpdateUserMutation();
   const [deleteUser, { isLoading: isDeleting }] = useDeleteUserMutation();
-
-  // jobs
-  const jobs = Jobs.map((job) => ({
-    value: job,
-    label: job,
-  }));
 
   // collors
   const primaryColor = getComputedStyle(
@@ -124,48 +105,13 @@ export default function Users() {
   };
 
   // Edit
-  const handleEditClick = (id) => {
-    const row = users.find((row) => row.id === id);
-    setEditedRow({ ...row });
-    setSelectedRow({ ...row });
-  };
-
-  const validateFields = (row) => {
-    if (!row.username) return "اسم المستخدم مطلوب";
-    if (!row.job_name) return "اسم الوظيفة مطلوب";
-  };
-
-  const handleSave = async (id) => {
-    if (
-      editedRow &&
-      selectedRow &&
-      JSON.stringify(editedRow) === JSON.stringify(selectedRow)
-    ) {
-      setEditedRow(null);
-      setSelectedRow(null);
-      return;
-    }
-
-    const error = validateFields(editedRow);
-    if (error) {
-      setOpenSnackbar(true);
-      setSnackbarMessage(error);
-      setSnackBarType("error");
-      return;
-    }
-
-    try {
-      await updateUser({ id, ...editedRow }).unwrap();
-      refetchUser();
-      setOpenSnackbar(true);
-      setSnackbarMessage("تم تحديث بيانات الموظف بنجاح");
-      setSnackBarType("success");
-      setEditedRow(null);
-      setSelectedRow(null);
-    } catch (error) {
-      setOpenSnackbar(true);
-      setSnackbarMessage("اسم الموظف موجود بالفعل");
-      setSnackBarType("error");
+  const handleLaunchClick = (id) => {
+    const user = users.find((user) => user.id === id);
+    if (user) {
+      setSelectedUser(user);
+      setIsModalOpen(true);
+    } else {
+      console.error("User not found");
     }
   };
 
@@ -211,42 +157,14 @@ export default function Users() {
       headerClassName: styles.actionsColumn,
       cellClassName: styles.actionsColumn,
       renderCell: (params) => {
-        if (editedRow && editedRow.id === params.id) {
-          return (
-            <>
-              <div className={styles.iconBtnContainer}>
-                <button
-                  className={styles.iconBtn}
-                  onClick={() => handleSave(params.id)}
-                  disabled={isUpdating}
-                >
-                  {isUpdating ? <CircularProgress size={24} /> : <SaveIcon />}
-                </button>
-                <button
-                  className={styles.iconBtn}
-                  onClick={() => {
-                    setEditedRow(null);
-                    setSelectedRow(null);
-                  }}
-                >
-                  <CancelIcon
-                    sx={{
-                      color: "red",
-                    }}
-                  />
-                </button>
-              </div>
-            </>
-          );
-        }
         return (
           <>
             <div className={styles.iconBtnContainer}>
               <button
                 className={styles.iconBtn}
-                onClick={() => handleEditClick(params.id)}
+                onClick={() => handleLaunchClick(params.id)}
               >
-                <EditIcon />
+                <LaunchIcon />
               </button>
               <button
                 className={styles.iconBtn}
@@ -267,113 +185,16 @@ export default function Users() {
       field: "job_name",
       headerName: "الوظيفة",
       flex: 1,
-      renderCell: (params) => {
-        if (editedRow && editedRow.id === params.id) {
-          return (
-            <Autocomplete
-              slotProps={{
-                paper: {
-                  sx: {
-                    "& .MuiAutocomplete-listbox": {
-                      "& .MuiAutocomplete-option": {
-                        direction: "rtl",
-                      },
-                    },
-                  },
-                },
-              }}
-              options={jobs}
-              value={
-                jobs.find((job) => job.value === editedRow.job_name) || null
-              }
-              getOptionLabel={(option) => option.label}
-              onChange={(event, newValue) => {
-                setEditedRow({ ...editedRow, job_name: newValue?.value || "" });
-              }}
-              renderInput={(params) => (
-                <TextField
-                  sx={{
-                    backgroundColor: "white",
-                    borderRadius: "5px",
-                    margin: "5px 0",
-                    height: "37px",
-                    "& .MuiOutlinedInput-input": {
-                      textAlign: "center",
-                    },
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                  {...params}
-                  placeholder="اسم الوظيفة"
-                />
-              )}
-              isOptionEqualToValue={(option, value) =>
-                option.value === value?.value
-              }
-              fullWidth
-              sx={{
-                "& .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline": {
-                  border: "none",
-                },
-                "& .MuiAutocomplete-clearIndicator": {
-                  display: "none",
-                },
-                "& .MuiAutocomplete-popupIndicator": {},
-                "& .MuiOutlinedInput-root": {
-                  padding: "10px",
-                  fontSize: "14px",
-                },
-              }}
-            />
-          );
-        }
-        return params.value;
-      },
     },
     {
       field: "phone_number",
       headerName: "رقم الهاتف",
       flex: 1,
-      renderCell: (params) => {
-        if (editedRow && editedRow.id === params.id) {
-          return (
-            <CustomInput
-              value={editedRow.phone_number || ""}
-              onChange={(newValue) =>
-                setEditedRow((prev) => ({
-                  ...prev,
-                  phone_number: newValue,
-                }))
-              }
-              isUser={true}
-            />
-          );
-        }
-        return params.value;
-      },
     },
     {
       field: "username",
       headerName: "الاسم",
       flex: 1,
-      renderCell: (params) => {
-        if (editedRow && editedRow.id === params.id) {
-          return (
-            <CustomInput
-              value={editedRow?.username || ""}
-              onChange={(newValue) =>
-                setEditedRow((prev) => ({
-                  ...prev,
-                  username: newValue,
-                }))
-              }
-              isUser={true}
-            />
-          );
-        }
-        return params.value;
-      },
     },
     {
       field: "id",
@@ -386,6 +207,10 @@ export default function Users() {
     refetchUsers();
     refetchUser();
   }, [refetchUser, refetchUsers]);
+
+  // manage modal component
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
 
   if (isLoadingUser) {
     return (
@@ -433,6 +258,14 @@ export default function Users() {
               }
             }}
           />
+
+          {selectedUser && (
+            <EditUser
+              open={isModalOpen}
+              onClose={() => setIsModalOpen(false)}
+              user={selectedUser}
+            />
+          )}
 
           {/* snack bar */}
           <Snackbar
