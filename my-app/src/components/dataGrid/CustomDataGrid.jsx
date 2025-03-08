@@ -59,6 +59,7 @@ export default function CustomDataGrid({
   type,
   checkBox = false,
   setSelectedRows = null,
+  addPermissions = false,
   ...props
 }) {
   // translate
@@ -150,18 +151,6 @@ export default function CustomDataGrid({
   return (
     <DataGrid
       rows={type === "items" ? filteredAndFormattedData : rows}
-      // columns={columns.map((col, index) => ({
-      //   ...col,
-      //   align: "center",
-      //   headerAlign: "center",
-      //   headerClassName:
-      //     index === 0
-      //       ? "custom-header first-column-header"
-      //       : index === columns.length - 1
-      //       ? "custom-header last-column-header"
-      //       : "custom-header",
-      //   checkboxSelection: checkBox && index === 0,
-      // }))}
       columns={columns.map((col, index) => ({
         ...col,
         align: "center",
@@ -191,7 +180,7 @@ export default function CustomDataGrid({
       //   ],
       // }}
       localeText={localeText}
-      rowHeight={62}
+      rowHeight={50}
       editMode="row"
       onCellDoubleClick={(params, event) => event.stopPropagation()}
       slots={{
@@ -205,6 +194,7 @@ export default function CustomDataGrid({
           initialItems: rows,
           type,
           setOpenDialog,
+          addPermissions
         },
         pagination: {
           page: paginationModel.page,

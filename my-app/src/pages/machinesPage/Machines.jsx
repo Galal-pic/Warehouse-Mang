@@ -184,16 +184,30 @@ export default function Machines() {
               <button
                 className={styles.iconBtn}
                 onClick={() => {
-                  setIsEditingItem(true);
-                  setEditingItem(params.row);
-                  setSelectedItem(params.row);
+                  if (user?.machines?.canEdit || user?.username === "admin") {
+                    setIsEditingItem(true);
+                    setEditingItem(params.row);
+                    setSelectedItem(params.row);
+                  } else {
+                    setOpenSnackbar(true);
+                    setSnackbarMessage("ليس لديك صلاحيات لإضافة عنصر");
+                    setSnackBarType("info");
+                  }
                 }}
               >
                 <EditIcon />
               </button>
               <button
                 className={styles.iconBtn}
-                onClick={() => handleDeleteClick(params.id)}
+                onClick={() => {
+                  if (user?.machines?.canDelete || user?.username === "admin") {
+                    handleDeleteClick(params.id);
+                  } else {
+                    setOpenSnackbar(true);
+                    setSnackbarMessage("ليس لديك صلاحيات لحذف العنصر");
+                    setSnackBarType("info");
+                  }
+                }}
                 style={{ color: "#d32f2f" }}
               >
                 <ClearOutlinedIcon />
@@ -308,7 +322,12 @@ export default function Machines() {
       </div>
     );
   } else {
-    if (user?.username === "admin") {
+    if (
+      user?.username === "admin" ||
+      user?.machines?.canEdit ||
+      user?.machines?.canAdd ||
+      user?.machines?.canDelete
+    ) {
       return (
         <div className={styles.container}>
           {/* title */}
@@ -343,6 +362,9 @@ export default function Machines() {
                 event.preventDefault();
               }
             }}
+            addPermissions={
+              user?.machines?.canAdd || user?.username === "admin" || false
+            }
           />
 
           {/* add dialog */}

@@ -4,7 +4,7 @@ import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
 import Box from "@mui/material/Box";
 import { useGetUserQuery } from "../../pages/services/userApi";
-import { Jobs } from "../../context/jobs";
+
 function CustomTabPanel(props) {
   const { children, value, index, ...other } = props;
 
@@ -34,97 +34,64 @@ function a11yProps(index) {
   };
 }
 
+export const filtersTypes = (user) => {
+  const hasPermission = (permission) =>
+    user?.username === "admin" ||
+    user?.permissions?.manageOperations?.[permission];
+
+  return [
+    hasPermission("viewAdditions") && {
+      label: "اضافه",
+      type: "purchase",
+      url: "/invoice/اضافه",
+    },
+    hasPermission("viewWithdrawals") && {
+      label: "صرف",
+      type: "operation",
+      url: "/invoice/صرف",
+    },
+    hasPermission("viewDeposits") && {
+      label: "أمانات",
+      type: "operation",
+      url: "/invoice/أمانات",
+    },
+    hasPermission("viewReturns") && {
+      label: "مرتجع",
+      type: "operation",
+      url: "/invoice/مرتجع",
+    },
+    hasPermission("viewDamages") && {
+      label: "توالف",
+      type: "operation",
+      url: "/invoice/توالف",
+    },
+    hasPermission("viewReservations") && {
+      label: "حجز",
+      type: "operation",
+      url: "/invoice/حجز",
+    },
+  ].filter(Boolean);
+};
+
 export default function FilterTabs({ setNowType, setSelectedRows }) {
-  const { data: user } = useGetUserQuery();
+  const { data: user = {} } = useGetUserQuery();
   const [value, setValue] = React.useState(0);
+  const filters = React.useMemo(() => filtersTypes(user), [user]);
+
+  React.useEffect(() => {
+    // Reset to first tab if current value is out of bounds
+    if (value >= filters.length) {
+      setValue(0);
+    }
+  }, [filters, value]);
 
   const handleChange = (event, newValue) => {
     setValue(newValue);
-    setNowType(filtersTypes[newValue]);
+    setNowType(filters[newValue]);
     setSelectedRows([]);
   };
 
-  const filtersTypes =
-    user?.username === "admin"
-      ? [
-          {
-            label: "اضافه",
-            type: "purchase",
-            url: "/invoice/اضافه",
-            status: true,
-          },
-          {
-            label: "صرف",
-            type: "operation",
-            url: "/invoice/صرف",
-            status: true,
-          },
-          {
-            label: "أمانات",
-            type: "operation",
-            url: "/invoice/أمانات",
-            status: true,
-          },
-          {
-            label: "مرتجع",
-            type: "operation",
-            url: "/invoice/مرتجع",
-            status: true,
-          },
-          {
-            label: "توالف",
-            type: "operation",
-            url: "/invoice/توالف",
-            status: false,
-          },
-          {
-            label: "حجز",
-            type: "operation",
-            url: "/invoice/حجز",
-            status: true,
-          },
-        ]
-      : [Jobs[2]].includes(user?.job_name)
-      ? [
-          {
-            label: "اضافه",
-            type: "purchase",
-            url: "/invoice/اضافه",
-            status: true,
-          },
-        ]
-      : [
-          {
-            label: "صرف",
-            type: "operation",
-            url: "/invoice/صرف",
-            status: true,
-          },
-          {
-            label: "أمانات",
-            type: "operation",
-            url: "/invoice/أمانات",
-            status: true,
-          },
-          {
-            label: "مرتجع",
-            type: "operation",
-            url: "/invoice/مرتجع",
-            status: true,
-          },
-          {
-            label: "توالف",
-            type: "operation",
-            url: "/invoice/توالف",
-            status: false,
-          },
-          {
-            label: "حجز",
-            type: "operation",
-            url: "/invoice/حجز",
-            status: true,
-          },
-        ];
+  if (filters.length === 0) return null;
 
   return (
     <Box
@@ -145,11 +112,11 @@ export default function FilterTabs({ setNowType, setSelectedRows }) {
               gap: "20px",
             },
           }}
-          value={value}
+          value={Math.min(value, filters.length - 1)}
           onChange={handleChange}
           aria-label="filter tabs"
         >
-          {filtersTypes.map((filter, index) => (
+          {filters.map((filter, index) => (
             <Tab
               key={filter.label}
               label={filter.label}

@@ -578,7 +578,8 @@ export default function Type1() {
     );
   } else {
     if (
-      [Jobs[0], Jobs[2], Jobs[3], Jobs[4], Jobs[5]].includes(user?.job_name) ||
+      user.permissions?.createInvoice.createAdditions ||
+      user.permissions?.createInvoice.createInventoryOperations ||
       user?.username === "admin"
     ) {
       return (
@@ -593,7 +594,7 @@ export default function Type1() {
               alignItems: "center",
             }}
           >
-            {([Jobs[2], Jobs[3]].includes(user?.job_name) ||
+            {(user.permissions?.createInvoice.createAdditions ||
               user?.username === "admin") && (
               <div className={styles.operationTypeSelection}>
                 <FormControl
@@ -647,7 +648,7 @@ export default function Type1() {
                 </FormControl>
               </div>
             )}
-            {([Jobs[0], Jobs[4], Jobs[5]].includes(user?.job_name) ||
+            {(user.permissions?.createInvoice.createInventoryOperations ||
               user?.username === "admin") && (
               <div className={styles.operationTypeSelection}>
                 <FormControl

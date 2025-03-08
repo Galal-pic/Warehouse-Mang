@@ -16,6 +16,7 @@ const CustomToolbar = ({
   setOpenDialog,
   paginationModel,
   type,
+  addPermissions=false
 }) => {
   const primaryColor = getComputedStyle(
     document.documentElement
@@ -143,7 +144,17 @@ const CustomToolbar = ({
               borderRadius: "50%",
               cursor: "pointer",
             }}
-            onClick={() => setOpenDialog(true)}
+            onClick={() => {
+              if(addPermissions){
+                setOpenDialog(true)
+              }
+              else{
+                setOpenSnackbar(true);
+                setSnackbarMessage("ليس لديك صلاحيات لإضافة عنصر");
+                setSnackBarType("info");
+              }
+              
+            }}
           >
             <AddCircleIcon sx={{ fontSize: "50px" }} fontSize="large" />
           </IconButton>

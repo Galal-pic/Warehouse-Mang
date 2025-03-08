@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Box, Button, Paper } from "@mui/material";
 import styles from "./Login.module.css";
 import { useNavigate } from "react-router-dom";
@@ -10,7 +10,6 @@ import SnackBar from "../../components/snackBar/SnackBar";
 import { CustomTextField } from "../../components/customTextField/CustomTextField";
 import CircularProgress from "@mui/material/CircularProgress";
 import { useGetUserQuery } from "../services/userApi";
-import { Jobs } from "../../context/jobs";
 
 const Login = () => {
   const { data: user, isLoading: isLoadingUser, refetch } = useGetUserQuery();
@@ -76,20 +75,48 @@ const Login = () => {
       localStorage.setItem("access_token", data.access_token);
       login(data);
 
-      // الانتظار حتى انتهاء إعادة جلب البيانات والحصول على البيانات المحدثة
       const { data: updatedUser } = await refetch();
 
-      // استخدام البيانات المحدثة مباشرة للتوجيه
       if (updatedUser?.username === "admin") {
         navigate("/users");
       } else if (
-        [Jobs[0], Jobs[2], Jobs[3], Jobs[4], Jobs[5]].includes(
-          updatedUser?.job_name
-        )
+        user?.permissions?.createInvoice?.createInventoryOperations ||
+        user?.permissions?.createInvoice?.createAdditions
       ) {
         navigate("/createinvoice");
-      } else if ([Jobs[1], Jobs[6], Jobs[7]].includes(updatedUser?.job_name)) {
+      } else if (
+        user?.permissions?.manageOperations?.viewAdditions ||
+        user?.permissions?.manageOperations?.viewWithdrawals ||
+        user?.permissions?.manageOperations?.viewDeposits ||
+        user?.permissions?.manageOperations?.viewReturns ||
+        user?.permissions?.manageOperations?.viewDamages ||
+        user?.permissions?.manageOperations?.viewReservations
+      ) {
         navigate("/invoices");
+      } else if (
+        user?.permissions?.items?.canEdit ||
+        user?.permissions?.items?.canDelete ||
+        user?.permissions?.items?.canAdd
+      ) {
+        navigate("/others/items");
+      } else if (
+        user?.permissions?.machines?.canEdit ||
+        user?.permissions?.machines?.canDelete ||
+        user?.permissions?.machines?.canAdd
+      ) {
+        navigate("/others/machines");
+      } else if (
+        user?.permissions?.mechanism?.canEdit ||
+        user?.permissions?.mechanism?.canDelete ||
+        user?.permissions?.mechanism?.canAdd
+      ) {
+        navigate("/others/mechanisms");
+      } else if (
+        user?.permissions?.suppliers?.canEdit ||
+        user?.permissions?.suppliers?.canDelete ||
+        user?.permissions?.suppliers?.canAdd
+      ) {
+        navigate("/others/supliers");
       }
     } catch (error) {
       console.error("Error:", error);

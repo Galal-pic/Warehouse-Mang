@@ -221,7 +221,7 @@ export default function Register() {
       password: formData.password,
       phone_number: formData.phoneNumber,
       job_name: formData.job,
-      privileges: formData.privileges,
+      permissions: formData.privileges,
     };
     console.log(dataToSend);
 

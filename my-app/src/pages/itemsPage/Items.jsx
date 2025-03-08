@@ -177,7 +177,15 @@ export default function Items() {
           </button>
           <button
             className={styles.iconBtn}
-            onClick={() => handleDeleteClick(params.id)}
+            onClick={() => {
+              if (user?.items?.canDelete || user?.username === "admin") {
+                handleDeleteClick(params.id);
+              } else {
+                setOpenSnackbar(true);
+                setSnackbarMessage("ليس لديك صلاحيات لحذف العنصر");
+                setSnackBarType("info");
+              }
+            }}
             style={{ color: "#d32f2f" }}
           >
             <ClearOutlinedIcon />
@@ -361,7 +369,12 @@ export default function Items() {
       </div>
     );
   } else {
-    if (user?.username === "admin") {
+    if (
+      user?.username === "admin" ||
+      user?.items?.canEdit ||
+      user?.items?.canAdd ||
+      user?.items?.canDelete
+    ) {
       return (
         <div className={styles.container}>
           {/* title */}
@@ -402,6 +415,9 @@ export default function Items() {
             setOpenDialog={setOpenDialog}
             loader={isMachinesLoading}
             initialItems={initialItems}
+            addPermissions={
+              user?.items?.canAdd || user?.username === "admin" || false
+            }
           />
 
           {/* add dialog */}
@@ -826,8 +842,14 @@ export default function Items() {
                 ) : (
                   <button
                     onClick={() => {
-                      setIsEditingItem(true);
-                      setEditingItem(selectedItem);
+                      if (user?.items?.canEdit || user?.username === "admin") {
+                        setIsEditingItem(true);
+                        setEditingItem(selectedItem);
+                      } else {
+                        setOpenSnackbar(true);
+                        setSnackbarMessage("ليس لديك صلاحيات لإضافة عنصر");
+                        setSnackBarType("info");
+                      }
                     }}
                     className={styles.iconBtn}
                     style={{

@@ -66,6 +66,13 @@ export const invoiceApi = createApi({
       // refetchOnFocus: true,
       invalidatesTags: ["Invoice"],
     }),
+    returnWarrantyInvoice: builder.mutation({
+      query: (id) => ({
+        url: `/invoice/${id}/ReturnWarranty`,
+        method: "POST",
+      }),
+      invalidatesTags: ["Invoice"],
+    }),
   }),
 });
 
@@ -77,4 +84,5 @@ export const {
   useDeleteInvoiceMutation,
   useConfirmInvoiceMutation,
   useRefreshInvoiceMutation,
+  useReturnWarrantyInvoiceMutation,
 } = invoiceApi;

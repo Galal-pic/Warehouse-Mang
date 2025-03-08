@@ -149,44 +149,77 @@ export default function Header() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // تصفية الروابط الرئيسية بناءً على الصلاحيات
   const filteredLinks = links.filter((link) => {
     if (link.text === "الموظفين") return user?.username === "admin";
     if (link.text === "إنشاء عملية")
       return (
         user?.username === "admin" ||
-        user?.job_name === Jobs[0] ||
-        user?.job_name === Jobs[2] ||
-        user?.job_name === Jobs[3] ||
-        user?.job_name === Jobs[4] ||
-        user?.job_name === Jobs[5]
+        user?.permissions?.createInvoice?.createInventoryOperations ||
+        user?.permissions?.createInvoice?.createAdditions
       );
     if (link.text === "إدارة العمليات")
       return (
         user?.username === "admin" ||
-        user?.job_name === Jobs[0] ||
-        user?.job_name === Jobs[2] ||
-        user?.job_name === Jobs[1] ||
-        user?.job_name === Jobs[4] ||
-        user?.job_name === Jobs[6] ||
-        user?.job_name === Jobs[7]
+        user?.permissions?.manageOperations?.viewAdditions ||
+        user?.permissions?.manageOperations?.viewWithdrawals ||
+        user?.permissions?.manageOperations?.viewDeposits ||
+        user?.permissions?.manageOperations?.viewReturns ||
+        user?.permissions?.manageOperations?.viewDamages ||
+        user?.permissions?.manageOperations?.viewReservations
       );
-    if (link.text === "إدارة الموارد") return user?.username === "admin";
+    if (link.text === "إدارة الموارد")
+      return (
+        user?.username === "admin" ||
+        user?.permissions?.items?.canEdit ||
+        user?.permissions?.items?.canDelete ||
+        user?.permissions?.items?.canAdd ||
+        user?.permissions?.machines?.canEdit ||
+        user?.permissions?.machines?.canDelete ||
+        user?.permissions?.machines?.canAdd ||
+        user?.permissions?.mechanism?.canEdit ||
+        user?.permissions?.mechanism?.canDelete ||
+        user?.permissions?.mechanism?.canAdd ||
+        user?.permissions?.suppliers?.canEdit ||
+        user?.permissions?.suppliers?.canDelete ||
+        user?.permissions?.suppliers?.canAdd
+      );
     return true;
   });
 
-  // تصفية قائمة إدارة الموارد
   const filteredResourceManagementLinks = resourceManagementLinks.filter(
     (resource) => {
-      if (resource.text === "المنتجات") return true;
-      if (resource.text === "الماكينات") return true;
-      if (resource.text === "الميكانيزم") return true;
-      if (resource.text === "الموردين") return true;
+      if (resource.text === "المنتجات")
+        return (
+          user?.username === "admin" ||
+          user?.permissions?.items?.canEdit ||
+          user?.permissions?.items?.canDelete ||
+          user?.permissions?.items?.canAdd
+        );
+      if (resource.text === "الماكينات")
+        return (
+          user?.username === "admin" ||
+          user?.permissions?.machines?.canEdit ||
+          user?.permissions?.machines?.canDelete ||
+          user?.permissions?.machines?.canAdd
+        );
+      if (resource.text === "الميكانيزم")
+        return (
+          user?.username === "admin" ||
+          user?.permissions?.mechanism?.canEdit ||
+          user?.permissions?.mechanism?.canDelete ||
+          user?.permissions?.mechanism?.canAdd
+        );
+      if (resource.text === "الموردين")
+        return (
+          user?.username === "admin" ||
+          user?.permissions?.suppliers?.canEdit ||
+          user?.permissions?.suppliers?.canDelete ||
+          user?.permissions?.suppliers?.canAdd
+        );
       return false;
     }
   );
 
-  // تعديل الروابط الرئيسية لتحديث إدارة الموارد بناءً على الصلاحيات
   const updatedFilteredLinks = filteredLinks.map((link) => {
     if (link.text === "إدارة الموارد") {
       return { ...link, submenu: filteredResourceManagementLinks };

@@ -34,7 +34,7 @@ export default function Supliers() {
 
   const {
     data: initialItems = [],
-    isLoading: isMachinesLoading,
+    isLoading: isSuppliersLoading,
     refetch,
   } = useGetSuppliersQuery(undefined, { pollingInterval: 300000 });
   useEffect(() => {
@@ -187,16 +187,33 @@ export default function Supliers() {
               <button
                 className={styles.iconBtn}
                 onClick={() => {
-                  setIsEditingItem(true);
-                  setEditingItem(params.row);
-                  setSelectedItem(params.row);
+                  if (user?.suppliers?.canEdit || user?.username === "admin") {
+                    setIsEditingItem(true);
+                    setEditingItem(params.row);
+                    setSelectedItem(params.row);
+                  } else {
+                    setOpenSnackbar(true);
+                    setSnackbarMessage("ليس لديك صلاحيات لإضافة عنصر");
+                    setSnackBarType("info");
+                  }
                 }}
               >
                 <EditIcon />
               </button>
               <button
                 className={styles.iconBtn}
-                onClick={() => handleDeleteClick(params.id)}
+                onClick={() => {
+                  if (
+                    user?.suppliers?.canDelete ||
+                    user?.username === "admin"
+                  ) {
+                    handleDeleteClick(params.id);
+                  } else {
+                    setOpenSnackbar(true);
+                    setSnackbarMessage("ليس لديك صلاحيات لحذف العنصر");
+                    setSnackBarType("info");
+                  }
+                }}
                 style={{ color: "#d32f2f" }}
               >
                 <ClearOutlinedIcon />
@@ -316,7 +333,12 @@ export default function Supliers() {
       </div>
     );
   } else {
-    if (user?.username === "admin") {
+    if (
+      user?.username === "admin" ||
+      user?.suppliers?.canEdit ||
+      user?.suppliers?.canAdd ||
+      user?.suppliers?.canDelete
+    ) {
       return (
         <div className={styles.container}>
           {/* title */}
@@ -344,13 +366,16 @@ export default function Supliers() {
             onPageChange={handlePageChange}
             pageCount={pageCount}
             setOpenDialog={setOpenDialog}
-            loader={isMachinesLoading}
+            loader={isSuppliersLoading}
             onCellKeyDown={(params, event) => {
               if ([" ", "ArrowLeft", "ArrowRight"].includes(event.key)) {
                 event.stopPropagation();
                 event.preventDefault();
               }
             }}
+            addPermissions={
+              user?.suppliers?.canAdd || user?.username === "admin" || false
+            }
           />
 
           {/* add dialog */}

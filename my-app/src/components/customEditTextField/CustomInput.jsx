@@ -38,7 +38,6 @@ const CustomInput = ({ value, onChange, isUser = false }) => {
         padding: "10px",
         border: "none",
         outline: "none",
-        height: isUser && "50px",
         borderRadius: isUser && "4px",
       }}
       autoFocus
