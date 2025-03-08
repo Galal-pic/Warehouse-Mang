@@ -38,32 +38,32 @@ export const filtersTypes = (user) => {
   const hasPermission = (permission) => user?.[permission];
 
   return [
-    hasPermission("view_additions") && {
+    (hasPermission("view_additions") || user?.username === "admin") && {
       label: "اضافه",
       type: "purchase",
       url: "/invoice/اضافه",
     },
-    hasPermission("view_withdrawals") && {
+    (hasPermission("view_withdrawals") || user?.username === "admin") && {
       label: "صرف",
       type: "operation",
       url: "/invoice/صرف",
     },
-    hasPermission("view_deposits") && {
+    (hasPermission("view_deposits") || user?.username === "admin") && {
       label: "أمانات",
       type: "operation",
       url: "/invoice/أمانات",
     },
-    hasPermission("view_returns") && {
+    (hasPermission("view_returns") || user?.username === "admin") && {
       label: "مرتجع",
       type: "operation",
       url: "/invoice/مرتجع",
     },
-    hasPermission("view_damages") && {
+    (hasPermission("view_damages") || user?.username === "admin") && {
       label: "توالف",
       type: "operation",
       url: "/invoice/توالف",
     },
-    hasPermission("view_reservations") && {
+    (hasPermission("view_reservations") || user?.username === "admin") && {
       label: "حجز",
       type: "operation",
       url: "/invoice/حجز",
