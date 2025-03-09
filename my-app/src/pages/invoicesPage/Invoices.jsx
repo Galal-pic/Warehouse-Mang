@@ -45,9 +45,10 @@ import {
   useRefreshInvoiceMutation,
   useReturnWarrantyInvoiceMutation,
 } from "../services/invoiceApi";
-import { Jobs } from "../../context/jobs";
 import PrintableTable from "../../components/printableTable/PrintableTable ";
 import PrintIcon from "@mui/icons-material/Print";
+import ArticleIcon from "@mui/icons-material/Article";
+import InvoiceDetails from "../../components/invoiceDetails/InvoiceDetails";
 
 export default function Invoices() {
   const {
@@ -619,6 +620,14 @@ export default function Invoices() {
     }
   };
 
+  // manage Details component
+  const [isInvoiceDetailsOpen, setIsInvoiceDetailsOpen] = useState(false);
+  const [invoiceId, setInvoiceId] = useState(null);
+  const showInvoiceDetails = (id) => {
+    setInvoiceId(id);
+    setIsInvoiceDetailsOpen(true);
+  };
+
   // columns
   const columns = [
     {
@@ -650,6 +659,16 @@ export default function Invoices() {
                 <ClearOutlinedIcon />
               </button>
             )}
+            {(user?.view_prices || user?.username === "admin") &&
+              selectedNowType?.label !== "اضافه" && (
+                <button
+                  className={styles.iconBtn}
+                  onClick={() => showInvoiceDetails(params.id)}
+                  style={{ color: "#d32f2f" }}
+                >
+                  <ArticleIcon sx={{ color: secondColor }} />
+                </button>
+              )}
             {selectedNowType?.label === "أمانات" &&
               (params.row.status !== "تم الاسترداد" ? (
                 <Button
@@ -988,6 +1007,14 @@ export default function Invoices() {
             selectedRows={selectedRows}
           />
 
+          {/* invoice details data */}
+          {isInvoiceDetailsOpen && (
+            <InvoiceDetails
+              open={isInvoiceDetailsOpen}
+              onClose={() => setIsInvoiceDetailsOpen(false)}
+              id={invoiceId}
+            />
+          )}
           {/* invoice data */}
           {isModalOpen && (
             <div

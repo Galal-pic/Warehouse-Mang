@@ -5,6 +5,7 @@ import SaveIcon from "@mui/icons-material/Save";
 import CancelIcon from "@mui/icons-material/Close";
 import EditIcon from "@mui/icons-material/Edit";
 import SnackBar from "../snackBar/SnackBar";
+import { Jobs } from "../../context/jobs";
 
 const EditUser = ({ open, onClose, user: initialUser }) => {
   const transformUserData = (user) => {
@@ -295,6 +296,8 @@ const EditUser = ({ open, onClose, user: initialUser }) => {
     canAdd: "الإضافة",
   };
 
+  const jobs = Jobs.map((job) => ({ value: job, label: job }));
+
   return (
     open && (
       <>
@@ -316,7 +319,7 @@ const EditUser = ({ open, onClose, user: initialUser }) => {
           <div
             style={{
               width: "80%",
-              maxWidth: "800px",
+              maxWidth: "1000px",
               backgroundColor: "#fff",
               boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
               padding: "20px",
@@ -448,7 +451,7 @@ const EditUser = ({ open, onClose, user: initialUser }) => {
                 >
                   الوظيفة
                 </label>
-                <input
+                <select
                   value={isEditting ? edittingUser?.job_name : user?.job_name}
                   onChange={(e) => {
                     if (isEditting) {
@@ -459,16 +462,29 @@ const EditUser = ({ open, onClose, user: initialUser }) => {
                     }
                   }}
                   style={{
-                    pointerEvents: isEditting ? "auto" : "none",
                     width: "100%",
                     padding: "10px",
                     fontSize: "1rem",
-                    border: isEditting ? "1px solid #1976d2" : "1px solid #ddd",
-                    borderRadius: "5px",
+                    borderRadius: "4px",
+                    direction: "rtl",
+                    textAlign: "right",
                     outline: "none",
                     transition: "border-color 0.2s",
+                    backgroundColor: "#fff",
+                    appearance: "none",
+                    pointerEvents: isEditting ? "auto" : "none",
+                    border: isEditting ? "1px solid #1976d2" : "1px solid #ddd",
                   }}
-                />
+                >
+                  <option value="" disabled>
+                    -- اختر الوظيفة --
+                  </option>
+                  {jobs.map((job) => (
+                    <option key={job.value} value={job.value}>
+                      {job.label}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div

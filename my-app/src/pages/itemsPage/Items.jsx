@@ -91,7 +91,6 @@ export default function Items() {
     locations: [
       {
         location: "",
-        price_unit: 0,
         quantity: 0,
       },
     ],
@@ -127,11 +126,6 @@ export default function Items() {
       locations: [
         {
           location: newItem.locations[0].location,
-          price_unit:
-            newItem.locations[0].price_unit === "" ||
-            !isNumber(newItem.locations[0].price_unit)
-              ? 0
-              : newItem.locations[0].price_unit,
           quantity:
             newItem.locations[0].quantity === "" ||
             !isNumber(newItem.locations[0].quantity)
@@ -147,7 +141,7 @@ export default function Items() {
       setNewItem({
         item_name: "",
         item_bar: "",
-        locations: [{ location: "", price_unit: 0, quantity: 0 }],
+        locations: [{ location: "", quantity: 0 }],
       });
       setErrors({});
       setOpenDialog(false);
@@ -237,8 +231,6 @@ export default function Items() {
         return value.some(
           (location) =>
             !location.location ||
-            location.price_unit === null ||
-            location.price_unit === undefined ||
             location.quantity === null ||
             location.quantity === undefined
         );
@@ -255,9 +247,6 @@ export default function Items() {
     const newItems = editingItem.locations.map((location) => {
       return {
         ...location,
-        price_unit: isNumber(Number(location.price_unit))
-          ? Number(location.price_unit)
-          : 0,
         quantity: isNumber(Number(location.quantity))
           ? Number(location.quantity)
           : 0,
@@ -648,63 +637,6 @@ export default function Items() {
                 )}
               </div>
 
-              <div style={{ marginBottom: "10px", marginTop: "10px" }}>
-                <label
-                  style={{
-                    display: "block",
-                    marginBottom: "5px",
-                    textAlign: "right",
-                    fontWeight: "bold",
-                    color: errors?.locations?.[0]?.price_unit
-                      ? "#d32f2f"
-                      : "#555",
-                  }}
-                >
-                  سعر القطعة
-                </label>
-                <NumberInput
-                  value={newItem.locations[0]?.price_unit ?? ""}
-                  onChange={(e) => {
-                    const value =
-                      e.target.value === ""
-                        ? ""
-                        : Math.max(0, Number(e.target.value));
-                    const updatedLocations = [...newItem.locations];
-                    updatedLocations[0].price_unit = value;
-                    setNewItem({ ...newItem, locations: updatedLocations });
-                  }}
-                  style={{
-                    width: "100%",
-                    padding: "10px",
-                    fontSize: "1rem",
-                    border: errors?.locations?.[0]?.price_unit
-                      ? "1px solid #d32f2f"
-                      : "1px solid #ccc",
-                    borderRadius: "4px",
-                    direction: "rtl",
-                    textAlign: "right",
-                    outline: "none",
-                    transition: "border-color 0.2s",
-                  }}
-                  onFocus={(e) => (e.target.style.borderColor = "#1976d2")}
-                  onBlur={(e) => (e.target.style.borderColor = "#ccc")}
-                />
-
-                {errors?.locations?.[0]?.price_unit && (
-                  <span
-                    style={{
-                      color: "#d32f2f",
-                      fontSize: "0.875rem",
-                      marginTop: "5px",
-                      display: "block",
-                      textAlign: "right",
-                    }}
-                  >
-                    {errors.locations[0].price_unit}
-                  </span>
-                )}
-              </div>
-
               <DialogActions
                 sx={{
                   display: "flex",
@@ -722,7 +654,6 @@ export default function Items() {
                       locations: [
                         {
                           location: "",
-                          price_unit: 0,
                           quantity: 0,
                         },
                       ],
@@ -1098,65 +1029,6 @@ export default function Items() {
                             </h5>
                           </Box>
                         </Box>
-                        <Box
-                          sx={{
-                            display: "flex",
-                            width: "100%",
-                          }}
-                        >
-                          <h5
-                            style={{
-                              width: "100px",
-                              fontWeight: "bold",
-                              textAlign: "right",
-                            }}
-                          >
-                            السعر:
-                          </h5>
-                          <Box>
-                            <h5>
-                              {isEditingItem ? (
-                                <NumberInput
-                                  value={
-                                    editingItem.locations[index]?.price_unit !==
-                                    undefined
-                                      ? editingItem.locations[index].price_unit
-                                      : ""
-                                  }
-                                  onChange={(e) => {
-                                    const newPriceUnit = e.target.value;
-                                    if (
-                                      !isNaN(newPriceUnit) &&
-                                      newPriceUnit >= 0
-                                    ) {
-                                      const updatedLocations = [
-                                        ...editingItem.locations,
-                                      ];
-                                      updatedLocations[index] = {
-                                        ...updatedLocations[index],
-                                        price_unit: newPriceUnit,
-                                      };
-                                      setEditingItem({
-                                        ...editingItem,
-                                        locations: updatedLocations,
-                                      });
-                                    }
-                                  }}
-                                  style={{
-                                    width: "100%",
-                                    outline: "none",
-                                    fontSize: "15px",
-                                    textAlign: "right",
-                                    border: "none",
-                                    padding: "10px",
-                                  }}
-                                />
-                              ) : (
-                                item.price_unit
-                              )}
-                            </h5>
-                          </Box>
-                        </Box>
                       </ListItem>
                     ))}
                     {isEditingItem && (
@@ -1165,7 +1037,6 @@ export default function Items() {
                           const newItem = {
                             location: "",
                             quantity: 0,
-                            price_unit: 0,
                           };
                           setEditingItem({
                             ...editingItem,

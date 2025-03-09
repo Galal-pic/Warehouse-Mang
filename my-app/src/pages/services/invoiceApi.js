@@ -63,9 +63,9 @@ export const invoiceApi = createApi({
         url: `/invoice/${id}/updateprice`,
         method: "POST",
       }),
-      // refetchOnFocus: true,
       invalidatesTags: ["Invoice"],
     }),
+    // return warranty invoice
     returnWarrantyInvoice: builder.mutation({
       query: (id) => ({
         url: `/invoice/${id}/ReturnWarranty`,
@@ -73,9 +73,14 @@ export const invoiceApi = createApi({
       }),
       invalidatesTags: ["Invoice"],
     }),
+    // price report: change to a query
+    priceReport: builder.query({
+      query: (id) => `/invoice/price-report/${id}`,
+    }),
   }),
 });
 
+// Export hooks
 export const {
   useGetLastInvoiceIdQuery,
   useCreateInvoiceMutation,
@@ -85,4 +90,5 @@ export const {
   useConfirmInvoiceMutation,
   useRefreshInvoiceMutation,
   useReturnWarrantyInvoiceMutation,
+  usePriceReportQuery, // This hook is now a query
 } = invoiceApi;
