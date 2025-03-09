@@ -633,7 +633,7 @@ export default function Invoices() {
     {
       field: "refresh",
       headerName: "فتح الفاتورة",
-      width: selectedNowType?.label === "أمانات" ? 300 : 165,
+      width: selectedNowType?.label === "أمانات" ? 350 : 200,
       renderCell: (params) => {
         return (
           <div
@@ -681,9 +681,7 @@ export default function Invoices() {
                   }}
                   disabled={
                     loadingRowsReturn[params.row.id] ||
-                    (user?.can_recover_deposits &&
-                      !user?.can_recover_deposits) ||
-                    user?.username !== "admin"
+                    (user?.username !== "admin" && !user?.can_recover_deposits)
                   }
                 >
                   {loadingRowsReturn[params.row.id] ? (

@@ -7,7 +7,15 @@ import SnackBar from "../../components/snackBar/SnackBar";
 import { useAddUserMutation } from "../services/userApi";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
-import { Jobs } from "../../context/jobs";
+import {
+  Jobs,
+  CreateInvoiceOptions,
+  InvoicesPageOptions,
+  ItemOptions,
+  MachinesOptions,
+  MechanismOptions,
+  SuppliersOptions,
+} from "../../context/jobs";
 
 const CustomCheckboxField = ({
   label,
@@ -110,26 +118,10 @@ export default function Register() {
         can_update_prices: false,
         can_recover_deposits: false,
       },
-      items: {
-        canEdit: false,
-        canDelete: false,
-        canAdd: false,
-      },
-      machines: {
-        canEdit: false,
-        canDelete: false,
-        canAdd: false,
-      },
-      mechanism: {
-        canEdit: false,
-        canDelete: false,
-        canAdd: false,
-      },
-      suppliers: {
-        canEdit: false,
-        canDelete: false,
-        canAdd: false,
-      },
+      items: {},
+      machines: {},
+      mechanism: {},
+      suppliers: {},
     },
   });
 
@@ -144,32 +136,14 @@ export default function Register() {
   // jobs
   const jobs = Jobs.map((job) => ({ value: job, label: job }));
 
-  const createInvoiceOptions = {
-    create_inventory_operations: "إنشاء العمليات المخزونية",
-    create_additions: "إنشاء الإضافات",
-  };
+  const createInvoiceOptions = CreateInvoiceOptions;
 
-  const invoicesPageOptions = {
-    view_additions: "عرض الإضافات",
-    view_withdrawals: "عرض الصرف",
-    view_deposits: "عرض الأمانات",
-    view_returns: "عرض الاسترجاع",
-    view_damages: "عرض التوالفات",
-    view_reservations: "عرض الحجزات",
-    view_prices: "عرض الأسعار",
-    can_edit: "التعديل",
-    can_delete: "الحذف",
-    can_confirm_withdrawal: "تأكيد الصرف",
-    can_withdraw: "الصرف",
-    can_update_prices: "تحديث الأسعار",
-    can_recover_deposits: "استرداد الأمانات",
-  };
+  const invoicesPageOptions = InvoicesPageOptions;
 
-  const fourPageOptions = {
-    canEdit: "التعديل",
-    canDelete: "الحذف",
-    canAdd: "الإضافة",
-  };
+  const itemOptions = ItemOptions;
+  const machinesOptions = MachinesOptions;
+  const mechanismOptions = MechanismOptions;
+  const suppliersOptions = SuppliersOptions;
 
   const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -212,29 +186,30 @@ export default function Register() {
       password: formData.password,
       phone_number: formData.phoneNumber,
       job_name: formData.job,
-      permissions: {
-        ...formData.privileges,
-        items: {
-          items_can_edit: formData.privileges.items.canEdit,
-          items_can_delete: formData.privileges.items.canDelete,
-          items_can_add: formData.privileges.items.canAdd,
-        },
-        machines: {
-          machines_can_edit: formData.privileges.machines.canEdit,
-          machines_can_delete: formData.privileges.machines.canDelete,
-          machines_can_add: formData.privileges.machines.canAdd,
-        },
-        mechanism: {
-          mechanism_can_edit: formData.privileges.mechanism.canEdit,
-          mechanism_can_delete: formData.privileges.mechanism.canDelete,
-          mechanism_can_add: formData.privileges.mechanism.canAdd,
-        },
-        suppliers: {
-          suppliers_can_edit: formData.privileges.suppliers.canEdit,
-          suppliers_can_delete: formData.privileges.suppliers.canDelete,
-          suppliers_can_add: formData.privileges.suppliers.canAdd,
-        },
-      },
+      permissions: formData.privileges,
+      // permissions: {
+      //   ...formData.privileges,
+      //   items: {
+      //     items_can_edit: formData.privileges.items.canEdit,
+      //     items_can_delete: formData.privileges.items.canDelete,
+      //     items_can_add: formData.privileges.items.canAdd,
+      //   },
+      //   machines: {
+      //     machines_can_edit: formData.privileges.machines.canEdit,
+      //     machines_can_delete: formData.privileges.machines.canDelete,
+      //     machines_can_add: formData.privileges.machines.canAdd,
+      //   },
+      //   mechanism: {
+      //     mechanism_can_edit: formData.privileges.mechanism.canEdit,
+      //     mechanism_can_delete: formData.privileges.mechanism.canDelete,
+      //     mechanism_can_add: formData.privileges.mechanism.canAdd,
+      //   },
+      //   suppliers: {
+      //     suppliers_can_edit: formData.privileges.suppliers.canEdit,
+      //     suppliers_can_delete: formData.privileges.suppliers.canDelete,
+      //     suppliers_can_add: formData.privileges.suppliers.canAdd,
+      //   },
+      // },
     };
     console.log(dataToSend);
 
@@ -571,7 +546,7 @@ export default function Register() {
                 section="items"
                 updatePrivileges={updatePrivileges}
                 values={formData.privileges.items}
-                options={fourPageOptions}
+                options={itemOptions}
                 error={!!errors.privileges?.items}
               />
               <CustomCheckboxField
@@ -579,7 +554,7 @@ export default function Register() {
                 section="machines"
                 updatePrivileges={updatePrivileges}
                 values={formData.privileges.machines}
-                options={fourPageOptions}
+                options={machinesOptions}
                 error={!!errors.privileges?.machines}
               />
               <CustomCheckboxField
@@ -587,7 +562,7 @@ export default function Register() {
                 section="mechanism"
                 updatePrivileges={updatePrivileges}
                 values={formData.privileges.mechanism}
-                options={fourPageOptions}
+                options={mechanismOptions}
                 error={!!errors.privileges?.mechanism}
               />
               <CustomCheckboxField
@@ -595,7 +570,7 @@ export default function Register() {
                 section="suppliers"
                 updatePrivileges={updatePrivileges}
                 values={formData.privileges.suppliers}
-                options={fourPageOptions}
+                options={suppliersOptions}
                 error={!!errors.privileges?.suppliers}
               />
             </div>

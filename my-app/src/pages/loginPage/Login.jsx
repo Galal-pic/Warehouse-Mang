@@ -79,39 +79,42 @@ const Login = () => {
 
       if (updatedUser?.username === "admin") {
         navigate("/users");
-      } else if (user?.create_inventory_operations || user?.create_additions) {
+      } else if (
+        updatedUser?.create_inventory_operations ||
+        updatedUser?.create_additions
+      ) {
         navigate("/createinvoice");
       } else if (
-        user?.view_additions ||
-        user?.view_withdrawals ||
-        user?.view_deposits ||
-        user?.view_returns ||
-        user?.view_damages ||
-        user?.view_reservations
+        updatedUser?.view_additions ||
+        updatedUser?.view_withdrawals ||
+        updatedUser?.view_deposits ||
+        updatedUser?.view_returns ||
+        updatedUser?.view_damages ||
+        updatedUser?.view_reservations
       ) {
         navigate("/invoices");
       } else if (
-        user?.items_can_edit ||
-        user?.items_can_delete ||
-        user?.items_can_add
+        updatedUser?.items_can_edit ||
+        updatedUser?.items_can_delete ||
+        updatedUser?.items_can_add
       ) {
         navigate("/others/items");
       } else if (
-        user?.machines_can_edit ||
-        user?.machines_can_delete ||
-        user?.machines_can_add
+        updatedUser?.machines_can_edit ||
+        updatedUser?.machines_can_delete ||
+        updatedUser?.machines_can_add
       ) {
         navigate("/others/machines");
       } else if (
-        user?.mechanism_can_edit ||
-        user?.mechanism_can_delete ||
-        user?.mechanism_can_add
+        updatedUser?.mechanism_can_edit ||
+        updatedUser?.mechanism_can_delete ||
+        updatedUser?.mechanism_can_add
       ) {
         navigate("/others/mechanisms");
       } else if (
-        user?.suppliers_can_edit ||
-        user?.suppliers_can_delete ||
-        user?.suppliers_can_add
+        updatedUser?.suppliers_can_edit ||
+        updatedUser?.suppliers_can_delete ||
+        updatedUser?.suppliers_can_add
       ) {
         navigate("/others/supliers");
       }
@@ -125,6 +128,7 @@ const Login = () => {
       setIsLoading(false);
     }
   };
+
   return (
     <div className={styles.container}>
       <div className={styles.boxText}>

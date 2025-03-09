@@ -598,63 +598,6 @@ export default function Items() {
                 )}
               </div>
 
-              <div style={{ marginBottom: "10px", marginTop: "10px" }}>
-                <label
-                  style={{
-                    display: "block",
-                    marginBottom: "5px",
-                    textAlign: "right",
-                    fontWeight: "bold",
-                    color: errors?.locations?.[0]?.quantity
-                      ? "#d32f2f"
-                      : "#555",
-                  }}
-                >
-                  الكمية
-                </label>
-                <NumberInput
-                  value={newItem.locations[0]?.quantity ?? ""}
-                  onChange={(e) => {
-                    const value =
-                      e.target.value === ""
-                        ? ""
-                        : Math.max(0, Number(e.target.value));
-                    const updatedLocations = [...newItem.locations];
-                    updatedLocations[0].quantity = value;
-                    setNewItem({ ...newItem, locations: updatedLocations });
-                  }}
-                  style={{
-                    width: "100%",
-                    padding: "10px",
-                    fontSize: "1rem",
-                    border: errors?.locations?.[0]?.quantity
-                      ? "1px solid #d32f2f"
-                      : "1px solid #ccc",
-                    borderRadius: "4px",
-                    direction: "rtl",
-                    textAlign: "right",
-                    outline: "none",
-                    transition: "border-color 0.2s",
-                  }}
-                  onFocus={(e) => (e.target.style.borderColor = "#1976d2")}
-                  onBlur={(e) => (e.target.style.borderColor = "#ccc")}
-                />
-
-                {errors?.locations?.[0]?.quantity && (
-                  <span
-                    style={{
-                      color: "#d32f2f",
-                      fontSize: "0.875rem",
-                      marginTop: "5px",
-                      display: "block",
-                      textAlign: "right",
-                    }}
-                  >
-                    {errors.locations[0].quantity}
-                  </span>
-                )}
-              </div>
-
               <DialogActions
                 sx={{
                   display: "flex",
@@ -1003,47 +946,10 @@ export default function Items() {
                             الكمية:
                           </h5>
                           <Box>
-                            <h5>
-                              {isEditingItem ? (
-                                <NumberInput
-                                  value={
-                                    editingItem.locations[index]?.quantity !==
-                                    undefined
-                                      ? editingItem.locations[index].quantity
-                                      : ""
-                                  }
-                                  onChange={(e) => {
-                                    const newQuantity = e.target.value;
-
-                                    if (
-                                      !isNaN(newQuantity) &&
-                                      newQuantity >= 0
-                                    ) {
-                                      const updatedLocations = [
-                                        ...editingItem.locations,
-                                      ];
-                                      updatedLocations[index] = {
-                                        ...updatedLocations[index],
-                                        quantity: newQuantity,
-                                      };
-                                      setEditingItem({
-                                        ...editingItem,
-                                        locations: updatedLocations,
-                                      });
-                                    }
-                                  }}
-                                  style={{
-                                    width: "100%",
-                                    outline: "none",
-                                    fontSize: "15px",
-                                    textAlign: "right",
-                                    border: "none",
-                                    padding: "10px",
-                                  }}
-                                />
-                              ) : (
-                                item.quantity
-                              )}
+                            <h5
+                              style={{ paddingRight: isEditingItem && "10px" }}
+                            >
+                              {item.quantity}
                             </h5>
                           </Box>
                         </Box>

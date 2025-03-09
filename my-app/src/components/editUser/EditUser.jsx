@@ -5,7 +5,15 @@ import SaveIcon from "@mui/icons-material/Save";
 import CancelIcon from "@mui/icons-material/Close";
 import EditIcon from "@mui/icons-material/Edit";
 import SnackBar from "../snackBar/SnackBar";
-import { Jobs } from "../../context/jobs";
+import {
+  Jobs,
+  CreateInvoiceOptions,
+  InvoicesPageOptions,
+  ItemOptions,
+  MachinesOptions,
+  MechanismOptions,
+  SuppliersOptions,
+} from "../../context/jobs";
 
 const EditUser = ({ open, onClose, user: initialUser }) => {
   const transformUserData = (user) => {
@@ -57,6 +65,10 @@ const EditUser = ({ open, onClose, user: initialUser }) => {
       },
     };
   };
+
+  useEffect(() => {
+    setUser(initialUser);
+  }, [initialUser]);
 
   const [user, setUser] = useState(initialUser);
   const [isEditting, setIsEditting] = useState(false);
@@ -180,7 +192,6 @@ const EditUser = ({ open, onClose, user: initialUser }) => {
       setSnackBarType("error");
       return;
     }
-    console.log(edittingUser);
 
     try {
       await updateUser(edittingUser).unwrap();
@@ -257,6 +268,7 @@ const EditUser = ({ open, onClose, user: initialUser }) => {
   }, [open]);
 
   const updatePrivileges = (section, key, value) => {
+    console.log(edittingUser);
     setEdittingUser((prev) => ({
       ...prev,
       permissions: {
@@ -269,32 +281,14 @@ const EditUser = ({ open, onClose, user: initialUser }) => {
     }));
   };
 
-  const createInvoiceOptions = {
-    create_inventory_operations: "إنشاء العمليات المخزونية",
-    create_additions: "إنشاء الإضافات",
-  };
+  const createInvoiceOptions = CreateInvoiceOptions;
 
-  const invoicesPageOptions = {
-    view_additions: "عرض الإضافات",
-    view_withdrawals: "عرض الصرف",
-    view_deposits: "عرض الأمانات",
-    view_returns: "عرض الاسترجاع",
-    view_damages: "عرض التوالفات",
-    view_reservations: "عرض الحجزات",
-    view_prices: "عرض الأسعار",
-    can_edit: "التعديل",
-    can_delete: "الحذف",
-    can_confirm_withdrawal: "تأكيد الصرف",
-    can_withdraw: "الصرف",
-    can_update_prices: "تحديث الأسعار",
-    can_recover_deposits: "استرداد الأمانات",
-  };
+  const invoicesPageOptions = InvoicesPageOptions;
 
-  const fourPageOptions = {
-    canEdit: "التعديل",
-    canDelete: "الحذف",
-    canAdd: "الإضافة",
-  };
+  const itemOptions = ItemOptions;
+  const machinesOptions = MachinesOptions;
+  const mechanismOptions = MechanismOptions;
+  const suppliersOptions = SuppliersOptions;
 
   const jobs = Jobs.map((job) => ({ value: job, label: job }));
 
@@ -571,7 +565,7 @@ const EditUser = ({ open, onClose, user: initialUser }) => {
                   (isEditting ? edittingUser : transformUserData(user))
                     .permissions.items
                 }
-                options={fourPageOptions}
+                options={itemOptions}
               />
               <CustomCheckboxField
                 label="صفحة الماكينات"
@@ -581,7 +575,7 @@ const EditUser = ({ open, onClose, user: initialUser }) => {
                   (isEditting ? edittingUser : transformUserData(user))
                     .permissions.machines
                 }
-                options={fourPageOptions}
+                options={machinesOptions}
               />
               <CustomCheckboxField
                 label="صفحة الميكانيزم"
@@ -591,17 +585,17 @@ const EditUser = ({ open, onClose, user: initialUser }) => {
                   (isEditting ? edittingUser : transformUserData(user))
                     .permissions.mechanism
                 }
-                options={fourPageOptions}
+                options={mechanismOptions}
               />
               <CustomCheckboxField
                 label="صفحة الموردين"
                 section="suppliers"
                 updatePrivileges={updatePrivileges}
                 values={
-                  transformUserData(isEditting ? edittingUser : user)
+                  (isEditting ? edittingUser : transformUserData(user))
                     .permissions.suppliers
                 }
-                options={fourPageOptions}
+                options={suppliersOptions}
               />
             </div>
 
