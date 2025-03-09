@@ -31,6 +31,8 @@ import {
   useDeleteWarehouseMutation,
 } from "../services/warehouseApi";
 import { useGetUserQuery } from "../services/userApi";
+import ArticleIcon from "@mui/icons-material/Article";
+import ItemeDetails from "../../components/itemDetails/ItemeDetails";
 
 export default function Items() {
   // RTK Query Hooks
@@ -160,6 +162,7 @@ export default function Items() {
   const columns = [
     {
       field: "actions",
+      width: 150,
       headerName: "الإجراءات",
       renderCell: (params) => (
         <div>
@@ -183,6 +186,13 @@ export default function Items() {
             style={{ color: "#d32f2f" }}
           >
             <ClearOutlinedIcon />
+          </button>
+          <button
+            className={styles.iconBtn}
+            onClick={() => showItemDetails(params.id)}
+            style={{ color: "#d32f2f" }}
+          >
+            <ArticleIcon sx={{ color: primaryColor }} />
           </button>
         </div>
       ),
@@ -340,6 +350,14 @@ export default function Items() {
     setDeleteLocationConfirmationText("");
     setSelectedLocationId(null);
     setDeleteDialogLocationOpen(false);
+  };
+
+  // manage Details component
+  const [isItemDetailsOpen, setIsItemDetailsOpen] = useState(false);
+  const [ItemId, setItemId] = useState(null);
+  const showItemDetails = (id) => {
+    setItemId(id);
+    setIsItemDetailsOpen(true);
   };
 
   if (isLoadingUser) {
@@ -1077,6 +1095,15 @@ export default function Items() {
               </Box>
             </Box>
           </Modal>
+
+          {/* invoice details data */}
+          {isItemDetailsOpen && (
+            <ItemeDetails
+              open={isItemDetailsOpen}
+              onClose={() => setIsItemDetailsOpen(false)}
+              id={ItemId}
+            />
+          )}
 
           {/* Snackbar */}
           <SnackBar

@@ -77,6 +77,9 @@ export const invoiceApi = createApi({
     priceReport: builder.query({
       query: (id) => `/invoice/price-report/${id}`,
     }),
+    getInvoice: builder.query({
+      query: (id) => `/invoice/${id}`,
+    }),
   }),
 });
 
@@ -90,5 +93,6 @@ export const {
   useConfirmInvoiceMutation,
   useRefreshInvoiceMutation,
   useReturnWarrantyInvoiceMutation,
-  usePriceReportQuery, // This hook is now a query
+  usePriceReportQuery,
+  useGetInvoiceQuery,
 } = invoiceApi;

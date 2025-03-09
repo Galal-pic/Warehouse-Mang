@@ -47,6 +47,12 @@ export const warehouseApi = createApi({
       }),
       invalidatesTags: ["Warehouse"],
     }),
+    detailsReport: builder.query({
+      query: (id) => `/invoice/fifo-prices/${id}`,
+    }),
+    getItem: builder.query({
+      query: (id) => `/warehouse/${id}`,
+    }),
   }),
 });
 
@@ -56,4 +62,6 @@ export const {
   useUpdateWarehouseMutation,
   useDeleteWarehouseMutation,
   useImportWarehouseMutation,
+  useDetailsReportQuery,
+  useGetItemQuery,
 } = warehouseApi;

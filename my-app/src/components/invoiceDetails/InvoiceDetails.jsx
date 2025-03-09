@@ -1,5 +1,6 @@
 import { Button } from "@mui/material";
 import { usePriceReportQuery } from "../../pages/services/invoiceApi";
+import { useEffect } from "react";
 
 const DetailItem = ({ label, value, valueStyle }) => (
   <div
@@ -33,10 +34,11 @@ const DetailItem = ({ label, value, valueStyle }) => (
 );
 
 const InvoiceDetails = ({ open, onClose, id }) => {
-  const { data: invoiceData, error, isLoading } = usePriceReportQuery(id);
+  const { data: invoiceData, refetch } = usePriceReportQuery(id);
 
-  if (isLoading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error.message}</div>;
+  useEffect(() => {
+    refetch();
+  }, [refetch]);
 
   return (
     open && (
