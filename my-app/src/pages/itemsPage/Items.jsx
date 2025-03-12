@@ -22,7 +22,6 @@ import AddIcon from "@mui/icons-material/Add";
 import SnackBar from "../../components/snackBar/SnackBar";
 import DeleteRow from "../../components/deleteItem/DeleteRow";
 import CustomDataGrid from "../../components/dataGrid/CustomDataGrid";
-import NumberInput from "../../components/number/NumberInput";
 import { isNumber } from "@mui/x-data-grid/internals";
 import {
   useGetWarehousesQuery,
@@ -165,7 +164,14 @@ export default function Items() {
       width: 150,
       headerName: "الإجراءات",
       renderCell: (params) => (
-        <div>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-around",
+            alignItems: "center",
+            height: "100%",
+          }}
+        >
           <button
             className={styles.iconBtn}
             onClick={() => openItem(params.id)}

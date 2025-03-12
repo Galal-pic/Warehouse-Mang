@@ -156,7 +156,14 @@ export default function Machines() {
         if (isEditingItem && editingItem.id === params.id) {
           return (
             <>
-              <div>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-around",
+                  alignItems: "center",
+                  height: "100%",
+                }}
+              >
                 <button
                   disabled={isUpdating}
                   className={styles.iconBtn}
@@ -180,7 +187,14 @@ export default function Machines() {
         }
         return (
           <>
-            <div>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-around",
+                alignItems: "center",
+                height: "100%",
+              }}
+            >
               <button
                 className={styles.iconBtn}
                 onClick={() => {

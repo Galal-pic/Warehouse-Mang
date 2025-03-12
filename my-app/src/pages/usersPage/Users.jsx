@@ -159,7 +159,15 @@ export default function Users() {
       renderCell: (params) => {
         return (
           <>
-            <div className={styles.iconBtnContainer}>
+            <div
+              className={styles.iconBtnContainer}
+              style={{
+                display: "flex",
+                justifyContent: "space-around",
+                alignItems: "center",
+                height: "100%",
+              }}
+            >
               <button
                 className={styles.iconBtn}
                 onClick={() => handleLaunchClick(params.id)}

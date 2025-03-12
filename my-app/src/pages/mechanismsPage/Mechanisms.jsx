@@ -170,7 +170,14 @@ export default function Mechanisms() {
         if (isEditingItem && editingItem.id === params.id) {
           return (
             <>
-              <div>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-around",
+                  alignItems: "center",
+                  height: "100%",
+                }}
+              >
                 <button
                   className={styles.iconBtn}
                   disabled={isUpdating}
@@ -194,7 +201,14 @@ export default function Mechanisms() {
         }
         return (
           <>
-            <div>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-around",
+                alignItems: "center",
+                height: "100%",
+              }}
+            >
               <button
                 className={styles.iconBtn}
                 onClick={() => {

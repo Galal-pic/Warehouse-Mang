@@ -159,9 +159,10 @@ export default function Invoices() {
   const handleDeleteSelectedRows = async (selectedIds) => {
     setIsArrayDeleting(true);
     try {
-      await Promise.all(
-        selectedRows.map((invoice) => deleteInvoice(invoice.id).unwrap())
-      );
+      for (const invoice of selectedRows) {
+        // حذف كل فاتورة بشكل متسلسل
+        await deleteInvoice(invoice.id).unwrap();
+      }
       refetch();
       setOpenSnackbar(true);
       setSnackbarMessage("تم الحذف بنجاح");
