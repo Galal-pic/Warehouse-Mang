@@ -60,8 +60,8 @@ export const invoiceApi = createApi({
     // refresh invoice
     refreshInvoice: builder.mutation({
       query: (id) => ({
-        url: `/invoice/${id}/updateprice`,
-        method: "POST",
+        url: `/invoice/updateprice/${id}`,
+        method: "GET",
       }),
       invalidatesTags: ["Invoice"],
     }),
