@@ -160,7 +160,6 @@ export default function Invoices() {
     setIsArrayDeleting(true);
     try {
       for (const invoice of selectedRows) {
-        // حذف كل فاتورة بشكل متسلسل
         await deleteInvoice(invoice.id).unwrap();
       }
       refetch();
@@ -445,12 +444,20 @@ export default function Invoices() {
 
     const handlePrint = () => {
       if (printableTableRef.current) {
-        const printContent = printableTableRef.current.innerHTML;
-        const printWindow = document.createElement("div");
-        printWindow.innerHTML = `
+        const printWindowFrame = document.createElement("iframe");
+        printWindowFrame.style.position = "absolute";
+        printWindowFrame.style.width = "0px";
+        printWindowFrame.style.height = "0px";
+        printWindowFrame.style.border = "none";
+        document.body.appendChild(printWindowFrame);
+
+        const iframeDocument = printWindowFrame.contentWindow.document;
+        iframeDocument.open();
+
+        iframeDocument.write(`
           <html>
             <head>
-              <title>Print Table</title>
+              <title>Print</title>
               <style>
                 table {
                   width: 100%;
@@ -464,29 +471,18 @@ export default function Invoices() {
               </style>
             </head>
             <body>
-              ${printContent}
+              ${printableTableRef.current.innerHTML}
             </body>
           </html>
-        `;
+        `);
 
-        const printWindowFrame = document.createElement("iframe");
-        printWindowFrame.style.position = "absolute";
-        printWindowFrame.style.width = "0px";
-        printWindowFrame.style.height = "0px";
-        printWindowFrame.style.border = "none";
-        document.body.appendChild(printWindowFrame);
-
-        const iframeDocument = printWindowFrame.contentWindow.document;
-        iframeDocument.open();
-        iframeDocument.write(printWindow.innerHTML);
         iframeDocument.close();
 
-        printWindowFrame.contentWindow.focus();
-        printWindowFrame.contentWindow.print();
-
-        document.body.removeChild(printWindowFrame);
-      } else {
-        console.error("Printable table reference is null.");
+        setTimeout(() => {
+          printWindowFrame.contentWindow.focus();
+          printWindowFrame.contentWindow.print();
+          document.body.removeChild(printWindowFrame);
+        }, 300);
       }
     };
 
