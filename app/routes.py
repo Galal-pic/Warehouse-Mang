@@ -16,6 +16,8 @@ from .models import (
     Employee, Machine, Mechanism, Warehouse, ItemLocations, Invoice, InvoiceItem,
     Supplier, Prices, InvoicePriceDetail
 )
+from sqlalchemy import desc
+from sqlalchemy.exc import SQLAlchemyError
 
 invoice_ns = Namespace('invoice', description='Invoice operations')
 
@@ -772,3 +774,98 @@ class FifoInventoryReport(Resource):
         }
         
         return report, 200
+    
+
+# Define the resource class
+@invoice_ns.route('/updateprice/<int:invoice_id>')
+class UpdateInvoicePrice(Resource):
+    def get(self, invoice_id):
+        """
+        Update prices for items in an invoice where price is zero.
+        Uses the latest available price for each item.
+        
+        Parameters:
+        invoice_id (int): ID of the invoice to update
+        
+        Returns:
+        tuple: (response_data, status_code)
+        """
+        try:
+            # Get the invoice
+            print('galallllllllllllll')
+            invoice = Invoice.query.get(invoice_id)
+            if not invoice:
+                return {"error": f"Invoice with ID {invoice_id} not found"}, 404
+            
+            # Track changes for the response
+            updated_items = []
+            total_price_change = 0
+            
+            # Find items with zero price
+            zero_price_items = InvoiceItem.query.filter_by(invoice_id=invoice_id).filter(InvoiceItem.unit_price == 0).all()
+            
+            if not zero_price_items:
+                return {"message": "No items with zero price found in this invoice"}, 200
+            
+            # Process each zero-price item
+            for item in zero_price_items:
+                # Get the latest price for this item - use desc() to get the most recent price
+                latest_price = Prices.query.filter_by(item_id=item.item_id).order_by(Prices.created_at).first()
+                
+                if not latest_price:
+                    continue  # Skip if no price found
+                
+                # Store old price for tracking
+                old_price = item.unit_price
+                old_total = item.total_price
+                
+                # Update the item price
+                item.unit_price = latest_price.unit_price
+                item.total_price = item.quantity * latest_price.unit_price
+                
+                # Calculate price change
+                price_change = item.total_price - old_total
+                total_price_change += price_change
+                
+                # Create a price detail record
+                price_detail = InvoicePriceDetail(
+                    invoice_id=invoice.id,
+                    item_id=item.item_id,
+                    source_price_id=latest_price.invoice_id,
+                    quantity=item.quantity,
+                    unit_price=latest_price.unit_price,
+                    subtotal=item.total_price
+                )
+                
+                db.session.add(price_detail)
+                
+                # Track the update
+                updated_items.append({
+                    "item_id": item.item_id,
+                    "old_price": old_price,
+                    "new_price": latest_price.unit_price,
+                    "quantity": item.quantity,
+                    "price_change": price_change
+                })
+            
+            # Update invoice totals
+            if updated_items:
+                invoice.total_amount += total_price_change
+                invoice.residual = invoice.total_amount - invoice.paid
+            
+            # Commit changes
+            db.session.commit()
+            
+            return {
+                "message": f"Updated prices for {len(updated_items)} items",
+                "updated_items": updated_items,
+                "total_price_change": total_price_change,
+                "new_invoice_total": invoice.total_amount
+            }, 200
+            
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            return {"error": f"Database error: {str(e)}"}, 500
+        except Exception as e:
+            db.session.rollback()
+            return {"error": f"Error updating prices: {str(e)}"}, 500
