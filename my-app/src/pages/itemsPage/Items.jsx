@@ -32,6 +32,7 @@ import {
 import { useGetUserQuery } from "../services/userApi";
 import ArticleIcon from "@mui/icons-material/Article";
 import ItemeDetails from "../../components/itemDetails/ItemeDetails";
+import { translateError } from "../../components/translateError/translateError";
 
 export default function Items() {
   // RTK Query Hooks
@@ -319,9 +320,10 @@ export default function Items() {
       } catch (error) {
         console.error("Error deleting item:", error);
         setOpenSnackbar(true);
-        setSnackbarMessage(
-          "خطأ في حذف العنصر اذا استمرت المشكلة حاول اعادة تحميل الصفحة"
+        const translatedError = await translateError(
+          error?.data?.message || "An error occurred"
         );
+        setSnackbarMessage(translatedError);
         setSnackBarType("error");
       }
     }

@@ -1,0 +1,959 @@
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  Box,
+  Table,
+  TableBody,
+  TableRow,
+  TableCell,
+  Autocomplete,
+  TextField,
+} from "@mui/material";
+import ClearOutlinedIcon from "@mui/icons-material/ClearOutlined";
+import AddIcon from "@mui/icons-material/Add";
+import CustomAutoCompleteField from "../../components/customAutoCompleteField/CustomAutoCompleteField";
+import NumberInput from "../../components/number/NumberInput";
+import styles from "./Invoices.module.css";
+import logo from "./logo.png";
+import SnackBar from "../snackBar/SnackBar";
+import { useGetSuppliersQuery } from "../../pages/services/supplierApi";
+import { useGetMachinesQuery } from "../../pages/services/machineApi";
+import { useGetMechanismsQuery } from "../../pages/services/mechanismApi";
+import { useGetWarehousesQuery } from "../../pages/services/warehouseApi";
+export default function InvoiceModal({
+  selectedInvoice,
+  isEditingInvoice,
+  editingInvoice,
+  setEditingInvoice,
+  show,
+  selectedNowType,
+  addRow,
+  handleDeleteItemClick,
+  isPurchasesType = false,
+  isCreate = false,
+  showCommentField = false,
+}) {
+  const {
+    data: suppliers,
+    isLoading: isSupliersLoading,
+    refetch: refetchSupliers,
+  } = useGetSuppliersQuery(undefined, { pollingInterval: 300000 });
+
+  const {
+    data: machines,
+    isLoading: isMachinesLoading,
+    refetch: refetchMachines,
+  } = useGetMachinesQuery(undefined, { pollingInterval: 300000 });
+
+  const {
+    data: mechanisms,
+    isLoading: isMechanismsLoading,
+    refetch: refetchMechanisms,
+  } = useGetMechanismsQuery(undefined, { pollingInterval: 300000 });
+
+  const {
+    data: warehouse,
+    isLoading: isWareHousesLoading,
+    refetch: refetchWarehouses,
+  } = useGetWarehousesQuery(undefined, { pollingInterval: 300000 });
+
+  const warehouseMap = useMemo(() => {
+    const map = new Map();
+    if (!Array.isArray(warehouse)) return map;
+
+    warehouse.forEach((item) => {
+      const key = item.item_name.trim().toLowerCase();
+      map.set(key, item);
+    });
+    return map;
+  }, [warehouse]);
+
+  const itemNames = useMemo(() => {
+    return Array.isArray(warehouse)
+      ? warehouse.map((item) => item.item_name)
+      : [];
+  }, [warehouse]);
+
+  useEffect(() => {
+    if (warehouseMap && editingInvoice) {
+      const updatedItems = editingInvoice.items.map((item) => {
+        const warehouseItem = warehouseMap.get(item.item_name);
+        return {
+          ...item,
+          availableLocations: warehouseItem?.locations || [],
+          unit_price: warehouseItem?.price_unit || 0,
+        };
+      });
+      setEditingInvoice({ ...editingInvoice, items: updatedItems });
+    }
+  }, [warehouseMap]);
+
+  // snackbar
+  const [openSnackbar, setOpenSnackbar] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [snackBarType, setSnackBarType] = useState("");
+  // Handle close snack
+  const handleCloseSnackbar = () => {
+    setOpenSnackbar(false);
+  };
+
+  useEffect(() => {
+    refetchMachines();
+    refetchMechanisms();
+    refetchSupliers();
+    refetchWarehouses();
+  }, [
+    refetchMachines,
+    refetchMechanisms,
+    refetchSupliers,
+    refetchWarehouses,
+    selectedInvoice,
+  ]);
+  return (
+    <>
+      <div
+        className="printable-box"
+        style={{
+          backgroundColor: isCreate && "white",
+          padding: isCreate && "10px 35px",
+        }}
+      >
+        <Box className={styles.headerSection}>
+          <Box className={styles.headerSection}>
+            <Box className={styles.logoBox}>
+              <img src={logo} alt="Logo" className={styles.logoImage} />
+            </Box>
+            <Box className={styles.operationTypeBox}>
+              <Box className={styles.operationTypeText}>نوع العملية</Box>
+              <Box className={styles.operationTypeName}>
+                {selectedInvoice.type}
+              </Box>
+            </Box>
+            <Box className={styles.infoBox}>
+              <Box className={styles.infoItem}>
+                <Box className={styles.infoLabel}>رقم السند:</Box>
+                <Box className={styles.infoValue}>{selectedInvoice.id}</Box>
+              </Box>
+              <Box className={styles.infoItem}>
+                <Box className={styles.infoLabel}>التاريخ</Box>
+                <Box className={styles.infoValue}>{selectedInvoice.date}</Box>
+              </Box>
+              <Box className={styles.infoItem}>
+                <Box className={styles.infoLabel}>الوقت</Box>
+                <Box className={styles.infoValue}>{selectedInvoice.time}</Box>
+              </Box>
+            </Box>
+          </Box>
+        </Box>
+        <Box className={styles.tableSection} sx={{ direction: "rtl" }}>
+          <Table
+            className={styles.customTable}
+            sx={{
+              "& .MuiTableCell-root": {
+                border: "1px solid #b2b0b0",
+                padding: "12px",
+                textAlign: "center",
+              },
+            }}
+          >
+            <TableBody>
+              {/* Inputs for Suplier, Machine and Mechanism Names */}
+              {(selectedNowType?.type === "purchase" || isPurchasesType) && (
+                <TableRow className={styles.tableRow}>
+                  <TableCell className={styles.tableCell} colSpan={2}>
+                    اسم المورد
+                  </TableCell>
+                  <TableCell
+                    className={styles.tableInputCell}
+                    colSpan={6}
+                    sx={{
+                      padding: "0px !important",
+                    }}
+                  >
+                    {isEditingInvoice ? (
+                      <CustomAutoCompleteField
+                        loading={isSupliersLoading}
+                        values={suppliers}
+                        editingItem={editingInvoice}
+                        setEditingItem={setEditingInvoice}
+                        fieldName="supplier_name"
+                        placeholder="اسم المورد"
+                      />
+                    ) : (
+                      selectedInvoice.supplier_name
+                    )}
+                  </TableCell>
+                </TableRow>
+              )}
+              <TableRow className={styles.tableRow}>
+                <TableCell className={styles.tableCell} colSpan={2}>
+                  اسم الماكينة
+                </TableCell>
+                <TableCell
+                  className={styles.tableInputCell}
+                  colSpan={6}
+                  sx={{
+                    padding: "0px !important",
+                  }}
+                >
+                  {isEditingInvoice ? (
+                    <CustomAutoCompleteField
+                      loading={isMachinesLoading}
+                      values={machines}
+                      editingItem={editingInvoice}
+                      setEditingItem={setEditingInvoice}
+                      fieldName="machine_name"
+                      placeholder="اسم الماكينة"
+                    />
+                  ) : (
+                    selectedInvoice.machine_name
+                  )}
+                </TableCell>
+              </TableRow>
+              <TableRow className={styles.tableRow}>
+                <TableCell className={styles.tableCell} colSpan={2}>
+                  اسم الميكانيزم
+                </TableCell>
+                <TableCell
+                  className={styles.tableInputCell}
+                  colSpan={6}
+                  sx={{
+                    padding: "0px !important",
+                  }}
+                >
+                  {isEditingInvoice ? (
+                    <CustomAutoCompleteField
+                      loading={isMechanismsLoading}
+                      values={mechanisms}
+                      editingItem={editingInvoice}
+                      setEditingItem={setEditingInvoice}
+                      fieldName="mechanism_name"
+                      placeholder="اسم الميكانيزم"
+                    />
+                  ) : (
+                    selectedInvoice.mechanism_name
+                  )}
+                </TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell className={styles.tableCell}>
+                  <AddIcon
+                    onClick={addRow}
+                    className={styles.addIcon}
+                    sx={{
+                      cursor: isEditingInvoice ? "pointer" : "context-menu",
+                    }}
+                  />
+                </TableCell>
+                <TableCell className={styles.tableCell}>اسم الصنف</TableCell>
+                <TableCell className={styles.tableCell}>الرمز</TableCell>
+                <TableCell className={styles.tableCell}>الموقع</TableCell>
+                <TableCell className={styles.tableCell}>الكمية</TableCell>
+                {(show || isPurchasesType) && (
+                  <>
+                    <TableCell className={styles.tableCell}>السعر</TableCell>
+                    <TableCell className={styles.tableCell}>
+                      إجمالي السعر
+                    </TableCell>
+                  </>
+                )}
+
+                <TableCell className={styles.tableCell}>بيان</TableCell>
+              </TableRow>
+
+              {(isEditingInvoice
+                ? editingInvoice.items
+                : selectedInvoice.items
+              ).map((row, index) => (
+                <TableRow key={index}>
+                  <TableCell
+                    sx={{
+                      position: "relative",
+                      width: "10px !important",
+                    }}
+                    className={styles.tableCellRow}
+                  >
+                    {index + 1}
+                    {isEditingInvoice && (
+                      <button
+                        onClick={() => handleDeleteItemClick(index)}
+                        className={styles.clearIcon}
+                      >
+                        <ClearOutlinedIcon fontSize="small" />
+                      </button>
+                    )}
+                  </TableCell>
+                  <TableCell
+                    className={styles.tableCellRow}
+                    sx={{
+                      "&.MuiTableCell-root": {
+                        padding: "0px",
+                        maxWidth: "200px",
+                        whiteSpace: "normal",
+                        wordBreak: "break-word",
+                      },
+                    }}
+                  >
+                    {isEditingInvoice ? (
+                      <Autocomplete
+                        loading={isWareHousesLoading}
+                        disableClearable
+                        slotProps={{
+                          input: {
+                            sx: {
+                              whiteSpace: "normal",
+                              wordBreak: "break-word",
+                            },
+                          },
+                          paper: {
+                            sx: {
+                              "& .MuiAutocomplete-listbox": {
+                                "& .MuiAutocomplete-option": {
+                                  direction: "rtl",
+                                },
+                              },
+                            },
+                          },
+                        }}
+                        value={row.item_name || ""}
+                        isOptionEqualToValue={(option, value) =>
+                          option?.toLowerCase() === value?.toLowerCase()
+                        }
+                        sx={{
+                          "& .MuiAutocomplete-clearIndicator": {
+                            display: "none",
+                          },
+                          "& .MuiAutocomplete-popupIndicator": {},
+                          "& .MuiOutlinedInput-root": {
+                            padding: "10px",
+                            paddingRight: "35px!important",
+                            fontSize: "14px",
+                          },
+                          "& .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline":
+                            {
+                              border: "none",
+                            },
+                          minWidth: "150px",
+                        }}
+                        options={itemNames || []}
+                        getOptionLabel={(option) => option || ""}
+                        onChange={(e, newValue) => {
+                          const normalizedValue = newValue.trim().toLowerCase();
+                          const selectedItem = Array.from(
+                            warehouseMap.values()
+                          ).find(
+                            (item) =>
+                              item.item_name.trim().toLowerCase() ===
+                              normalizedValue
+                          );
+
+                          const updatedItems = [...editingInvoice.items];
+                          updatedItems[index] = {
+                            ...updatedItems[index],
+                            item_name: selectedItem?.item_name || newValue,
+                            barcode: selectedItem?.item_bar || "",
+                            location: "",
+                            quantity: 0,
+                            priceunit: 0,
+                            total_price: 0,
+                            availableLocations: selectedItem?.locations || [],
+                          };
+
+                          setEditingInvoice({
+                            ...editingInvoice,
+                            items: updatedItems,
+                          });
+                        }}
+                        renderInput={(params) => (
+                          <TextField {...params} placeholder="اسم العنصر" />
+                        )}
+                      />
+                    ) : (
+                      row.item_name
+                    )}
+                  </TableCell>
+                  <TableCell className={styles.tableCellRow}>
+                    {row.barcode}
+                  </TableCell>
+                  <TableCell
+                    className={styles.tableCellRow}
+                    sx={{
+                      "&.MuiTableCell-root": {
+                        padding: "0px",
+                        maxWidth: "200px",
+                        whiteSpace: "normal",
+                        wordBreak: "break-word",
+                      },
+                    }}
+                  >
+                    {isEditingInvoice ? (
+                      <Autocomplete
+                        loading={row.item_name === "" ? false : true}
+                        slotProps={{
+                          input: {
+                            sx: {
+                              whiteSpace: "normal",
+                              wordBreak: "break-word",
+                            },
+                          },
+                          paper: {
+                            sx: {
+                              "& .MuiAutocomplete-listbox": {
+                                "& .MuiAutocomplete-option": {
+                                  direction: "rtl",
+                                },
+                              },
+                            },
+                          },
+                        }}
+                        value={
+                          row?.availableLocations?.find(
+                            (location1) => location1.location === row.location
+                          ) || null
+                        }
+                        isOptionEqualToValue={(option, value) =>
+                          option.location === value?.location
+                        }
+                        sx={{
+                          "& .MuiAutocomplete-clearIndicator": {
+                            display: "none",
+                          },
+                          "& .MuiAutocomplete-popupIndicator": {},
+                          "& .MuiOutlinedInput-root": {
+                            padding: "10px",
+                            paddingRight: "35px!important",
+                            fontSize: "14px",
+                          },
+                          "& .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline":
+                            {
+                              border: "none",
+                            },
+                          minWidth: "150px",
+                        }}
+                        options={row?.availableLocations || []}
+                        getOptionLabel={(option) => option.location || ""}
+                        onChange={(e, newValue) => {
+                          if (!newValue) {
+                            return;
+                          }
+
+                          const matchedItem = editingInvoice?.items?.find(
+                            (row11) =>
+                              row11.barcode === row.barcode &&
+                              row11.location === newValue.location
+                          );
+
+                          if (matchedItem) {
+                            setSnackbarMessage("هذا العنصر موجود بالفعل");
+                            setSnackBarType("info");
+                            setOpenSnackbar(true);
+                            return;
+                          }
+
+                          const updatedItems = [...editingInvoice.items];
+                          updatedItems[index] = {
+                            ...updatedItems[index],
+                            location: newValue?.location || "",
+                            quantity: 0,
+                            priceunit:
+                              newValue?.price_unit &&
+                              selectedNowType?.type !== "purchase"
+                                ? newValue.price_unit
+                                : 0,
+                            total_price: 0,
+                            maxquantity: newValue?.quantity + row.quantity,
+                          };
+                          setEditingInvoice({
+                            ...editingInvoice,
+                            items: updatedItems,
+                          });
+                        }}
+                        renderInput={(params) => (
+                          <TextField {...params} placeholder="الموقع" />
+                        )}
+                      />
+                    ) : (
+                      row.location
+                    )}
+                  </TableCell>
+                  <TableCell
+                    className={styles.tableCellRow}
+                    sx={{
+                      width: "100px",
+                    }}
+                  >
+                    {isEditingInvoice ? (
+                      <NumberInput
+                        style={{
+                          width: "100px",
+                          outline: "none",
+                          fontSize: "15px",
+                          textAlign: "center",
+                          border: "none",
+                          padding: "10px",
+                        }}
+                        max={
+                          selectedNowType?.type === "purchase" &&
+                          row.maxquantity
+                        }
+                        value={row?.quantity}
+                        onInput={(e) => {
+                          if (e.target.value < 0) {
+                            e.target.value = 0;
+                          }
+                          if (
+                            (selectedNowType?.type === "operation" ||
+                              (!isPurchasesType && isCreate)) &
+                            (e.target.value > row.maxquantity)
+                          ) {
+                            e.target.value = row.maxquantity;
+                          }
+                        }}
+                        onClick={(event) => {
+                          if (
+                            row.location === undefined ||
+                            row.location === ""
+                          ) {
+                            setSnackbarMessage("يجب تحديد موقع العنصر اولا");
+                            setSnackBarType("info");
+                            setOpenSnackbar(true);
+                            event.target.blur();
+                            return;
+                          }
+                        }}
+                        onDoubleClick={(event) => {
+                          if (
+                            row.location === undefined ||
+                            row.location === ""
+                          ) {
+                            setSnackbarMessage("يجب تحديد موقع العنصر اولا");
+                            setSnackBarType("info");
+                            setOpenSnackbar(true);
+                            event.target.blur();
+
+                            return;
+                          }
+                        }}
+                        onChange={(e) => {
+                          if (
+                            row.location === undefined ||
+                            row.location === ""
+                          ) {
+                            setSnackbarMessage("يجب تحديد موقع العنصر اولا");
+                            setSnackBarType("info");
+                            setOpenSnackbar(true);
+                            e.target.blur();
+
+                            return;
+                          }
+                          const newQuantity = Math.max(
+                            0,
+                            Number(e.target.value)
+                          );
+                          const updatedItems = [...editingInvoice.items];
+                          updatedItems[index] = {
+                            ...row,
+                            quantity: newQuantity,
+                            total_price:
+                              selectedNowType?.type === "purchase"
+                                ? newQuantity * row.unit_price
+                                : isPurchasesType
+                                ? newQuantity * Number(row.unit_price)
+                                : newQuantity * row.priceunit,
+                          };
+                          console.log(editingInvoice);
+                          const totalAmount = updatedItems.reduce(
+                            (sum, item) => sum + (item.total_price || 0),
+                            0
+                          );
+                          setEditingInvoice({
+                            ...editingInvoice,
+                            items: updatedItems,
+                            total_amount: totalAmount,
+                          });
+                        }}
+                      />
+                    ) : (
+                      row.quantity
+                    )}
+                  </TableCell>
+                  {(show || isPurchasesType) && (
+                    <>
+                      {!isEditingInvoice ? (
+                        <TableCell className={styles.tableCellRow}>
+                          {row.unit_price}
+                        </TableCell>
+                      ) : selectedNowType?.type !== "purchase" && !isCreate ? (
+                        <TableCell className={styles.tableCellRow}>
+                          {row.priceunit}
+                        </TableCell>
+                      ) : (
+                        <TableCell
+                          className={styles.tableCellRow}
+                          sx={{
+                            width: "100px",
+                          }}
+                        >
+                          <NumberInput
+                            style={{
+                              width: "100px",
+                              outline: "none",
+                              fontSize: "15px",
+                              textAlign: "center",
+                              border: "none",
+                              padding: "10px",
+                            }}
+                            value={row.unit_price ?? row?.unit_price}
+                            onInput={(e) => {
+                              if (e.target.value < 0) {
+                                e.target.value = 0;
+                              }
+                              if (
+                                (selectedNowType?.type === "operation") &
+                                (e.target.value > row.maxquantity)
+                              ) {
+                                e.target.value = row.maxquantity;
+                              }
+                            }}
+                            onChange={(e) => {
+                              if (
+                                row.location === undefined ||
+                                row.location === ""
+                              ) {
+                                setSnackbarMessage(
+                                  "يجب تحديد موقع العنصر اولا"
+                                );
+                                setSnackBarType("info");
+                                setOpenSnackbar(true);
+                                e.target.blur();
+                                return;
+                              }
+                              const newValue = e.target.value;
+                              const newTotalPrice =
+                                (e.target.value || 0) * (row.quantity || 0);
+
+                              const updatedItems = [...editingInvoice.items];
+                              updatedItems[index] = {
+                                ...row,
+                                unit_price: newValue,
+                                total_price: newTotalPrice,
+                              };
+                              const totalAmount = updatedItems.reduce(
+                                (sum, item) => sum + (item.total_price || 0),
+                                0
+                              );
+                              setEditingInvoice({
+                                ...editingInvoice,
+                                items: updatedItems,
+                                total_amount: totalAmount,
+                              });
+                            }}
+                            onClick={(event) => {
+                              if (
+                                row.location === undefined ||
+                                row.location === ""
+                              ) {
+                                setSnackbarMessage(
+                                  "يجب تحديد موقع العنصر اولا"
+                                );
+                                setSnackBarType("info");
+                                setOpenSnackbar(true);
+                                event.target.blur();
+                                return;
+                              }
+                            }}
+                            onDoubleClick={(event) => {
+                              if (
+                                row.location === undefined ||
+                                row.location === ""
+                              ) {
+                                setSnackbarMessage(
+                                  "يجب تحديد موقع العنصر اولا"
+                                );
+                                setSnackBarType("info");
+                                setOpenSnackbar(true);
+                                event.target.blur();
+
+                                return;
+                              }
+                            }}
+                          />
+                        </TableCell>
+                      )}
+                      <TableCell className={styles.tableCellRow}>
+                        {isEditingInvoice ? row?.total_price : row.total_price}
+                      </TableCell>
+                    </>
+                  )}
+                  <TableCell
+                    className={styles.tableCellRow}
+                    sx={{
+                      maxWidth: "200px",
+                      whiteSpace: "normal",
+                      wordWrap: "break-word",
+                    }}
+                  >
+                    {isEditingInvoice ? (
+                      <textarea
+                        style={{
+                          width: "100%",
+                          outline: "none",
+                          fontSize: "15px",
+                          textAlign: "right",
+                          border: "none",
+                          padding: "10px",
+                          whiteSpace: "normal",
+                          wordWrap: "break-word",
+                          resize: "none",
+                        }}
+                        value={row?.description || row.description}
+                        onChange={(e) => {
+                          const updatedItems = [...editingInvoice.items];
+                          updatedItems[index] = {
+                            ...row,
+                            description: e.target.value,
+                          };
+                          setEditingInvoice({
+                            ...editingInvoice,
+                            items: updatedItems,
+                          });
+                        }}
+                      />
+                    ) : (
+                      row.description
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Box>
+        {(show || isPurchasesType) && (
+          <Box className={styles.MoneySection}>
+            <Box className={styles.MoneySection}>
+              <Box className={styles.MoneyBox}>
+                <Box className={styles.MoneyLabel}>الإجمالي</Box>
+                <Box className={styles.MoneyValue}>
+                  {isEditingInvoice
+                    ? editingInvoice?.total_amount
+                    : selectedInvoice?.total_amount}
+                </Box>
+              </Box>
+              <Box className={styles.MoneyBox}>
+                <Box className={styles.MoneyLabel}>طريقة الدفع</Box>
+                <Box
+                  className={styles.MoneyValue}
+                  sx={{
+                    display: "flex",
+                    direction: "rtl",
+                    gap: "10px",
+                  }}
+                >
+                  {!isEditingInvoice ? (
+                    editingInvoice?.payment_method === "Custody" ? (
+                      `عهدة مع ${editingInvoice.custody_person || "-"}`
+                    ) : (
+                      editingInvoice?.payment_method
+                    )
+                  ) : (
+                    <>
+                      <Autocomplete
+                        loading={true}
+                        options={[
+                          { label: "Cash", value: "Cash" },
+                          { label: "Credit", value: "Credit" },
+                          { label: "عهدة", value: "Custody" },
+                        ]}
+                        getOptionLabel={(option) => option.label}
+                        value={
+                          [
+                            { label: "Cash", value: "Cash" },
+                            { label: "Credit", value: "Credit" },
+                            { label: "عهدة", value: "Custody" },
+                          ].find(
+                            (option) =>
+                              option.value === editingInvoice.payment_method
+                          ) || null
+                        }
+                        onChange={(event, newValue) => {
+                          setEditingInvoice({
+                            ...editingInvoice,
+                            payment_method: newValue ? newValue.value : "",
+                            custody_person:
+                              newValue?.value === "Custody"
+                                ? editingInvoice.custody_person || ""
+                                : "",
+                          });
+                        }}
+                        sx={{
+                          minWidth: editingInvoice.payment_method === "Custody" ? "30%" : "200px",
+                          "& .MuiAutocomplete-clearIndicator": {
+                            display: "none",
+                          },
+                          "& .MuiOutlinedInput-root": {
+                            paddingRight: "35px!important",
+                            fontSize: "1rem",
+                            padding: "0",
+                            paddingLeft: "35px",
+                          },
+                          "& .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline":
+                            { border: "none" },
+                          "& .MuiInputBase-input": { textAlign: "center" },
+                        }}
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            placeholder="طريقة الدفع"
+                            fullWidth
+                          />
+                        )}
+                        isOptionEqualToValue={(option, value) =>
+                          option.value === value.value
+                        }
+                      />
+
+                      {editingInvoice.payment_method === "Custody" && (
+                        <input
+                          placeholder="اسم الشخص"
+                          value={editingInvoice.custody_person || ""}
+                          onChange={(e) =>
+                            setEditingInvoice({
+                              ...editingInvoice,
+                              custody_person: e.target.value,
+                            })
+                          }
+                          style={{
+                            width: "100%",
+                            outline: "none",
+                            fontSize: "15px",
+                            textAlign: "center",
+                            border: "1px solid #ddd",
+                          }}
+                        />
+                      )}
+                    </>
+                  )}
+                </Box>
+              </Box>
+              <Box className={styles.MoneyBox}>
+                <Box className={styles.MoneyLabel}>المدفوع</Box>
+                <Box className={styles.MoneyValue}>
+                  {!isEditingInvoice ? (
+                    selectedInvoice?.paid || 0
+                  ) : (
+                    <NumberInput
+                      style={{
+                        width: "100%",
+                        border: "none",
+                        outline: "none",
+                        height: "40px",
+                        fontSize: "1rem",
+                        textAlign: "center",
+                        paddingLeft: "15px",
+                      }}
+                      value={editingInvoice?.paid}
+                      onChange={(e) =>
+                        setEditingInvoice({
+                          ...editingInvoice,
+                          paid: parseFloat(e.target.value),
+                        })
+                      }
+                    />
+                  )}
+                </Box>
+              </Box>
+              <Box className={styles.MoneyBox}>
+                <Box className={styles.MoneyLabel}>المتبقى</Box>
+                <Box
+                  className={styles.MoneyValue}
+                  sx={{ marginBottom: "10px" }}
+                >
+                  {isEditingInvoice
+                    ? (editingInvoice.paid || 0) -
+                      (editingInvoice.total_amount || 0)
+                    : selectedInvoice?.residual}
+                </Box>
+              </Box>
+            </Box>{" "}
+          </Box>
+        )}
+        {/* comment */}
+        {(!isCreate || showCommentField) &&
+          (isEditingInvoice ? (
+            <Box className={styles.commentFieldBox}>
+              <input
+                style={{
+                  width: "100%",
+                  outline: "none",
+                  fontSize: "15px",
+                  textAlign: "center",
+                  border: "none",
+                  padding: "10px",
+                }}
+                type="text"
+                value={editingInvoice.comment}
+                onChange={(e) =>
+                  setEditingInvoice({
+                    ...editingInvoice,
+                    comment: e.target.value,
+                  })
+                }
+              />
+            </Box>
+          ) : (
+            selectedInvoice.comment && (
+              <Box className={styles.commentFieldBox}>
+                {selectedInvoice.comment}
+              </Box>
+            )
+          ))}
+        {/* info */}
+        <Box className={styles.infoSection}>
+          <Box className={styles.infoItemBox}>
+            <Box className={styles.infoLabel}>اسم الموظف</Box>
+            <Box className={styles.infoValue}>
+              {selectedInvoice.employee_name}
+            </Box>
+          </Box>
+          <Box className={styles.infoItemBox}>
+            <Box className={styles.infoLabel}>اسم المستلم</Box>
+            {isEditingInvoice ? (
+              <input
+                style={{
+                  width: "70%",
+                  margin: "auto",
+                  outline: "none",
+                  fontSize: "15px",
+                  textAlign: "center",
+                  border: isCreate ? "2px solid #eee" : "none",
+                  padding: "10px",
+                }}
+                type="text"
+                value={editingInvoice.client_name}
+                onChange={(e) =>
+                  setEditingInvoice({
+                    ...editingInvoice,
+                    client_name: e.target.value,
+                  })
+                }
+              />
+            ) : (
+              selectedInvoice.client_name
+            )}
+          </Box>
+          <Box className={styles.infoItemBox}>
+            <Box className={styles.infoLabel}>عامل المخازن </Box>
+            {selectedInvoice.warehouse_manager}
+          </Box>
+        </Box>
+      </div>
+
+      {/* Snackbar */}
+      <SnackBar
+        open={openSnackbar}
+        message={snackbarMessage}
+        type={snackBarType}
+        onClose={handleCloseSnackbar}
+      />
+    </>
+  );
+}

@@ -1,40 +1,25 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Box,
-  Table,
-  TableBody,
-  TableCell,
-  TableRow,
-  Button,
-  TextField,
   Select,
   MenuItem,
   FormControl,
-  IconButton,
-  Autocomplete,
   InputLabel,
+  Button,
 } from "@mui/material";
-import ClearIcon from "@mui/icons-material/Clear";
-import AddIcon from "@mui/icons-material/Add";
-import logo from "./logo.png";
 import styles from "./CreateInvoice.module.css";
 import SnackBar from "../../components/snackBar/SnackBar";
 import CircularProgress from "@mui/material/CircularProgress";
-import NumberInput from "../../components/number/NumberInput";
-import CustomAutoCompleteField from "../../components/customAutoCompleteField/CustomAutoCompleteField";
 import { isNumber } from "@mui/x-data-grid/internals";
 
 // Import RTK Query hooks
 import { useGetUserQuery } from "../services/userApi";
-import { useGetSuppliersQuery } from "../services/supplierApi";
-import { useGetMachinesQuery } from "../services/machineApi";
-import { useGetMechanismsQuery } from "../services/mechanismApi";
-import { useGetWarehousesQuery } from "../services/warehouseApi";
 import {
   useGetLastInvoiceIdQuery,
   useCreateInvoiceMutation,
 } from "../services/invoiceApi";
-import { Jobs } from "../../context/jobs";
+import InvoiceModal from "../../components/invoice/Invoice";
+import { translateError } from "../../components/translateError/translateError";
 
 export default function Type1() {
   // Operation Type Selection
@@ -47,15 +32,6 @@ export default function Type1() {
     if (operationType !== "") {
       setLastSelected(operationType);
       setPurchasesType("");
-      rows.map((row) => {
-        const targetRow = row.locations.find(
-          (location) => location.location === row.location
-        );
-        if (targetRow && row.quantity > targetRow.quantity) {
-          row.quantity = 0;
-        }
-        return row;
-      });
     }
     if (operationType || purchasesType) {
       setNewInvoice({
@@ -79,7 +55,7 @@ export default function Type1() {
 
   // create new invoice
   const [newInvoice, setNewInvoice] = useState({
-    suplier_name: "",
+    supplier_name: "",
     type: lastSelected,
     client_name: "",
     warehouse_manager: "",
@@ -87,7 +63,17 @@ export default function Type1() {
     employee_name: "",
     machine_name: "",
     mechanism_name: "",
-    items: [],
+    items: [
+      {
+        item_name: "",
+        barcode: "",
+        quantity: 0,
+        location: "",
+        price_unit: 0,
+        total_price: 0,
+        description: "",
+      },
+    ],
     comment: "",
     payment_method: "Cash",
     amount_paid: 0,
@@ -100,30 +86,6 @@ export default function Type1() {
     isLoading: isLoadingUser,
     refetch: refetchUser,
   } = useGetUserQuery();
-
-  const {
-    data: supliers,
-    isLoading: isSupliersLoading,
-    refetch: refetchSupliers,
-  } = useGetSuppliersQuery(undefined, { pollingInterval: 300000 });
-
-  const {
-    data: machines,
-    isLoading: isMachinesLoading,
-    refetch: refetchMachines,
-  } = useGetMachinesQuery(undefined, { pollingInterval: 300000 });
-
-  const {
-    data: mechanisms,
-    isLoading: isMechanismsLoading,
-    refetch: refetchMechanisms,
-  } = useGetMechanismsQuery(undefined, { pollingInterval: 300000 });
-
-  const {
-    data: warehouse,
-    isLoading: isWareHousesLoading,
-    refetch,
-  } = useGetWarehousesQuery(undefined, { pollingInterval: 300000 });
 
   const {
     data: voucherNumber,
@@ -141,140 +103,38 @@ export default function Type1() {
   };
 
   // create, add, remove item
-  const [rows, setRows] = useState([
-    {
-      counter: 1,
-      item_name: "",
-      barcode: "",
-      quantity: 0,
-      location: "",
-      maxquantity: 0,
-      price_unit: 0,
-      total_price: 0,
-      description: "",
-      locations: [],
-    },
-  ]);
   const addRow = () => {
-    setRows((prevRows) => [
-      ...prevRows,
-      {
-        counter: prevRows.length + 1,
-        item_name: "",
-        barcode: "",
-        quantity: 0,
-        location: "",
-        maxquantity: 0,
-        price_unit: 0,
-        total_price: 0,
-        description: "",
-        locations: [],
-      },
-    ]);
+    setNewInvoice((prev) => ({
+      ...prev,
+      items: [
+        ...prev.items,
+        {
+          item_name: "",
+          barcode: "",
+          quantity: 0,
+          location: "",
+          price_unit: 0,
+          total_price: 0,
+          description: "",
+          availableLocations: [],
+        },
+      ],
+    }));
   };
   const removeRow = (index) => {
-    const newRows = rows.filter((row, i) => i !== index);
-    setRows(newRows.map((row, i) => ({ ...row, counter: i + 1 })));
+    setNewInvoice((prev) => ({
+      ...prev,
+      items: prev.items.filter((_, i) => i !== index),
+    }));
   };
-
-  // Create warehouse map for faster lookups
-  const warehouseMap = useMemo(() => {
-    const map = new Map();
-
-    if (!Array.isArray(warehouse) || warehouse.length === 0) {
-      return map;
-    }
-
-    warehouse?.forEach((item) => map.set(item.item_name, item));
-    return map;
-  }, [warehouse]);
-
-  const itemNames = useMemo(() => {
-    return Array.isArray(warehouse)
-      ? warehouse.map((item) => item.item_name)
-      : [];
-  }, [warehouse]);
-
-  // handle rows fields change
-  const handleItemChange = useCallback(
-    (e, newValue, index) => {
-      const selectedItem = warehouseMap.get(newValue);
-      if (selectedItem) {
-        setRows((prevRows) => {
-          const newRows = [...prevRows];
-          newRows[index] = {
-            ...newRows[index],
-            item_name: selectedItem.item_name,
-            barcode: selectedItem.item_bar,
-            locations: selectedItem.locations,
-            location: "",
-            quantity: 0,
-          };
-          return newRows;
-        });
-      }
-    },
-    [warehouseMap]
-  );
-  const handleLocationChange = useCallback(
-    (e, newLocation, index, barCodeItem) => {
-      setRows((prevRows) => {
-        const selectedLocation = prevRows[index].locations.find(
-          (loc) => loc.location === newLocation
-        );
-
-        if (selectedLocation) {
-          if (
-            prevRows.some(
-              (row) =>
-                row.barcode === barCodeItem && row.location === newLocation
-            )
-          ) {
-            setSnackbarMessage("هذا العنصر موجود بالفعل");
-            setSnackBarType("info");
-            setOpenSnackbar(true);
-            return prevRows;
-          }
-          const newUnitPrice = !purchasesType
-            ? selectedLocation.price_unit
-            : prevRows[index].price_unit;
-          const newRows = [...prevRows];
-          newRows[index] = {
-            ...newRows[index],
-            location: selectedLocation.location,
-            quantity: 0,
-            price_unit: newUnitPrice,
-            total_price: 0,
-            maxquantity: selectedLocation.quantity,
-          };
-          return newRows;
-        }
-        return prevRows;
-      });
-    },
-    [purchasesType]
-  );
-  const handleQuantityChange = useCallback(
-    (index, value, maxquantity, priceunit) => {
-      const quantity = parseFloat(value);
-      setRows((prevRows) => {
-        const newRows = [...prevRows];
-        newRows[index] = {
-          ...newRows[index],
-          quantity: quantity,
-          total_price: priceunit * (quantity || 0),
-        };
-        return newRows;
-      });
-    },
-    []
-  );
 
   // Calculate the total
   const totalAmount = useMemo(
     () =>
-      rows.reduce((total, row) => total + (row.total_price || 0), 0).toFixed(2),
-    [rows]
+      newInvoice.items
+        .reduce((total, row) => total + (row.total_price || 0), 0)
+        .toFixed(2),
+    [newInvoice.items]
   );
 
   // save invoice or not
@@ -284,38 +144,36 @@ export default function Type1() {
   const clearInvoice = () => {
     localStorage.removeItem(LOCAL_STORAGE_KEY);
     setNewInvoice({
-      suplier_name: "",
-      type: lastSelected,
+      supplier_name: "",
+      type: "",
       client_name: "",
       warehouse_manager: "",
       total_amount: 0,
       employee_name: "",
       machine_name: "",
       mechanism_name: "",
-      items: [],
+      items: [
+        {
+          item_name: "",
+          barcode: "",
+          quantity: 0,
+          location: "",
+          price_unit: 0,
+          total_price: 0,
+          description: "",
+        },
+      ],
       comment: "",
       payment_method: "Cash",
       amount_paid: 0,
       remain_amount: 0,
     });
-    setRows([
-      {
-        counter: 1,
-        item_name: "",
-        barcode: "",
-        quantity: 0,
-        location: "",
-        price_unit: 0,
-        total_price: 0,
-        description: "",
-        locations: [],
-      },
-    ]);
     setShowCommentField(false);
     setIsInvoiceSaved(false);
     setLastSelected("");
     setPurchasesType("");
     setOperationType("");
+    setEditingMode(true);
   };
 
   // Get Date and Time
@@ -348,42 +206,37 @@ export default function Type1() {
   // handle local storage
   const LOCAL_STORAGE_KEY = "invoiceDraft";
   useEffect(() => {
-    if (!isWareHousesLoading) {
-      const savedDraft = localStorage.getItem(LOCAL_STORAGE_KEY);
-      if (savedDraft) {
-        const draft = JSON.parse(savedDraft);
-        const updatedRows = draft.rows.map((row) => {
-          const warehouseItem = warehouse?.find(
-            (item) => item.item_name === row.item_name
-          );
-          return {
-            ...row,
-            locations: warehouseItem?.locations || [],
-            maxquantity:
-              warehouseItem?.locations?.find((l) => l.location === row.location)
-                ?.quantity || 0,
-          };
-        });
+    // if (!isWareHousesLoading) {
+    const savedDraft = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (savedDraft) {
+      const draft = JSON.parse(savedDraft);
+      // const updatedRows = draft.rows.map((row) => {
+      //   const warehouseItem = warehouse?.find(
+      //     (item) => item.item_name === row.item_name
+      //   );
+      //   return {
+      //     ...row,
+      //     locations: warehouseItem?.locations || [],
+      //     maxquantity:
+      //       warehouseItem?.locations?.find((l) => l.location === row.location)
+      //         ?.quantity || 0,
+      //   };
+      // });
 
-        setNewInvoice(draft.newInvoice);
-        setRows(updatedRows);
-        setOperationType(draft.operationType);
-        setPurchasesType(draft.purchasesType);
-        setLastSelected(draft.lastSelected);
-        setShowCommentField(draft.showCommentField);
-        setIsInvoiceSaved(draft.isInvoiceSaved || false);
-      }
+      setNewInvoice(draft.newInvoice);
+      // setRows(updatedRows);
+      setOperationType(draft.operationType);
+      setPurchasesType(draft.purchasesType);
+      setLastSelected(draft.lastSelected);
+      setShowCommentField(draft.showCommentField);
+      setIsInvoiceSaved(draft.isInvoiceSaved || false);
     }
-  }, [isWareHousesLoading, warehouse]);
+    // }
+  }, []);
   useEffect(() => {
-    if (!isInvoiceSaved && !isWareHousesLoading) {
+    if (!isInvoiceSaved) {
       const draft = {
         newInvoice,
-        rows: rows.map((row) => ({
-          ...row,
-          locations: [],
-          maxquantity: 0,
-        })),
         operationType,
         purchasesType,
         lastSelected,
@@ -394,18 +247,17 @@ export default function Type1() {
     }
   }, [
     newInvoice,
-    rows,
     operationType,
     purchasesType,
     lastSelected,
     showCommentField,
     isInvoiceSaved,
-    isWareHousesLoading,
   ]);
 
   // save invoice
   const [createInvoice, { isLoading: isSaving }] = useCreateInvoiceMutation();
   const handleSave = async () => {
+    // console.log(draftInvoice);
     if (newInvoice.type === "") {
       setSnackbarMessage("يجب تحديد نوع العملية");
       setSnackBarType("info");
@@ -417,7 +269,7 @@ export default function Type1() {
       if (
         newInvoice.machine_name === "" ||
         newInvoice.mechanism_name === "" ||
-        newInvoice.suplier_name === ""
+        newInvoice.supplier_name === ""
       ) {
         setSnackbarMessage("يجب ملئ اسم المورد واسم الماكينة واسم الميكانيزم");
         setSnackBarType("info");
@@ -434,8 +286,8 @@ export default function Type1() {
       return;
     }
 
-    let newRows = rows.filter(
-      (row) => row.quantity !== 0 && isNumber(row.quantity)
+    let newRows = newInvoice.items.filter(
+      (row) => Number(row.quantity) !== 0 && isNumber(Number(row.quantity))
     );
     if (
       newRows.length === 0 ||
@@ -454,44 +306,50 @@ export default function Type1() {
     }));
 
     const updatedInvoice = {
-      type: newInvoice.type,
-      client_name: newInvoice.client_name,
-      total_amount: totalAmount || 0,
-      paid: newInvoice.amount_paid || 0,
-      residual: newInvoice.amount_paid - totalAmount || 0,
+      ...newInvoice,
+      items: newRows
+        .filter((row) => row.quantity > 0)
+        .map((row) => ({
+          item_name: row.item_name,
+          barcode: row.barcode,
+          quantity: Number(row.quantity),
+          location: row.location,
+          total_price: row.total_price,
+          description: row.description,
+          unit_price: Number(row.unit_price),
+        })),
+      payment_method: newInvoice.payment_method,
+      paid: newInvoice.amount_paid,
+      residual: newInvoice.amount_paid - totalAmount,
       comment: newInvoice.comment,
-      employee_name: user.username,
-      machine_name: newInvoice.machine_name,
-      mechanism_name: newInvoice.mechanism_name,
-      supplier_name: newInvoice.suplier_name,
-      items: newRows.map((row) => ({
-        item_name: row.item_name,
-        barcode: row.barcode,
-        quantity: row.quantity,
-        location: row.location,
-        total_price: row.total_price,
-        description: row.description,
-        unit_price: Number(row.price_unit),
-      })),
     };
+
     console.log("new invoice being set: ", updatedInvoice);
     const accessToken = localStorage.getItem("access_token");
     if (!accessToken) return;
 
     try {
-      await createInvoice(updatedInvoice).unwrap();
+      // await createInvoice(updatedInvoice).unwrap();
+      await createInvoice({
+        ...updatedInvoice,
+        total_amount: updatedInvoice.items.reduce(
+          (sum, item) => sum + item.total_price,
+          0
+        ),
+      }).unwrap();
       setIsInvoiceSaved(true);
       localStorage.removeItem(LOCAL_STORAGE_KEY);
-      setRows(newRows);
       setSnackbarMessage("تم حفظ الفاتورة بنجاح");
       setSnackBarType("success");
       setOpenSnackbar(true);
-      refetch();
+      setEditingMode(false);
+      setNewInvoice(updatedInvoice);
     } catch (err) {
-      console.error("Error saving invoice:", err);
-      setSnackbarMessage(
-        "خطا في حفظ الفاتورة اذا استمرت المشكله قم باعادة تحميل الصفحة"
+      const translatedError = await translateError(
+        err?.data?.message || "An error occurred"
       );
+      setSnackbarMessage(translatedError);
+      console.error("Error saving invoice:", err);
       setSnackBarType("error");
       setOpenSnackbar(true);
     }
@@ -545,21 +403,41 @@ export default function Type1() {
     document.head.removeChild(style);
   };
 
+  const [editingMode, setEditingMode] = useState(true);
+
+  const selectedNowType = useMemo(
+    () => ({
+      type: purchasesType || operationType,
+    }),
+    [purchasesType, operationType]
+  );
+
+  const draftInvoice = useMemo(
+    () => ({
+      ...newInvoice,
+      id: voucherNumber?.last_id,
+      date,
+      time,
+      employee_name: user?.username,
+      warehouse_manager: "",
+      residual: newInvoice.amount_paid - totalAmount,
+      total_amount: totalAmount,
+    }),
+    [
+      newInvoice,
+      voucherNumber?.last_id,
+      date,
+      time,
+      user?.username,
+      totalAmount,
+    ]
+  );
+
   useEffect(() => {
-    refetch();
     refetchUser();
-    refetchSupliers();
-    refetchMachines();
-    refetchMechanisms();
     refetchVoucherNum();
-  }, [
-    refetch,
-    refetchMachines,
-    refetchMechanisms,
-    refetchSupliers,
-    refetchUser,
-    refetchVoucherNum,
-  ]);
+  }, [refetchUser, refetchVoucherNum]);
+  // console.log(newInvoice);
 
   if (isLoadingUser) {
     return (
@@ -704,809 +582,95 @@ export default function Type1() {
           </Box>
 
           {/* invoice */}
-          <Box className={styles.outerBox}>
-            <Box
-              className={`printable-box ${styles.printableBox}`}
-              sx={{
-                pointerEvents: isInvoiceSaved ? "none" : "",
-                width: "100%",
-                border: isInvoiceSaved ? "none" : "",
-              }}
-            >
-              {/* Header Section */}
-              <Box className={styles.headerSection}>
-                <Box className={styles.logoBox}>
-                  <img src={logo} alt="Logo" className={styles.logoImage} />
-                </Box>
-                <Box className={styles.operationTypeBox}>
-                  <Box className={styles.operationTypeText}>نوع العملية</Box>
-                  <Box className={styles.operationTypeName}>{lastSelected}</Box>
-                </Box>
-                <Box className={styles.infoBox}>
-                  <Box className={styles.infoItem}>
-                    <Box className={styles.infoLabel}>رقم السند:</Box>
-                    <Box className={styles.infoValue}>
-                      {isLoadingVoucher ? (
-                        <CircularProgress size={15} />
-                      ) : (
-                        voucherNumber?.last_id
-                      )}
-                    </Box>
-                  </Box>
-                  <Box className={styles.infoItem}>
-                    <Box className={styles.infoLabel}>التاريخ</Box>
-                    <Box className={styles.infoValue}>{date}</Box>
-                  </Box>
-                  <Box className={styles.infoItem}>
-                    <Box className={styles.infoLabel}>الوقت</Box>
-                    <Box className={styles.infoValue}>{time}</Box>
-                  </Box>
-                </Box>
-              </Box>
+          {isLoadingUser ? (
+            <div className={styles.loading}>
+              <CircularProgress />
+            </div>
+          ) : (
+            <>
+              <InvoiceModal
+                selectedInvoice={draftInvoice}
+                isEditingInvoice={editingMode}
+                editingInvoice={draftInvoice}
+                setEditingInvoice={setNewInvoice}
+                show={false}
+                selectedNowType={selectedNowType}
+                addRow={addRow}
+                handleDeleteItemClick={removeRow}
+                isPurchasesType={purchasesType}
+                isCreate={true}
+                showCommentField={showCommentField}
+              />
 
-              {/* Table Section */}
-              <Box className={styles.tableSection}>
-                <Table
-                  className={styles.customTable}
-                  sx={{
-                    "& .MuiTableCell-root": {
-                      border: "1px solid #b2b0b0",
-                      padding: "12px",
-                      textAlign: "center",
-                    },
-                  }}
-                >
-                  <TableBody>
-                    {/* Inputs for Suplier, Machine and Mechanism Names */}
-                    {purchasesType && (
-                      <TableRow className={styles.tableRow}>
-                        <TableCell className={styles.tableCell} colSpan={2}>
-                          اسم المورد
-                        </TableCell>
-                        <TableCell
-                          className={styles.tableInputCell}
-                          colSpan={6}
-                          sx={{
-                            padding: "0px !important",
-                          }}
-                        >
-                          {isInvoiceSaved ? (
-                            newInvoice.suplier_name
-                          ) : (
-                            <CustomAutoCompleteField
-                              loading={isSupliersLoading}
-                              values={supliers}
-                              editingItem={newInvoice}
-                              setEditingItem={setNewInvoice}
-                              fieldName="suplier_name"
-                              placeholder="اسم المورد"
-                              isOptionEqualToValue={(option, value) =>
-                                option.name === value.name
-                              }
-                            />
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    )}
-                    <TableRow className={styles.tableRow}>
-                      <TableCell className={styles.tableCell} colSpan={2}>
-                        اسم الماكينة
-                      </TableCell>
-                      <TableCell
-                        className={styles.tableInputCell}
-                        colSpan={6}
-                        sx={{
-                          padding: "0px !important",
-                        }}
-                      >
-                        {isInvoiceSaved ? (
-                          newInvoice.machine_name
-                        ) : (
-                          <CustomAutoCompleteField
-                            loading={isMachinesLoading}
-                            values={machines}
-                            editingItem={newInvoice}
-                            setEditingItem={setNewInvoice}
-                            fieldName="machine_name"
-                            placeholder="اسم الماكينة"
-                            isOptionEqualToValue={(option, value) =>
-                              option.name === value.name
-                            }
-                          />
-                        )}
-                      </TableCell>
-                    </TableRow>
-                    <TableRow className={styles.tableRow}>
-                      <TableCell className={styles.tableCell} colSpan={2}>
-                        اسم الميكانيزم
-                      </TableCell>
-                      <TableCell
-                        className={styles.tableInputCell}
-                        colSpan={6}
-                        sx={{
-                          padding: "0px !important",
-                        }}
-                      >
-                        {isInvoiceSaved ? (
-                          newInvoice.mechanism_name
-                        ) : (
-                          <CustomAutoCompleteField
-                            loading={isMechanismsLoading}
-                            values={mechanisms}
-                            editingItem={newInvoice}
-                            setEditingItem={setNewInvoice}
-                            fieldName="mechanism_name"
-                            placeholder="اسم الميكانيزم"
-                            isOptionEqualToValue={(option, value) =>
-                              option.name === value.name
-                            }
-                          />
-                        )}
-                      </TableCell>
-                    </TableRow>
-                    {/* Headers for Items */}
-                    <TableRow>
-                      <TableCell className={styles.tableCell}>
-                        <AddIcon onClick={addRow} className={styles.addIcon} />
-                      </TableCell>
-                      <TableCell className={styles.tableCell}>
-                        اسم الصنف
-                      </TableCell>
-                      <TableCell className={styles.tableCell}>الرمز</TableCell>
-                      <TableCell className={styles.tableCell}>الموقع</TableCell>
-                      <TableCell className={styles.tableCell}>الكمية</TableCell>
-                      {purchasesType && (
-                        <>
-                          <TableCell className={styles.tableCell}>
-                            سعر القطعة
-                          </TableCell>
-                          <TableCell className={styles.tableCell}>
-                            إجمالي السعر
-                          </TableCell>
-                        </>
-                      )}
-                      <TableCell className={styles.tableCell}>بيان</TableCell>
-                    </TableRow>
-                    {/* Rows for Data */}
-                    {rows.map((row, index) => (
-                      <TableRow key={index}>
-                        <TableCell
-                          className={styles.tableCellRow}
-                          sx={{
-                            position: "relative",
-                            width: "10px !important",
-                          }}
-                        >
-                          {row.counter}
-                          <IconButton
-                            variant="contained"
-                            color="error"
-                            onClick={() => removeRow(index)}
-                            className={styles.clearIcon}
-                            sx={{
-                              visibility: isInvoiceSaved ? "hidden" : "",
-                            }}
-                          >
-                            <ClearIcon fontSize="small" />
-                          </IconButton>
-                        </TableCell>
-                        <TableCell
-                          className={styles.tableCellRow}
-                          sx={{
-                            "&.MuiTableCell-root": {
-                              padding: "0px",
-                              maxWidth: "200px",
-                              whiteSpace: "normal",
-                              wordBreak: "break-word",
-                            },
-                          }}
-                        >
-                          {isInvoiceSaved ? (
-                            row.item_name
-                          ) : (
-                            <Autocomplete
-                              loading={isWareHousesLoading}
-                              slotProps={{
-                                input: {
-                                  sx: {
-                                    whiteSpace: "normal",
-                                    wordBreak: "break-word",
-                                  },
-                                },
-                                paper: {
-                                  sx: {
-                                    "& .MuiAutocomplete-listbox": {
-                                      "& .MuiAutocomplete-option": {
-                                        direction: "rtl",
-                                      },
-                                    },
-                                  },
-                                },
-                              }}
-                              value={row.item_name || ""}
-                              sx={{
-                                "& .MuiAutocomplete-clearIndicator": {
-                                  display: "none",
-                                },
-                                "& .MuiAutocomplete-popupIndicator": {
-                                  display: isInvoiceSaved ? "none" : "",
-                                },
-                                "& .MuiOutlinedInput-root": {
-                                  padding: "10px",
-                                  paddingRight: isInvoiceSaved
-                                    ? "10px!important"
-                                    : "35px!important",
-                                  fontSize: "14px",
-                                },
-                                "& .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline":
-                                  {
-                                    border: "none",
-                                  },
-                              }}
-                              options={itemNames}
-                              getOptionLabel={(option) => option}
-                              onChange={(e, newValue) =>
-                                handleItemChange(e, newValue, index)
-                              }
-                              renderInput={(params) => (
-                                <TextField
-                                  {...params}
-                                  placeholder="اسم العنصر"
-                                />
-                              )}
-                            />
-                          )}
-                        </TableCell>
-                        <TableCell className={styles.tableCellRow}>
-                          {row.barcode || ""}
-                        </TableCell>
-                        <TableCell
-                          className={styles.tableCellRow}
-                          sx={{
-                            "&.MuiTableCell-root": {
-                              padding: "0px",
-                              maxWidth: "200px",
-                              whiteSpace: "normal",
-                              wordBreak: "break-word",
-                            },
-                          }}
-                        >
-                          {isInvoiceSaved ? (
-                            row.location
-                          ) : (
-                            <Autocomplete
-                              loading={row.item_name === "" ? false : true}
-                              slotProps={{
-                                input: {
-                                  sx: {
-                                    whiteSpace: "normal",
-                                    wordBreak: "break-word",
-                                  },
-                                },
-                                paper: {
-                                  sx: {
-                                    "& .MuiAutocomplete-listbox": {
-                                      "& .MuiAutocomplete-option": {
-                                        direction: "rtl",
-                                      },
-                                    },
-                                  },
-                                },
-                              }}
-                              value={row.location || ""}
-                              sx={{
-                                "& .MuiAutocomplete-clearIndicator": {
-                                  display: "none",
-                                },
-                                "& .MuiAutocomplete-popupIndicator": {
-                                  display: isInvoiceSaved ? "none" : "",
-                                },
-                                "& .MuiOutlinedInput-root": {
-                                  padding: "10px",
-                                  paddingRight: isInvoiceSaved
-                                    ? "10px!important"
-                                    : "35px!important",
-                                  fontSize: "14px",
-                                },
-                                "& .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline":
-                                  {
-                                    border: "none",
-                                  },
-                              }}
-                              options={
-                                row.locations
-                                  ? row.locations.map((loc) => loc.location)
-                                  : []
-                              }
-                              onChange={(e, newLocation) => {
-                                handleLocationChange(
-                                  e,
-                                  newLocation,
-                                  index,
-                                  row.barcode
-                                );
-                              }}
-                              renderInput={(params) => (
-                                <TextField {...params} placeholder="الموقع" />
-                              )}
-                            />
-                          )}
-                        </TableCell>
-                        <TableCell
-                          className={styles.tableCellRow}
-                          sx={{
-                            width: isInvoiceSaved ? "" : "100px",
-                          }}
-                        >
-                          {isInvoiceSaved ? (
-                            row.quantity
-                          ) : (
-                            <NumberInput
-                              style={{
-                                width: "100px",
-                              }}
-                              max={operationType && row.maxquantity}
-                              value={row?.quantity}
-                              onInput={(e) => {
-                                if (
-                                  lastSelected !== "" &&
-                                  row.location !== ""
-                                ) {
-                                  if (e.target.value < 0) {
-                                    e.target.value = 0;
-                                  }
-                                  if (
-                                    operationType &&
-                                    e.target.value > row.maxquantity
-                                  ) {
-                                    e.target.value = row.maxquantity;
-                                  }
-                                } else {
-                                  e.target.value = 0;
-                                }
-                              }}
-                              onChange={(e) => {
-                                handleQuantityChange(
-                                  index,
-                                  e.target.value,
-                                  row.maxquantity,
-                                  row.price_unit
-                                );
-                              }}
-                              onClick={(event) => {
-                                if (
-                                  lastSelected === "" ||
-                                  row.location === ""
-                                ) {
-                                  setSnackbarMessage(
-                                    "يجب تحديد نوع العملية وموقع العنصر اولا"
-                                  );
-                                  setSnackBarType("info");
-                                  setOpenSnackbar(true);
-                                  event.target.blur();
-
-                                  return;
-                                }
-                              }}
-                              onDoubleClick={(event) => {
-                                if (
-                                  lastSelected === "" ||
-                                  row.location === ""
-                                ) {
-                                  setSnackbarMessage(
-                                    "يجب تحديد نوع العملية وموقع العنصر اولا"
-                                  );
-                                  setSnackBarType("info");
-                                  setOpenSnackbar(true);
-                                  event.target.blur();
-
-                                  return;
-                                }
-                              }}
-                              className={styles.cellInput}
-                            />
-                          )}
-                        </TableCell>
-                        {!purchasesType ? (
-                          <TableCell
-                            sx={{
-                              display: purchasesType ? "" : "none",
-                            }}
-                            className={styles.tableCellRow}
-                          >
-                            {row.price_unit}
-                          </TableCell>
-                        ) : (
-                          <TableCell
-                            className={styles.tableCellRow}
-                            sx={{
-                              width: isInvoiceSaved ? "" : "100px",
-                            }}
-                          >
-                            {isInvoiceSaved
-                              ? row.price_unit
-                              : purchasesType && (
-                                  <NumberInput
-                                    style={{
-                                      width: "100px",
-                                    }}
-                                    value={row.price_unit ?? row?.price_unit}
-                                    onInput={(e) => {
-                                      if (
-                                        lastSelected !== "" &&
-                                        row.location !== ""
-                                      ) {
-                                        if (e.target.value < 0) {
-                                          e.target.value = 0;
-                                        }
-                                      } else {
-                                        e.target.value = 0;
-                                      }
-                                    }}
-                                    onChange={(e) => {
-                                      const newValue = e.target.value;
-                                      const newTotalPrice =
-                                        (e.target.value || 0) *
-                                        (row.quantity || 0);
-                                      setRows((prevRows) => {
-                                        const newRows = [...prevRows];
-                                        newRows[index] = {
-                                          ...newRows[index],
-                                          price_unit: newValue,
-                                          total_price: Number(newTotalPrice),
-                                        };
-                                        return newRows;
-                                      });
-                                    }}
-                                    onClick={(event) => {
-                                      if (
-                                        lastSelected === "" ||
-                                        row.location === ""
-                                      ) {
-                                        setSnackbarMessage(
-                                          "يجب تحديد نوع العملية وموقع العنصر اولا"
-                                        );
-                                        setSnackBarType("info");
-                                        setOpenSnackbar(true);
-                                        event.target.blur();
-                                      }
-                                    }}
-                                    onDoubleClick={(event) => {
-                                      if (
-                                        lastSelected === "" ||
-                                        row.location === ""
-                                      ) {
-                                        setSnackbarMessage(
-                                          "يجب تحديد نوع العملية وموقع العنصر اولا"
-                                        );
-                                        setSnackBarType("info");
-                                        setOpenSnackbar(true);
-                                        event.target.blur();
-                                      }
-                                    }}
-                                    className={styles.cellInput}
-                                  />
-                                )}
-                          </TableCell>
-                        )}
-                        <TableCell
-                          sx={{
-                            display: purchasesType ? "" : "none",
-                          }}
-                          className={styles.tableCellRow}
-                        >
-                          {
-                            // operationType ?
-                            row.total_price
-                            // : (row.unit_price || 0) * (row.quantity || 0)
-                          }
-                        </TableCell>
-                        <TableCell
-                          className={styles.tableCellRow}
-                          sx={{
-                            maxWidth: "150px",
-                            whiteSpace: "normal",
-                            wordWrap: "break-word",
-                          }}
-                        >
-                          {isInvoiceSaved ? (
-                            row.description
-                          ) : (
-                            <textarea
-                              value={row.description}
-                              onChange={(e) =>
-                                setRows(
-                                  rows.map((row, rowIndex) => {
-                                    if (rowIndex === index) {
-                                      return {
-                                        ...row,
-                                        description: e.target.value,
-                                      };
-                                    } else {
-                                      return row;
-                                    }
-                                  })
-                                )
-                              }
-                              className={styles.cellInput}
-                              style={{
-                                whiteSpace: "normal",
-                                wordWrap: "break-word",
-                                resize: "none",
-                                width: "100%",
-                              }}
-                            />
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </Box>
-
-              {/* Total Amount Section */}
-              {purchasesType && (
-                <>
-                  <Box className={styles.MoneySection}>
-                    <Box className={styles.MoneyBox}>
-                      <Box className={styles.MoneyLabel}>الإجمالي</Box>
-                      <Box
-                        className={styles.MoneyValue}
-                        sx={{ marginBottom: isInvoiceSaved ? "" : "10px" }}
-                      >
-                        {totalAmount}
-                      </Box>
-                    </Box>
-                    <Box className={styles.MoneyBox}>
-                      <Box className={styles.MoneyLabel}>طريقة الدفع</Box>
-                      <Box
-                        className={styles.MoneyValue}
-                        sx={{ padding: "0px" }}
-                      >
-                        {isInvoiceSaved ? (
-                          newInvoice.payment_method
-                        ) : (
-                          <Autocomplete
-                            loading={true}
-                            slotProps={{
-                              paper: {
-                                sx: {
-                                  "& .MuiAutocomplete-listbox": {
-                                    "& .MuiAutocomplete-option": {
-                                      direction: "rtl",
-                                    },
-                                  },
-                                },
-                              },
-                            }}
-                            options={[
-                              { label: "Cash", value: "Cash" },
-                              { label: "Visa", value: "Visa" },
-                            ]}
-                            getOptionLabel={(option) => option.label}
-                            value={
-                              [
-                                { label: "Cash", value: "Cash" },
-                                { label: "Visa", value: "Visa" },
-                              ].find(
-                                (option) =>
-                                  option.value === newInvoice.payment_method
-                              ) || null
-                            }
-                            onChange={(event, newValue) => {
-                              setNewInvoice({
-                                ...newInvoice,
-                                payment_method: newValue ? newValue.value : "",
-                              });
-                            }}
-                            sx={{
-                              minWidth: "200px",
-
-                              "& .MuiAutocomplete-clearIndicator": {
-                                display: "none",
-                              },
-                              "& .MuiAutocomplete-popupIndicator": {
-                                display: isInvoiceSaved ? "none" : "",
-                              },
-                              "& .MuiOutlinedInput-root": {
-                                paddingRight: isInvoiceSaved
-                                  ? "10px!important"
-                                  : "35px!important",
-                                fontSize: "1rem",
-                                padding: "0",
-                                paddingLeft: isInvoiceSaved ? "" : "35px",
-                              },
-                              "& .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline":
-                                {
-                                  border: "none",
-                                },
-                              "& .MuiInputBase-input": {
-                                textAlign: "center",
-                              },
-                            }}
-                            renderInput={(params) => (
-                              <TextField
-                                {...params}
-                                placeholder="طريقة الدفع"
-                                fullWidth
-                              />
-                            )}
-                            isOptionEqualToValue={(option, value) =>
-                              option.value === value.value
-                            }
-                          />
-                        )}
-                      </Box>
-                    </Box>
-                    <Box className={styles.MoneyBox}>
-                      <Box className={styles.MoneyLabel}>المدفوع</Box>
-                      <Box className={styles.MoneyValue}>
-                        {isInvoiceSaved ? (
-                          newInvoice.amount_paid || 0
-                        ) : (
-                          <NumberInput
-                            style={{
-                              width: "100%",
-                              border: "none",
-                              outline: "none",
-                              height: "40px",
-                              fontSize: "1rem",
-                              textAlign: "center",
-                              paddingRight: isInvoiceSaved ? "" : "15px",
-                            }}
-                            value={newInvoice.amount_paid}
-                            onChange={(e) =>
-                              setNewInvoice({
-                                ...newInvoice,
-                                amount_paid: parseFloat(e.target.value),
-                              })
-                            }
-                          />
-                        )}
-                      </Box>
-                    </Box>
-                    <Box className={styles.MoneyBox}>
-                      <Box className={styles.MoneyLabel}>المتبقى</Box>
-                      <Box
-                        className={styles.MoneyValue}
-                        sx={{ marginBottom: isInvoiceSaved ? "" : "10px" }}
-                      >
-                        {newInvoice.amount_paid - totalAmount || 0}
-                      </Box>
-                    </Box>
-                  </Box>
-                </>
-              )}
-
-              {/* Comment Field */}
-              {showCommentField && (
-                <Box className={styles.commentFieldBox}>
-                  <TextField
-                    multiline
-                    rows={2}
-                    value={newInvoice.comment}
-                    onChange={(e) =>
-                      setNewInvoice({
-                        ...newInvoice,
-                        comment: e.target.value,
-                      })
-                    }
-                    variant="outlined"
-                    fullWidth
-                    className={styles.commentTextField}
-                    sx={{
-                      "& .MuiOutlinedInput-input": {
-                        textAlign: "center",
-                      },
-                    }}
-                  />
-                </Box>
-              )}
-
-              {/* Information Section */}
-              <Box className={styles.infoSection}>
-                <Box className={styles.infoItemBox}>
-                  <Box className={styles.infoLabel}>اسم الموظف</Box>
-                  <Box className={styles.infoValue}>
-                    {isLoadingUser ? (
-                      <CircularProgress size={15} />
-                    ) : (
-                      user?.username
-                    )}
-                  </Box>
-                </Box>
-                <Box className={styles.infoItemBox}>
-                  <Box className={styles.infoLabel}>اسم المستلم</Box>
-                  {isInvoiceSaved ? (
-                    <div>{newInvoice.client_name}</div>
+              {/* Add Comment Button */}
+              {!isInvoiceSaved ? (
+                <Box className={styles.buttonsSection}>
+                  {!showCommentField ? (
+                    <Button
+                      variant="contained"
+                      color="success"
+                      onClick={handleAddComment}
+                      className={`${styles.addCommentButton} ${styles.infoBtn}`}
+                    >
+                      تعليق
+                    </Button>
                   ) : (
-                    <input
-                      type="text"
-                      value={newInvoice.client_name}
-                      onChange={(e) =>
-                        setNewInvoice({
-                          ...newInvoice,
-                          client_name: e.target.value,
-                        })
-                      }
-                      className={styles.infoInput}
-                    />
+                    <Button
+                      variant="outlined"
+                      color="error"
+                      onClick={handleCancelComment}
+                      className={`${styles.cancelCommentButton} ${styles.infoBtn}`}
+                    >
+                      الغاء
+                    </Button>
                   )}
-                </Box>
-                <Box className={styles.infoItemBox}>
-                  <Box className={styles.infoLabel}>عامل المخازن </Box>
-                </Box>
-              </Box>
-            </Box>
 
-            {/* Add Comment Button */}
-            {!isInvoiceSaved ? (
-              <Box className={styles.buttonsSection}>
-                {!showCommentField ? (
                   <Button
                     variant="contained"
-                    color="success"
-                    onClick={handleAddComment}
-                    className={`${styles.addCommentButton} ${styles.infoBtn}`}
+                    color="primary"
+                    onClick={handleSave}
+                    className={`${styles.saveButton} ${styles.infoBtn}`}
+                    disabled={isSaving}
                   >
-                    تعليق
+                    {isSaving ? (
+                      <CircularProgress size={24} sx={{ color: "white" }} />
+                    ) : (
+                      "تأكيد"
+                    )}
                   </Button>
-                ) : (
+
                   <Button
-                    variant="outlined"
-                    color="error"
-                    onClick={handleCancelComment}
-                    className={`${styles.cancelCommentButton} ${styles.infoBtn}`}
+                    variant="contained"
+                    color="info"
+                    onClick={clearInvoice}
+                    className={`${styles.printButton} ${styles.infoBtn}`}
                   >
-                    الغاء
+                    فاتورة جديدة
                   </Button>
-                )}
+                </Box>
+              ) : (
+                <Box className={styles.buttonsSection}>
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    onClick={clearInvoice}
+                    className={`${styles.saveButton} ${styles.infoBtn}`}
+                  >
+                    فاتورة جديدة
+                  </Button>
 
-                <Button
-                  variant="contained"
-                  color="primary"
-                  onClick={handleSave}
-                  className={`${styles.saveButton} ${styles.infoBtn}`}
-                  disabled={isSaving}
-                >
-                  {isSaving ? (
-                    <CircularProgress size={24} sx={{ color: "white" }} />
-                  ) : (
-                    "تأكيد"
-                  )}
-                </Button>
-
-                <Button
-                  variant="contained"
-                  color="info"
-                  onClick={clearInvoice}
-                  className={`${styles.printButton} ${styles.infoBtn}`}
-                >
-                  فاتورة جديدة
-                </Button>
-              </Box>
-            ) : (
-              <Box className={styles.buttonsSection}>
-                <Button
-                  variant="contained"
-                  color="primary"
-                  onClick={clearInvoice}
-                  className={`${styles.saveButton} ${styles.infoBtn}`}
-                >
-                  فاتورة جديدة
-                </Button>
-
-                <Button
-                  variant="contained"
-                  color="info"
-                  onClick={handlePrint}
-                  className={`${styles.printButton} ${styles.infoBtn}`}
-                >
-                  طباعة الفاتورة
-                </Button>
-              </Box>
-            )}
-          </Box>
+                  <Button
+                    variant="contained"
+                    color="info"
+                    onClick={handlePrint}
+                    className={`${styles.printButton} ${styles.infoBtn}`}
+                  >
+                    طباعة الفاتورة
+                  </Button>
+                </Box>
+              )}
+            </>
+          )}
 
           {/* Snackbar */}
           <SnackBar

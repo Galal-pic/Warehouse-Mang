@@ -10,6 +10,7 @@ import SnackBar from "../../components/snackBar/SnackBar";
 import { CustomTextField } from "../../components/customTextField/CustomTextField";
 import CircularProgress from "@mui/material/CircularProgress";
 import { useGetUserQuery } from "../services/userApi";
+import { translateError } from "../../components/translateError/translateError";
 
 const Login = () => {
   const { data: user, isLoading: isLoadingUser, refetch } = useGetUserQuery();
@@ -32,7 +33,6 @@ const Login = () => {
     setOpenSnackbar(false);
   };
 
-  // Handle login
   const handleSubmit = async (e) => {
     e.preventDefault();
     setNameError("");
@@ -64,11 +64,16 @@ const Login = () => {
       });
 
       if (!response.ok) {
-        setSnackbarMessage(
-          "فشل تسجيل الدخول. يرجى التحقق من البيانات الخاصة بك."
-        );
+        const errorResponse = await response.json();
+        // const translatedError = await translateError(
+        //   errorResponse?.message || "فشل تسجيل الدخول"
+        // );
+        // setSnackbarMessage(translatedError);
+
+        if (errorResponse?.message === "Invalid credentials") {
+          setSnackbarMessage("اسم المستخدم أو كلمة المرور غير صحيحة");
+        }
         setOpenSnackbar(true);
-        throw new Error("Network response was not ok");
       }
 
       const data = await response.json();
@@ -120,10 +125,6 @@ const Login = () => {
       }
     } catch (error) {
       console.error("Error:", error);
-      setSnackbarMessage(
-        "اسم المستخدم أو كلمة المرور خاطئة، يرجى المحاولة مرة أخرى"
-      );
-      setOpenSnackbar(true);
     } finally {
       setIsLoading(false);
     }
