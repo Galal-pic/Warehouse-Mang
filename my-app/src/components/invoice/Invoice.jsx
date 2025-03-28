@@ -32,6 +32,7 @@ export default function InvoiceModal({
   isCreate = false,
   showCommentField = false,
 }) {
+  // data from api
   const {
     data: suppliers,
     isLoading: isSupliersLoading,
@@ -56,6 +57,7 @@ export default function InvoiceModal({
     refetch: refetchWarehouses,
   } = useGetWarehousesQuery(undefined, { pollingInterval: 300000 });
 
+  // handle items, warehouses and locations
   const warehouseMap = useMemo(() => {
     const map = new Map();
     if (!Array.isArray(warehouse)) return map;
@@ -66,13 +68,11 @@ export default function InvoiceModal({
     });
     return map;
   }, [warehouse]);
-
   const itemNames = useMemo(() => {
     return Array.isArray(warehouse)
       ? warehouse.map((item) => item.item_name)
       : [];
   }, [warehouse]);
-
   useEffect(() => {
     if (warehouseMap && editingInvoice && selectedNowType?.type !== "اضافه") {
       const updatedItems = editingInvoice.items.map((item) => {
@@ -93,11 +93,11 @@ export default function InvoiceModal({
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackBarType, setSnackBarType] = useState("");
-  // Handle close snack
   const handleCloseSnackbar = () => {
     setOpenSnackbar(false);
   };
 
+  // refeatch data
   useEffect(() => {
     refetchMachines();
     refetchMechanisms();
@@ -555,7 +555,7 @@ export default function InvoiceModal({
                           const updatedItems = [...editingInvoice.items];
                           updatedItems[index] = {
                             ...row,
-                            quantity: newQuantity,
+                            quantity: e.target.value,
                             total_price:
                               selectedNowType?.type === "purchase"
                                 ? newQuantity * row.unit_price
@@ -581,10 +581,6 @@ export default function InvoiceModal({
                   {(show || isPurchasesType) && (
                     <>
                       {!isEditingInvoice ? (
-                        <TableCell className={styles.tableCellRow}>
-                          {row.unit_price}
-                        </TableCell>
-                      ) : selectedNowType?.type !== "purchase" && !isCreate ? (
                         <TableCell className={styles.tableCellRow}>
                           {row.unit_price}
                         </TableCell>
@@ -629,14 +625,14 @@ export default function InvoiceModal({
                                 e.target.blur();
                                 return;
                               }
-                              const newValue = Number(e.target.value);
                               const newTotalPrice =
-                                (e.target.value || 0) * (row.quantity || 0);
+                                (Number(e.target.value) || 0) *
+                                (row.quantity || 0);
 
                               const updatedItems = [...editingInvoice.items];
                               updatedItems[index] = {
                                 ...row,
-                                unit_price: newValue,
+                                unit_price: e.target.value,
                                 total_price: newTotalPrice,
                               };
                               const totalAmount = updatedItems.reduce(

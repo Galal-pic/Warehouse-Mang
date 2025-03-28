@@ -21,9 +21,6 @@ import CustomDataGrid from "../../components/dataGrid/CustomDataGrid";
 import FilterTabs from "../../components/filter/Filter";
 import { filtersTypes } from "../../components/filter/Filter";
 import { useGetUserQuery } from "../services/userApi";
-import { useGetSuppliersQuery } from "../services/supplierApi";
-import { useGetMachinesQuery } from "../services/machineApi";
-import { useGetMechanismsQuery } from "../services/mechanismApi";
 import { useGetWarehousesQuery } from "../services/warehouseApi";
 import {
   useGetInvoicesQuery,
@@ -41,6 +38,10 @@ import InvoiceModal from "../../components/invoice/Invoice";
 import { translateError } from "../../components/translateError/translateError";
 
 export default function Invoices() {
+  // RTK Query Hooks
+  const { data: warehouse = [], refetch } = useGetWarehousesQuery(undefined, {
+    pollingInterval: 300000,
+  });
   const {
     data: user,
     isLoading: isLoadingUser,
@@ -60,31 +61,6 @@ export default function Invoices() {
   const [isArrayDeleting, setIsArrayDeleting] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [isInvoiceDeleting, setIsInvoiceDeleting] = useState(false);
-
-  // RTK Query Hooks
-  const {
-    data: suppliers = [],
-    isLoading: isSupliersLoading,
-    refetch: refetchSupliers,
-  } = useGetSuppliersQuery(undefined, { pollingInterval: 300000 });
-
-  const {
-    data: machines = [],
-    isLoading: isMachinesLoading,
-    refetch: refetchMachines,
-  } = useGetMachinesQuery(undefined, { pollingInterval: 300000 });
-
-  const {
-    data: mechanisms = [],
-    isLoading: isMechanismsLoading,
-    refetch: refetchMechanisms,
-  } = useGetMechanismsQuery(undefined, { pollingInterval: 300000 });
-
-  const {
-    data: warehouse = [],
-    isLoading: isWareHousesLoading,
-    refetch,
-  } = useGetWarehousesQuery(undefined, { pollingInterval: 300000 });
 
   // Invoices query with automatic refetch
   const {
@@ -112,6 +88,16 @@ export default function Invoices() {
   };
 
   // Transformed invoices state
+  const warehouseMap = useMemo(() => {
+    const map = new Map();
+
+    if (!Array.isArray(warehouse) || warehouse.length === 0) {
+      return map;
+    }
+
+    warehouse?.forEach((item) => map.set(item.item_name, item));
+    return map;
+  }, [warehouse]);
   const invoices = useMemo(() => {
     if (!invoicesData || !warehouse) return [];
     const warehouseMap = new Map();
@@ -144,7 +130,6 @@ export default function Invoices() {
         };
       });
   }, [invoicesData, warehouse]);
-
   const handleEditInfo = (invoice) => {
     setEditingInvoice(invoice);
     setIsEditingInvoice(true);
@@ -435,7 +420,6 @@ export default function Invoices() {
     setSelectedInvoice({ ...invoice, items });
     setIsModalOpen(true);
   };
-
   const closeModal = () => {
     setSelectedInvoice(null);
     setIsModalOpen(false);
@@ -812,22 +796,6 @@ export default function Invoices() {
     setPaginationModel((prev) => ({ ...prev, ...newModel }));
   };
 
-  const warehouseMap = useMemo(() => {
-    const map = new Map();
-
-    if (!Array.isArray(warehouse) || warehouse.length === 0) {
-      return map;
-    }
-
-    warehouse?.forEach((item) => map.set(item.item_name, item));
-    return map;
-  }, [warehouse]);
-  const itemNames = useMemo(() => {
-    return Array.isArray(warehouse)
-      ? warehouse.map((item) => item.item_name)
-      : [];
-  }, [warehouse]);
-
   // edited invoice
   const [isEditingInvoice, setIsEditingInvoice] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState(null);
@@ -961,18 +929,8 @@ export default function Invoices() {
   useEffect(() => {
     refetch();
     refetchUser();
-    refetchSupliers();
-    refetchMachines();
-    refetchMechanisms();
     refetchInvoices();
-  }, [
-    refetch,
-    refetchInvoices,
-    refetchMachines,
-    refetchMechanisms,
-    refetchSupliers,
-    refetchUser,
-  ]);
+  }, [refetch, refetchInvoices, refetchUser]);
 
   if (isLoadingUser) {
     return (
@@ -1149,15 +1107,6 @@ export default function Invoices() {
                   setEditingInvoice={setEditingInvoice}
                   show={show}
                   selectedNowType={selectedNowType}
-                  suppliers={suppliers}
-                  isSupliersLoading={isSupliersLoading}
-                  machines={machines}
-                  isMachinesLoading={isMachinesLoading}
-                  mechanisms={mechanisms}
-                  isMechanismsLoading={isMechanismsLoading}
-                  warehouseMap={warehouseMap}
-                  itemNames={itemNames}
-                  isWareHousesLoading={isWareHousesLoading}
                   addRow={addRow}
                   handleDeleteItemClick={handleDeleteItemClick}
                 />
