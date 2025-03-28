@@ -74,18 +74,20 @@ export default function InvoiceModal({
   }, [warehouse]);
 
   useEffect(() => {
-    if (warehouseMap && editingInvoice) {
+    if (warehouseMap && editingInvoice && selectedNowType?.type !== "اضافه") {
       const updatedItems = editingInvoice.items.map((item) => {
-        const warehouseItem = warehouseMap.get(item.item_name);
+        const warehouseItem = warehouseMap.get(
+          item.item_name?.trim()?.toLowerCase()
+        );
         return {
           ...item,
           availableLocations: warehouseItem?.locations || [],
-          unit_price: warehouseItem?.price_unit || 0,
+          unit_price: Number(warehouseItem?.unit_price) || 0,
         };
       });
       setEditingInvoice({ ...editingInvoice, items: updatedItems });
     }
-  }, [warehouseMap]);
+  }, [warehouseMap, selectedNowType?.type]);
 
   // snackbar
   const [openSnackbar, setOpenSnackbar] = useState(false);
@@ -108,6 +110,7 @@ export default function InvoiceModal({
     refetchWarehouses,
     selectedInvoice,
   ]);
+
   return (
     <>
       <div
@@ -353,7 +356,7 @@ export default function InvoiceModal({
                             barcode: selectedItem?.item_bar || "",
                             location: "",
                             quantity: 0,
-                            priceunit: 0,
+                            unit_price: 0,
                             total_price: 0,
                             availableLocations: selectedItem?.locations || [],
                           };
@@ -454,11 +457,11 @@ export default function InvoiceModal({
                             ...updatedItems[index],
                             location: newValue?.location || "",
                             quantity: 0,
-                            priceunit:
-                              newValue?.price_unit &&
-                              selectedNowType?.type !== "purchase"
-                                ? newValue.price_unit
-                                : 0,
+                            unit_price:
+                              newValue?.unit_price &&
+                              selectedNowType?.type !== "اضافه"
+                                ? newValue.unit_price
+                                : row.unit_price,
                             total_price: 0,
                             maxquantity: newValue?.quantity + row.quantity,
                           };
@@ -558,9 +561,8 @@ export default function InvoiceModal({
                                 ? newQuantity * row.unit_price
                                 : isPurchasesType
                                 ? newQuantity * Number(row.unit_price)
-                                : newQuantity * row.priceunit,
+                                : newQuantity * row.unit_price,
                           };
-                          console.log(editingInvoice);
                           const totalAmount = updatedItems.reduce(
                             (sum, item) => sum + (item.total_price || 0),
                             0
@@ -584,7 +586,7 @@ export default function InvoiceModal({
                         </TableCell>
                       ) : selectedNowType?.type !== "purchase" && !isCreate ? (
                         <TableCell className={styles.tableCellRow}>
-                          {row.priceunit}
+                          {row.unit_price}
                         </TableCell>
                       ) : (
                         <TableCell
@@ -627,7 +629,7 @@ export default function InvoiceModal({
                                 e.target.blur();
                                 return;
                               }
-                              const newValue = e.target.value;
+                              const newValue = Number(e.target.value);
                               const newTotalPrice =
                                 (e.target.value || 0) * (row.quantity || 0);
 
@@ -785,7 +787,10 @@ export default function InvoiceModal({
                           });
                         }}
                         sx={{
-                          minWidth: editingInvoice.payment_method === "Custody" ? "30%" : "200px",
+                          minWidth:
+                            editingInvoice.payment_method === "Custody"
+                              ? "30%"
+                              : "200px",
                           "& .MuiAutocomplete-clearIndicator": {
                             display: "none",
                           },
@@ -867,10 +872,8 @@ export default function InvoiceModal({
                   className={styles.MoneyValue}
                   sx={{ marginBottom: "10px" }}
                 >
-                  {isEditingInvoice
-                    ? (editingInvoice.paid || 0) -
-                      (editingInvoice.total_amount || 0)
-                    : selectedInvoice?.residual}
+                  {(editingInvoice.paid || 0) -
+                    (editingInvoice.total_amount || 0)}
                 </Box>
               </Box>
             </Box>{" "}

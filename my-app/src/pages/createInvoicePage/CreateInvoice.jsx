@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Box,
   Select,
@@ -10,125 +10,74 @@ import {
 import styles from "./CreateInvoice.module.css";
 import SnackBar from "../../components/snackBar/SnackBar";
 import CircularProgress from "@mui/material/CircularProgress";
-import { isNumber } from "@mui/x-data-grid/internals";
+import InvoiceModal from "../../components/invoice/Invoice";
+import { translateError } from "../../components/translateError/translateError";
 
-// Import RTK Query hooks
+// RTK Query hooks
 import { useGetUserQuery } from "../services/userApi";
 import {
   useGetLastInvoiceIdQuery,
   useCreateInvoiceMutation,
 } from "../services/invoiceApi";
-import InvoiceModal from "../../components/invoice/Invoice";
-import { translateError } from "../../components/translateError/translateError";
 
-export default function Type1() {
-  // Operation Type Selection
-  const [lastSelected, setLastSelected] = useState("");
-  const operationTypes = ["صرف", "أمانات", "مرتجع", "توالف", "حجز"];
-  const purchasesTypes = ["اضافه"];
+// Constants
+const operationTypes = ["صرف", "أمانات", "مرتجع", "توالف", "حجز"];
+const purchasesTypes = ["اضافه"];
+const LOCAL_STORAGE_KEY = "invoiceDraft";
+
+const initialInvoiceState = {
+  supplier_name: "",
+  type: "",
+  client_name: "",
+  warehouse_manager: "",
+  total_amount: 0,
+  employee_name: "",
+  machine_name: "",
+  mechanism_name: "",
+  items: [
+    {
+      item_name: "",
+      barcode: "",
+      quantity: 0,
+      location: "",
+      unit_price: 0,
+      total_price: 0,
+      description: "",
+    },
+  ],
+  comment: "",
+  payment_method: "Cash",
+  amount_paid: 0,
+  remain_amount: 0,
+};
+
+export default function CreateInvoice() {
+  // State management
   const [operationType, setOperationType] = useState("");
   const [purchasesType, setPurchasesType] = useState("");
-  useEffect(() => {
-    if (operationType !== "") {
-      setLastSelected(operationType);
-      setPurchasesType("");
-    }
-    if (operationType || purchasesType) {
-      setNewInvoice({
-        ...newInvoice,
-        type: operationType || purchasesType,
-      });
-    }
-  }, [operationType]);
-  useEffect(() => {
-    if (purchasesType !== "") {
-      setLastSelected(purchasesType);
-      setOperationType("");
-    }
-    if (operationType || purchasesType) {
-      setNewInvoice({
-        ...newInvoice,
-        type: operationType || purchasesType,
-      });
-    }
-  }, [purchasesType]);
+  const [showCommentField, setShowCommentField] = useState(false);
+  const [isInvoiceSaved, setIsInvoiceSaved] = useState(false);
+  const [editingMode, setEditingMode] = useState(true);
 
-  // create new invoice
-  const [newInvoice, setNewInvoice] = useState({
-    supplier_name: "",
-    type: lastSelected,
-    client_name: "",
-    warehouse_manager: "",
-    total_amount: 0,
-    employee_name: "",
-    machine_name: "",
-    mechanism_name: "",
-    items: [
-      {
-        item_name: "",
-        barcode: "",
-        quantity: 0,
-        location: "",
-        price_unit: 0,
-        total_price: 0,
-        description: "",
-      },
-    ],
-    comment: "",
-    payment_method: "Cash",
-    amount_paid: 0,
-    remain_amount: 0,
+  // Invoice data state
+  const [newInvoice, setNewInvoice] = useState(() => {
+    const savedDraft = localStorage.getItem(LOCAL_STORAGE_KEY);
+    return savedDraft ? JSON.parse(savedDraft).newInvoice : initialInvoiceState;
   });
 
-  // Fetch data using RTK Query
-  const {
-    data: user,
-    isLoading: isLoadingUser,
-    refetch: refetchUser,
-  } = useGetUserQuery();
+  // Snackbar state
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: "",
+    type: "",
+  });
 
-  const {
-    data: voucherNumber,
-    isLoading: isLoadingVoucher,
-    refetch: refetchVoucherNum,
-  } = useGetLastInvoiceIdQuery(undefined, { pollingInterval: 300000 });
+  // RTK Queries
+  const { data: user, isLoading: isLoadingUser } = useGetUserQuery();
+  const { data: voucherNumber } = useGetLastInvoiceIdQuery();
+  const [createInvoice, { isLoading: isSaving }] = useCreateInvoiceMutation();
 
-  // comment field
-  const [showCommentField, setShowCommentField] = useState(false);
-  const handleAddComment = () => {
-    setShowCommentField(true);
-  };
-  const handleCancelComment = () => {
-    setShowCommentField(false);
-  };
-
-  // create, add, remove item
-  const addRow = () => {
-    setNewInvoice((prev) => ({
-      ...prev,
-      items: [
-        ...prev.items,
-        {
-          item_name: "",
-          barcode: "",
-          quantity: 0,
-          location: "",
-          price_unit: 0,
-          total_price: 0,
-          description: "",
-          availableLocations: [],
-        },
-      ],
-    }));
-  };
-  const removeRow = (index) => {
-    setNewInvoice((prev) => ({
-      ...prev,
-      items: prev.items.filter((_, i) => i !== index),
-    }));
-  };
-
-  // Calculate the total
+  // Derived values
   const totalAmount = useMemo(
     () =>
       newInvoice.items
@@ -137,109 +86,69 @@ export default function Type1() {
     [newInvoice.items]
   );
 
-  // save invoice or not
-  const [isInvoiceSaved, setIsInvoiceSaved] = useState(false);
+  const selectedNowType = useMemo(
+    () => ({
+      type: purchasesType || operationType,
+    }),
+    [purchasesType, operationType]
+  );
 
-  // Clear Invoice
-  const clearInvoice = () => {
-    localStorage.removeItem(LOCAL_STORAGE_KEY);
-    setNewInvoice({
-      supplier_name: "",
-      type: "",
-      client_name: "",
-      warehouse_manager: "",
-      total_amount: 0,
-      employee_name: "",
-      machine_name: "",
-      mechanism_name: "",
-      items: [
-        {
-          item_name: "",
-          barcode: "",
-          quantity: 0,
-          location: "",
-          price_unit: 0,
-          total_price: 0,
-          description: "",
-        },
-      ],
-      comment: "",
-      payment_method: "Cash",
-      amount_paid: 0,
-      remain_amount: 0,
-    });
-    setShowCommentField(false);
-    setIsInvoiceSaved(false);
-    setLastSelected("");
-    setPurchasesType("");
-    setOperationType("");
-    setEditingMode(true);
-  };
-
-  // Get Date and Time
+  // Date and time handling
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
+
   useEffect(() => {
     const today = new Date();
-    const formattedDate = today.toLocaleDateString({
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-    const formattedTime = today.toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    });
-    setDate(formattedDate);
-    setTime(formattedTime);
+    setDate(today.toISOString().split("T")[0]);
+    setTime(
+      today.toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      })
+    ); // h:mm AM/PM
   }, [isInvoiceSaved]);
 
-  // snackbar
-  const [openSnackbar, setOpenSnackbar] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState("");
-  const [snackBarType, setSnackBarType] = useState("");
-  const handleCloseSnackbar = () => {
-    setOpenSnackbar(false);
-  };
-
-  // handle local storage
-  const LOCAL_STORAGE_KEY = "invoiceDraft";
-  useEffect(() => {
-    // if (!isWareHousesLoading) {
-    const savedDraft = localStorage.getItem(LOCAL_STORAGE_KEY);
-    if (savedDraft) {
-      const draft = JSON.parse(savedDraft);
-      // const updatedRows = draft.rows.map((row) => {
-      //   const warehouseItem = warehouse?.find(
-      //     (item) => item.item_name === row.item_name
-      //   );
-      //   return {
-      //     ...row,
-      //     locations: warehouseItem?.locations || [],
-      //     maxquantity:
-      //       warehouseItem?.locations?.find((l) => l.location === row.location)
-      //         ?.quantity || 0,
-      //   };
-      // });
-
-      setNewInvoice(draft.newInvoice);
-      // setRows(updatedRows);
-      setOperationType(draft.operationType);
-      setPurchasesType(draft.purchasesType);
-      setLastSelected(draft.lastSelected);
-      setShowCommentField(draft.showCommentField);
-      setIsInvoiceSaved(draft.isInvoiceSaved || false);
+  // Type selection handler
+  const handleTypeChange = useCallback((type, isPurchase) => {
+    if (isPurchase) {
+      setPurchasesType(type);
+      setOperationType("");
+    } else {
+      setOperationType(type);
+      setPurchasesType("");
     }
-    // }
   }, []);
+
+  useEffect(() => {
+    setNewInvoice((prev) => ({
+      ...prev,
+      type: operationType || purchasesType,
+    }));
+  }, [operationType, purchasesType]);
+
+  // Items management
+  const addRow = useCallback(() => {
+    setNewInvoice((prev) => ({
+      ...prev,
+      items: [...prev.items, { ...initialInvoiceState.items[0] }],
+    }));
+  }, []);
+
+  const removeRow = useCallback((index) => {
+    setNewInvoice((prev) => ({
+      ...prev,
+      items: prev.items.filter((_, i) => i !== index),
+    }));
+  }, []);
+
+  // Local storage persistence
   useEffect(() => {
     if (!isInvoiceSaved) {
       const draft = {
         newInvoice,
         operationType,
         purchasesType,
-        lastSelected,
         showCommentField,
         isInvoiceSaved,
       };
@@ -249,112 +158,92 @@ export default function Type1() {
     newInvoice,
     operationType,
     purchasesType,
-    lastSelected,
     showCommentField,
     isInvoiceSaved,
   ]);
 
-  // save invoice
-  const [createInvoice, { isLoading: isSaving }] = useCreateInvoiceMutation();
-  const handleSave = async () => {
-    // console.log(draftInvoice);
-    if (newInvoice.type === "") {
-      setSnackbarMessage("يجب تحديد نوع العملية");
-      setSnackBarType("info");
-      setOpenSnackbar(true);
-      return;
-    }
+  // Validation helpers
+  const validateRequiredFields = () => {
+    if (!newInvoice.type) return "يجب تحديد نوع العملية";
 
-    if (purchasesType) {
-      if (
-        newInvoice.machine_name === "" ||
-        newInvoice.mechanism_name === "" ||
-        newInvoice.supplier_name === ""
-      ) {
-        setSnackbarMessage("يجب ملئ اسم المورد واسم الماكينة واسم الميكانيزم");
-        setSnackBarType("info");
-        setOpenSnackbar(true);
-        return;
-      }
-    } else if (
-      newInvoice.machine_name === "" ||
-      newInvoice.mechanism_name === ""
-    ) {
-      setSnackbarMessage("يجب ملئ اسم الماكينة واسم الميكانيزم");
-      setSnackBarType("info");
-      setOpenSnackbar(true);
-      return;
-    }
+    const requiredFields = purchasesType
+      ? ["machine_name", "mechanism_name", "supplier_name"]
+      : ["machine_name", "mechanism_name"];
 
-    let newRows = newInvoice.items.filter(
-      (row) => Number(row.quantity) !== 0 && isNumber(Number(row.quantity))
+    const missingFields = requiredFields.filter((field) => !newInvoice[field]);
+
+    if (missingFields.length > 0) {
+      return purchasesType
+        ? "يجب ملء اسم المورد واسم الماكينة واسم الميكانيزم"
+        : "يجب ملء اسم الماكينة واسم الميكانيزم";
+    }
+    return null;
+  };
+
+  const validateItems = () => {
+    const validItems = newInvoice.items.filter(
+      (item) => Number(item.quantity) > 0 && !isNaN(Number(item.quantity))
     );
-    if (
-      newRows.length === 0 ||
-      (newRows.length === 1 && isNaN(newRows[0].quantity)) ||
-      (newRows.length === 1 && newRows[0].quantity === "")
-    ) {
-      setSnackbarMessage("يجب ملء عنصر واحد على الأقل");
-      setSnackBarType("warning");
-      setOpenSnackbar(true);
+
+    if (validItems.length === 0) return "يجب ملء عنصر واحد على الأقل";
+    return null;
+  };
+
+  // Save invoice handler
+  const handleSave = async () => {
+    const fieldError = validateRequiredFields() || validateItems();
+    if (fieldError) {
+      setSnackbar({ open: true, message: fieldError, type: "error" });
       return;
     }
 
-    newRows = newRows.map((row, index) => ({
-      ...row,
-      counter: index + 1,
-    }));
-
-    const updatedInvoice = {
+    const invoiceData = {
       ...newInvoice,
-      items: newRows
-        .filter((row) => row.quantity > 0)
-        .map((row) => ({
-          item_name: row.item_name,
-          barcode: row.barcode,
-          quantity: Number(row.quantity),
-          location: row.location,
-          total_price: row.total_price,
-          description: row.description,
-          unit_price: Number(row.unit_price),
+      items: newInvoice.items
+        .filter((item) => Number(item.quantity) > 0)
+        .map((item) => ({
+          ...item,
+          quantity: Number(item.quantity),
+          unit_price: Number(item.unit_price),
+          total_price: Number(item.total_price),
         })),
-      payment_method: newInvoice.payment_method,
-      paid: newInvoice.amount_paid,
-      residual: newInvoice.amount_paid - totalAmount,
-      comment: newInvoice.comment,
+      total_amount: totalAmount,
+      employee_name: user?.username,
+      id: voucherNumber?.last_id,
+      date,
+      time,
     };
 
-    console.log("new invoice being set: ", updatedInvoice);
-    const accessToken = localStorage.getItem("access_token");
-    if (!accessToken) return;
-
     try {
-      // await createInvoice(updatedInvoice).unwrap();
-      await createInvoice({
-        ...updatedInvoice,
-        total_amount: updatedInvoice.items.reduce(
-          (sum, item) => sum + item.total_price,
-          0
-        ),
-      }).unwrap();
+      await createInvoice(invoiceData).unwrap();
       setIsInvoiceSaved(true);
-      localStorage.removeItem(LOCAL_STORAGE_KEY);
-      setSnackbarMessage("تم حفظ الفاتورة بنجاح");
-      setSnackBarType("success");
-      setOpenSnackbar(true);
       setEditingMode(false);
-      setNewInvoice(updatedInvoice);
-    } catch (err) {
+      localStorage.removeItem(LOCAL_STORAGE_KEY);
+      setSnackbar({
+        open: true,
+        message: "تم حفظ الفاتورة بنجاح",
+        type: "success",
+      });
+    } catch (error) {
       const translatedError = await translateError(
-        err?.data?.message || "An error occurred"
+        error?.data?.message || "حدث خطأ غير متوقع"
       );
-      setSnackbarMessage(translatedError);
-      console.error("Error saving invoice:", err);
-      setSnackBarType("error");
-      setOpenSnackbar(true);
+      setSnackbar({ open: true, message: translatedError, type: "error" });
     }
   };
 
+  // Clear invoice handler
+  const clearInvoice = () => {
+    setNewInvoice(initialInvoiceState);
+    setOperationType("");
+    setPurchasesType("");
+    setShowCommentField(false);
+    setIsInvoiceSaved(false);
+    setEditingMode(true);
+    localStorage.removeItem(LOCAL_STORAGE_KEY);
+  };
+
+  // Print handler
   const handlePrint = () => {
     const style = document.createElement("style");
     style.innerHTML = `
@@ -369,23 +258,9 @@ export default function Type1() {
           position: absolute;
           left: 0;
           top: 0;
-          padding: 10px !important;
+          padding: 0px !important;
           margin: 0 !important;
-          width: 100% !important;
-
-        }
-        .printable-box img {
-          width: 200px !important;
-          margin-bottom: 5px !important;
-        }
-        .printable-box * {
-          font-size: 15px !important;
-        }
-        .printable-box table {
-          width: 100% !important;
-        }
-        .printable-box .MuiTableCell-root {
-          padding: 4px !important;
+          width: 100%;
         }
         .printable-box input,
         .printable-box textarea,
@@ -398,302 +273,201 @@ export default function Type1() {
         }
       }
     `;
+
     document.head.appendChild(style);
     window.print();
     document.head.removeChild(style);
   };
 
-  const [editingMode, setEditingMode] = useState(true);
-
-  const selectedNowType = useMemo(
-    () => ({
-      type: purchasesType || operationType,
-    }),
-    [purchasesType, operationType]
-  );
-
-  const draftInvoice = useMemo(
-    () => ({
-      ...newInvoice,
-      id: voucherNumber?.last_id,
-      date,
-      time,
-      employee_name: user?.username,
-      warehouse_manager: "",
-      residual: newInvoice.amount_paid - totalAmount,
-      total_amount: totalAmount,
-    }),
-    [
-      newInvoice,
-      voucherNumber?.last_id,
-      date,
-      time,
-      user?.username,
-      totalAmount,
-    ]
-  );
-
-  useEffect(() => {
-    refetchUser();
-    refetchVoucherNum();
-  }, [refetchUser, refetchVoucherNum]);
-  // console.log(newInvoice);
-
   if (isLoadingUser) {
     return (
-      <div
-        style={{
-          height: "100vh",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-        }}
-      >
-        <h1 className={styles.head}>
-          <CircularProgress />
-        </h1>
+      <div className={styles.loadingContainer}>
+        <CircularProgress />
       </div>
     );
-  } else {
-    if (
-      user?.create_additions ||
-      user?.create_inventory_operations ||
-      user?.username === "admin"
-    ) {
-      return (
-        <Box className={styles.mainBox}>
-          {/* Operation Type Selection */}
-          <Box
-            sx={{
-              display: isInvoiceSaved ? "none" : "flex",
-              justifyContent: "center",
-              gap: 4,
-              flexWrap: "wrap",
-              alignItems: "center",
-            }}
-          >
-            {(user?.create_additions || user?.username === "admin") && (
-              <div className={styles.operationTypeSelection}>
-                <FormControl
-                  variant="standard"
-                  sx={{ m: 1, minWidth: 220, backgroundColor: "white" }}
-                >
-                  <InputLabel
-                    id="purchases-select-label"
-                    sx={{
-                      fontSize: "1.2rem",
-                      fontWeight: "600",
-                      marginBottom: "6px",
-                      color: "#1976d2",
-                      transition: "all 0.3s ease",
-                      position: "absolute",
-                      top: "50%",
-                      left: "48%",
-                      "&.Mui-focused": {
-                        transform: "translate(-37px, -60px)",
-                      },
-                      transform: purchasesType
-                        ? "translate(-37px, -60px)"
-                        : "translate(-50%, -50%)",
-                    }}
-                  >
-                    مشتريات
-                  </InputLabel>
-                  <Select
-                    labelId="purchases-select-label"
-                    value={purchasesType}
-                    onChange={(e) => setPurchasesType(e.target.value)}
-                    label="مشتريات"
-                    sx={{
-                      padding: "0 0 10px 0",
-                    }}
-                  >
-                    {purchasesTypes.map((type, index) => (
-                      <MenuItem
-                        sx={{
-                          "&.MuiMenuItem-root": {
-                            direction: "rtl",
-                          },
-                        }}
-                        key={index}
-                        value={type}
-                      >
-                        {type}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </div>
-            )}
-            {(user?.create_inventory_operations ||
-              user?.username === "admin") && (
-              <div className={styles.operationTypeSelection}>
-                <FormControl
-                  variant="standard"
-                  sx={{ m: 1, minWidth: 220, backgroundColor: "white" }}
-                >
-                  <InputLabel
-                    id="purchases-select-label"
-                    sx={{
-                      fontSize: "1.2rem",
-                      fontWeight: "600",
-                      marginBottom: "6px",
-                      color: "#1976d2",
-                      transition: "all 0.3s ease",
-                      position: "absolute",
-                      top: "50%",
-                      left: "48%",
-                      "&.Mui-focused": {
-                        transform: "translate(-30px, -60px)",
-                      },
-                      transform: operationType
-                        ? "translate(-30px, -60px)"
-                        : "translate(-50%, -50%)",
-                    }}
-                  >
-                    عمليات
-                  </InputLabel>
-                  <Select
-                    labelId="operation-select-label"
-                    value={operationType}
-                    onChange={(e) => setOperationType(e.target.value)}
-                    label="عمليات"
-                    sx={{
-                      padding: "0 0 10px 0",
-                    }}
-                  >
-                    {operationTypes.map((type, index) => (
-                      <MenuItem
-                        sx={{
-                          "&.MuiMenuItem-root": {
-                            direction: "rtl",
-                          },
-                        }}
-                        key={index}
-                        value={type}
-                      >
-                        {type}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </div>
-            )}
-          </Box>
+  }
 
-          {/* invoice */}
-          {isLoadingUser ? (
-            <div className={styles.loading}>
-              <CircularProgress />
-            </div>
-          ) : (
-            <>
-              <InvoiceModal
-                selectedInvoice={draftInvoice}
-                isEditingInvoice={editingMode}
-                editingInvoice={draftInvoice}
-                setEditingInvoice={setNewInvoice}
-                show={false}
-                selectedNowType={selectedNowType}
-                addRow={addRow}
-                handleDeleteItemClick={removeRow}
-                isPurchasesType={purchasesType}
-                isCreate={true}
-                showCommentField={showCommentField}
-              />
+  if (
+    !user?.create_additions &&
+    !user?.create_inventory_operations &&
+    user?.username !== "admin"
+  ) {
+    return <div className={styles.accessDenied}>هذه الصفحة غير متوفرة</div>;
+  }
 
-              {/* Add Comment Button */}
-              {!isInvoiceSaved ? (
-                <Box className={styles.buttonsSection}>
-                  {!showCommentField ? (
-                    <Button
-                      variant="contained"
-                      color="success"
-                      onClick={handleAddComment}
-                      className={`${styles.addCommentButton} ${styles.infoBtn}`}
-                    >
-                      تعليق
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="outlined"
-                      color="error"
-                      onClick={handleCancelComment}
-                      className={`${styles.cancelCommentButton} ${styles.infoBtn}`}
-                    >
-                      الغاء
-                    </Button>
-                  )}
-
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    onClick={handleSave}
-                    className={`${styles.saveButton} ${styles.infoBtn}`}
-                    disabled={isSaving}
-                  >
-                    {isSaving ? (
-                      <CircularProgress size={24} sx={{ color: "white" }} />
-                    ) : (
-                      "تأكيد"
-                    )}
-                  </Button>
-
-                  <Button
-                    variant="contained"
-                    color="info"
-                    onClick={clearInvoice}
-                    className={`${styles.printButton} ${styles.infoBtn}`}
-                  >
-                    فاتورة جديدة
-                  </Button>
-                </Box>
-              ) : (
-                <Box className={styles.buttonsSection}>
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    onClick={clearInvoice}
-                    className={`${styles.saveButton} ${styles.infoBtn}`}
-                  >
-                    فاتورة جديدة
-                  </Button>
-
-                  <Button
-                    variant="contained"
-                    color="info"
-                    onClick={handlePrint}
-                    className={`${styles.printButton} ${styles.infoBtn}`}
-                  >
-                    طباعة الفاتورة
-                  </Button>
-                </Box>
-              )}
-            </>
+  return (
+    <Box className={styles.mainBox}>
+      {/* Operation Type Selectors */}
+      {!isInvoiceSaved && (
+        <Box className={styles.typeSelectors}>
+          {(user?.create_additions || user?.username === "admin") && (
+            <TypeSelector
+              newInvoice={newInvoice}
+              label="مشتريات"
+              value={purchasesType}
+              options={purchasesTypes}
+              onChange={(e) => handleTypeChange(e.target.value, true)}
+            />
           )}
 
-          {/* Snackbar */}
-          <SnackBar
-            open={openSnackbar}
-            message={snackbarMessage}
-            type={snackBarType}
-            onClose={handleCloseSnackbar}
-          />
+          {(user?.create_inventory_operations ||
+            user?.username === "admin") && (
+            <TypeSelector
+              newInvoice={newInvoice}
+              label="عمليات"
+              value={operationType}
+              options={operationTypes}
+              onChange={(e) => handleTypeChange(e.target.value, false)}
+              purchasesType={purchasesType}
+            />
+          )}
         </Box>
-      );
-    } else {
-      return (
-        <div
-          style={{
-            height: "100vh",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-        >
-          <h1 className={styles.head}>هذه الصفحة غير متوفره</h1>
-        </div>
-      );
-    }
-  }
+      )}
+
+      {/* Invoice Component */}
+      <InvoiceModal
+        selectedInvoice={{
+          ...newInvoice,
+          id: voucherNumber?.last_id,
+          date,
+          time,
+          employee_name: user?.username,
+        }}
+        isEditingInvoice={editingMode}
+        editingInvoice={newInvoice}
+        setEditingInvoice={setNewInvoice}
+        selectedNowType={selectedNowType}
+        addRow={addRow}
+        handleDeleteItemClick={removeRow}
+        isPurchasesType={!!purchasesType}
+        showCommentField={showCommentField}
+        show={false}
+        isCreate={true}
+      />
+
+      {/* Action Buttons */}
+      <Box className={styles.buttonsSection}>
+        {!isInvoiceSaved ? (
+          <>
+            <Button
+              variant={showCommentField ? "outlined" : "contained"}
+              color={showCommentField ? "error" : "success"}
+              onClick={() => setShowCommentField(!showCommentField)}
+              className={
+                showCommentField
+                  ? `${styles.cancelCommentButton} ${styles.infoBtn}`
+                  : `${styles.addCommentButton} ${styles.infoBtn}`
+              }
+            >
+              {showCommentField ? "الغاء" : "تعليق"}
+            </Button>
+
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handleSave}
+              disabled={isSaving}
+              className={`${styles.saveButton} ${styles.infoBtn}`}
+            >
+              {isSaving ? <CircularProgress size={24} /> : "تأكيد الحفظ"}
+            </Button>
+
+            <Button
+              variant="contained"
+              color="info"
+              onClick={clearInvoice}
+              className={`${styles.printButton} ${styles.infoBtn}`}
+            >
+              فاتورة جديدة
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={clearInvoice}
+              className={styles.mainButton}
+            >
+              فاتورة جديدة
+            </Button>
+
+            <Button
+              variant="contained"
+              color="success"
+              onClick={handlePrint}
+              className={styles.mainButton}
+            >
+              طباعة الفاتورة
+            </Button>
+          </>
+        )}
+      </Box>
+
+      <SnackBar
+        open={snackbar.open}
+        message={snackbar.message}
+        type={snackbar.type}
+        onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
+      />
+    </Box>
+  );
 }
+
+// Reusable Type Selector Component
+const TypeSelector = ({ newInvoice, label, value, options, onChange }) => (
+  <FormControl
+    sx={{ m: 1, minWidth: 220, backgroundColor: "white" }}
+    variant="standard"
+    className={styles.typeSelector}
+  >
+    <InputLabel
+      sx={{
+        fontSize: "1.2rem",
+        fontWeight: "600",
+        marginBottom: "6px",
+        color: "#1976d2",
+        transition: "all 0.3s ease",
+        position: "absolute",
+        top: "50%",
+        left: "48%",
+        "&.Mui-focused": {
+          transform:
+            newInvoice.type === "اضافه"
+              ? "translate(-37px, -60px)"
+              : "translate(-30px, -60px)",
+        },
+        transform:
+          newInvoice.type === "اضافه" && label === "مشتريات"
+            ? "translate(-37px, -60px)"
+            : newInvoice.type !== "اضافه" &&
+              newInvoice.type !== "" &&
+              label === "عمليات"
+            ? "translate(-30px, -60px)"
+            : "translate(-50%, -50%)",
+      }}
+      id={label}
+      className={styles.selectorLabel}
+    >
+      {label}
+    </InputLabel>
+    <Select
+      value={value}
+      onChange={onChange}
+      className={styles.typeSelect}
+      sx={{
+        "&.MuiMenuItem-root": {
+          direction: "rtl",
+        },
+      }}
+      labelId={label}
+      label={label}
+    >
+      {options.map((option, index) => (
+        <MenuItem key={index} value={option} className={styles.menuItem}>
+          {option}
+        </MenuItem>
+      ))}
+    </Select>
+  </FormControl>
+);
