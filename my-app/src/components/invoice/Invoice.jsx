@@ -872,8 +872,8 @@ export default function InvoiceModal({
                   className={styles.MoneyValue}
                   sx={{ marginBottom: "10px" }}
                 >
-                  {(editingInvoice.paid || 0) -
-                    (editingInvoice.total_amount || 0)}
+                  {(editingInvoice?.paid || 0) -
+                    (editingInvoice?.total_amount || 0)}
                 </Box>
               </Box>
             </Box>{" "}
