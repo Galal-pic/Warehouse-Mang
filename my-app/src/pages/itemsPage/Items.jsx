@@ -151,10 +151,15 @@ export default function Items() {
       setSnackbarMessage("تمت اضافة المنتج");
       setSnackBarType("success");
     } catch (error) {
-      console.error("Error creating item:", error);
-      setOpenSnackbar(true);
-      setSnackbarMessage("اسم العنصر او الباركود موجود بالفعل");
-      setSnackBarType("error");
+      if (error.response && error.response.status === 500) {
+        setOpenSnackbar(true);
+        setSnackbarMessage("خطأ في الوصول إلى قاعدة البيانات");
+        setSnackBarType("error");
+      } else {
+        setOpenSnackbar(true);
+        setSnackbarMessage("اسم العنصر او الباركود موجود بالفعل");
+        setSnackBarType("error");
+      }
     }
   };
 
@@ -286,10 +291,15 @@ export default function Items() {
       setSnackbarMessage("تم تعديل المنتج");
       setSnackBarType("success");
     } catch (error) {
-      console.error("Error updating item:", error);
-      setOpenSnackbar(true);
-      setSnackbarMessage("اسم العنصر او الباركود موجود بالفعل");
-      setSnackBarType("error");
+      if (error.response && error.response.status === 500) {
+        setOpenSnackbar(true);
+        setSnackbarMessage("خطأ في الوصول إلى قاعدة البيانات");
+        setSnackBarType("error");
+      } else {
+        setOpenSnackbar(true);
+        setSnackbarMessage("اسم العنصر او الباركود موجود بالفعل");
+        setSnackBarType("error");
+      }
     }
   };
 
@@ -318,13 +328,17 @@ export default function Items() {
         setSelectedUserId(null);
         setDeleteDialogOpen(false);
       } catch (error) {
-        console.error("Error deleting item:", error);
-        setOpenSnackbar(true);
-        const translatedError = await translateError(
-          error?.data?.message || "An error occurred"
-        );
-        setSnackbarMessage(translatedError);
-        setSnackBarType("error");
+        if (error.response && error.response.status === 500) {
+          setOpenSnackbar(true);
+          setSnackbarMessage("خطأ في الوصول إلى قاعدة البيانات");
+          setSnackBarType("error");
+        } else {
+          setOpenSnackbar(true);
+          setSnackbarMessage(
+            "فشل حذف المنتج قد يكون هناك بيانات تتعلق به او انه غير موجود بالفعل"
+          );
+          setSnackBarType("error");
+        }
       }
     }
   };

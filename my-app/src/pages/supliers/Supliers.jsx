@@ -100,10 +100,15 @@ export default function Supliers() {
       setSnackbarMessage("تمت اضافة المورد");
       setSnackBarType("success");
     } catch (error) {
-      console.error("Error creating supplier:", error);
-      setOpenSnackbar(true);
-      setSnackbarMessage("اسم المورد موجود بالفعل");
-      setSnackBarType("error");
+      if (error.response && error.response.status === 500) {
+        setOpenSnackbar(true);
+        setSnackbarMessage("خطأ في الوصول إلى قاعدة البيانات");
+        setSnackBarType("error");
+      } else {
+        setOpenSnackbar(true);
+        setSnackbarMessage("اسم المورد موجود بالفعل");
+        setSnackBarType("error");
+      }
     }
   };
 
@@ -143,10 +148,15 @@ export default function Supliers() {
       setSnackbarMessage("تم تحديث المورد");
       setSnackBarType("success");
     } catch (error) {
-      console.error("Error updating supplier:", error);
-      setOpenSnackbar(true);
-      setSnackbarMessage("اسم المورد موجود بالفعل");
-      setSnackBarType("error");
+      if (error.response && error.response.status === 500) {
+        setOpenSnackbar(true);
+        setSnackbarMessage("خطأ في الوصول إلى قاعدة البيانات");
+        setSnackBarType("error");
+      } else {
+        setOpenSnackbar(true);
+        setSnackbarMessage("اسم المورد موجود بالفعل");
+        setSnackBarType("error");
+      }
     }
   };
 
@@ -321,12 +331,17 @@ export default function Supliers() {
         setSelectedUserId(null);
         setDeleteDialogOpen(false);
       } catch (error) {
-        console.error("Error deleting supplier:", error);
-        setOpenSnackbar(true);
-        setSnackbarMessage(
-          "خطأ في حذف المورد اذا استمرت المشكلة حاول اعادة تحميل الصفحة"
-        );
-        setSnackBarType("error");
+        if (error.response && error.response.status === 500) {
+          setOpenSnackbar(true);
+          setSnackbarMessage("خطأ في الوصول إلى قاعدة البيانات");
+          setSnackBarType("error");
+        } else {
+          setOpenSnackbar(true);
+          setSnackbarMessage(
+            "خطأ في حذف المورد قد يكون المورد غير موجود بالفعل، اذا استمرت المشكلة حاول اعادة تحميل الصفحة"
+          );
+          setSnackBarType("error");
+        }
       }
     }
   };

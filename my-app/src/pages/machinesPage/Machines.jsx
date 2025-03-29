@@ -98,10 +98,15 @@ export default function Machines() {
       setSnackbarMessage("تمت اضافة الماكينة");
       setSnackBarType("success");
     } catch (error) {
-      console.error("Error creating machine:", error);
-      setOpenSnackbar(true);
-      setSnackbarMessage("اسم الماكينة موجود بالفعل");
-      setSnackBarType("error");
+      if (error.response && error.response.status === 500) {
+        setOpenSnackbar(true);
+        setSnackbarMessage("خطأ في الوصول إلى قاعدة البيانات");
+        setSnackBarType("error");
+      } else {
+        setOpenSnackbar(true);
+        setSnackbarMessage("اسم الماكينة موجود بالفعل");
+        setSnackBarType("error");
+      }
     }
   };
 
@@ -140,10 +145,15 @@ export default function Machines() {
       setSnackbarMessage("تم تحديث الماكينة");
       setSnackBarType("success");
     } catch (error) {
-      console.error("Error updating machine:", error);
-      setOpenSnackbar(true);
-      setSnackbarMessage("اسم الماكينة موجود بالفعل");
-      setSnackBarType("error");
+      if (error.response && error.response.status === 500) {
+        setOpenSnackbar(true);
+        setSnackbarMessage("خطأ في الوصول إلى قاعدة البيانات");
+        setSnackBarType("error");
+      } else {
+        setOpenSnackbar(true);
+        setSnackbarMessage("اسم الماكينة موجود بالفعل");
+        setSnackBarType("error");
+      }
     }
   };
 
@@ -309,12 +319,17 @@ export default function Machines() {
         setSelectedUserId(null);
         setDeleteDialogOpen(false);
       } catch (error) {
-        console.error("Error deleting machine:", error);
-        setOpenSnackbar(true);
-        setSnackbarMessage(
-          "خطأ في حذف الماكينة اذا استمرت المشكلة حاول اعادة تحميل الصفحة"
-        );
-        setSnackBarType("error");
+        if (error.response && error.response.status === 500) {
+          setOpenSnackbar(true);
+          setSnackbarMessage("خطأ في الوصول إلى قاعدة البيانات");
+          setSnackBarType("error");
+        } else {
+          setOpenSnackbar(true);
+          setSnackbarMessage(
+            "خطأ في حذف الماكينة، قد تكون الماكينة غير موجودة بالفعل، اذا استمرت المشكلة حاول اعادة تحميل الصفحة"
+          );
+          setSnackBarType("error");
+        }
       }
     }
   };

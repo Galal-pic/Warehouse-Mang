@@ -224,7 +224,7 @@ export default function Register() {
     } catch (error) {
       if (error?.data?.message === "Username already exists") {
         setErrors((prev) => ({ ...prev, username: "الاسم غير متاح" }));
-        setSnackbarMessage("اسم المستخدم موجود بالفعل. يرجى اختيار اسم آخر.");
+        setSnackbarMessage("اسم المستخدم موجود بالفعل. يرجى اختيار اسم آخر");
         setSnackBarType("info");
       } else {
         setSnackbarMessage("فشل التسجيل. يرجى المحاولة مرة أخرى.");

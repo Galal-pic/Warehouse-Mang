@@ -112,10 +112,15 @@ export default function Mechanisms() {
       setSnackbarMessage("تمت اضافة الميكانيزم");
       setSnackBarType("success");
     } catch (error) {
-      console.error("Error creating mechanism:", error);
-      setOpenSnackbar(true);
-      setSnackbarMessage("اسم الميكانيزم موجود بالفعل");
-      setSnackBarType("error");
+      if (error.response && error.response.status === 500) {
+        setOpenSnackbar(true);
+        setSnackbarMessage("خطأ في الوصول إلى قاعدة البيانات");
+        setSnackBarType("error");
+      } else {
+        setOpenSnackbar(true);
+        setSnackbarMessage("اسم الميكانيزم موجود بالفعل");
+        setSnackBarType("error");
+      }
     }
   };
 
@@ -154,10 +159,15 @@ export default function Mechanisms() {
       setSnackbarMessage("تم تعديل الميكانيزم");
       setSnackBarType("success");
     } catch (error) {
-      console.error("Error updating mechanism:", error);
-      setOpenSnackbar(true);
-      setSnackbarMessage("اسم الميكانيزم موجود بالفعل");
-      setSnackBarType("error");
+      if (error.response && error.response.status === 500) {
+        setOpenSnackbar(true);
+        setSnackbarMessage("خطأ في الوصول إلى قاعدة البيانات");
+        setSnackBarType("error");
+      } else {
+        setOpenSnackbar(true);
+        setSnackbarMessage("اسم الميكانيزم موجود بالفعل");
+        setSnackBarType("error");
+      }
     }
   };
 
@@ -333,12 +343,17 @@ export default function Mechanisms() {
         setSelectedUserId(null);
         setDeleteDialogOpen(false);
       } catch (error) {
-        console.error("Error deleting mechanism:", error);
-        setOpenSnackbar(true);
-        setSnackbarMessage(
-          "خطأ في حذف الميكانيزم اذا استمرت المشكلة حاول اعادة تحميل الصفحة"
-        );
-        setSnackBarType("error");
+        if (error.response && error.response.status === 500) {
+          setOpenSnackbar(true);
+          setSnackbarMessage("خطأ في الوصول إلى قاعدة البيانات");
+          setSnackBarType("error");
+        } else {
+          setOpenSnackbar(true);
+          setSnackbarMessage(
+            "خطأ في حذف الميكانيزم قد يكون الميكانيزم غير موجود بالفعل، اذا استمرت المشكلة حاول اعادة تحميل الصفحة"
+          );
+          setSnackBarType("error");
+        }
       }
     }
   };

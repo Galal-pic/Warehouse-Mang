@@ -65,11 +65,6 @@ const Login = () => {
 
       if (!response.ok) {
         const errorResponse = await response.json();
-        // const translatedError = await translateError(
-        //   errorResponse?.message || "فشل تسجيل الدخول"
-        // );
-        // setSnackbarMessage(translatedError);
-
         if (errorResponse?.message === "Invalid credentials") {
           setSnackbarMessage("اسم المستخدم أو كلمة المرور غير صحيحة");
         }

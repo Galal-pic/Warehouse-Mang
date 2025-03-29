@@ -341,6 +341,7 @@ export default function InvoiceModal({
                         getOptionLabel={(option) => option || ""}
                         onChange={(e, newValue) => {
                           const normalizedValue = newValue.trim().toLowerCase();
+
                           const selectedItem = Array.from(
                             warehouseMap.values()
                           ).find(
@@ -585,6 +586,97 @@ export default function InvoiceModal({
                           {row.unit_price}
                         </TableCell>
                       ) : (
+                        // <TableCell
+                        //   className={styles.tableCellRow}
+                        //   sx={{
+                        //     width: "100px",
+                        //   }}
+                        // >
+                        //   <NumberInput
+                        //     style={{
+                        //       width: "100px",
+                        //       outline: "none",
+                        //       fontSize: "15px",
+                        //       textAlign: "center",
+                        //       border: "none",
+                        //       padding: "10px",
+                        //     }}
+                        //     value={row.unit_price ?? row?.unit_price}
+                        //     onInput={(e) => {
+                        //       if (e.target.value < 0) {
+                        //         e.target.value = 0;
+                        //       }
+                        //       if (
+                        //         (selectedNowType?.type === "operation") &
+                        //         (e.target.value > row.maxquantity)
+                        //       ) {
+                        //         e.target.value = row.maxquantity;
+                        //       }
+                        //     }}
+                        //     onChange={(e) => {
+                        //       if (
+                        //         row.location === undefined ||
+                        //         row.location === ""
+                        //       ) {
+                        //         setSnackbarMessage(
+                        //           "يجب تحديد موقع العنصر اولا"
+                        //         );
+                        //         setSnackBarType("info");
+                        //         setOpenSnackbar(true);
+                        //         e.target.blur();
+                        //         return;
+                        //       }
+                        //       const newTotalPrice =
+                        //         (Number(e.target.value) || 0) *
+                        //         (row.quantity || 0);
+
+                        //       const updatedItems = [...editingInvoice.items];
+                        //       updatedItems[index] = {
+                        //         ...row,
+                        //         unit_price: e.target.value,
+                        //         total_price: newTotalPrice,
+                        //       };
+                        //       const totalAmount = updatedItems.reduce(
+                        //         (sum, item) => sum + (item.total_price || 0),
+                        //         0
+                        //       );
+                        //       setEditingInvoice({
+                        //         ...editingInvoice,
+                        //         items: updatedItems,
+                        //         total_amount: totalAmount,
+                        //       });
+                        //     }}
+                        //     onClick={(event) => {
+                        //       if (
+                        //         row.location === undefined ||
+                        //         row.location === ""
+                        //       ) {
+                        //         setSnackbarMessage(
+                        //           "يجب تحديد موقع العنصر اولا"
+                        //         );
+                        //         setSnackBarType("info");
+                        //         setOpenSnackbar(true);
+                        //         event.target.blur();
+                        //         return;
+                        //       }
+                        //     }}
+                        //     onDoubleClick={(event) => {
+                        //       if (
+                        //         row.location === undefined ||
+                        //         row.location === ""
+                        //       ) {
+                        //         setSnackbarMessage(
+                        //           "يجب تحديد موقع العنصر اولا"
+                        //         );
+                        //         setSnackBarType("info");
+                        //         setOpenSnackbar(true);
+                        //         event.target.blur();
+
+                        //         return;
+                        //       }
+                        //     }}
+                        //   />
+                        // </TableCell>
                         <TableCell
                           className={styles.tableCellRow}
                           sx={{
@@ -606,8 +698,8 @@ export default function InvoiceModal({
                                 e.target.value = 0;
                               }
                               if (
-                                (selectedNowType?.type === "operation") &
-                                (e.target.value > row.maxquantity)
+                                selectedNowType?.type === "operation" &&
+                                e.target.value > row.maxquantity
                               ) {
                                 e.target.value = row.maxquantity;
                               }
@@ -625,20 +717,29 @@ export default function InvoiceModal({
                                 e.target.blur();
                                 return;
                               }
-                              const newTotalPrice =
-                                (Number(e.target.value) || 0) *
-                                (row.quantity || 0);
 
-                              const updatedItems = [...editingInvoice.items];
-                              updatedItems[index] = {
-                                ...row,
-                                unit_price: e.target.value,
-                                total_price: newTotalPrice,
-                              };
+                              const newUnitPrice = Number(e.target.value) || 0;
+
+                              const updatedItems = editingInvoice.items.map(
+                                (item) => {
+                                  if (item.item_name === row.item_name) {
+                                    const newTotalPrice =
+                                      newUnitPrice * (item.quantity || 0);
+                                    return {
+                                      ...item,
+                                      unit_price: e.target.value,
+                                      total_price: newTotalPrice,
+                                    };
+                                  }
+                                  return item;
+                                }
+                              );
+
                               const totalAmount = updatedItems.reduce(
                                 (sum, item) => sum + (item.total_price || 0),
                                 0
                               );
+
                               setEditingInvoice({
                                 ...editingInvoice,
                                 items: updatedItems,
@@ -670,7 +771,6 @@ export default function InvoiceModal({
                                 setSnackBarType("info");
                                 setOpenSnackbar(true);
                                 event.target.blur();
-
                                 return;
                               }
                             }}

@@ -147,12 +147,17 @@ export default function Invoices() {
       setSnackbarMessage("تم الحذف بنجاح");
       setSnackBarType("success");
     } catch (error) {
-      const translatedError = await translateError(
-        error?.data?.message || "An error occurred"
-      );
-      setOpenSnackbar(true);
-      setSnackbarMessage(translatedError);
-      setSnackBarType("error");
+      if (error.response && error.response.status === 500) {
+        setOpenSnackbar(true);
+        setSnackbarMessage("خطأ في الوصول إلى قاعدة البيانات");
+        setSnackBarType("error");
+      } else {
+        setOpenSnackbar(true);
+        setSnackbarMessage(
+          "خطأ في حذف العمليات، قد يكون هناك بيانات متعلقه بها او انها غير موجوده بالفعل"
+        );
+        setSnackBarType("error");
+      }
     } finally {
       setIsArrayDeleting(false);
       setDeleteDialogCheckBoxOpen(false);
@@ -172,12 +177,17 @@ export default function Invoices() {
       setSnackbarMessage("تم التحديث بنجاح");
       setSnackBarType("success");
     } catch (error) {
-      const translatedError = await translateError(
-        error?.data?.message || "An error occurred"
-      );
-      setOpenSnackbar(true);
-      setSnackbarMessage(translatedError);
-      setSnackBarType("error");
+      if (error.response && error.response.status === 500) {
+        setOpenSnackbar(true);
+        setSnackbarMessage("خطأ في الوصول إلى قاعدة البيانات");
+        setSnackBarType("error");
+      } else {
+        setOpenSnackbar(true);
+        setSnackbarMessage(
+          "خطأ في التحديث، إذا استمرت المشكله حاول اعادة تحميل الصفحة"
+        );
+        setSnackBarType("error");
+      }
     } finally {
       setIsRefreshArrayLoading(false);
       setDeleteDialogCheckBoxOpen(false);
@@ -195,12 +205,17 @@ export default function Invoices() {
       setSnackbarMessage("تم التحديث بنجاح");
       setSnackBarType("success");
     } catch (error) {
-      const translatedError = await translateError(
-        error?.data?.message || "An error occurred"
-      );
-      setOpenSnackbar(true);
-      setSnackbarMessage(translatedError);
-      setSnackBarType("error");
+      if (error.response && error.response.status === 500) {
+        setOpenSnackbar(true);
+        setSnackbarMessage("خطأ في الوصول إلى قاعدة البيانات");
+        setSnackBarType("error");
+      } else {
+        setOpenSnackbar(true);
+        setSnackbarMessage(
+          "خطأ في التحديث، إذا استمرت المشكله حاول اعادة تحميل الصفحة"
+        );
+        setSnackBarType("error");
+      }
     } finally {
       setIsConfirmDone((prev) => ({ ...prev, [id]: false }));
     }
@@ -295,7 +310,6 @@ export default function Invoices() {
     setIsSaved(true);
 
     try {
-      // await updateInvoice(updatedInvoice).unwrap();
       await updateInvoice(updatedInvoice).unwrap();
       refetchInvoices();
       setOpenSnackbar(true);
@@ -306,12 +320,17 @@ export default function Invoices() {
       openInvoice(updatedInvoice.id);
       setSelectedInvoice(updatedInvoice);
     } catch (error) {
-      const translatedError = await translateError(
-        error?.data?.message || "An error occurred"
-      );
-      setOpenSnackbar(true);
-      setSnackbarMessage(translatedError);
-      setSnackBarType("error");
+      if (error.response && error.response.status === 500) {
+        setOpenSnackbar(true);
+        setSnackbarMessage("خطأ في الوصول إلى قاعدة البيانات");
+        setSnackBarType("error");
+      } else {
+        setOpenSnackbar(true);
+        setSnackbarMessage(
+          "خطأ في التعديل، قد يكون هناك تعارض في البيانات الجديده مع بيانات اخرى"
+        );
+        setSnackBarType("error");
+      }
     } finally {
       setIsSaved(false);
     }
@@ -326,11 +345,17 @@ export default function Invoices() {
       setSnackbarMessage("تم التحديث بنجاح");
       setSnackBarType("success");
     } catch (error) {
-      const translatedError = await translateError(
-        error?.data?.message || "An error occurred"
-      );
-      setSnackbarMessage(translatedError);
-      setSnackBarType("error");
+      if (error.response && error.response.status === 500) {
+        setOpenSnackbar(true);
+        setSnackbarMessage("خطأ في الوصول إلى قاعدة البيانات");
+        setSnackBarType("error");
+      } else {
+        setOpenSnackbar(true);
+        setSnackbarMessage(
+          "خطأ في التحديث، إذا استمرت المشكله حاول اعادة تحميل الصفحة"
+        );
+        setSnackBarType("error");
+      }
     } finally {
       setOpenSnackbar(true);
       setLoadingRowsReturn((prev) => ({ ...prev, [id]: false }));
@@ -346,11 +371,17 @@ export default function Invoices() {
       setSnackbarMessage("تم التحديث بنجاح");
       setSnackBarType("success");
     } catch (error) {
-      const translatedError = await translateError(
-        error?.data?.message || "An error occurred"
-      );
-      setSnackbarMessage(translatedError);
-      setSnackBarType("error");
+      if (error.response && error.response.status === 500) {
+        setOpenSnackbar(true);
+        setSnackbarMessage("خطأ في الوصول إلى قاعدة البيانات");
+        setSnackBarType("error");
+      } else {
+        setOpenSnackbar(true);
+        setSnackbarMessage(
+          "خطأ في التحديث، إذا استمرت المشكله حاول اعادة تحميل الصفحة"
+        );
+        setSnackBarType("error");
+      }
     } finally {
       setOpenSnackbar(true);
       setLoadingRows((prev) => ({ ...prev, [id]: false }));
@@ -368,12 +399,17 @@ export default function Invoices() {
         setSnackbarMessage("تم الحذف بنجاح");
         setSnackBarType("success");
       } catch (error) {
-        const translatedError = await translateError(
-          error?.data?.message || "An error occurred"
-        );
-        setOpenSnackbar(true);
-        setSnackbarMessage(translatedError);
-        setSnackBarType("error");
+        if (error.response && error.response.status === 500) {
+          setOpenSnackbar(true);
+          setSnackbarMessage("خطأ في الوصول إلى قاعدة البيانات");
+          setSnackBarType("error");
+        } else {
+          setOpenSnackbar(true);
+          setSnackbarMessage(
+            "خطأ في الحذف، قد يكون هناك بيانات متعلقه بها او انها غير موجوده بالفعل"
+          );
+          setSnackBarType("error");
+        }
       } finally {
         setIsInvoiceDeleting(false);
         setDeleteConfirmationText("");
@@ -704,8 +740,7 @@ export default function Invoices() {
                 }}
                 disabled={
                   loadingRows[params.row.id] ||
-                  (user?.can_update_prices && !user?.can_update_prices) ||
-                  user?.username !== "admin"
+                  (user?.username !== "admin" && !user?.can_update_prices)
                 }
               >
                 {loadingRows[params.row.id] ? (

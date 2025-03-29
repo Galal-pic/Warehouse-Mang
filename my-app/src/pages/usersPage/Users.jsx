@@ -127,7 +127,6 @@ export default function Users() {
   };
 
   // Delete
-
   const handleDelete = async () => {
     if (deleteConfirmationText.trim().toLowerCase() === "نعم") {
       try {
@@ -140,7 +139,13 @@ export default function Users() {
         setDeleteDialogOpen(false);
       } catch (error) {
         setOpenSnackbar(true);
-        setSnackbarMessage("خطأ في حذف الموظف");
+        if (error.response && error.response.status === 500) {
+          setSnackbarMessage("خطأ في الوصول إلى قاعدة البيانات");
+        } else {
+          setSnackbarMessage(
+            "خطأ في حذف الموظف، قد يكون هناك بيانات تتعلق به او انه غير موجود بالفعل"
+          );
+        }
         setSnackBarType("error");
         setDeleteConfirmationText("");
         setSelectedUserId(null);

@@ -11,7 +11,6 @@ import styles from "./CreateInvoice.module.css";
 import SnackBar from "../../components/snackBar/SnackBar";
 import CircularProgress from "@mui/material/CircularProgress";
 import InvoiceModal from "../../components/invoice/Invoice";
-import { translateError } from "../../components/translateError/translateError";
 
 // RTK Query hooks
 import { useGetUserQuery } from "../services/userApi";
@@ -225,10 +224,20 @@ export default function CreateInvoice() {
         type: "success",
       });
     } catch (error) {
-      const translatedError = await translateError(
-        error?.data?.message || "حدث خطأ غير متوقع"
-      );
-      setSnackbar({ open: true, message: translatedError, type: "error" });
+      if (error.response && error.response.status === 500) {
+        setSnackbar({
+          open: true,
+          message: "خطأ في الوصول إلى قاعدة البيانات",
+          type: "error",
+        });
+      } else {
+        setSnackbar({
+          open: true,
+          message:
+            "حدث خطأ، الرجاء المحاولة مرة اخرى او محاولة اعادة تحميل الصفحة",
+          type: "error",
+        });
+      }
     }
   };
 
