@@ -60,6 +60,8 @@ export default function CustomDataGrid({
   checkBox = false,
   setSelectedRows = null,
   addPermissions = false,
+  rowSelectionModel = [],
+  setRowSelectionModel = null,
   ...props
 }) {
   // translate
@@ -148,8 +150,17 @@ export default function CustomDataGrid({
     }
   };
 
+  const onRowSelectionModelChange = (newSelection) => {
+    setRowSelectionModel(newSelection);
+    handleSelectionChange(newSelection);
+  };
+
   return (
     <DataGrid
+      rowSelectionModel={rowSelectionModel}
+      onRowSelectionModelChange={
+        checkBox ? onRowSelectionModelChange : undefined
+      }
       rows={type === "items" ? filteredAndFormattedData : rows}
       columns={columns.map((col, index) => ({
         ...col,
@@ -169,16 +180,6 @@ export default function CustomDataGrid({
         Toolbar: CustomToolbarFromComponent,
         Pagination: CustomPagination,
       }}
-      onRowSelectionModelChange={handleSelectionChange}
-      // filterModel={{
-      //   items: [
-      //     {
-      //       columnField: "yourColumnName", // استبدلها باسم العمود المراد البحث فيه
-      //       operatorValue: "contains",
-      //       value: "", // هنا يتم تعيين قيمة البحث تلقائيًا
-      //     },
-      //   ],
-      // }}
       localeText={localeText}
       rowHeight={50}
       editMode="row"
@@ -194,7 +195,7 @@ export default function CustomDataGrid({
           initialItems: rows,
           type,
           setOpenDialog,
-          addPermissions
+          addPermissions,
         },
         pagination: {
           page: paginationModel.page,

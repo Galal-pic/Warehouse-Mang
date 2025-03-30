@@ -495,10 +495,6 @@ export default function InvoiceModal({
                           border: "none",
                           padding: "10px",
                         }}
-                        max={
-                          selectedNowType?.type === "purchase" &&
-                          row.maxquantity
-                        }
                         value={row?.quantity}
                         onInput={(e) => {
                           if (e.target.value < 0) {
@@ -585,98 +581,7 @@ export default function InvoiceModal({
                         <TableCell className={styles.tableCellRow}>
                           {row.unit_price}
                         </TableCell>
-                      ) : (
-                        // <TableCell
-                        //   className={styles.tableCellRow}
-                        //   sx={{
-                        //     width: "100px",
-                        //   }}
-                        // >
-                        //   <NumberInput
-                        //     style={{
-                        //       width: "100px",
-                        //       outline: "none",
-                        //       fontSize: "15px",
-                        //       textAlign: "center",
-                        //       border: "none",
-                        //       padding: "10px",
-                        //     }}
-                        //     value={row.unit_price ?? row?.unit_price}
-                        //     onInput={(e) => {
-                        //       if (e.target.value < 0) {
-                        //         e.target.value = 0;
-                        //       }
-                        //       if (
-                        //         (selectedNowType?.type === "operation") &
-                        //         (e.target.value > row.maxquantity)
-                        //       ) {
-                        //         e.target.value = row.maxquantity;
-                        //       }
-                        //     }}
-                        //     onChange={(e) => {
-                        //       if (
-                        //         row.location === undefined ||
-                        //         row.location === ""
-                        //       ) {
-                        //         setSnackbarMessage(
-                        //           "يجب تحديد موقع العنصر اولا"
-                        //         );
-                        //         setSnackBarType("info");
-                        //         setOpenSnackbar(true);
-                        //         e.target.blur();
-                        //         return;
-                        //       }
-                        //       const newTotalPrice =
-                        //         (Number(e.target.value) || 0) *
-                        //         (row.quantity || 0);
-
-                        //       const updatedItems = [...editingInvoice.items];
-                        //       updatedItems[index] = {
-                        //         ...row,
-                        //         unit_price: e.target.value,
-                        //         total_price: newTotalPrice,
-                        //       };
-                        //       const totalAmount = updatedItems.reduce(
-                        //         (sum, item) => sum + (item.total_price || 0),
-                        //         0
-                        //       );
-                        //       setEditingInvoice({
-                        //         ...editingInvoice,
-                        //         items: updatedItems,
-                        //         total_amount: totalAmount,
-                        //       });
-                        //     }}
-                        //     onClick={(event) => {
-                        //       if (
-                        //         row.location === undefined ||
-                        //         row.location === ""
-                        //       ) {
-                        //         setSnackbarMessage(
-                        //           "يجب تحديد موقع العنصر اولا"
-                        //         );
-                        //         setSnackBarType("info");
-                        //         setOpenSnackbar(true);
-                        //         event.target.blur();
-                        //         return;
-                        //       }
-                        //     }}
-                        //     onDoubleClick={(event) => {
-                        //       if (
-                        //         row.location === undefined ||
-                        //         row.location === ""
-                        //       ) {
-                        //         setSnackbarMessage(
-                        //           "يجب تحديد موقع العنصر اولا"
-                        //         );
-                        //         setSnackBarType("info");
-                        //         setOpenSnackbar(true);
-                        //         event.target.blur();
-
-                        //         return;
-                        //       }
-                        //     }}
-                        //   />
-                        // </TableCell>
+                      ) : editingInvoice.type === "اضافه" ? (
                         <TableCell
                           className={styles.tableCellRow}
                           sx={{
@@ -776,9 +681,15 @@ export default function InvoiceModal({
                             }}
                           />
                         </TableCell>
+                      ) : (
+                        <TableCell className={styles.tableCellRow}>-</TableCell>
                       )}
                       <TableCell className={styles.tableCellRow}>
-                        {isEditingInvoice ? row?.total_price : row.total_price}
+                        {!isEditingInvoice
+                          ? row?.total_price
+                          : editingInvoice.type === "اضافه"
+                          ? row?.total_price
+                          : "-"}
                       </TableCell>
                     </>
                   )}
@@ -831,9 +742,11 @@ export default function InvoiceModal({
               <Box className={styles.MoneyBox}>
                 <Box className={styles.MoneyLabel}>الإجمالي</Box>
                 <Box className={styles.MoneyValue}>
-                  {isEditingInvoice
+                  {!isEditingInvoice
+                    ? selectedInvoice?.total_amount
+                    : editingInvoice.type === "اضافه"
                     ? editingInvoice?.total_amount
-                    : selectedInvoice?.total_amount}
+                    : "-"}
                 </Box>
               </Box>
               <Box className={styles.MoneyBox}>

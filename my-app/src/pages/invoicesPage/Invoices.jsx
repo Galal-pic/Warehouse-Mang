@@ -35,7 +35,6 @@ import PrintIcon from "@mui/icons-material/Print";
 import ArticleIcon from "@mui/icons-material/Article";
 import InvoiceDetails from "../../components/invoiceDetails/InvoiceDetails";
 import InvoiceModal from "../../components/invoice/Invoice";
-import { translateError } from "../../components/translateError/translateError";
 
 export default function Invoices() {
   // RTK Query Hooks
@@ -162,10 +161,14 @@ export default function Invoices() {
       setIsArrayDeleting(false);
       setDeleteDialogCheckBoxOpen(false);
       setDeleteCheckBoxConfirmationText("");
+      setSelectedRows([]);
+      setRowSelectionModel([]);
     }
   };
 
   // Simplified delete handler
+  const [rowSelectionModel, setRowSelectionModel] = useState([]);
+
   const [isRefreshArrayLoading, setIsRefreshArrayLoading] = useState(false);
   const handleRefreshSelectedRows = async (selectedRows) => {
     setIsRefreshArrayLoading(true);
@@ -193,6 +196,7 @@ export default function Invoices() {
       setDeleteDialogCheckBoxOpen(false);
       setDeleteCheckBoxConfirmationText("");
       setSelectedRows([]);
+      setRowSelectionModel([]);
     }
   };
 
@@ -1012,6 +1016,8 @@ export default function Invoices() {
             checkBox={true}
             setSelectedRows={setSelectedRows}
             selectedRows={selectedRows}
+            rowSelectionModel={rowSelectionModel}
+            setRowSelectionModel={setRowSelectionModel}
           />
 
           {/* invoice details data */}
@@ -1102,22 +1108,23 @@ export default function Invoices() {
                     </div>
                   ) : (
                     <div>
-                      {(user?.can_edit || user?.username === "admin") && (
-                        <button
-                          onClick={() => {
-                            handleEditInfo(selectedInvoice);
-                          }}
-                          className={styles.iconBtn}
-                          style={{
-                            color: "#1976d2",
-                            position: "absolute",
-                            top: "0px",
-                            left: "30px",
-                          }}
-                        >
-                          <EditIcon />
-                        </button>
-                      )}
+                      {(user?.can_edit || user?.username === "admin") &&
+                        selectedInvoice.status !== "تم" && (
+                          <button
+                            onClick={() => {
+                              handleEditInfo(selectedInvoice);
+                            }}
+                            className={styles.iconBtn}
+                            style={{
+                              color: "#1976d2",
+                              position: "absolute",
+                              top: "0px",
+                              left: "30px",
+                            }}
+                          >
+                            <EditIcon />
+                          </button>
+                        )}
                     </div>
                   )}
                   {(user?.view_prices || user?.username === "admin") && (

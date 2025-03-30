@@ -52,8 +52,14 @@ const initialInvoiceState = {
 
 export default function CreateInvoice() {
   // State management
-  const [operationType, setOperationType] = useState("");
-  const [purchasesType, setPurchasesType] = useState("");
+  const [operationType, setOperationType] = useState(() => {
+    const savedDraft = localStorage.getItem(LOCAL_STORAGE_KEY);
+    return savedDraft ? JSON.parse(savedDraft).operationType : "";
+  });
+  const [purchasesType, setPurchasesType] = useState(() => {
+    const savedDraft = localStorage.getItem(LOCAL_STORAGE_KEY);
+    return savedDraft ? JSON.parse(savedDraft).purchasesType : "";
+  });
   const [showCommentField, setShowCommentField] = useState(false);
   const [isInvoiceSaved, setIsInvoiceSaved] = useState(false);
   const [editingMode, setEditingMode] = useState(true);
@@ -61,7 +67,15 @@ export default function CreateInvoice() {
   // Invoice data state
   const [newInvoice, setNewInvoice] = useState(() => {
     const savedDraft = localStorage.getItem(LOCAL_STORAGE_KEY);
-    return savedDraft ? JSON.parse(savedDraft).newInvoice : initialInvoiceState;
+    return savedDraft
+      ? {
+          ...initialInvoiceState,
+          ...JSON.parse(savedDraft).newInvoice,
+          type:
+            JSON.parse(savedDraft).operationType ||
+            JSON.parse(savedDraft).purchasesType,
+        }
+      : initialInvoiceState;
   });
 
   // Snackbar state
@@ -201,10 +215,13 @@ export default function CreateInvoice() {
       items: newInvoice.items
         .filter((item) => Number(item.quantity) > 0)
         .map((item) => ({
-          ...item,
+          item_name: item.item_name,
+          barcode: item.barcode,
+          location: item.location,
           quantity: Number(item.quantity),
           unit_price: Number(item.unit_price),
           total_price: Number(item.total_price),
+          description: item.description,
         })),
       total_amount: totalAmount,
       employee_name: user?.username,
@@ -213,6 +230,7 @@ export default function CreateInvoice() {
       time,
     };
 
+    console.log(invoiceData);
     try {
       await createInvoice(invoiceData).unwrap();
       setIsInvoiceSaved(true);

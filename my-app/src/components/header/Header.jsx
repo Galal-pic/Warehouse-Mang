@@ -427,7 +427,7 @@ export default function Header() {
                 }}
               >
                 <Typography variant="h6" sx={{ fontWeight: "bold" }}>
-                  الوظيقة:
+                  الوظيفة:
                 </Typography>
                 <ListItemText
                   sx={{ textAlign: isUserLoading ? "center" : "" }}
