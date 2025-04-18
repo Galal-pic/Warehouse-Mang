@@ -1,5 +1,5 @@
 from datetime import datetime
-from ..models import Invoice, Warehouse, ItemLocations, InvoiceItem, Prices
+from ..models import Invoice, Warehouse, ItemLocations, InvoiceItem, Prices, InvoicePriceDetail
 from .. import db
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -28,6 +28,8 @@ def Return_Operations(data, machine, mechanism, supplier, employee, machine_ns, 
         )
         
         db.session.add(new_invoice)
+        db.session.flush()  # Get the new_invoice.id
+        
         item_ids = []
         total_invoice_amount = 0
         
@@ -78,18 +80,41 @@ def Return_Operations(data, machine, mechanism, supplier, employee, machine_ns, 
             )
             db.session.add(invoice_item)
             
-            # For returns, create a new price record if a unit price is provided
+            # For returns, create or update a price record if a unit price is provided
             # This allows the returned items to re-enter the FIFO system
-            if unit_price > 0:
-                price = Prices(
+            price_updated = False
+            
+            if 'original_invoice_id' in data and data['original_invoice_id']:
+                # Try to find and update prices from the original invoice
+                original_invoice_details = InvoicePriceDetail.query.filter_by(
+                    invoice_id=data['original_invoice_id']
+                ).all()
+                
+                for detail in original_invoice_details:
+                    if detail.item_id == warehouse_item.id:
+                        price = Prices.query.filter_by(
+                            invoice_id=detail.source_price_id,
+                            item_id=detail.item_id
+                        ).first()
+                        
+                        if price:
+                            # Update the existing price record
+                            price.quantity += quantity
+                            db.session.add(price)
+                            price_updated = True
+                            break
+            
+            # If no price was updated from original invoice, create a new price record
+            if not price_updated and unit_price > 0:
+                new_price = Prices(
                     invoice_id=new_invoice.id,
                     item_id=warehouse_item.id,
                     quantity=quantity,
                     unit_price=unit_price,
-                    created_at=datetime.now()  # Current timestamp for FIFO ordering
+                    created_at=datetime.now()
                 )
-                db.session.add(price)
-            
+                db.session.add(new_price)
+                    
             total_invoice_amount += total_price
         
         # Update invoice totals
@@ -115,7 +140,11 @@ def delete_return(invoice, invoice_ns):
         # Check if any of the returned items have been sold again
         price_records = Prices.query.filter_by(invoice_id=invoice.id).all()
         for price_record in price_records:
-            if price_record.quantity < price_record.quantity:
+            # Check if some have been consumed (original quantity > current quantity)
+            # This is the correct comparison - not comparing price_record.quantity to itself
+            original_quantity = sum([item.quantity for item in invoice.items 
+                                   if item.item_id == price_record.item_id])
+            if price_record.quantity < original_quantity:
                 invoice_ns.abort(400, 
                     f"Cannot delete return invoice: Some returned items have already been sold again."
                 )
@@ -246,9 +275,9 @@ def put_return(data, invoice, machine, mechanism, invoice_ns):
                 
                 if price_record:
                     # Check if items have been consumed
-                    if price_record.quantity < original_items[key].quantity if key in original_items else 0:
+                    original_qty = original_items[key].quantity if key in original_items else 0
+                    if price_record.quantity < original_qty:
                         # Some items have been sold again, calculate how many
-                        original_qty = original_items[key].quantity if key in original_items else 0
                         consumed = original_qty - price_record.quantity
                         
                         # Cannot reduce below the consumed amount

@@ -76,7 +76,7 @@ def Void_Operations(data, machine, mechanism, supplier, employee, machine_ns, wa
                 calculated_total_price = 0
                 
                 # Get all price records for this item ordered by creation date (oldest first for FIFO)
-                price_entries = Prices.query.filter_by(item_id=warehouse_item.id).order_by(Prices.created_at.asc()).all()
+                price_entries = Prices.query.filter_by(item_id=warehouse_item.id).order_by(Prices.invoice_id.asc()).all()
                 
                 if not price_entries:
                     # If no price records, use zero (or a default price)
@@ -358,7 +358,7 @@ def put_void(data, invoice, machine, mechanism, invoice_ns):
                     calculated_total_price = 0
                     
                     # Get all price records for this item ordered by creation date (oldest first for FIFO)
-                    price_entries = Prices.query.filter_by(item_id=warehouse_item.id).order_by(Prices.created_at.asc()).all()
+                    price_entries = Prices.query.filter_by(item_id=warehouse_item.id).order_by(Prices.invoice_id.asc()).all()
                     
                     if not price_entries:
                         # If no price records, use zero (or a default price)

@@ -45,6 +45,7 @@ invoice_item_model = invoice_ns.model('InvoiceItem', {
 # Invoice Model
 invoice_model = invoice_ns.model('Invoice', {
     'id': fields.Integer(required=True),
+    'original_invoice_id': fields.Integer(required=False),
     'type': fields.String(required=True),
     'client_name': fields.String(required=False),
     'warehouse_manager': fields.String(required=False),
@@ -60,6 +61,7 @@ invoice_model = invoice_ns.model('Invoice', {
     'supplier_name': fields.String(required=False),
     "created_at": fields.String(required=False),
     'items': fields.List(fields.Nested(invoice_item_model)),
+    
 })
 
 @invoice_ns.route('/<string:type>')
@@ -446,7 +448,7 @@ class FifoPriceList(Resource):
         item = Warehouse.query.get_or_404(item_id)
         
         # Get all price records for this item ordered by creation date (oldest first for FIFO)
-        price_entries = Prices.query.filter_by(item_id=item_id).order_by(Prices.created_at.asc()).all()
+        price_entries = Prices.query.filter_by(item_id=item_id).order_by(Prices.invoice_id.asc()).all()
         
         result = []
         for price in price_entries:
@@ -699,7 +701,7 @@ class FifoInventoryReport(Resource):
         
         for item in items:
             # Get price records for this item
-            price_entries = Prices.query.filter_by(item_id=item.id).order_by(Prices.created_at.asc()).all()
+            price_entries = Prices.query.filter_by(item_id=item.id).order_by(Prices.invoice_id.asc()).all()
             
             # Get physical inventory
             locations = ItemLocations.query.filter_by(item_id=item.id).all()
@@ -810,7 +812,7 @@ class UpdateInvoicePrice(Resource):
             # Process each zero-price item
             for item in zero_price_items:
                 # Get the latest price for this item - use desc() to get the most recent price
-                latest_price = Prices.query.filter_by(item_id=item.item_id).order_by(Prices.created_at).first()
+                latest_price = Prices.query.filter_by(item_id=item.item_id).order_by(Prices.invoice_id).first()
                 
                 if not latest_price:
                     continue  # Skip if no price found

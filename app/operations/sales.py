@@ -61,7 +61,7 @@ def Sales_Operations(data, machine, mechanism, supplier, employee, machine_ns, w
             total_item_price = 0
             
             # Get all price records for this item ordered by creation date (oldest first for FIFO)
-            price_entries = Prices.query.filter_by(item_id=warehouse_item.id).order_by(Prices.created_at.asc()).all()
+            price_entries = Prices.query.filter_by(item_id=warehouse_item.id).order_by(Prices.invoice_id.asc()).all()
             
             if not price_entries:
                 invoice_ns.abort(400, f"No price information found for item '{item_data['item_name']}'")
@@ -108,8 +108,8 @@ def Sales_Operations(data, machine, mechanism, supplier, employee, machine_ns, w
                 invoice_ns.abort(400, f"Insufficient priced inventory for '{item_data['item_name']}'. Missing price data for {remaining_to_sell} units.")
             
             # Delete the empty price entries
-            for entry in entries_to_delete:
-                db.session.delete(entry)
+            # for entry in entries_to_delete:
+            #     db.session.delete(entry)
             
             # Calculate the average unit price
             average_unit_price = total_item_price / requested_quantity
@@ -309,7 +309,7 @@ def put_sales(data, invoice, machine, mechanism, invoice_ns):
                 total_item_price = 0
                 
                 # Get all price records for this item ordered by creation date (oldest first for FIFO)
-                price_entries = Prices.query.filter_by(item_id=warehouse_item.id).order_by(Prices.created_at.asc()).all()
+                price_entries = Prices.query.filter_by(item_id=warehouse_item.id).order_by(Prices.invoice_id.asc()).all()
                 
                 if not price_entries:
                     invoice_ns.abort(400, f"No price information found for item '{item_data['item_name']}'")
@@ -355,8 +355,8 @@ def put_sales(data, invoice, machine, mechanism, invoice_ns):
                     invoice_ns.abort(400, f"Insufficient priced inventory for '{item_data['item_name']}'. Missing price data for {remaining_to_sell} units.")
                 
                 # Delete the empty price entries
-                for entry in entries_to_delete:
-                    db.session.delete(entry)
+                # for entry in entries_to_delete:
+                #     db.session.delete(entry)
                 
                 # Calculate the average unit price
                 average_unit_price = total_item_price / requested_quantity
