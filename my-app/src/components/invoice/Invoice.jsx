@@ -99,6 +99,24 @@ export default function InvoiceModal({
     skip: !selectedInvoiceId || !openOriginalInvoiceModal,
   });
 
+  const transformedInvoice = originalInvoice
+    ? {
+        ...originalInvoice,
+        date: originalInvoice.created_at
+          ? originalInvoice.created_at.split(" ")[0]
+          : originalInvoice.date || "غير متوفر",
+        time: originalInvoice.created_at
+          ? new Date(
+              `1970-01-01 ${originalInvoice.created_at.split(" ")[1]}`
+            ).toLocaleTimeString("en-US", {
+              hour12: true,
+              hour: "numeric",
+              minute: "2-digit",
+            })
+          : originalInvoice.time || "غير متوفر",
+      }
+    : null;
+
   // Handle opening the original invoice modal
   const handleOpenOriginalInvoice = (invoiceId) => {
     if (invoiceId) {
@@ -1085,17 +1103,17 @@ export default function InvoiceModal({
         <Box sx={{ padding: "20px", direction: "rtl" }}>
           {isOriginalInvoiceLoading ? (
             <Box>جاري تحميل الفاتورة...</Box>
-          ) : originalInvoice ? (
+          ) : transformedInvoice ? (
             <InvoiceModal
-              selectedInvoice={originalInvoice}
+              selectedInvoice={transformedInvoice}
               isEditingInvoice={false} // View-only mode
-              editingInvoice={originalInvoice}
+              editingInvoice={transformedInvoice}
               setEditingInvoice={() => {}} // No editing allowed
               show={false}
-              selectedNowType={{ type: originalInvoice.type }}
+              selectedNowType={{ type: transformedInvoice.type }}
               addRow={() => {}} // No adding rows
               handleDeleteItemClick={() => {}} // No deleting items
-              isPurchasesType={originalInvoice.type === "purchase"}
+              isPurchasesType={transformedInvoice.type === "purchase"}
               isCreate={false}
               showCommentField={true}
             />

@@ -18,9 +18,10 @@ import {
   useGetLastInvoiceIdQuery,
   useCreateInvoiceMutation,
 } from "../services/invoiceApi";
+import PurchaseRequestForm from "../../components/purchaseRequestForm/PurchaseRequestForm";
 
 // Constants
-const operationTypes = ["صرف", "أمانات", "مرتجع", "توالف", "حجز"];
+const operationTypes = ["صرف", "أمانات", "مرتجع", "توالف", "حجز", "طلب شراء"];
 const purchasesTypes = ["اضافه"];
 const LOCAL_STORAGE_KEY = "invoiceDraft";
 
@@ -274,7 +275,7 @@ export default function CreateInvoice() {
   useEffect(() => {
     refetchLastId();
   }, [refetchLastId]);
-  
+
   // Print handler
   const handlePrint = () => {
     const style = document.createElement("style");
@@ -310,6 +311,9 @@ export default function CreateInvoice() {
     window.print();
     document.head.removeChild(style);
   };
+
+  // Purchase order
+  const [isPurchaseOrder, setIsPurchaseOrder] = useState(false);
 
   if (isLoadingUser) {
     return (
@@ -353,29 +357,67 @@ export default function CreateInvoice() {
               purchasesType={purchasesType}
             />
           )}
+          {/* <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+            }}
+          >
+            {!isPurchaseOrder ? (
+              <Button
+                variant="contained"
+                color="primary"
+                sx={{ width: "100px" }}
+                onClick={() => setIsPurchaseOrder(!isPurchaseOrder)}
+              >
+                طلب شراء
+              </Button>
+            ) : (
+              <Button
+                variant="outlined"
+                color="error"
+                sx={{ width: "100px" }}
+                onClick={() => setIsPurchaseOrder(!isPurchaseOrder)}
+              >
+                إلغاء
+              </Button>
+            )}
+          </Box> */}
         </Box>
       )}
 
-      {/* Invoice Component */}
-      <InvoiceModal
-        selectedInvoice={{
-          ...newInvoice,
-          id: voucherNumber?.last_id,
-          date,
-          time,
-          employee_name: user?.username,
-        }}
-        isEditingInvoice={editingMode}
-        editingInvoice={newInvoice}
-        setEditingInvoice={setNewInvoice}
-        selectedNowType={selectedNowType}
-        addRow={addRow}
-        handleDeleteItemClick={removeRow}
-        isPurchasesType={!!purchasesType}
-        showCommentField={showCommentField}
-        show={false}
-        isCreate={true}
-      />
+      <Box sx={{ display: isPurchaseOrder && "flex", gap: "20px" }}>
+        {/* Invoice Component */}
+        <Box sx={{ flex: "1" }}>
+          <InvoiceModal
+            selectedInvoice={{
+              ...newInvoice,
+              id: voucherNumber?.last_id,
+              date,
+              time,
+              employee_name: user?.username,
+            }}
+            isEditingInvoice={editingMode}
+            editingInvoice={newInvoice}
+            setEditingInvoice={setNewInvoice}
+            selectedNowType={selectedNowType}
+            addRow={addRow}
+            handleDeleteItemClick={removeRow}
+            isPurchasesType={!!purchasesType}
+            showCommentField={showCommentField}
+            show={false}
+            isCreate={true}
+          />
+        </Box>
+
+        {/* Purchase order */}
+        {isPurchaseOrder && (
+          <PurchaseRequestForm
+            onSave={() => setIsPurchaseOrder(!isPurchaseOrder)}
+            onCancel={() => setIsPurchaseOrder(!isPurchaseOrder)}
+          />
+        )}
+      </Box>
 
       {/* Action Buttons */}
       <Box className={styles.buttonsSection}>

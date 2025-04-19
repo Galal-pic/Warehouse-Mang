@@ -136,33 +136,34 @@ export default function Invoices() {
 
   // Simplified delete handler
   const handleDeleteSelectedRows = async (selectedIds) => {
-    setIsArrayDeleting(true);
-    try {
-      for (const invoice of selectedRows) {
-        await deleteInvoice(invoice.id).unwrap();
-      }
-      refetch();
-      setOpenSnackbar(true);
-      setSnackbarMessage("تم الحذف بنجاح");
-      setSnackBarType("success");
-    } catch (error) {
-      if (error.response && error.response.status === 500) {
+    if (deleteCheckBoxConfirmationText.trim().toLowerCase() === "نعم") {
+      setIsArrayDeleting(true);
+      try {
+        for (const invoice of selectedRows) {
+          await deleteInvoice(invoice.id).unwrap();
+        }
         setOpenSnackbar(true);
-        setSnackbarMessage("خطأ في الوصول إلى قاعدة البيانات");
-        setSnackBarType("error");
-      } else {
-        setOpenSnackbar(true);
-        setSnackbarMessage(
-          "خطأ في حذف العمليات، قد يكون هناك بيانات متعلقه بها او انها غير موجوده بالفعل"
-        );
-        setSnackBarType("error");
+        setSnackbarMessage("تم الحذف بنجاح");
+        setSnackBarType("success");
+      } catch (error) {
+        if (error.response && error.response.status === 500) {
+          setOpenSnackbar(true);
+          setSnackbarMessage("خطأ في الوصول إلى قاعدة البيانات");
+          setSnackBarType("error");
+        } else {
+          setOpenSnackbar(true);
+          setSnackbarMessage(
+            "خطأ في حذف العمليات، قد يكون هناك بيانات متعلقه بها او انها غير موجوده بالفعل"
+          );
+          setSnackBarType("error");
+        }
+      } finally {
+        setIsArrayDeleting(false);
+        setDeleteDialogCheckBoxOpen(false);
+        setDeleteCheckBoxConfirmationText("");
+        setSelectedRows([]);
+        setRowSelectionModel([]);
       }
-    } finally {
-      setIsArrayDeleting(false);
-      setDeleteDialogCheckBoxOpen(false);
-      setDeleteCheckBoxConfirmationText("");
-      setSelectedRows([]);
-      setRowSelectionModel([]);
     }
   };
 
@@ -398,7 +399,6 @@ export default function Invoices() {
       setIsInvoiceDeleting(true);
       try {
         await deleteInvoice(selectedUserId).unwrap();
-        refetch();
         setOpenSnackbar(true);
         setSnackbarMessage("تم الحذف بنجاح");
         setSnackBarType("success");
