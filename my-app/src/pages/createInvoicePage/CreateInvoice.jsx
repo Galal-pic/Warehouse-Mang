@@ -21,7 +21,7 @@ import {
 import PurchaseRequestForm from "../../components/purchaseRequestForm/PurchaseRequestForm";
 
 // Constants
-const operationTypes = ["صرف", "أمانات", "مرتجع", "توالف", "حجز", "طلب شراء"];
+const operationTypes = ["صرف", "أمانات", "مرتجع", "توالف", "حجز"];
 const purchasesTypes = ["اضافه"];
 const LOCAL_STORAGE_KEY = "invoiceDraft";
 
@@ -314,6 +314,7 @@ export default function CreateInvoice() {
 
   // Purchase order
   const [isPurchaseOrder, setIsPurchaseOrder] = useState(false);
+  const [purchaseOrderInvoice, setPurchaseOrderInvoice] = useState(newInvoice);
 
   if (isLoadingUser) {
     return (
@@ -357,7 +358,7 @@ export default function CreateInvoice() {
               purchasesType={purchasesType}
             />
           )}
-          {/* <Box
+          <Box
             sx={{
               display: "flex",
               alignItems: "center",
@@ -382,7 +383,7 @@ export default function CreateInvoice() {
                 إلغاء
               </Button>
             )}
-          </Box> */}
+          </Box>
         </Box>
       )}
 
@@ -412,10 +413,28 @@ export default function CreateInvoice() {
 
         {/* Purchase order */}
         {isPurchaseOrder && (
-          <PurchaseRequestForm
-            onSave={() => setIsPurchaseOrder(!isPurchaseOrder)}
-            onCancel={() => setIsPurchaseOrder(!isPurchaseOrder)}
-          />
+          <Box sx={{ flex: "1" }}>
+            <InvoiceModal
+              selectedInvoice={{
+                ...newInvoice,
+                id: voucherNumber?.last_id,
+                type: "طلب شراء",
+                date,
+                time,
+                employee_name: user?.username,
+              }}
+              isEditingInvoice={editingMode}
+              editingInvoice={purchaseOrderInvoice}
+              setEditingInvoice={setPurchaseOrderInvoice}
+              addRow={addRow}
+              selectedNowType={selectedNowType}
+              handleDeleteItemClick={removeRow}
+              isPurchasesType={!!purchasesType}
+              showCommentField={showCommentField}
+              show={false}
+              isCreate={true}
+            />
+          </Box>
         )}
       </Box>
 
