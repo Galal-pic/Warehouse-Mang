@@ -2,7 +2,8 @@
 
 /* Main container */
 .mainBox {
-    padding: 40px;
+    padding-top: 10px;
+    padding-bottom: 50px;
     width: 90%;
     margin: auto;
     margin-top: 100px;
@@ -296,4 +297,9 @@
     z-index: 99999999999999999999999999999999999999 !important;
 }
 
-.alert {}
+.typeSelectors {
+    display: flex;
+    gap: 100px;
+    justify-content: center;
+    margin-bottom: 10px;
+}

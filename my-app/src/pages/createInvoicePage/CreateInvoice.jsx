@@ -87,7 +87,8 @@ export default function CreateInvoice() {
 
   // RTK Queries
   const { data: user, isLoading: isLoadingUser } = useGetUserQuery();
-  const { data: voucherNumber } = useGetLastInvoiceIdQuery();
+  const { data: voucherNumber, refetch: refetchLastId } =
+    useGetLastInvoiceIdQuery();
   const [createInvoice, { isLoading: isSaving }] = useCreateInvoiceMutation();
 
   // Derived values
@@ -268,8 +269,12 @@ export default function CreateInvoice() {
     setIsInvoiceSaved(false);
     setEditingMode(true);
     localStorage.removeItem(LOCAL_STORAGE_KEY);
+    refetchLastId();
   };
-
+  useEffect(() => {
+    refetchLastId();
+  }, [refetchLastId]);
+  
   // Print handler
   const handlePrint = () => {
     const style = document.createElement("style");
@@ -442,31 +447,37 @@ export default function CreateInvoice() {
 }
 
 // Reusable Type Selector Component
+
 const TypeSelector = ({ newInvoice, label, value, options, onChange }) => (
   <FormControl
-    sx={{ m: 1, minWidth: 220, backgroundColor: "white" }}
+    sx={{
+      m: 1,
+      minWidth: 200,
+      maxWidth: 300,
+      backgroundColor: "white",
+      borderRadius: "4px",
+    }}
     variant="standard"
-    className={styles.typeSelector}
   >
     <InputLabel
       sx={{
         fontSize: "1.2rem",
-        fontWeight: "600",
-        marginBottom: "6px",
+        fontWeight: 600,
         color: "#1976d2",
+        direction: "rtl",
         transition: "all 0.3s ease",
         position: "absolute",
         top: "50%",
-        left: "48%",
+        left: "47%",
         "&.Mui-focused": {
           transform:
             newInvoice.type === "اضافه"
-              ? "translate(-37px, -60px)"
+              ? "translate(-30px, -60px)"
               : "translate(-30px, -60px)",
         },
         transform:
           newInvoice.type === "اضافه" && label === "مشتريات"
-            ? "translate(-37px, -60px)"
+            ? "translate(-30px, -60px)"
             : newInvoice.type !== "اضافه" &&
               newInvoice.type !== "" &&
               label === "عمليات"
@@ -474,24 +485,51 @@ const TypeSelector = ({ newInvoice, label, value, options, onChange }) => (
             : "translate(-50%, -50%)",
       }}
       id={label}
-      className={styles.selectorLabel}
     >
       {label}
     </InputLabel>
     <Select
       value={value}
       onChange={onChange}
-      className={styles.typeSelect}
       sx={{
-        "&.MuiMenuItem-root": {
-          direction: "rtl",
+        textAlign: "center",
+        direction: "rtl",
+        "& .MuiSelect-select": {
+          padding: "8px 24px 8px 8px",
+          fontSize: "1rem",
         },
       }}
       labelId={label}
       label={label}
+      MenuProps={{
+        PaperProps: {
+          sx: {
+            "& .MuiMenuItem-root": {
+              justifyContent: "center",
+              textAlign: "center",
+              direction: "rtl",
+              fontSize: "1rem",
+              "&:hover": {
+                backgroundColor: "#e3f2fd",
+              },
+            },
+          },
+        },
+      }}
     >
       {options.map((option, index) => (
-        <MenuItem key={index} value={option} className={styles.menuItem}>
+        <MenuItem
+          key={index}
+          value={option}
+          sx={{
+            justifyContent: "center",
+            textAlign: "center",
+            direction: "rtl",
+            "&:hover": {
+              backgroundColor: "#e3f2fd",
+            },
+          }}
+        >
           {option}
         </MenuItem>
       ))}

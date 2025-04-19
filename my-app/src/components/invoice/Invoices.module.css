@@ -402,4 +402,408 @@
     z-index: 99999999999999999999999999999999999999 !important;
 }
 
-.alert {}
+@import url('../../colors.css');
+
+:root {
+    --main_color: black;
+    --blue_color: #1976d2;
+}
+
+/* General Container Styling */
+.container {
+    width: 80%;
+    /* من 85% إلى 80% */
+    padding: 60px 0 6px;
+    /* تصغير الحشوة أكثر */
+    margin: auto;
+}
+
+/* Header Styling */
+.head {
+    font-size: 1.4rem;
+    /* من 1.6rem إلى 1.4rem */
+    margin-bottom: 12px;
+    /* من 16px إلى 12px */
+    color: var(--primary-color);
+    position: relative;
+}
+
+/* DataGrid Header Styling */
+.headerCell {
+    background-color: var(--primary-color);
+    font-weight: bold !important;
+    font-size: 0.8rem;
+    /* من 0.9rem إلى 0.8rem */
+    color: white;
+}
+
+/* Action Buttons Styling */
+.iconBtn {
+    font-size: 1.3rem;
+    /* من 1.5rem إلى 1.3rem */
+    cursor: pointer;
+    border-radius: 2px;
+    transition: 0.2s;
+    border: 1px solid var(--secondary-color);
+    /* من 1.5px إلى 1px */
+    background-color: transparent;
+}
+
+.iconBtn:hover {
+    background-color: #dddddd82;
+}
+
+/* Buttons Styling */
+.btn {
+    font-size: 1.3rem;
+    /* من 1.5rem إلى 1.3rem */
+    cursor: pointer;
+    border-radius: 2px;
+    padding: 6px 20px;
+    /* من 8px 24px إلى 6px 20px */
+    transition: 0.2s;
+    border: 1px solid var(--secondary-color);
+    /* من 1.5px إلى 1px */
+    background-color: var(--blue-color);
+    color: #fff;
+    margin: 6px 0;
+    /* من 8px إلى 6px */
+}
+
+.btn:hover {
+    background-color: var(--secondary-color);
+    color: #000;
+}
+
+/* Responsive Styling */
+@media (max-width: 992px) {
+    .container {
+        width: 500px;
+        /* من 600px إلى 500px */
+    }
+
+    .inputContainer {
+        flex-direction: column-reverse;
+    }
+}
+
+@media (max-width: 662px) {
+    .container {
+        width: 100%;
+    }
+}
+
+/* Main container */
+.mainBox {
+    padding: 24px;
+    /* من 32px إلى 24px */
+    width: 80%;
+    /* من 85% إلى 80% */
+    margin: auto;
+    margin-top: 60px;
+    /* من 80px إلى 60px */
+}
+
+/* Operation Type Selection */
+.operationTypeSelection {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 12px;
+    /* من 16px إلى 12px */
+}
+
+.operationTypeLabel {
+    margin-bottom: 12px;
+    /* من 16px إلى 12px */
+    font-size: 1rem;
+    /* من 1.2rem إلى 1rem */
+    color: #1976d2;
+    font-weight: bold;
+}
+
+.operationTypeFormControl {
+    margin: 6px;
+    /* من 8px إلى 6px */
+    width: 180px;
+    /* من 220px إلى 180px */
+    margin: auto !important;
+    border: 1px solid #1976d2 !important;
+    /* من 1.5px إلى 1px */
+    border-radius: 4px;
+    background-color: white;
+}
+
+.operationTypeSelect {
+    font-weight: bold !important;
+    font-size: 16px !important;
+    /* من 18px إلى 16px */
+}
+
+/* Outer Box */
+.outerBox {
+    direction: rtl;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+/* Printable Box */
+.printableBox {
+    border: 1px solid #ddd;
+    padding: 6px 20px;
+    /* من 8px 28px إلى 6px 20px */
+    overflow-y: auto !important;
+}
+
+/* Header Section */
+.headerSection {
+    display: flex;
+    align-items: center;
+    margin-bottom: 12px;
+    /* من 16px إلى 12px */
+    justify-content: space-between;
+    direction: rtl;
+    width: 100%;
+}
+
+.logoBox {
+    flex: 1;
+}
+
+.logoImage {
+    width: 150px;
+    /* من 200px إلى 150px */
+}
+
+.operationTypeBox {
+    text-align: center;
+    flex: 1;
+    line-height: 1.8;
+    /* من 2 إلى 1.8 */
+}
+
+.operationTypeText {
+    font-weight: bold;
+    color: #333;
+    font-size: 1rem;
+    /* من 1.2rem إلى 1rem */
+}
+
+.operationTypeName {
+    font-size: 16px;
+    /* من 18px إلى 16px */
+    color: #555;
+    font-weight: bold;
+}
+
+.infoBox {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+}
+
+.infoItem {
+    display: flex;
+    align-items: center;
+    margin-bottom: 3px;
+    /* من 4px إلى 3px */
+}
+
+.infoLabel {
+    font-weight: bold;
+    color: #555;
+}
+
+.infoValue {
+    margin-right: 3px;
+    /* من 4px إلى 3px */
+    font-weight: 400;
+    color: #999090;
+}
+
+.warehouseBox {
+    display: flex;
+    justify-content: flex-start;
+    margin-bottom: 12px;
+    /* من 16px إلى 12px */
+}
+
+.warehouseText {
+    border: 1px solid #ddd;
+    padding: 3px 12px;
+    /* من 4px 16px إلى 3px 12px */
+    border-radius: 3px;
+    background-color: white;
+}
+
+/* Table Section */
+.customTable {
+    border: 1px solid #b2b0b0 !important;
+    margin-bottom: 20px;
+    /* من 24px إلى 20px */
+    background-color: white;
+}
+
+.tableCell {
+    border: 1px solid #b2b0b0 !important;
+    padding: 8px;
+    /* من 10px إلى 8px */
+    text-align: center;
+    background-color: #ddd;
+    font-weight: bold;
+}
+
+.tableCellRow {
+    width: auto;
+    text-align: center;
+    padding: 0 !important;
+    height: 35px !important;
+    /* من 40px إلى 35px */
+}
+
+.tableInputCell {
+    padding: 0 !important;
+    position: relative;
+}
+
+.cellInput {
+    border: none;
+    outline: none;
+    width: 100%;
+}
+
+.addIcon {
+    cursor: pointer;
+}
+
+.clearIcon:hover {
+    background-color: #dddddd41;
+}
+
+/* Total Amount Section */
+.MoneySection {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    /* من 0.9rem إلى 0.8rem */
+    flex-direction: row-reverse;
+    width: 100%;
+}
+
+
+/* Comment Field */
+.commentFieldBox {
+    margin-top: 12px !important;
+    /* من 16px إلى 12px */
+    text-align: center;
+    border: 1px #ddd solid;
+    padding: 12px 0;
+    /* من 16px إلى 12px */
+}
+
+.commentTextField {
+    width: 100%;
+    border-radius: 5px;
+    /* من 6px إلى 5px */
+}
+
+/* Information Section */
+.infoSection {
+    margin-top: 20px;
+    /* من 24px إلى 20px */
+    display: flex;
+    justify-content: space-around;
+    direction: rtl;
+}
+
+.infoItemBox {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    /* من 8px إلى 6px */
+    flex: 1;
+    text-align: center;
+}
+
+.infoLabel {
+    font-weight: bold;
+    color: #555;
+}
+
+.infoValue {
+    color: #555;
+}
+
+.infoInput {
+    border: none;
+    outline: none;
+    height: 28px;
+    /* من 32px إلى 28px */
+    text-align: center;
+    width: calc(100% - 60px);
+    /* من 80px إلى 60px */
+    margin: auto;
+    min-width: 60px;
+    /* من 80px إلى 60px */
+}
+
+/* Buttons Section */
+.buttonsSection {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 20%;
+    /* من 25% إلى 20% */
+    margin-top: 20px;
+    /* من 24px إلى 20px */
+}
+
+.infoBtn {
+    padding: 0px 16px !important;
+    /* من 20px إلى 16px */
+    border-radius: 8px !important;
+    /* من 10px إلى 8px */
+    font-weight: bold !important;
+    flex: 1;
+    font-size: 1.1rem !important;
+    /* من 1.3rem إلى 1.1rem */
+}
+
+/* بقية الأنماط بدون تغيير */
+.addCommentButton {
+    background-color: #4caf50 !important;
+}
+
+.addCommentButton:hover {
+    background-color: #45a049 !important;
+}
+
+.cancelCommentButton {
+    border-color: #e57373 !important;
+}
+
+.cancelCommentButton:hover {
+    border-color: #d32f2f !important;
+}
+
+.saveButton {
+    background-color: #1976d2 !important;
+}
+
+.saveButton:hover {
+    background-color: #1565c0 !important;
+}
+
+.printButton {
+    background-color: #00bcd4 !important;
+}
+
+.printButton:hover {
+    background-color: #0097a7 !important;
+}
+
+/* Snackbar */
+.snackbar {
+    z-index: 99999999999999999999999999999999999999 !important;
+}

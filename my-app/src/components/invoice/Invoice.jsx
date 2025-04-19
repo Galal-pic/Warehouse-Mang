@@ -7,9 +7,12 @@ import {
   TableCell,
   Autocomplete,
   TextField,
+  Dialog,
+  IconButton,
 } from "@mui/material";
 import ClearOutlinedIcon from "@mui/icons-material/ClearOutlined";
 import AddIcon from "@mui/icons-material/Add";
+import VisibilityIcon from "@mui/icons-material/Visibility";
 import CustomAutoCompleteField from "../../components/customAutoCompleteField/CustomAutoCompleteField";
 import NumberInput from "../../components/number/NumberInput";
 import styles from "./Invoices.module.css";
@@ -19,6 +22,11 @@ import { useGetSuppliersQuery } from "../../pages/services/supplierApi";
 import { useGetMachinesQuery } from "../../pages/services/machineApi";
 import { useGetMechanismsQuery } from "../../pages/services/mechanismApi";
 import { useGetWarehousesQuery } from "../../pages/services/warehouseApi";
+import {
+  useGetInvoiceQuery,
+  useGetInvoicesQuery,
+} from "../../pages/services/invoiceApi";
+
 export default function InvoiceModal({
   selectedInvoice,
   isEditingInvoice,
@@ -56,6 +64,68 @@ export default function InvoiceModal({
     isLoading: isWareHousesLoading,
     refetch: refetchWarehouses,
   } = useGetWarehousesQuery(undefined, { pollingInterval: 300000 });
+
+  // Placeholder for fetching invoice numbers (replace with actual API call)
+  const {
+    data: invoices,
+    isLoading: isInvoiceNumbersLoading,
+    isError: isInvoiceNumbersError,
+  } = useGetInvoicesQuery("صرف", { pollingInterval: 300000 });
+
+  const invoiceNumbers = invoices
+    ? invoices.map((inv) => ({
+        id: inv.id.toString(), // تحويل id لـ string لو كان رقم
+      }))
+    : [];
+  useEffect(() => {
+    if (isInvoiceNumbersError) {
+      setSnackBarType("error");
+      setSnackbarMessage("فشل تحميل أرقام الفواتير");
+      setOpenSnackbar(true);
+    }
+  }, [isInvoiceNumbersError]);
+
+  // State for controlling the original invoice modal
+  const [openOriginalInvoiceModal, setOpenOriginalInvoiceModal] =
+    useState(false);
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState(null);
+
+  // Fetch original invoice using useGetInvoiceQuery
+  const {
+    data: originalInvoice,
+    isLoading: isOriginalInvoiceLoading,
+    isError: isOriginalInvoiceError,
+  } = useGetInvoiceQuery(selectedInvoiceId, {
+    skip: !selectedInvoiceId || !openOriginalInvoiceModal,
+  });
+
+  // Handle opening the original invoice modal
+  const handleOpenOriginalInvoice = (invoiceId) => {
+    if (invoiceId) {
+      setSelectedInvoiceId(invoiceId);
+      setOpenOriginalInvoiceModal(true);
+    } else {
+      setSnackBarType("error");
+      setSnackbarMessage("يرجى تحديد رقم الفاتورة أولاً");
+      setOpenSnackbar(true);
+    }
+  };
+
+  // Handle closing the original invoice modal
+  const handleCloseOriginalInvoiceModal = () => {
+    setOpenOriginalInvoiceModal(false);
+    setSelectedInvoiceId(null);
+  };
+
+  // Show error message if fetching invoice fails
+  useEffect(() => {
+    if (isOriginalInvoiceError && openOriginalInvoiceModal) {
+      setSnackBarType("error");
+      setSnackbarMessage("فشل تحميل الفاتورة الأصلية");
+      setOpenSnackbar(true);
+      setOpenOriginalInvoiceModal(false);
+    }
+  }, [isOriginalInvoiceError]);
 
   // handle items, warehouses and locations
   const warehouseMap = useMemo(() => {
@@ -97,7 +167,7 @@ export default function InvoiceModal({
     setOpenSnackbar(false);
   };
 
-  // refeatch data
+  // refetch data
   useEffect(() => {
     refetchMachines();
     refetchMechanisms();
@@ -159,7 +229,7 @@ export default function InvoiceModal({
             }}
           >
             <TableBody>
-              {/* Inputs for Suplier, Machine and Mechanism Names */}
+              {/* Inputs for Supplier, Machine, Mechanism Names, and Invoice Number */}
               {(selectedNowType?.type === "purchase" || isPurchasesType) && (
                 <TableRow className={styles.tableRow}>
                   <TableCell className={styles.tableCell} colSpan={2}>
@@ -183,6 +253,53 @@ export default function InvoiceModal({
                       />
                     ) : (
                       selectedInvoice.supplier_name
+                    )}
+                  </TableCell>
+                </TableRow>
+              )}
+              {(selectedNowType?.type === "مرتجع" ||
+                selectedInvoice?.type === "مرتجع" ||
+                editingInvoice?.type === "مرتجع") && (
+                <TableRow className={styles.tableRow}>
+                  <TableCell className={styles.tableCell} colSpan={2}>
+                    رقم الفاتورة
+                  </TableCell>
+                  <TableCell
+                    className={styles.tableInputCell}
+                    colSpan={6}
+                    sx={{
+                      padding: "0px !important",
+                    }}
+                  >
+                    {isEditingInvoice ? (
+                      <>
+                        <CustomAutoCompleteField
+                          loading={isInvoiceNumbersLoading}
+                          values={invoiceNumbers}
+                          editingItem={editingInvoice}
+                          setEditingItem={setEditingInvoice}
+                          fieldName="original_invoice_id"
+                          placeholder="رقم الفاتورة"
+                        />
+                        <IconButton
+                          onClick={() =>
+                            handleOpenOriginalInvoice(
+                              editingInvoice.original_invoice_id
+                            )
+                          }
+                          disabled={!editingInvoice.original_invoice_id}
+                          sx={{
+                            position: "absolute",
+                            top: "50%",
+                            left: "0",
+                            transform: "translateY(-50%)",
+                          }}
+                        >
+                          <VisibilityIcon />
+                        </IconButton>
+                      </>
+                    ) : (
+                      selectedInvoice.original_invoice_id || "-"
                     )}
                   </TableCell>
                 </TableRow>
@@ -259,7 +376,6 @@ export default function InvoiceModal({
                     </TableCell>
                   </>
                 )}
-
                 <TableCell className={styles.tableCell}>بيان</TableCell>
               </TableRow>
 
@@ -501,9 +617,11 @@ export default function InvoiceModal({
                             e.target.value = 0;
                           }
                           if (
+                            selectedInvoice?.type !== "مرتجع" &&
+                            editingInvoice?.type !== "مرتجع" &&
                             (selectedNowType?.type === "operation" ||
-                              (!isPurchasesType && isCreate)) &
-                            (e.target.value > row.maxquantity)
+                              (!isPurchasesType && isCreate)) &&
+                            e.target.value > row.maxquantity
                           ) {
                             e.target.value = row.maxquantity;
                           }
@@ -513,7 +631,7 @@ export default function InvoiceModal({
                             row.location === undefined ||
                             row.location === ""
                           ) {
-                            setSnackbarMessage("يجب تحديد موقع العنصر اولا");
+                            setSnackbarMessage("يجب تحديد موقع العنصر أولا");
                             setSnackBarType("info");
                             setOpenSnackbar(true);
                             event.target.blur();
@@ -525,11 +643,10 @@ export default function InvoiceModal({
                             row.location === undefined ||
                             row.location === ""
                           ) {
-                            setSnackbarMessage("يجب تحديد موقع العنصر اولا");
+                            setSnackbarMessage("يجب تحديد موقع العنصر أولا");
                             setSnackBarType("info");
                             setOpenSnackbar(true);
                             event.target.blur();
-
                             return;
                           }
                         }}
@@ -538,11 +655,10 @@ export default function InvoiceModal({
                             row.location === undefined ||
                             row.location === ""
                           ) {
-                            setSnackbarMessage("يجب تحديد موقع العنصر اولا");
+                            setSnackbarMessage("يجب تحديد موقع العنصر أولا");
                             setSnackBarType("info");
                             setOpenSnackbar(true);
                             e.target.blur();
-
                             return;
                           }
                           const newQuantity = Math.max(
@@ -615,7 +731,7 @@ export default function InvoiceModal({
                                 row.location === ""
                               ) {
                                 setSnackbarMessage(
-                                  "يجب تحديد موقع العنصر اولا"
+                                  "يجب تحديد موقع العنصر أولا"
                                 );
                                 setSnackBarType("info");
                                 setOpenSnackbar(true);
@@ -657,7 +773,7 @@ export default function InvoiceModal({
                                 row.location === ""
                               ) {
                                 setSnackbarMessage(
-                                  "يجب تحديد موقع العنصر اولا"
+                                  "يجب تحديد موقع العنصر أولا"
                                 );
                                 setSnackBarType("info");
                                 setOpenSnackbar(true);
@@ -671,7 +787,7 @@ export default function InvoiceModal({
                                 row.location === ""
                               ) {
                                 setSnackbarMessage(
-                                  "يجب تحديد موقع العنصر اولا"
+                                  "يجب تحديد موقع العنصر أولا"
                                 );
                                 setSnackBarType("info");
                                 setOpenSnackbar(true);
@@ -885,7 +1001,7 @@ export default function InvoiceModal({
                     (editingInvoice?.total_amount || 0)}
                 </Box>
               </Box>
-            </Box>{" "}
+            </Box>
           </Box>
         )}
         {/* comment */}
@@ -958,6 +1074,36 @@ export default function InvoiceModal({
           </Box>
         </Box>
       </div>
+
+      {/* Modal for displaying the original invoice */}
+      <Dialog
+        open={openOriginalInvoiceModal}
+        onClose={handleCloseOriginalInvoiceModal}
+        maxWidth="lg"
+        fullWidth
+      >
+        <Box sx={{ padding: "20px", direction: "rtl" }}>
+          {isOriginalInvoiceLoading ? (
+            <Box>جاري تحميل الفاتورة...</Box>
+          ) : originalInvoice ? (
+            <InvoiceModal
+              selectedInvoice={originalInvoice}
+              isEditingInvoice={false} // View-only mode
+              editingInvoice={originalInvoice}
+              setEditingInvoice={() => {}} // No editing allowed
+              show={false}
+              selectedNowType={{ type: originalInvoice.type }}
+              addRow={() => {}} // No adding rows
+              handleDeleteItemClick={() => {}} // No deleting items
+              isPurchasesType={originalInvoice.type === "purchase"}
+              isCreate={false}
+              showCommentField={true}
+            />
+          ) : (
+            <Box>لم يتم العثور على الفاتورة</Box>
+          )}
+        </Box>
+      </Dialog>
 
       {/* Snackbar */}
       <SnackBar

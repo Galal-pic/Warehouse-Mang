@@ -30,8 +30,14 @@ export default function CustomAutoCompleteField({
         },
       }}
       value={
-        Array.isArray(values)
-          ? values.find((item) => item.name === editingItem[fieldName]) || null
+        Array.isArray(values) && editingItem[fieldName] !== undefined
+          ? values.find(
+              (item) =>
+                item &&
+                (fieldName === "original_invoice_id"
+                  ? item.id === editingItem[fieldName]
+                  : item.name === editingItem[fieldName])
+            ) || null
           : null
       }
       sx={{
@@ -50,14 +56,25 @@ export default function CustomAutoCompleteField({
         minWidth: "150px",
       }}
       options={Array.isArray(values) ? values : []}
-      getOptionLabel={(option) => option.name || ""}
+      getOptionLabel={(option) =>
+        fieldName === "original_invoice_id"
+          ? option.id || ""
+          : option.name || ""
+      }
+      isOptionEqualToValue={(option, value) =>
+        fieldName === "original_invoice_id"
+          ? option.id === value?.id
+          : option.name === value?.name
+      }
       onChange={(event, newValue) => {
-        if (!newValue) {
-          return;
-        }
         setEditingItem({
           ...editingItem,
-          [fieldName]: newValue ? newValue.name : "",
+          [fieldName]:
+            newValue && fieldName === "original_invoice_id"
+              ? newValue.id
+              : newValue
+              ? newValue.name
+              : "",
         });
       }}
       renderInput={(params) => (
