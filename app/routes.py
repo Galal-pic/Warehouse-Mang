@@ -794,7 +794,6 @@ class UpdateInvoicePrice(Resource):
         """
         try:
             # Get the invoice
-            print('galallllllllllllll')
             invoice = Invoice.query.get(invoice_id)
             if not invoice:
                 return {"error": f"Invoice with ID {invoice_id} not found"}, 404
