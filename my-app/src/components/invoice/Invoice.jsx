@@ -39,6 +39,7 @@ export default function InvoiceModal({
   isPurchasesType = false,
   isCreate = false,
   showCommentField = false,
+  className = "",
 }) {
   // data from api
   const {
@@ -202,7 +203,7 @@ export default function InvoiceModal({
   return (
     <>
       <div
-        className="printable-box"
+        className={`${className} printable-box`}
         style={{
           backgroundColor: isCreate && "white",
           padding: isCreate && "10px 35px",
@@ -639,7 +640,8 @@ export default function InvoiceModal({
                             editingInvoice?.type !== "مرتجع" &&
                             (selectedNowType?.type === "operation" ||
                               (!isPurchasesType && isCreate)) &&
-                            e.target.value > row.maxquantity
+                            e.target.value > row.maxquantity &&
+                            selectedInvoice.type !== "طلب شراء"
                           ) {
                             e.target.value = row.maxquantity;
                           }

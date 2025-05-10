@@ -18,14 +18,15 @@ import {
   useGetLastInvoiceIdQuery,
   useCreateInvoiceMutation,
 } from "../services/invoiceApi";
-import PurchaseRequestForm from "../../components/purchaseRequestForm/PurchaseRequestForm";
 
 // Constants
 const operationTypes = ["صرف", "أمانات", "مرتجع", "توالف", "حجز"];
 const purchasesTypes = ["اضافه"];
 const LOCAL_STORAGE_KEY = "invoiceDraft";
+const PURCHASE_ORDER_LOCAL_STORAGE_KEY = "purchaseOrderDraft";
 
 const initialInvoiceState = {
+  id: null,
   supplier_name: "",
   type: "",
   client_name: "",
@@ -62,8 +63,26 @@ export default function CreateInvoice() {
     return savedDraft ? JSON.parse(savedDraft).purchasesType : "";
   });
   const [showCommentField, setShowCommentField] = useState(false);
+  const [showPurchaseOrderCommentField, setShowPurchaseOrderCommentField] =
+    useState(false);
   const [isInvoiceSaved, setIsInvoiceSaved] = useState(false);
   const [editingMode, setEditingMode] = useState(true);
+
+  // Purchase order state
+  const [isPurchaseOrder, setIsPurchaseOrder] = useState(false);
+  const [isPurchaseOrderSaved, setIsPurchaseOrderSaved] = useState(false);
+  const [isPurchaseOrderEditing, setIsPurchaseOrderEditing] = useState(true);
+  const [purchaseOrderInvoice, setPurchaseOrderInvoice] = useState(() => {
+    const savedDraft = localStorage.getItem(PURCHASE_ORDER_LOCAL_STORAGE_KEY);
+    return savedDraft
+      ? {
+          ...initialInvoiceState,
+          ...JSON.parse(savedDraft).purchaseOrderInvoice,
+          type: "صرف",
+          id: JSON.parse(savedDraft).purchaseOrderInvoice.id || null,
+        }
+      : { ...initialInvoiceState, type: "صرف" };
+  });
 
   // Invoice data state
   const [newInvoice, setNewInvoice] = useState(() => {
@@ -75,6 +94,7 @@ export default function CreateInvoice() {
           type:
             JSON.parse(savedDraft).operationType ||
             JSON.parse(savedDraft).purchasesType,
+          id: JSON.parse(savedDraft).newInvoice.id || null,
         }
       : initialInvoiceState;
   });
@@ -101,6 +121,14 @@ export default function CreateInvoice() {
     [newInvoice.items]
   );
 
+  const purchaseOrderTotalAmount = useMemo(
+    () =>
+      purchaseOrderInvoice.items
+        .reduce((total, row) => total + (row.total_price || 0), 0)
+        .toFixed(2),
+    [purchaseOrderInvoice.items]
+  );
+
   const selectedNowType = useMemo(
     () => ({
       type: purchasesType || operationType,
@@ -121,8 +149,8 @@ export default function CreateInvoice() {
         minute: "2-digit",
         hour12: true,
       })
-    ); // h:mm AM/PM
-  }, [isInvoiceSaved]);
+    );
+  }, [isInvoiceSaved, isPurchaseOrderSaved]);
 
   // Type selection handler
   const handleTypeChange = useCallback((type, isPurchase) => {
@@ -143,21 +171,27 @@ export default function CreateInvoice() {
   }, [operationType, purchasesType]);
 
   // Items management
-  const addRow = useCallback(() => {
-    setNewInvoice((prev) => ({
+  const addRow = useCallback((isPurchaseOrder = false) => {
+    const setInvoice = isPurchaseOrder
+      ? setPurchaseOrderInvoice
+      : setNewInvoice;
+    setInvoice((prev) => ({
       ...prev,
       items: [...prev.items, { ...initialInvoiceState.items[0] }],
     }));
   }, []);
 
-  const removeRow = useCallback((index) => {
-    setNewInvoice((prev) => ({
+  const removeRow = useCallback((index, isPurchaseOrder = false) => {
+    const setInvoice = isPurchaseOrder
+      ? setPurchaseOrderInvoice
+      : setNewInvoice;
+    setInvoice((prev) => ({
       ...prev,
       items: prev.items.filter((_, i) => i !== index),
     }));
   }, []);
 
-  // Local storage persistence
+  // Local storage persistence for main invoice
   useEffect(() => {
     if (!isInvoiceSaved) {
       const draft = {
@@ -177,26 +211,44 @@ export default function CreateInvoice() {
     isInvoiceSaved,
   ]);
 
-  // Validation helpers
-  const validateRequiredFields = () => {
-    if (!newInvoice.type) return "يجب تحديد نوع العملية";
+  // Local storage persistence for purchase order
+  useEffect(() => {
+    if (!isPurchaseOrderSaved) {
+      const draft = {
+        purchaseOrderInvoice,
+        isPurchaseOrderSaved,
+      };
+      localStorage.setItem(
+        PURCHASE_ORDER_LOCAL_STORAGE_KEY,
+        JSON.stringify(draft)
+      );
+    }
+  }, [purchaseOrderInvoice, isPurchaseOrderSaved]);
 
-    const requiredFields = purchasesType
+  // Validation helpers
+  const validateRequiredFields = (invoice, isPurchaseOrder = false) => {
+    if (!invoice.type) return "يجب تحديد نوع العملية";
+
+    const requiredFields = isPurchaseOrder
+      ? ["machine_name", "mechanism_name"]
+      : purchasesType
       ? ["machine_name", "mechanism_name", "supplier_name"]
       : ["machine_name", "mechanism_name"];
 
-    const missingFields = requiredFields.filter((field) => !newInvoice[field]);
+    const missingFields = requiredFields.filter((field) => !invoice[field]);
 
     if (missingFields.length > 0) {
-      return purchasesType
+      return isPurchaseOrder
+        ? "يجب ملء اسم الماكينة واسم الميكانيزم"
+        : purchasesType
         ? "يجب ملء اسم المورد واسم الماكينة واسم الميكانيزم"
         : "يجب ملء اسم الماكينة واسم الميكانيزم";
     }
     return null;
   };
 
-  const validateItems = () => {
-    const validItems = newInvoice.items.filter(
+  const validateItems = (items) => {
+    const validItems = items.filter(
       (item) => Number(item.quantity) > 0 && !isNaN(Number(item.quantity))
     );
 
@@ -206,7 +258,8 @@ export default function CreateInvoice() {
 
   // Save invoice handler
   const handleSave = async () => {
-    const fieldError = validateRequiredFields() || validateItems();
+    const fieldError =
+      validateRequiredFields(newInvoice) || validateItems(newInvoice.items);
     if (fieldError) {
       setSnackbar({ open: true, message: fieldError, type: "error" });
       return;
@@ -232,89 +285,240 @@ export default function CreateInvoice() {
       time,
     };
 
-    console.log(invoiceData);
     try {
       await createInvoice(invoiceData).unwrap();
       setIsInvoiceSaved(true);
       setEditingMode(false);
       localStorage.removeItem(LOCAL_STORAGE_KEY);
+      setNewInvoice((prev) => ({
+        ...prev,
+        id: voucherNumber?.last_id, // Store the saved ID
+      }));
       setSnackbar({
         open: true,
         message: "تم حفظ الفاتورة بنجاح",
         type: "success",
       });
-    } catch (error) {
-      if (error.response && error.response.status === 500) {
-        setSnackbar({
-          open: true,
-          message: "خطأ في الوصول إلى قاعدة البيانات",
-          type: "error",
-        });
-      } else {
-        setSnackbar({
-          open: true,
-          message:
-            "حدث خطأ، الرجاء المحاولة مرة اخرى او محاولة اعادة تحميل الصفحة",
-          type: "error",
-        });
+
+      // Update purchase order ID if purchase order view is active
+
+      if (!isPurchaseOrderSaved) {
+        if (isPurchaseOrder) {
+          await refetchLastId();
+          setPurchaseOrderInvoice((prev) => ({
+            ...prev,
+            id: voucherNumber?.last_id, // Set to latest ID
+          }));
+          // Update purchase order local storage if not saved
+          if (!isPurchaseOrderSaved) {
+            const draft = {
+              purchaseOrderInvoice: {
+                ...purchaseOrderInvoice,
+                id: voucherNumber?.last_id,
+              },
+              isPurchaseOrderSaved,
+            };
+            localStorage.setItem(
+              PURCHASE_ORDER_LOCAL_STORAGE_KEY,
+              JSON.stringify(draft)
+            );
+          }
+        }
+        setPurchaseOrderInvoice((prev) => ({
+          ...prev,
+          id: null,
+          type: "صرف",
+        }));
       }
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message:
+          error.status === 500
+            ? "خطأ في الوصول إلى قاعدة البيانات"
+            : "حدث خطأ، الرجاء المحاولة مرة أخرى أو إعادة تحميل الصفحة",
+        type: "error",
+      });
+    }
+  };
+
+  // Save purchase order handler
+  const handleSavePurchaseOrder = async () => {
+    const fieldError =
+      validateRequiredFields(purchaseOrderInvoice, true) ||
+      validateItems(purchaseOrderInvoice.items);
+    if (fieldError) {
+      setSnackbar({ open: true, message: fieldError, type: "error" });
+      return;
+    }
+
+    const purchaseOrderData = {
+      ...purchaseOrderInvoice,
+      supplier_name: "", // Ensure supplier_name is empty for purchase order
+      items: purchaseOrderInvoice.items
+        .filter((item) => Number(item.quantity) > 0)
+        .map((item) => ({
+          item_name: item.item_name,
+          barcode: item.barcode,
+          location: item.location,
+          quantity: Number(item.quantity),
+          unit_price: Number(item.unit_price),
+          total_price: Number(item.total_price),
+          description: item.description,
+        })),
+      total_amount: purchaseOrderTotalAmount,
+      employee_name: user?.username,
+      id: voucherNumber?.last_id,
+      date,
+      time,
+    };
+
+    try {
+      await createInvoice(purchaseOrderData).unwrap();
+      setIsPurchaseOrderSaved(true);
+      setIsPurchaseOrderEditing(false);
+      localStorage.removeItem(PURCHASE_ORDER_LOCAL_STORAGE_KEY);
+      setPurchaseOrderInvoice((prev) => ({
+        ...prev,
+        id: voucherNumber?.last_id,
+      }));
+      setSnackbar({
+        open: true,
+        message: "تم حفظ طلب الشراء بنجاح",
+        type: "success",
+      });
+
+      if (!isInvoiceSaved) {
+        await refetchLastId();
+        setNewInvoice((prev) => ({
+          ...prev,
+          id: voucherNumber?.last_id,
+        }));
+        setNewInvoice((prev) => ({
+          ...prev,
+          id: null,
+        }));
+      }
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message:
+          error.status === 500
+            ? "خطأ في الوصول إلى قاعدة البيانات"
+            : "حدث خطأ، الرجاء المحاولة مرة أخرى أو إعادة تحميل الصفحة",
+        type: "error",
+      });
     }
   };
 
   // Clear invoice handler
-  const clearInvoice = () => {
-    setNewInvoice(initialInvoiceState);
+  const clearInvoice = async () => {
+    // Reset all relevant states
     setOperationType("");
     setPurchasesType("");
     setShowCommentField(false);
     setIsInvoiceSaved(false);
     setEditingMode(true);
     localStorage.removeItem(LOCAL_STORAGE_KEY);
-    refetchLastId();
+
+    try {
+      // Force refetch to get the latest ID
+      const { data: updatedVoucherNumber } = await refetchLastId();
+      const newId = updatedVoucherNumber?.last_id ?? null;
+
+      // Update newInvoice with initial state and latest ID
+      setNewInvoice({
+        ...initialInvoiceState,
+        id: newId,
+      });
+
+      // Log for debugging
+      console.log("Cleared invoice, new ID:", newId);
+    } catch (error) {
+      console.error("Error refetching last invoice ID:", error);
+      // Fallback: Reset with null ID
+      setNewInvoice({
+        ...initialInvoiceState,
+        id: null,
+      });
+    }
+  };
+
+  // Clear purchase order handler
+  const clearPurchaseOrder = async () => {
+    // Reset all relevant states
+    setIsPurchaseOrderSaved(false);
+    setIsPurchaseOrderEditing(true);
+    setShowPurchaseOrderCommentField(false);
+    localStorage.removeItem(PURCHASE_ORDER_LOCAL_STORAGE_KEY);
+
+    try {
+      // Force refetch to get the latest ID
+      const { data: updatedVoucherNumber } = await refetchLastId();
+      const newId = updatedVoucherNumber?.last_id ?? null;
+
+      // Update purchaseOrderInvoice with initial state and latest ID
+      setPurchaseOrderInvoice({
+        ...initialInvoiceState,
+        type: "طلب شراء",
+        id: newId,
+      });
+
+      // Log for debugging
+      console.log("Cleared purchase order, new ID:", newId);
+    } catch (error) {
+      console.error("Error refetching last invoice ID:", error);
+      // Fallback: Reset with null ID
+      setPurchaseOrderInvoice({
+        ...initialInvoiceState,
+        type: "طلب شراء",
+        id: null,
+      });
+    }
   };
   useEffect(() => {
     refetchLastId();
   }, [refetchLastId]);
 
   // Print handler
-  const handlePrint = () => {
+  const handlePrint = (isPurchaseOrder = false) => {
+    const printClass = isPurchaseOrder
+      ? "printable-purchase-order"
+      : "printable-invoice";
+
     const style = document.createElement("style");
     style.innerHTML = `
-      @media print {
-        body * {
-          visibility: hidden;
-        }
-        .printable-box, .printable-box * {
-          visibility: visible;
-        }
-        .printable-box {
-          position: absolute;
-          left: 0;
-          top: 0;
-          padding: 0px !important;
-          margin: 0 !important;
-          width: 100%;
-        }
-        .printable-box input,
-        .printable-box textarea,
-        .printable-box .MuiAutocomplete-root {
-          display: none !important;
-        }
-        @page {
-          size: auto;
-          margin: 5mm;
-        }
+    @media print {
+      body * {
+        visibility: hidden;
       }
+      .${printClass}, .${printClass} * {
+        visibility: visible;
+      }
+      .${printClass} {
+        position: absolute;
+        left: 0;
+        top: 0;
+        padding: 0px !important;
+        margin: 0 !important;
+        width: 100%;
+      }
+      .${printClass} input,
+      .${printClass} textarea,
+      .${printClass} .MuiAutocomplete-root {
+        display: none !important;
+      }
+      @page {
+        size: auto;
+        margin: 5mm;
+      }
+    }
     `;
 
     document.head.appendChild(style);
     window.print();
     document.head.removeChild(style);
   };
-
-  // Purchase order
-  const [isPurchaseOrder, setIsPurchaseOrder] = useState(false);
-  const [purchaseOrderInvoice, setPurchaseOrderInvoice] = useState(newInvoice);
 
   if (isLoadingUser) {
     return (
@@ -334,7 +538,7 @@ export default function CreateInvoice() {
 
   return (
     <Box className={styles.mainBox}>
-      {/* Operation Type Selectors */}
+      {/* Operation Type Selectors and Purchase Order Button */}
       {!isInvoiceSaved && (
         <Box className={styles.typeSelectors}>
           {(user?.create_additions || user?.username === "admin") && (
@@ -358,6 +562,7 @@ export default function CreateInvoice() {
               purchasesType={purchasesType}
             />
           )}
+
           <Box
             sx={{
               display: "flex",
@@ -371,7 +576,7 @@ export default function CreateInvoice() {
                 sx={{ width: "100px" }}
                 onClick={() => setIsPurchaseOrder(!isPurchaseOrder)}
               >
-                طلب شراء
+                صرف
               </Button>
             ) : (
               <Button
@@ -387,13 +592,15 @@ export default function CreateInvoice() {
         </Box>
       )}
 
-      <Box sx={{ display: isPurchaseOrder && "flex", gap: "20px" }}>
+      <Box sx={{ display: "flex", gap: "20px", overflowX: "auto" }}>
         {/* Invoice Component */}
-        <Box sx={{ flex: "1" }}>
+        <Box sx={{ flex: isPurchaseOrder ? "1" : "auto" }}>
           <InvoiceModal
+            className="printable-invoice"
             selectedInvoice={{
               ...newInvoice,
-              id: voucherNumber?.last_id,
+              id:
+                newInvoice.id !== null ? newInvoice.id : voucherNumber?.last_id,
               date,
               time,
               employee_name: user?.username,
@@ -402,98 +609,167 @@ export default function CreateInvoice() {
             editingInvoice={newInvoice}
             setEditingInvoice={setNewInvoice}
             selectedNowType={selectedNowType}
-            addRow={addRow}
-            handleDeleteItemClick={removeRow}
+            addRow={() => addRow(false)}
+            handleDeleteItemClick={(index) => removeRow(index, false)}
             isPurchasesType={!!purchasesType}
             showCommentField={showCommentField}
             show={false}
             isCreate={true}
           />
+          {/* Main Invoice Action Buttons */}
+          <Box className={styles.buttonsSection}>
+            {!isInvoiceSaved ? (
+              <>
+                <Button
+                  variant={showCommentField ? "outlined" : "contained"}
+                  color={showCommentField ? "error" : "success"}
+                  onClick={() => setShowCommentField(!showCommentField)}
+                  className={
+                    showCommentField
+                      ? `${styles.cancelCommentButton} ${styles.infoBtn}`
+                      : `${styles.addCommentButton} ${styles.infoBtn}`
+                  }
+                >
+                  {showCommentField ? "إلغاء التعليق" : "إضافة تعليق"}
+                </Button>
+
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={handleSave}
+                  disabled={isSaving}
+                  className={`${styles.saveButton} ${styles.infoBtn}`}
+                >
+                  {isSaving ? <CircularProgress size={24} /> : "تأكيد الحفظ"}
+                </Button>
+
+                <Button
+                  variant="contained"
+                  color="info"
+                  onClick={clearInvoice}
+                  className={`${styles.printButton} ${styles.infoBtn}`}
+                >
+                  فاتورة جديدة
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={clearInvoice}
+                  className={styles.mainButton}
+                >
+                  فاتورة جديدة
+                </Button>
+
+                <Button
+                  variant="contained"
+                  color="success"
+                  onClick={() => handlePrint(false)}
+                  className={styles.mainButton}
+                >
+                  طباعة الفاتورة
+                </Button>
+              </>
+            )}
+          </Box>
         </Box>
 
-        {/* Purchase order */}
+        {/* Purchase Order Component */}
         {isPurchaseOrder && (
           <Box sx={{ flex: "1" }}>
             <InvoiceModal
+              className="printable-purchase-order"
               selectedInvoice={{
-                ...newInvoice,
-                id: voucherNumber?.last_id,
-                type: "طلب شراء",
+                ...purchaseOrderInvoice,
+                id:
+                  purchaseOrderInvoice.id !== null
+                    ? purchaseOrderInvoice.id
+                    : voucherNumber?.last_id,
+                type: "صرف",
                 date,
                 time,
                 employee_name: user?.username,
               }}
-              isEditingInvoice={editingMode}
+              isEditingInvoice={isPurchaseOrderEditing}
               editingInvoice={purchaseOrderInvoice}
               setEditingInvoice={setPurchaseOrderInvoice}
-              addRow={addRow}
-              selectedNowType={selectedNowType}
-              handleDeleteItemClick={removeRow}
-              isPurchasesType={!!purchasesType}
-              showCommentField={showCommentField}
+              selectedNowType={{ type: "صرف" }}
+              addRow={() => addRow(true)}
+              handleDeleteItemClick={(index) => removeRow(index, true)}
+              isPurchasesType={false}
+              showCommentField={showPurchaseOrderCommentField}
               show={false}
               isCreate={true}
             />
+            {/* Purchase Order Action Buttons */}
+            <Box className={styles.buttonsSection}>
+              {!isPurchaseOrderSaved ? (
+                <>
+                  <Button
+                    variant={
+                      showPurchaseOrderCommentField ? "outlined" : "contained"
+                    }
+                    color={showPurchaseOrderCommentField ? "error" : "success"}
+                    onClick={() =>
+                      setShowPurchaseOrderCommentField(
+                        !showPurchaseOrderCommentField
+                      )
+                    }
+                    className={
+                      showPurchaseOrderCommentField
+                        ? `${styles.cancelCommentButton} ${styles.infoBtn}`
+                        : `${styles.addCommentButton} ${styles.infoBtn}`
+                    }
+                  >
+                    {showPurchaseOrderCommentField
+                      ? "إلغاء التعليق"
+                      : "إضافة تعليق"}
+                  </Button>
+
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    onClick={handleSavePurchaseOrder}
+                    disabled={isSaving}
+                    className={`${styles.saveButton} ${styles.infoBtn}`}
+                  >
+                    {isSaving ? <CircularProgress size={24} /> : "تأكيد الحفظ"}
+                  </Button>
+
+                  <Button
+                    variant="contained"
+                    color="info"
+                    onClick={clearPurchaseOrder}
+                    className={`${styles.printButton} ${styles.infoBtn}`}
+                  >
+                    طلب جديد
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    onClick={clearPurchaseOrder}
+                    className={styles.mainButton}
+                  >
+                    طلب جديد
+                  </Button>
+
+                  <Button
+                    variant="contained"
+                    color="success"
+                    onClick={() => handlePrint(true)}
+                    className={styles.mainButton}
+                  >
+                    طباعة الطلب
+                  </Button>
+                </>
+              )}
+            </Box>
           </Box>
-        )}
-      </Box>
-
-      {/* Action Buttons */}
-      <Box className={styles.buttonsSection}>
-        {!isInvoiceSaved ? (
-          <>
-            <Button
-              variant={showCommentField ? "outlined" : "contained"}
-              color={showCommentField ? "error" : "success"}
-              onClick={() => setShowCommentField(!showCommentField)}
-              className={
-                showCommentField
-                  ? `${styles.cancelCommentButton} ${styles.infoBtn}`
-                  : `${styles.addCommentButton} ${styles.infoBtn}`
-              }
-            >
-              {showCommentField ? "الغاء" : "تعليق"}
-            </Button>
-
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={handleSave}
-              disabled={isSaving}
-              className={`${styles.saveButton} ${styles.infoBtn}`}
-            >
-              {isSaving ? <CircularProgress size={24} /> : "تأكيد الحفظ"}
-            </Button>
-
-            <Button
-              variant="contained"
-              color="info"
-              onClick={clearInvoice}
-              className={`${styles.printButton} ${styles.infoBtn}`}
-            >
-              فاتورة جديدة
-            </Button>
-          </>
-        ) : (
-          <>
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={clearInvoice}
-              className={styles.mainButton}
-            >
-              فاتورة جديدة
-            </Button>
-
-            <Button
-              variant="contained"
-              color="success"
-              onClick={handlePrint}
-              className={styles.mainButton}
-            >
-              طباعة الفاتورة
-            </Button>
-          </>
         )}
       </Box>
 
@@ -508,7 +784,6 @@ export default function CreateInvoice() {
 }
 
 // Reusable Type Selector Component
-
 const TypeSelector = ({ newInvoice, label, value, options, onChange }) => (
   <FormControl
     sx={{
@@ -578,7 +853,7 @@ const TypeSelector = ({ newInvoice, label, value, options, onChange }) => (
         },
       }}
     >
-      {options.map((option, index) => (
+      {(options || []).map((option, index) => (
         <MenuItem
           key={index}
           value={option}
