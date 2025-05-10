@@ -142,7 +142,7 @@ export default function Invoices() {
       );
       if (confirmedInvoices.length > 0) {
         setOpenSnackbar(true);
-        setSnackbarMessage("لا يمكن حذف بعض الفواتير لأن حالتها 'تم'");
+        setSnackbarMessage("لا يمكن حذف بعض الفواتير");
         setSnackBarType("warning");
         setDeleteDialogCheckBoxOpen(false);
         setDeleteCheckBoxConfirmationText("");
@@ -936,7 +936,7 @@ export default function Invoices() {
     const invoice = invoices.find((item) => item.id === id);
     if (invoice?.status === "تم") {
       setOpenSnackbar(true);
-      setSnackbarMessage("لا يمكن حذف هذه الفاتورة لأن حالتها 'تم'");
+      setSnackbarMessage("لا يمكن حذف هذه الفاتورة");
       setSnackBarType("warning");
       return;
     }
