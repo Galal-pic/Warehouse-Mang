@@ -78,10 +78,10 @@ export default function CreateInvoice() {
       ? {
           ...initialInvoiceState,
           ...JSON.parse(savedDraft).purchaseOrderInvoice,
-          type: "صرف",
+          type: "طلب شراء",
           id: JSON.parse(savedDraft).purchaseOrderInvoice.id || null,
         }
-      : { ...initialInvoiceState, type: "صرف" };
+      : { ...initialInvoiceState, type: "طلب شراء" };
   });
 
   // Invoice data state
@@ -327,7 +327,7 @@ export default function CreateInvoice() {
         setPurchaseOrderInvoice((prev) => ({
           ...prev,
           id: null,
-          type: "صرف",
+          type: "طلب شراء",
         }));
       }
     } catch (error) {
@@ -576,7 +576,7 @@ export default function CreateInvoice() {
                 sx={{ width: "100px" }}
                 onClick={() => setIsPurchaseOrder(!isPurchaseOrder)}
               >
-                صرف
+                طلب شراء
               </Button>
             ) : (
               <Button
@@ -687,7 +687,7 @@ export default function CreateInvoice() {
                   purchaseOrderInvoice.id !== null
                     ? purchaseOrderInvoice.id
                     : voucherNumber?.last_id,
-                type: "صرف",
+                type: "طلب شراء",
                 date,
                 time,
                 employee_name: user?.username,
@@ -695,7 +695,7 @@ export default function CreateInvoice() {
               isEditingInvoice={isPurchaseOrderEditing}
               editingInvoice={purchaseOrderInvoice}
               setEditingInvoice={setPurchaseOrderInvoice}
-              selectedNowType={{ type: "صرف" }}
+              selectedNowType={{ type: "طلب شراء" }}
               addRow={() => addRow(true)}
               handleDeleteItemClick={(index) => removeRow(index, true)}
               isPurchasesType={false}
