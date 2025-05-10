@@ -137,6 +137,23 @@ export default function Invoices() {
   // Simplified delete handler
   const handleDeleteSelectedRows = async (selectedIds) => {
     if (deleteCheckBoxConfirmationText.trim().toLowerCase() === "نعم") {
+      const confirmedInvoices = selectedRows.filter(
+        (invoice) => invoice.status === "تم"
+      );
+      if (confirmedInvoices.length > 0) {
+        setOpenSnackbar(true);
+        setSnackbarMessage("لا يمكن حذف بعض الفواتير لأن حالتها 'تم'");
+        setSnackBarType("warning");
+        setDeleteDialogCheckBoxOpen(false);
+        setDeleteCheckBoxConfirmationText("");
+        setIsArrayDeleting(false);
+        setDeleteDialogCheckBoxOpen(false);
+        setDeleteCheckBoxConfirmationText("");
+        setSelectedRows([]);
+        setRowSelectionModel([]);
+        return;
+      }
+
       setIsArrayDeleting(true);
       try {
         for (const invoice of selectedRows) {
@@ -914,7 +931,16 @@ export default function Invoices() {
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [deleteConfirmationText, setDeleteConfirmationText] = useState("");
 
+  // Delete Single Invoice
   const handleDeleteClick = (id) => {
+    const invoice = invoices.find((item) => item.id === id);
+    if (invoice?.status === "تم") {
+      setOpenSnackbar(true);
+      setSnackbarMessage("لا يمكن حذف هذه الفاتورة لأن حالتها 'تم'");
+      setSnackBarType("warning");
+      return;
+    }
+
     setSelectedUserId(id);
     setDeleteDialogOpen(true);
     setDeleteConfirmationText("");
