@@ -26,11 +26,7 @@ import { useGetUserQuery } from "../services/userApi";
 
 export default function Supliers() {
   // RTK Query Hooks
-  const {
-    data: user,
-    isLoading: isLoadingUser,
-    refetch: refetchUser,
-  } = useGetUserQuery();
+  const { data: user, isLoading: isLoadingUser } = useGetUserQuery();
 
   const {
     data: initialItems = [],
@@ -39,8 +35,7 @@ export default function Supliers() {
   } = useGetSuppliersQuery(undefined, { pollingInterval: 300000 });
   useEffect(() => {
     refetch();
-    refetchUser();
-  }, [refetch, refetchUser]);
+  }, []);
   const [addSupplier, { isLoading: isAdding }] = useAddSupplierMutation();
   const [updateSupplier, { isLoading: isUpdating }] =
     useUpdateSupplierMutation();

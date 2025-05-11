@@ -26,11 +26,7 @@ import { useGetUserQuery } from "../services/userApi";
 
 export default function Mechanisms() {
   // RTK Query Hooks
-  const {
-    data: user,
-    isLoading: isLoadingUser,
-    refetch: refetchUser,
-  } = useGetUserQuery();
+  const { data: user, isLoading: isLoadingUser } = useGetUserQuery();
 
   const {
     data: initialItems = [],
@@ -39,8 +35,7 @@ export default function Mechanisms() {
   } = useGetMechanismsQuery(undefined, { pollingInterval: 300000 });
   useEffect(() => {
     refetch();
-    refetchUser();
-  }, [refetch, refetchUser]);
+  }, []);
   const [addMechanism, { isLoading: isAdding }] = useAddMechanismMutation();
   const [updateMechanism, { isLoading: isUpdating }] =
     useUpdateMechanismMutation();

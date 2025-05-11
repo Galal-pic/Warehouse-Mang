@@ -218,8 +218,7 @@ export default function Users() {
   ];
   useEffect(() => {
     refetchUsers();
-    refetchUser();
-  }, [refetchUser, refetchUsers]);
+  }, []);
 
   // manage modal component
   const [isModalOpen, setIsModalOpen] = useState(false);

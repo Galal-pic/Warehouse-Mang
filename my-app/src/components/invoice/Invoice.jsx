@@ -192,13 +192,7 @@ export default function InvoiceModal({
     refetchMechanisms();
     refetchSupliers();
     refetchWarehouses();
-  }, [
-    refetchMachines,
-    refetchMechanisms,
-    refetchSupliers,
-    refetchWarehouses,
-    selectedInvoice,
-  ]);
+  }, []);
 
   return (
     <>

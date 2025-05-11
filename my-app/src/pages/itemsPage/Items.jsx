@@ -32,15 +32,10 @@ import {
 import { useGetUserQuery } from "../services/userApi";
 import ArticleIcon from "@mui/icons-material/Article";
 import ItemeDetails from "../../components/itemDetails/ItemeDetails";
-import { translateError } from "../../components/translateError/translateError";
 
 export default function Items() {
   // RTK Query Hooks
-  const {
-    data: user,
-    isLoading: isLoadingUser,
-    refetch: refetchUser,
-  } = useGetUserQuery();
+  const { data: user, isLoading: isLoadingUser } = useGetUserQuery();
 
   const {
     data: initialItems = [],
@@ -50,8 +45,7 @@ export default function Items() {
 
   useEffect(() => {
     refetch();
-    refetchUser();
-  }, [refetch, refetchUser]);
+  }, []);
 
   const [addWarehouse, { isLoading: isAdding }] = useAddWarehouseMutation();
   const [updateWarehouse, { isLoading: isUpdating }] =

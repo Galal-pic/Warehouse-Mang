@@ -993,9 +993,8 @@ export default function Invoices() {
   };
   useEffect(() => {
     refetch();
-    refetchUser();
     refetchInvoices();
-  }, [refetch, refetchInvoices, refetchUser]);
+  }, []);
 
   if (isLoadingUser) {
     return (
