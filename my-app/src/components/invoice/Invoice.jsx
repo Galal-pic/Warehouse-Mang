@@ -41,11 +41,11 @@ export default function InvoiceModal({
   showCommentField = false,
   className = "",
 }) {
-  // data from api
+  // Data from API
   const {
     data: suppliers,
-    isLoading: isSupliersLoading,
-    refetch: refetchSupliers,
+    isLoading: isSuppliersLoading,
+    refetch: refetchSuppliers,
   } = useGetSuppliersQuery(undefined, { pollingInterval: 300000 });
 
   const {
@@ -62,11 +62,11 @@ export default function InvoiceModal({
 
   const {
     data: warehouse,
-    isLoading: isWareHousesLoading,
+    isLoading: isWarehousesLoading,
     refetch: refetchWarehouses,
   } = useGetWarehousesQuery(undefined, { pollingInterval: 300000 });
 
-  // Placeholder for fetching invoice numbers (replace with actual API call)
+  // Placeholder for fetching invoice numbers
   const {
     data: invoices,
     isLoading: isInvoiceNumbersLoading,
@@ -75,9 +75,10 @@ export default function InvoiceModal({
 
   const invoiceNumbers = invoices
     ? invoices.map((inv) => ({
-        id: inv.id.toString(), // تحويل id لـ string لو كان رقم
+        id: inv.id.toString(),
       }))
     : [];
+
   useEffect(() => {
     if (isInvoiceNumbersError) {
       setSnackBarType("error");
@@ -91,14 +92,17 @@ export default function InvoiceModal({
     useState(false);
   const [selectedInvoiceId, setSelectedInvoiceId] = useState(null);
 
-  // Fetch original invoice using useGetInvoiceQuery
+  // Fetch original invoice
   const {
     data: originalInvoice,
     isLoading: isOriginalInvoiceLoading,
     isError: isOriginalInvoiceError,
-  } = useGetInvoiceQuery(selectedInvoiceId, {
-    skip: !selectedInvoiceId || !openOriginalInvoiceModal,
-  });
+  } = useGetInvoiceQuery(
+    selectedInvoiceId || editingInvoice?.original_invoice_id,
+    {
+      skip: !selectedInvoiceId && !editingInvoice?.original_invoice_id,
+    }
+  );
 
   const transformedInvoice = originalInvoice
     ? {
@@ -146,7 +150,7 @@ export default function InvoiceModal({
     }
   }, [isOriginalInvoiceError]);
 
-  // handle items, warehouses and locations
+  // Handle items, warehouses, and locations
   const warehouseMap = useMemo(() => {
     const map = new Map();
     if (!Array.isArray(warehouse)) return map;
@@ -157,28 +161,97 @@ export default function InvoiceModal({
     });
     return map;
   }, [warehouse]);
+
+  // Filter itemNames based on invoice type
   const itemNames = useMemo(() => {
+    if (
+      (selectedNowType?.type === "مرتجع" ||
+        selectedInvoice?.type === "مرتجع" ||
+        editingInvoice?.type === "مرتجع") &&
+      originalInvoice?.items
+    ) {
+      return originalInvoice.items.map((item) => item.item_name);
+    }
     return Array.isArray(warehouse)
       ? warehouse.map((item) => item.item_name)
       : [];
-  }, [warehouse]);
+  }, [
+    warehouse,
+    originalInvoice,
+    selectedNowType?.type,
+    selectedInvoice?.type,
+    editingInvoice?.type,
+  ]);
+
+  // Update items with filtered locations and maxquantity for return invoices
   useEffect(() => {
-    if (warehouseMap && editingInvoice && selectedNowType?.type !== "اضافه") {
+    if (warehouseMap && editingInvoice) {
       const updatedItems = editingInvoice.items.map((item) => {
         const warehouseItem = warehouseMap.get(
           item.item_name?.trim()?.toLowerCase()
         );
+        let availableLocations = warehouseItem?.locations || [];
+        let maxquantity = item.maxquantity || 0;
+
+        // For return invoices, filter locations and set maxquantity
+        if (
+          (selectedNowType?.type === "مرتجع" ||
+            editingInvoice?.type === "مرتجع") &&
+          originalInvoice?.items
+        ) {
+          const originalItem = originalInvoice.items.find(
+            (oi) =>
+              oi.item_name.trim().toLowerCase() ===
+              item.item_name?.trim()?.toLowerCase()
+          );
+          if (originalItem) {
+            // Filter locations to only those in the original invoice
+            availableLocations = availableLocations.filter((loc) =>
+              originalInvoice.items.some(
+                (oi) =>
+                  oi.item_name.trim().toLowerCase() ===
+                    item.item_name?.trim()?.toLowerCase() &&
+                  oi.location === loc.location
+              )
+            );
+            // Set maxquantity based on the original invoice's quantity for the selected location
+            if (item.location) {
+              const originalLocationItem = originalInvoice.items.find(
+                (oi) =>
+                  oi.item_name.trim().toLowerCase() ===
+                    item.item_name?.trim()?.toLowerCase() &&
+                  oi.location === item.location
+              );
+              maxquantity = originalLocationItem
+                ? originalLocationItem.quantity
+                : 0;
+            }
+          }
+        } else if (selectedNowType?.type !== "اضافه") {
+          // For non-return invoices, use warehouse quantities
+          maxquantity =
+            warehouseItem?.locations?.find(
+              (loc) => loc.location === item.location
+            )?.quantity || 0;
+        }
+
         return {
           ...item,
-          availableLocations: warehouseItem?.locations || [],
+          availableLocations,
           unit_price: Number(warehouseItem?.unit_price) || 0,
+          maxquantity,
         };
       });
       setEditingInvoice({ ...editingInvoice, items: updatedItems });
     }
-  }, [warehouseMap, selectedNowType?.type]);
+  }, [
+    warehouseMap,
+    originalInvoice,
+    selectedNowType?.type,
+    editingInvoice?.type,
+  ]);
 
-  // snackbar
+  // Snackbar
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackBarType, setSnackBarType] = useState("");
@@ -186,11 +259,11 @@ export default function InvoiceModal({
     setOpenSnackbar(false);
   };
 
-  // refetch data
+  // Refetch data
   useEffect(() => {
     refetchMachines();
     refetchMechanisms();
-    refetchSupliers();
+    refetchSuppliers();
     refetchWarehouses();
   }, []);
 
@@ -257,7 +330,7 @@ export default function InvoiceModal({
                   >
                     {isEditingInvoice ? (
                       <CustomAutoCompleteField
-                        loading={isSupliersLoading}
+                        loading={isSuppliersLoading}
                         values={suppliers}
                         editingItem={editingInvoice}
                         setEditingItem={setEditingInvoice}
@@ -427,7 +500,7 @@ export default function InvoiceModal({
                   >
                     {isEditingInvoice ? (
                       <Autocomplete
-                        loading={isWareHousesLoading}
+                        loading={isWarehousesLoading}
                         disableClearable
                         slotProps={{
                           input: {
@@ -489,6 +562,7 @@ export default function InvoiceModal({
                             unit_price: 0,
                             total_price: 0,
                             availableLocations: selectedItem?.locations || [],
+                            maxquantity: 0,
                           };
 
                           setEditingInvoice({
@@ -582,6 +656,26 @@ export default function InvoiceModal({
                             return;
                           }
 
+                          let maxquantity = row.maxquantity || 0;
+                          if (
+                            (selectedNowType?.type === "مرتجع" ||
+                              editingInvoice?.type === "مرتجع") &&
+                            originalInvoice?.items
+                          ) {
+                            const originalLocationItem =
+                              originalInvoice.items.find(
+                                (oi) =>
+                                  oi.item_name.trim().toLowerCase() ===
+                                    row.item_name?.trim()?.toLowerCase() &&
+                                  oi.location === newValue.location
+                              );
+                            maxquantity = originalLocationItem
+                              ? originalLocationItem.quantity
+                              : 0;
+                          } else {
+                            maxquantity = newValue?.quantity || 0;
+                          }
+
                           const updatedItems = [...editingInvoice.items];
                           updatedItems[index] = {
                             ...updatedItems[index],
@@ -593,7 +687,7 @@ export default function InvoiceModal({
                                 ? newValue.unit_price
                                 : row.unit_price,
                             total_price: 0,
-                            maxquantity: newValue?.quantity + row.quantity,
+                            maxquantity,
                           };
                           setEditingInvoice({
                             ...editingInvoice,
@@ -630,6 +724,17 @@ export default function InvoiceModal({
                             e.target.value = 0;
                           }
                           if (
+                            (selectedNowType?.type === "مرتجع" ||
+                              editingInvoice?.type === "مرتجع") &&
+                            e.target.value > row.maxquantity
+                          ) {
+                            e.target.value = row.maxquantity;
+                            setSnackbarMessage(
+                              `الكمية القصوى المسموح بها هي ${row.maxquantity}`
+                            );
+                            setSnackBarType("warning");
+                            setOpenSnackbar(true);
+                          } else if (
                             selectedInvoice?.type !== "مرتجع" &&
                             editingInvoice?.type !== "مرتجع" &&
                             (selectedNowType?.type === "operation" ||
@@ -1018,7 +1123,7 @@ export default function InvoiceModal({
             </Box>
           </Box>
         )}
-        {/* comment */}
+        {/* Comment */}
         {(!isCreate || showCommentField) &&
           (isEditingInvoice ? (
             <Box className={styles.commentFieldBox}>
@@ -1048,7 +1153,7 @@ export default function InvoiceModal({
               </Box>
             )
           ))}
-        {/* info */}
+        {/* Info */}
         <Box className={styles.infoSection}>
           <Box className={styles.infoItemBox}>
             <Box className={styles.infoLabel}>اسم الموظف</Box>
@@ -1102,13 +1207,13 @@ export default function InvoiceModal({
           ) : transformedInvoice ? (
             <InvoiceModal
               selectedInvoice={transformedInvoice}
-              isEditingInvoice={false} // View-only mode
+              isEditingInvoice={false}
               editingInvoice={transformedInvoice}
-              setEditingInvoice={() => {}} // No editing allowed
+              setEditingInvoice={() => {}}
               show={false}
               selectedNowType={{ type: transformedInvoice.type }}
-              addRow={() => {}} // No adding rows
-              handleDeleteItemClick={() => {}} // No deleting items
+              addRow={() => {}}
+              handleDeleteItemClick={() => {}}
               isPurchasesType={transformedInvoice.type === "purchase"}
               isCreate={false}
               showCommentField={true}
