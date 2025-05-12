@@ -25,11 +25,7 @@ import {
 import { useGetUserQuery } from "../services/userApi";
 
 export default function Machines() {
-  const {
-    data: user,
-    isLoading: isLoadingUser,
-    refetch: refetchUser,
-  } = useGetUserQuery();
+  const { data: user, isLoading: isLoadingUser } = useGetUserQuery();
 
   // RTK Query Hooks
   const {
@@ -39,8 +35,7 @@ export default function Machines() {
   } = useGetMachinesQuery(undefined, { pollingInterval: 300000 });
   useEffect(() => {
     refetch();
-    refetchUser();
-  }, [refetch, refetchUser]);
+  }, []);
   const [addMachine, { isLoading: isAdding }] = useAddMachineMutation();
   const [updateMachine, { isLoading: isUpdating }] = useUpdateMachineMutation();
   const [deleteMachine, { isLoading: isDeleting }] = useDeleteMachineMutation();
