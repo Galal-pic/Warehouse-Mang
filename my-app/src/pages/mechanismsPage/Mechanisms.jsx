@@ -1,5 +1,5 @@
 import styles from "./Mechanisms.module.css";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   Dialog,
   DialogActions,
@@ -28,43 +28,42 @@ export default function Mechanisms() {
   // RTK Query Hooks
   const { data: user, isLoading: isLoadingUser } = useGetUserQuery();
 
+  const [paginationModel, setPaginationModel] = useState({
+    page: 0,
+    pageSize: 10,
+  });
+
+  const handlePageChange = (newModel) => {
+    setPaginationModel((prev) => ({ ...prev, ...newModel }));
+  };
+
   const {
-    data: initialItems = [],
-    isLoading: isMachinesLoading,
+    data: mechanismsData = { mechanisms: [], total_pages: 1 },
+    isLoading: isMechanismsLoading,
     refetch,
-  } = useGetMechanismsQuery(undefined, { pollingInterval: 300000 });
-  useEffect(() => {
-    refetch();
-  }, []);
+  } = useGetMechanismsQuery(
+    { page: paginationModel.page, page_size: paginationModel.pageSize },
+    { pollingInterval: 300000 }
+  );
+
   const [addMechanism, { isLoading: isAdding }] = useAddMechanismMutation();
   const [updateMechanism, { isLoading: isUpdating }] =
     useUpdateMechanismMutation();
   const [deleteMechanism, { isLoading: isDeleting }] =
     useDeleteMechanismMutation();
 
-  // snackbar
+  // Snackbar
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackBarType, setSnackBarType] = useState("");
-  // Handle close snack
   const handleCloseSnackbar = () => {
     setOpenSnackbar(false);
   };
 
-  // pagination
-  const [paginationModel, setPaginationModel] = useState({
-    page: 0,
-    pageSize: 10,
-  });
-  const pageCount = Math.ceil(initialItems.length / paginationModel.pageSize);
-  const handlePageChange = (newModel) => {
-    setPaginationModel((prev) => ({ ...prev, ...newModel }));
-  };
-
-  // add dialog
+  // Add dialog
   const [openDialog, setOpenDialog] = useState(false);
 
-  // delete dialog
+  // Delete dialog
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [deleteConfirmationText, setDeleteConfirmationText] = useState("");
@@ -75,7 +74,7 @@ export default function Mechanisms() {
     setDeleteConfirmationText("");
   };
 
-  // add item
+  // Add item
   const [newItem, setNewItem] = useState({
     name: "",
     description: "",
@@ -119,9 +118,9 @@ export default function Mechanisms() {
     }
   };
 
-  // edit
+  // Edit
   const [isEditingItem, setIsEditingItem] = useState(false);
-  const [editingItem, setEditingItem] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
   const handleSave = async (id) => {
     if (selectedItem === editingItem) {
@@ -166,7 +165,7 @@ export default function Mechanisms() {
     }
   };
 
-  // columns
+  // Columns
   const columns = [
     {
       field: "actions",
@@ -174,38 +173,6 @@ export default function Mechanisms() {
       renderCell: (params) => {
         if (isEditingItem && editingItem.id === params.id) {
           return (
-            <>
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-around",
-                  alignItems: "center",
-                  height: "100%",
-                }}
-              >
-                <button
-                  className={styles.iconBtn}
-                  disabled={isUpdating}
-                  onClick={() => handleSave(params.id)}
-                >
-                  {isUpdating ? <CircularProgress size={24} /> : <SaveIcon />}
-                </button>
-                <button
-                  className={styles.iconBtn}
-                  onClick={() => {
-                    setIsEditingItem(false);
-                    setEditingItem(null);
-                  }}
-                  style={{ color: "#d32f2f" }}
-                >
-                  <ClearOutlinedIcon />
-                </button>
-              </div>
-            </>
-          );
-        }
-        return (
-          <>
             <div
               style={{
                 display: "flex",
@@ -216,40 +183,65 @@ export default function Mechanisms() {
             >
               <button
                 className={styles.iconBtn}
-                onClick={() => {
-                  if (user?.mechanism_can_edit || user?.username === "admin") {
-                    setIsEditingItem(true);
-                    setEditingItem(params.row);
-                    setSelectedItem(params.row);
-                  } else {
-                    setOpenSnackbar(true);
-                    setSnackbarMessage("ليس لديك صلاحيات لإضافة عنصر");
-                    setSnackBarType("info");
-                  }
-                }}
+                disabled={isUpdating}
+                onClick={() => handleSave(params.id)}
               >
-                <EditIcon />
+                {isUpdating ? <CircularProgress size={24} /> : <SaveIcon />}
               </button>
               <button
                 className={styles.iconBtn}
                 onClick={() => {
-                  if (
-                    user?.mechanism_can_delete ||
-                    user?.username === "admin"
-                  ) {
-                    handleDeleteClick(params.id);
-                  } else {
-                    setOpenSnackbar(true);
-                    setSnackbarMessage("ليس لديك صلاحيات لحذف العنصر");
-                    setSnackBarType("info");
-                  }
+                  setIsEditingItem(false);
+                  setEditingItem(null);
                 }}
                 style={{ color: "#d32f2f" }}
               >
                 <ClearOutlinedIcon />
               </button>
             </div>
-          </>
+          );
+        }
+        return (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-around",
+              alignItems: "center",
+              height: "100%",
+            }}
+          >
+            <button
+              className={styles.iconBtn}
+              onClick={() => {
+                if (user?.mechanism_can_edit || user?.username === "admin") {
+                  setIsEditingItem(true);
+                  setEditingItem(params.row);
+                  setSelectedItem(params.row);
+                } else {
+                  setOpenSnackbar(true);
+                  setSnackbarMessage("ليس لديك صلاحيات لإضافة عنصر");
+                  setSnackBarType("info");
+                }
+              }}
+            >
+              <EditIcon />
+            </button>
+            <button
+              className={styles.iconBtn}
+              onClick={() => {
+                if (user?.mechanism_can_delete || user?.username === "admin") {
+                  handleDeleteClick(params.id);
+                } else {
+                  setOpenSnackbar(true);
+                  setSnackbarMessage("ليس لديك صلاحيات لحذف العنصر");
+                  setSnackBarType("info");
+                }
+              }}
+              style={{ color: "#d32f2f" }}
+            >
+              <ClearOutlinedIcon />
+            </button>
+          </div>
         );
       },
     },
@@ -324,7 +316,7 @@ export default function Mechanisms() {
     },
   ];
 
-  // delete
+  // Delete
   const handleDelete = async () => {
     if (deleteConfirmationText.trim().toLowerCase() === "نعم") {
       try {
@@ -364,7 +356,6 @@ export default function Mechanisms() {
         }}
       >
         <h1 className={styles.head}>
-          {" "}
           <CircularProgress />
         </h1>
       </div>
@@ -373,26 +364,26 @@ export default function Mechanisms() {
     if (
       user?.username === "admin" ||
       user?.mechanism_can_edit ||
-      user?.machines_can_add ||
+      user?.mechanism_can_add ||
       user?.mechanism_can_delete
     ) {
       return (
         <div className={styles.container}>
-          {/* title */}
+          {/* Title */}
           <div>
             <h1 className={styles.title}>الميكانيزم</h1>
           </div>
 
-          {/* table */}
+          {/* Table */}
           <CustomDataGrid
-            rows={initialItems}
+            rows={mechanismsData.mechanisms}
             type="mechanism"
             columns={columns}
             paginationModel={paginationModel}
             onPageChange={handlePageChange}
-            pageCount={pageCount}
+            pageCount={mechanismsData.total_pages}
             setOpenDialog={setOpenDialog}
-            loader={isMachinesLoading}
+            loader={isMechanismsLoading}
             onCellKeyDown={(params, event) => {
               if ([" ", "ArrowLeft", "ArrowRight"].includes(event.key)) {
                 event.stopPropagation();
@@ -400,11 +391,11 @@ export default function Mechanisms() {
               }
             }}
             addPermissions={
-              user?.machines_can_add || user?.username === "admin" || false
+              user?.mechanism_can_add || user?.username === "admin" || false
             }
           />
 
-          {/* add dialog */}
+          {/* Add dialog */}
           <Dialog
             open={openDialog}
             onClose={() => {
@@ -560,7 +551,7 @@ export default function Mechanisms() {
             </DialogContent>
           </Dialog>
 
-          {/* delete dialog */}
+          {/* Delete dialog */}
           <DeleteRow
             deleteDialogOpen={deleteDialogOpen}
             setDeleteDialogOpen={setDeleteDialogOpen}

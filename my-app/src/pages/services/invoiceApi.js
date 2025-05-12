@@ -27,10 +27,18 @@ export const invoiceApi = createApi({
       }),
       invalidatesTags: ["Invoice"],
     }),
-    // get invoices
+    // get invoices with pagination
     getInvoices: builder.query({
-      query: (type) => `/invoice/${type}`,
+      query: ({ type, page, page_size }) =>
+        `/invoice/${type}?page=${page + 1}&page_size=${page_size}`,
       providesTags: ["Invoice"],
+      transformResponse: (response) => ({
+        invoices: response.invoices,
+        page: response.page,
+        page_size: response.page_size,
+        total_pages: response.total_pages,
+        total_items: response.total_items,
+      }),
     }),
     // edit invoice
     updateInvoice: builder.mutation({
@@ -73,10 +81,11 @@ export const invoiceApi = createApi({
       }),
       invalidatesTags: ["Invoice"],
     }),
-    // price report: change to a query
+    // price report
     priceReport: builder.query({
       query: (id) => `/invoice/price-report/${id}`,
     }),
+    // get single invoice
     getInvoice: builder.query({
       query: (id) => `/invoice/${id}`,
     }),
