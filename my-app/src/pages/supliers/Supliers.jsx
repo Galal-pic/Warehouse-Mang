@@ -1,5 +1,5 @@
 import styles from "./Supliers.module.css";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   Dialog,
   DialogActions,
@@ -24,47 +24,46 @@ import {
 } from "../services/supplierApi";
 import { useGetUserQuery } from "../services/userApi";
 
-export default function Supliers() {
+export default function Suppliers() {
   // RTK Query Hooks
   const { data: user, isLoading: isLoadingUser } = useGetUserQuery();
 
+  const [paginationModel, setPaginationModel] = useState({
+    page: 0,
+    pageSize: 10,
+  });
+
+  const handlePageChange = (newModel) => {
+    setPaginationModel((prev) => ({ ...prev, ...newModel }));
+  };
+
   const {
-    data: initialItems = [],
+    data: suppliersData = { suppliers: [], total_pages: 1 },
     isLoading: isSuppliersLoading,
     refetch,
-  } = useGetSuppliersQuery(undefined, { pollingInterval: 300000 });
-  useEffect(() => {
-    refetch();
-  }, []);
+  } = useGetSuppliersQuery(
+    { page: paginationModel.page, page_size: paginationModel.pageSize },
+    { pollingInterval: 300000 }
+  );
+
   const [addSupplier, { isLoading: isAdding }] = useAddSupplierMutation();
   const [updateSupplier, { isLoading: isUpdating }] =
     useUpdateSupplierMutation();
   const [deleteSupplier, { isLoading: isDeleting }] =
     useDeleteSupplierMutation();
 
-  // snackbar
+  // Snackbar
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackBarType, setSnackBarType] = useState("");
-  // Handle close snack
   const handleCloseSnackbar = () => {
     setOpenSnackbar(false);
   };
 
-  // pagination
-  const [paginationModel, setPaginationModel] = useState({
-    page: 0,
-    pageSize: 10,
-  });
-  const pageCount = Math.ceil(initialItems.length / paginationModel.pageSize);
-  const handlePageChange = (newModel) => {
-    setPaginationModel((prev) => ({ ...prev, ...newModel }));
-  };
-
-  // add dialog
+  // Add dialog
   const [openDialog, setOpenDialog] = useState(false);
 
-  // add item
+  // Add item
   const [newItem, setNewItem] = useState({
     name: "",
     description: "",
@@ -107,9 +106,9 @@ export default function Supliers() {
     }
   };
 
-  // edit
+  // Edit
   const [isEditingItem, setIsEditingItem] = useState(false);
-  const [editingItem, setEditingItem] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
   const handleSave = async () => {
     if (selectedItem === editingItem) {
@@ -155,7 +154,7 @@ export default function Supliers() {
     }
   };
 
-  // columns
+  // Columns
   const columns = [
     {
       field: "actions",
@@ -163,38 +162,6 @@ export default function Supliers() {
       renderCell: (params) => {
         if (isEditingItem && editingItem.id === params.id) {
           return (
-            <>
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-around",
-                  alignItems: "center",
-                  height: "100%",
-                }}
-              >
-                <button
-                  disabled={isUpdating}
-                  className={styles.iconBtn}
-                  onClick={() => handleSave()}
-                >
-                  {isUpdating ? <CircularProgress size={24} /> : <SaveIcon />}
-                </button>
-                <button
-                  className={styles.iconBtn}
-                  onClick={() => {
-                    setIsEditingItem(false);
-                    setEditingItem(null);
-                  }}
-                  style={{ color: "#d32f2f" }}
-                >
-                  <ClearOutlinedIcon />
-                </button>
-              </div>
-            </>
-          );
-        }
-        return (
-          <>
             <div
               style={{
                 display: "flex",
@@ -204,41 +171,66 @@ export default function Supliers() {
               }}
             >
               <button
+                disabled={isUpdating}
                 className={styles.iconBtn}
-                onClick={() => {
-                  if (user?.suppliers_can_edit || user?.username === "admin") {
-                    setIsEditingItem(true);
-                    setEditingItem(params.row);
-                    setSelectedItem(params.row);
-                  } else {
-                    setOpenSnackbar(true);
-                    setSnackbarMessage("ليس لديك صلاحيات لإضافة عنصر");
-                    setSnackBarType("info");
-                  }
-                }}
+                onClick={() => handleSave()}
               >
-                <EditIcon />
+                {isUpdating ? <CircularProgress size={24} /> : <SaveIcon />}
               </button>
               <button
                 className={styles.iconBtn}
                 onClick={() => {
-                  if (
-                    user?.suppliers_can_delete ||
-                    user?.username === "admin"
-                  ) {
-                    handleDeleteClick(params.id);
-                  } else {
-                    setOpenSnackbar(true);
-                    setSnackbarMessage("ليس لديك صلاحيات لحذف العنصر");
-                    setSnackBarType("info");
-                  }
+                  setIsEditingItem(false);
+                  setEditingItem(null);
                 }}
                 style={{ color: "#d32f2f" }}
               >
                 <ClearOutlinedIcon />
               </button>
             </div>
-          </>
+          );
+        }
+        return (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-around",
+              alignItems: "center",
+              height: "100%",
+            }}
+          >
+            <button
+              className={styles.iconBtn}
+              onClick={() => {
+                if (user?.suppliers_can_edit || user?.username === "admin") {
+                  setIsEditingItem(true);
+                  setEditingItem(params.row);
+                  setSelectedItem(params.row);
+                } else {
+                  setOpenSnackbar(true);
+                  setSnackbarMessage("ليس لديك صلاحيات لإضافة عنصر");
+                  setSnackBarType("info");
+                }
+              }}
+            >
+              <EditIcon />
+            </button>
+            <button
+              className={styles.iconBtn}
+              onClick={() => {
+                if (user?.suppliers_can_delete || user?.username === "admin") {
+                  handleDeleteClick(params.id);
+                } else {
+                  setOpenSnackbar(true);
+                  setSnackbarMessage("ليس لديك صلاحيات لحذف العنصر");
+                  setSnackBarType("info");
+                }
+              }}
+              style={{ color: "#d32f2f" }}
+            >
+              <ClearOutlinedIcon />
+            </button>
+          </div>
         );
       },
     },
@@ -285,7 +277,7 @@ export default function Supliers() {
               <CustomInput
                 value={editingItem.name || ""}
                 onChange={(newValue) => {
-                  setEditingItem({ ...editingItem, name: newValue });
+                  setEditingItem((prev) => ({ ...prev, name: newValue }));
                 }}
               />
             </div>
@@ -301,7 +293,7 @@ export default function Supliers() {
     },
   ];
 
-  // delete dialog
+  // Delete dialog
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [deleteConfirmationText, setDeleteConfirmationText] = useState("");
@@ -312,7 +304,7 @@ export default function Supliers() {
     setDeleteConfirmationText("");
   };
 
-  // delete
+  // Delete
   const handleDelete = async () => {
     if (deleteConfirmationText.trim().toLowerCase() === "نعم") {
       try {
@@ -340,6 +332,7 @@ export default function Supliers() {
       }
     }
   };
+
   if (isLoadingUser) {
     return (
       <div
@@ -351,7 +344,6 @@ export default function Supliers() {
         }}
       >
         <h1 className={styles.head}>
-          {" "}
           <CircularProgress />
         </h1>
       </div>
@@ -365,12 +357,12 @@ export default function Supliers() {
     ) {
       return (
         <div className={styles.container}>
-          {/* title */}
+          {/* Title */}
           <div>
             <h1 className={styles.title}>الموردين</h1>
           </div>
 
-          {/* delete dialog */}
+          {/* Delete dialog */}
           <DeleteRow
             deleteDialogOpen={deleteDialogOpen}
             setDeleteDialogOpen={setDeleteDialogOpen}
@@ -381,14 +373,14 @@ export default function Supliers() {
             loader={isDeleting}
           />
 
-          {/* table */}
+          {/* Table */}
           <CustomDataGrid
-            rows={initialItems}
+            rows={suppliersData.suppliers}
             type="supplier"
             columns={columns}
             paginationModel={paginationModel}
             onPageChange={handlePageChange}
-            pageCount={pageCount}
+            pageCount={suppliersData.total_pages}
             setOpenDialog={setOpenDialog}
             loader={isSuppliersLoading}
             onCellKeyDown={(params, event) => {
@@ -402,13 +394,14 @@ export default function Supliers() {
             }
           />
 
-          {/* add dialog */}
+          {/* Add dialog */}
           <Dialog
             open={openDialog}
             onClose={() => {
               setOpenDialog(false);
               setNewItem({
                 name: "",
+                description: "",
               });
               setErrors({});
             }}

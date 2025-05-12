@@ -1,5 +1,5 @@
 import styles from "./Items.module.css";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   Dialog,
   DialogActions,
@@ -37,15 +37,26 @@ export default function Items() {
   // RTK Query Hooks
   const { data: user, isLoading: isLoadingUser } = useGetUserQuery();
 
+  // Pagination state
+  const [paginationModel, setPaginationModel] = useState({
+    page: 0,
+    pageSize: 10,
+  });
+
+  // Handle page change
+  const handlePageChange = (newModel) => {
+    setPaginationModel((prev) => ({ ...prev, ...newModel }));
+  };
+
+  // Fetch warehouses with pagination
   const {
-    data: initialItems = [],
+    data: warehousesData = { warehouses: [], total_pages: 1 },
     isLoading: isMachinesLoading,
     refetch,
-  } = useGetWarehousesQuery(undefined, { pollingInterval: 300000 });
-
-  useEffect(() => {
-    refetch();
-  }, []);
+  } = useGetWarehousesQuery(
+    { page: paginationModel.page, page_size: paginationModel.pageSize },
+    { pollingInterval: 300000 }
+  );
 
   const [addWarehouse, { isLoading: isAdding }] = useAddWarehouseMutation();
   const [updateWarehouse, { isLoading: isUpdating }] =
@@ -53,12 +64,12 @@ export default function Items() {
   const [deleteWarehouse, { isLoading: isDeleting }] =
     useDeleteWarehouseMutation();
 
-  // collors
+  // Colors
   const primaryColor = getComputedStyle(
     document.documentElement
   ).getPropertyValue("--primary-color");
 
-  // snackbar
+  // Snackbar
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackBarType, setSnackBarType] = useState("");
@@ -67,20 +78,10 @@ export default function Items() {
     setOpenSnackbar(false);
   };
 
-  // pagination
-  const [paginationModel, setPaginationModel] = useState({
-    page: 0,
-    pageSize: 10,
-  });
-  const pageCount = Math.ceil(initialItems.length / paginationModel.pageSize);
-  const handlePageChange = (newModel) => {
-    setPaginationModel((prev) => ({ ...prev, ...newModel }));
-  };
-
-  // add dialog
+  // Add dialog
   const [openDialog, setOpenDialog] = useState(false);
 
-  // add item
+  // Add item
   const [newItem, setNewItem] = useState({
     item_name: "",
     item_bar: "",
@@ -157,7 +158,7 @@ export default function Items() {
     }
   };
 
-  // columns
+  // Columns
   const columns = [
     {
       field: "actions",
@@ -214,16 +215,15 @@ export default function Items() {
       flex: 1,
     },
     { field: "item_bar", headerName: "الباركود", flex: 1 },
-
     { field: "item_name", headerName: "اسم المنتج", flex: 1 },
     { field: "id", headerName: "#" },
   ];
 
-  // modal
+  // Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
   const openItem = (id) => {
-    const item = initialItems.find((item) => item.id === id);
+    const item = warehousesData.warehouses.find((item) => item.id === id);
     setSelectedItem(item);
     setIsModalOpen(true);
   };
@@ -233,9 +233,9 @@ export default function Items() {
     setEditingItem(null);
   };
 
-  // edit
+  // Edit
   const [isEditingItem, setIsEditingItem] = useState(false);
-  const [editingItem, setEditingItem] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
   const handleSave = async () => {
     if (selectedItem === editingItem) {
       setEditingItem(null);
@@ -297,7 +297,7 @@ export default function Items() {
     }
   };
 
-  // delete dialog item
+  // Delete dialog item
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [deleteConfirmationText, setDeleteConfirmationText] = useState("");
@@ -308,7 +308,7 @@ export default function Items() {
     setDeleteConfirmationText("");
   };
 
-  // delete item
+  // Delete item
   const handleDelete = async () => {
     if (deleteConfirmationText.trim().toLowerCase() === "نعم") {
       try {
@@ -337,7 +337,7 @@ export default function Items() {
     }
   };
 
-  // delete dialog location
+  // Delete dialog location
   const [deleteDialogLocationOpen, setDeleteDialogLocationOpen] =
     useState(false);
   const [selectedLocationId, setSelectedLocationId] = useState(0);
@@ -354,7 +354,7 @@ export default function Items() {
     setDeleteLocationConfirmationText("");
   };
 
-  // delete location
+  // Delete location
   const handleDeleteLocation = async (id) => {
     const filteredLocations = editingItem.locations.filter((item, idx) => {
       return idx !== id;
@@ -368,7 +368,7 @@ export default function Items() {
     setDeleteDialogLocationOpen(false);
   };
 
-  // manage Details component
+  // Manage Details component
   const [isItemDetailsOpen, setIsItemDetailsOpen] = useState(false);
   const [ItemId, setItemId] = useState(null);
   const showItemDetails = (id) => {
@@ -400,12 +400,12 @@ export default function Items() {
     ) {
       return (
         <div className={styles.container}>
-          {/* title */}
+          {/* Title */}
           <div>
             <h1 className={styles.title}>المنتجات</h1>
           </div>
 
-          {/* delete dialog item */}
+          {/* Delete dialog item */}
           <DeleteRow
             deleteDialogOpen={deleteDialogOpen}
             setDeleteDialogOpen={setDeleteDialogOpen}
@@ -416,7 +416,7 @@ export default function Items() {
             loader={isDeleting}
           />
 
-          {/* delete dialog location */}
+          {/* Delete dialog location */}
           <DeleteRow
             deleteDialogOpen={deleteDialogLocationOpen}
             setDeleteDialogOpen={setDeleteDialogLocationOpen}
@@ -427,23 +427,23 @@ export default function Items() {
             isNessary={false}
           />
 
-          {/* table */}
+          {/* Table */}
           <CustomDataGrid
-            rows={initialItems}
+            rows={warehousesData.warehouses}
             type="items"
             columns={columns}
             paginationModel={paginationModel}
             onPageChange={handlePageChange}
-            pageCount={pageCount}
+            pageCount={warehousesData.total_pages}
             setOpenDialog={setOpenDialog}
             loader={isMachinesLoading}
-            initialItems={initialItems}
+            initialItems={warehousesData.warehouses}
             addPermissions={
               user?.items_can_add || user?.username === "admin" || false
             }
           />
 
-          {/* add dialog */}
+          {/* Add dialog */}
           <Dialog
             open={openDialog}
             onClose={() => {
@@ -654,7 +654,7 @@ export default function Items() {
             </DialogContent>
           </Dialog>
 
-          {/* invoice data */}
+          {/* Invoice data */}
           <Modal
             open={isModalOpen}
             onClose={closeModal}
@@ -1018,7 +1018,7 @@ export default function Items() {
             </Box>
           </Modal>
 
-          {/* invoice details data */}
+          {/* Invoice details data */}
           {isItemDetailsOpen && (
             <ItemeDetails
               open={isItemDetailsOpen}

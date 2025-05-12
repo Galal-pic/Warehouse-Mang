@@ -1,5 +1,5 @@
 import styles from "./Machines.module.css";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   Dialog,
   DialogActions,
@@ -28,41 +28,40 @@ export default function Machines() {
   const { data: user, isLoading: isLoadingUser } = useGetUserQuery();
 
   // RTK Query Hooks
-  const {
-    data: initialItems = [],
-    isLoading: isMachinesLoading,
-    refetch,
-  } = useGetMachinesQuery(undefined, { pollingInterval: 300000 });
-  useEffect(() => {
-    refetch();
-  }, []);
-  const [addMachine, { isLoading: isAdding }] = useAddMachineMutation();
-  const [updateMachine, { isLoading: isUpdating }] = useUpdateMachineMutation();
-  const [deleteMachine, { isLoading: isDeleting }] = useDeleteMachineMutation();
-
-  // snackbar
-  const [openSnackbar, setOpenSnackbar] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState("");
-  const [snackBarType, setSnackBarType] = useState("");
-  // Handle close snack
-  const handleCloseSnackbar = () => {
-    setOpenSnackbar(false);
-  };
-
-  // pagination
   const [paginationModel, setPaginationModel] = useState({
     page: 0,
     pageSize: 10,
   });
-  const pageCount = Math.ceil(initialItems.length / paginationModel.pageSize);
+
   const handlePageChange = (newModel) => {
     setPaginationModel((prev) => ({ ...prev, ...newModel }));
   };
 
-  // add dialog
+  const {
+    data: machinesData = { machines: [], total_pages: 1 },
+    isLoading: isMachinesLoading,
+    refetch,
+  } = useGetMachinesQuery(
+    { page: paginationModel.page, page_size: paginationModel.pageSize },
+    { pollingInterval: 300000 }
+  );
+
+  const [addMachine, { isLoading: isAdding }] = useAddMachineMutation();
+  const [updateMachine, { isLoading: isUpdating }] = useUpdateMachineMutation();
+  const [deleteMachine, { isLoading: isDeleting }] = useDeleteMachineMutation();
+
+  // Snackbar
+  const [openSnackbar, setOpenSnackbar] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [snackBarType, setSnackBarType] = useState("");
+  const handleCloseSnackbar = () => {
+    setOpenSnackbar(false);
+  };
+
+  // Add dialog
   const [openDialog, setOpenDialog] = useState(false);
 
-  // add item
+  // Add item
   const [newItem, setNewItem] = useState({
     name: "",
     description: "",
@@ -105,9 +104,9 @@ export default function Machines() {
     }
   };
 
-  // edit
+  // Edit
   const [isEditingItem, setIsEditingItem] = useState(false);
-  const [editingItem, setEditingItem] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
   const handleSave = async () => {
     if (selectedItem === editingItem) {
@@ -152,7 +151,7 @@ export default function Machines() {
     }
   };
 
-  // columns
+  // Columns
   const columns = [
     {
       field: "actions",
@@ -160,38 +159,6 @@ export default function Machines() {
       renderCell: (params) => {
         if (isEditingItem && editingItem.id === params.id) {
           return (
-            <>
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-around",
-                  alignItems: "center",
-                  height: "100%",
-                }}
-              >
-                <button
-                  disabled={isUpdating}
-                  className={styles.iconBtn}
-                  onClick={() => handleSave()}
-                >
-                  {isUpdating ? <CircularProgress size={25} /> : <SaveIcon />}
-                </button>
-                <button
-                  className={styles.iconBtn}
-                  onClick={() => {
-                    setIsEditingItem(false);
-                    setEditingItem(null);
-                  }}
-                  style={{ color: "#d32f2f" }}
-                >
-                  <ClearOutlinedIcon />
-                </button>
-              </div>
-            </>
-          );
-        }
-        return (
-          <>
             <div
               style={{
                 display: "flex",
@@ -201,38 +168,66 @@ export default function Machines() {
               }}
             >
               <button
+                disabled={isUpdating}
                 className={styles.iconBtn}
-                onClick={() => {
-                  if (user?.machines_can_edit || user?.username === "admin") {
-                    setIsEditingItem(true);
-                    setEditingItem(params.row);
-                    setSelectedItem(params.row);
-                  } else {
-                    setOpenSnackbar(true);
-                    setSnackbarMessage("ليس لديك صلاحيات لإضافة عنصر");
-                    setSnackBarType("info");
-                  }
-                }}
+                onClick={() => handleSave()}
               >
-                <EditIcon />
+                {isUpdating ? <CircularProgress size={25} /> : <SaveIcon />}
               </button>
               <button
                 className={styles.iconBtn}
                 onClick={() => {
-                  if (user?.machines_can_delete || user?.username === "admin") {
-                    handleDeleteClick(params.id);
-                  } else {
-                    setOpenSnackbar(true);
-                    setSnackbarMessage("ليس لديك صلاحيات لحذف العنصر");
-                    setSnackBarType("info");
-                  }
+                  setIsEditingItem(false);
+                  setEditingItem(null);
                 }}
                 style={{ color: "#d32f2f" }}
               >
                 <ClearOutlinedIcon />
               </button>
             </div>
-          </>
+          );
+        }
+        return (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-around",
+              alignItems: "center",
+              height: "100%",
+            }}
+          >
+            <button
+              className={styles.iconBtn}
+              onClick={() => {
+                if (user?.machines_can_edit || user?.username === "admin") {
+                  setIsEditingItem(true);
+                  setEditingItem(params.row);
+                  setSelectedItem(params.row);
+                } else {
+                  setOpenSnackbar(true);
+                  setSnackbarMessage("ليس لديك صلاحيات لإضافة عنصر");
+                  setSnackBarType("info");
+                }
+              }}
+            >
+              <EditIcon />
+            </button>
+            <button
+              className={styles.iconBtn}
+              onClick={() => {
+                if (user?.machines_can_delete || user?.username === "admin") {
+                  handleDeleteClick(params.id);
+                } else {
+                  setOpenSnackbar(true);
+                  setSnackbarMessage("ليس لديك صلاحيات لحذف العنصر");
+                  setSnackBarType("info");
+                }
+              }}
+              style={{ color: "#d32f2f" }}
+            >
+              <ClearOutlinedIcon />
+            </button>
+          </div>
         );
       },
     },
@@ -289,7 +284,7 @@ export default function Machines() {
     },
   ];
 
-  // delete dialog
+  // Delete dialog
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [deleteConfirmationText, setDeleteConfirmationText] = useState("");
@@ -300,7 +295,7 @@ export default function Machines() {
     setDeleteConfirmationText("");
   };
 
-  // delete
+  // Delete
   const handleDelete = async () => {
     if (deleteConfirmationText.trim().toLowerCase() === "نعم") {
       try {
@@ -340,7 +335,6 @@ export default function Machines() {
         }}
       >
         <h1 className={styles.head}>
-          {" "}
           <CircularProgress />
         </h1>
       </div>
@@ -354,12 +348,12 @@ export default function Machines() {
     ) {
       return (
         <div className={styles.container}>
-          {/* title */}
+          {/* Title */}
           <div>
             <h1 className={styles.title}>الماكينات</h1>
           </div>
 
-          {/* delete dialog */}
+          {/* Delete dialog */}
           <DeleteRow
             deleteDialogOpen={deleteDialogOpen}
             setDeleteDialogOpen={setDeleteDialogOpen}
@@ -370,14 +364,14 @@ export default function Machines() {
             loader={isDeleting}
           />
 
-          {/* table */}
+          {/* Table */}
           <CustomDataGrid
-            rows={initialItems}
+            rows={machinesData.machines}
             type="machine"
             columns={columns}
             paginationModel={paginationModel}
             onPageChange={handlePageChange}
-            pageCount={pageCount}
+            pageCount={machinesData.total_pages}
             setOpenDialog={setOpenDialog}
             loader={isMachinesLoading}
             onCellKeyDown={(params, event) => {
@@ -391,7 +385,7 @@ export default function Machines() {
             }
           />
 
-          {/* add dialog */}
+          {/* Add dialog */}
           <Dialog
             open={openDialog}
             onClose={() => {

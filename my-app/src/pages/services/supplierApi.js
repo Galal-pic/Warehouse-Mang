@@ -13,8 +13,16 @@ export const supplierApi = createApi({
   tagTypes: ["Supplier"],
   endpoints: (builder) => ({
     getSuppliers: builder.query({
-      query: () => "/supplier/",
+      query: ({ page, page_size }) =>
+        `/supplier/?page=${page + 1}&page_size=${page_size}`,
       providesTags: ["Supplier"],
+      transformResponse: (response) => ({
+        suppliers: response.suppliers,
+        page: response.page,
+        page_size: response.page_size,
+        total_pages: response.total_pages,
+        total_items: response.total_items,
+      }),
     }),
     addSupplier: builder.mutation({
       query: (newSupplier) => ({
@@ -50,10 +58,10 @@ export const supplierApi = createApi({
   }),
 });
 
-export const { 
+export const {
   useGetSuppliersQuery,
   useAddSupplierMutation,
   useUpdateSupplierMutation,
   useDeleteSupplierMutation,
-  useImportSupplierMutation
+  useImportSupplierMutation,
 } = supplierApi;

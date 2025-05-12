@@ -13,8 +13,16 @@ export const mechanismApi = createApi({
   tagTypes: ["Mechanism"],
   endpoints: (builder) => ({
     getMechanisms: builder.query({
-      query: () => "/mechanism/",
+      query: ({ page, page_size }) =>
+        `/mechanism/?page=${page + 1}&page_size=${page_size}`,
       providesTags: ["Mechanism"],
+      transformResponse: (response) => ({
+        mechanisms: response.mechanisms,
+        page: response.page,
+        page_size: response.page_size,
+        total_pages: response.total_pages,
+        total_items: response.total_items,
+      }),
     }),
     addMechanism: builder.mutation({
       query: (newMechanism) => ({
@@ -50,10 +58,10 @@ export const mechanismApi = createApi({
   }),
 });
 
-export const { 
+export const {
   useGetMechanismsQuery,
   useAddMechanismMutation,
   useUpdateMechanismMutation,
   useDeleteMechanismMutation,
-  useImportMechanismMutation
+  useImportMechanismMutation,
 } = mechanismApi;
