@@ -5,6 +5,20 @@ from ..models import Supplier
 
 supplier_ns = Namespace('supplier', description='supplier operations')
 
+# Parser for query parameters
+pagination_parser = supplier_ns.parser()
+pagination_parser.add_argument('page',
+                               type=str,
+                               required=False,
+                               default=1, 
+                               help='Page number (default: 1)')
+pagination_parser.add_argument('page_size',
+                               type=str,
+                               required=False, 
+                               default=10, 
+                               help='Number of items per page (default: 10)')
+
+
 # Models for API documentation
 supplier_model = supplier_ns.model('Supplier', {
     "id": fields.Integer(required=True),
@@ -12,6 +26,13 @@ supplier_model = supplier_ns.model('Supplier', {
     'description': fields.String(required=False),
 })
 
+pagination_model = supplier_ns.model('SupplierPagination', {
+    'suppliers': fields.List(fields.Nested(supplier_model)),
+    'page': fields.Integer(required=True),
+    'page_size': fields.Integer(required=True),
+    'total_pages': fields.Integer(required=True),
+    'total_items': fields.Integer(required=True)
+})
 
 @supplier_ns.route('/excel')
 class MachineExcel(Resource):
@@ -32,15 +53,32 @@ class MachineExcel(Resource):
             db.session.add(new_supplier)
             db.session.commit()
         return new_supplier, 201
+    
 # Machine Endpoints
 @supplier_ns.route('/')
 class SupplierList(Resource):
-    @supplier_ns.marshal_list_with(supplier_model)
+    @supplier_ns.marshal_list_with(pagination_model)
+    @supplier_ns.expect(pagination_parser)
     @jwt_required()
     def get(self):
         """Get all suppliers"""
-        suppliers = Supplier.query.all()
-        return suppliers
+        args = pagination_parser.parse_args()
+        page = int(args['page'])
+        page_size = int(args['page_size'])
+        if page < 1 or page_size < 1:
+            supplier_ns.abort(400, "Page and page_size must be positive integers")
+        offset = (page - 1) * page_size
+        
+        query = Supplier.query
+        suppliers = query.limit(page_size).offset(offset).all()
+        total_count = query.count()
+        return {
+            'suppliers': suppliers,
+            'page': page,
+            'page_size': page_size,
+            'total_pages': (total_count + page_size - 1) // page_size,
+            'total_items': total_count
+        }
 
     # @machine_ns.expect(machine_model)
     @supplier_ns.marshal_with(supplier_model)
@@ -65,7 +103,9 @@ class SupplierDetail(Resource):
     @jwt_required()
     def get(self, supplier_id):
         """Get a supplier by ID"""
-        supplier = Machine.query.get_or_404(supplier_id)
+        
+        # Fixed, it was Machine instead of Supplier.
+        supplier = Supplier.query.get_or_404(supplier_id)
         return supplier
 
     @supplier_ns.marshal_with(supplier_model)

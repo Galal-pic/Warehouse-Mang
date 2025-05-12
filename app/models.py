@@ -52,6 +52,7 @@ class Employee(db.Model):
     
     # Relationship with Invoice
     invoices = db.relationship('Invoice', back_populates='employee', lazy=True)
+    purchase_requests = db.relationship('PurchaseRequests', back_populates='employee', lazy=True)
 
 class Supplier(db.Model):
     __tablename__ = 'supplier'
@@ -71,6 +72,7 @@ class Machine(db.Model):
 
     # Relationship with Invoice
     invoices = db.relationship('Invoice', back_populates='machine', lazy=True)
+    purchase_requests = db.relationship('PurchaseRequests', back_populates='machine', lazy=True)
 
 # Mechanism Model
 class Mechanism(db.Model):
@@ -81,6 +83,7 @@ class Mechanism(db.Model):
 
     # Relationship with Invoice
     invoices = db.relationship('Invoice', back_populates='mechanism', lazy=True)
+    purchase_requests = db.relationship('PurchaseRequests', back_populates='mechanism', lazy=True)
 
 # Invoice Model
 class Invoice(db.Model):
@@ -107,10 +110,12 @@ class Invoice(db.Model):
     machine = db.relationship('Machine', back_populates='invoices')
     mechanism = db.relationship('Mechanism', back_populates='invoices')
     supplier = db.relationship('Supplier', back_populates='invoices')
+    purchase_requests = db.relationship('PurchaseRequests', back_populates='invoice',)
 
     items = db.relationship('InvoiceItem', back_populates='invoice', cascade='all, delete-orphan')
     prices = db.relationship('Prices', back_populates='invoice', cascade='all, delete-orphan')
     price_details = db.relationship('InvoicePriceDetail', back_populates='invoice', cascade='all, delete-orphan')
+    
 
 class InvoiceItem(db.Model):
     __tablename__ = 'invoice_item'
@@ -140,6 +145,9 @@ class Warehouse(db.Model):
     item_locations = db.relationship('ItemLocations', back_populates='warehouse', cascade='all, delete-orphan')
     prices = db.relationship('Prices', back_populates='warehouse', cascade='all, delete-orphan')
     price_details = db.relationship('InvoicePriceDetail', backref='warehouse')
+    
+    purchase_requests = db.relationship('PurchaseRequests', back_populates='warehouse') 
+    
 
 # ItemLocations Model
 class ItemLocations(db.Model):
@@ -191,3 +199,29 @@ class InvoicePriceDetail(db.Model):
             ['prices.invoice_id', 'prices.item_id']
         ),
     )
+    
+class PurchaseRequests(db.Model):
+    __tablename__ = 'purchase_requests'
+    id = db.Column(db.Integer, primary_key=True)
+    status = db.Column(db.String(50), nullable=False)
+    requested_quantity = db.Column(db.Integer, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+    subtotal = db.Column(db.Float, nullable=False)
+    
+    invoice_id = db.Column(db.Integer, db.ForeignKey('invoice.id'), nullable=False)
+    item_id = db.Column(db.Integer, db.ForeignKey('warehouse.id'), nullable=False)
+    employee_id = db.Column(db.Integer, db.ForeignKey('employee.id'), nullable=False)
+    machine_id = db.Column(db.Integer, db.ForeignKey('machine.id'), nullable=False)
+    mechanism_id = db.Column(db.Integer, db.ForeignKey('mechanism.id'), nullable=False)
+    
+    
+    #Relationships
+    employee = db.relationship('Employee', back_populates='purchase_requests')
+    machine = db.relationship('Machine', back_populates='purchase_requests')
+    mechanism = db.relationship('Mechanism', back_populates='purchase_requests')
+    warehouse = db.relationship('Warehouse', back_populates='purchase_requests')
+    invoice = db.relationship('Invoice', back_populates='purchase_requests')
+    
+    
+    

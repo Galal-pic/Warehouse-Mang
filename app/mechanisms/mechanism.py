@@ -4,13 +4,30 @@ from .. import db
 from ..models import Mechanism
 
 mechanism_ns = Namespace('mechanism', description='Mechanism operations')
-
+pagination_parser = mechanism_ns.parser()
+pagination_parser.add_argument('page',
+                               type=str,
+                               required=False,
+                               default=1, 
+                               help='Page number (default: 1)')
+pagination_parser.add_argument('page_size',
+                               type=str,
+                               required=False, 
+                               default=10, 
+                               help='Number of items per page (default: 10)')
 mechanism_model = mechanism_ns.model('Mechanism', {
     "id": fields.Integer(required=True),
     'name': fields.String(required=True),
     'description': fields.String(required=False),
 })
 
+pagination_model = mechanism_ns.model('MechanismPagination', {
+    'mechanisms': fields.List(fields.Nested(mechanism_model)),
+    'page': fields.Integer(required=True),
+    'page_size': fields.Integer(required=True),
+    'total_pages': fields.Integer(required=True),
+    'total_items': fields.Integer(required=True)
+})
 @mechanism_ns.route('/excel')
 class MachineExcel(Resource):
 
@@ -34,12 +51,28 @@ class MachineExcel(Resource):
 # Mechanism Endpoints
 @mechanism_ns.route('/')
 class MechanismList(Resource):
-    @mechanism_ns.marshal_list_with(mechanism_model)
+    @mechanism_ns.marshal_list_with(pagination_model)
+    @mechanism_ns.expect(pagination_parser)
     @jwt_required()
     def get(self):
         """Get all mechanisms"""
-        mechanisms = Mechanism.query.all()
-        return mechanisms
+        args = pagination_parser.parse_args()
+        page = int(args['page'])
+        page_size = int(args['page_size'])
+        if page < 1 or page_size < 1:
+            mechanism_ns.abort(400, "Page and page_size must be positive integers")
+        offset = (page - 1) * page_size
+        query = Mechanism.query
+        mechanisms = query.limit(page_size).offset(offset).all()
+        total_count = query.count()
+        
+        return {
+            'mechanisms': mechanisms,
+            'page': page,
+            'page_size': page_size,
+            'total_pages': (total_count + page_size - 1) // page_size,
+            'total_items': total_count
+        }
 
     # @mechanism_ns.expect(mechanism_model)
     @mechanism_ns.marshal_with(mechanism_model)

@@ -8,18 +8,32 @@ from .operations.sales import Sales_Operations, delete_sales, put_sales
 from .operations.warranty import Warranty_Operations, delete_warranty, put_warranty
 from .operations.void import Void_Operations, delete_void, put_void
 from .purchases.purchase import Purchase_Operations, delete_purchase, put_purchase
+from .operations.purchase_request import PurchaseRequest_Operations, put_purchase_request, delete_purchase_request
 from .warehouses.warehouse import warehouse_ns, item_location_ns
 from .machines.machine import machine_ns
 from .mechanisms.mechanism import mechanism_ns
 from .suppliers.supplier import supplier_ns
 from .models import (
     Employee, Machine, Mechanism, Warehouse, ItemLocations, Invoice, InvoiceItem,
-    Supplier, Prices, InvoicePriceDetail
+    Supplier, Prices, InvoicePriceDetail, PurchaseRequests
 )
 from sqlalchemy import desc
 from sqlalchemy.exc import SQLAlchemyError
 
 invoice_ns = Namespace('invoice', description='Invoice operations')
+
+# Parser for query parameters
+pagination_parser = invoice_ns.parser()
+pagination_parser.add_argument('page',
+                               type=str,
+                               required=False,
+                               default=1, 
+                               help='Page number (default: 1)')
+pagination_parser.add_argument('page_size',
+                               type=str,
+                               required=False, 
+                               default=10, 
+                               help='Number of items per page (default: 10)')
 
 # Price Detail Model (for FIFO tracking)
 price_detail_model = invoice_ns.model('PriceDetail', {
@@ -64,13 +78,38 @@ invoice_model = invoice_ns.model('Invoice', {
     
 })
 
+# Model for pagination
+pagination_model = invoice_ns.model('InvoicesPagination', {
+    'invoices': fields.List(fields.Nested(invoice_model)),
+    'page': fields.Integer(required=True),
+    'page_size': fields.Integer(required=True),
+    'total_pages': fields.Integer(required=True),
+    'total_items': fields.Integer(required=True)
+})
+
+
 @invoice_ns.route('/<string:type>')
 class invoices_get(Resource):
-    @invoice_ns.marshal_list_with(invoice_model)
+    @invoice_ns.marshal_list_with(pagination_model)
     @jwt_required()
+    @invoice_ns.expect(pagination_parser)
     def get(self, type):
         """Get invoices by type"""
-        invoices = Invoice.query.filter_by(type=type).all()
+        args = pagination_parser.parse_args()
+        page = int(args['page'])
+        page_size = int(args['page_size'])
+        if page < 1 or page_size < 1:
+            invoice_ns.abort(400, "Page and page_size must be positive integers")
+        
+        offset = (page - 1) * page_size
+        # Building a query
+        
+        query = Invoice.query.filter_by(type=type)
+        
+        # Applying pagination
+        invoices = query.limit(page_size).offset(offset).all()
+        total_count = query.count()
+        
         result = []
         for invoice in invoices:
             # Fetch related machine, mechanism and supplier data
@@ -139,19 +178,37 @@ class invoices_get(Resource):
                 "items": item_list
             }
             result.append(invoice_data)
-
-        return result
+            
+        final_result = {
+            'invoices': result,
+            'page': page,
+            'page_size': page_size,
+            'total_pages': (total_count + page_size - 1) // page_size,
+            'total_items': total_count
+        }
+        return final_result
 
 
 # Invoice Endpoints
 @invoice_ns.route('/')
 class InvoiceList(Resource):
-    @invoice_ns.marshal_list_with(invoice_model)
+    @invoice_ns.marshal_list_with(pagination_model)
+    @invoice_ns.expect(pagination_parser)
     @jwt_required()
     def get(self):
         """Get all invoices with related machine, mechanism, and item data"""
+        args = pagination_parser.parse_args()
+        page = int(args['page'])
+        page_size = int(args['page_size'])
+        if page < 1 or page_size < 1:
+            invoice_ns.abort(400, "Page and page_size must be positive integers")
+        
+        offset = (page - 1) * page_size
         # Fetch all invoices
-        invoices = Invoice.query.all()
+        query = Invoice.query
+        invoices = query.limit(page_size).offset(offset).all()
+        total_count = query.count()
+
 
         # Prepare the response data
         result = []
@@ -222,7 +279,13 @@ class InvoiceList(Resource):
             }
             result.append(invoice_data)
 
-        return result
+        return {
+            'invoices': result,
+            'page': page,
+            'page_size': page_size,
+            'total_pages': (total_count + page_size - 1) // page_size,
+            'total_items': total_count
+        }, 200
 
     @invoice_ns.marshal_with(invoice_model)
     @jwt_required()
@@ -264,6 +327,8 @@ class InvoiceList(Resource):
             result = Void_Operations(data, machine, mechanism, supplier, employee, machine_ns, warehouse_ns, invoice_ns, mechanism_ns, item_location_ns, supplier_ns)
         elif data['type'] == 'حجز':
             result = Booking_Operations(data, machine, mechanism, supplier, employee, machine_ns, warehouse_ns, invoice_ns, mechanism_ns, item_location_ns, supplier_ns)
+        elif data['type'] == 'طلب شراء':
+            result = PurchaseRequest_Operations(data, machine, mechanism, supplier, employee, machine_ns, warehouse_ns, invoice_ns, mechanism_ns, item_location_ns, supplier_ns)
         else:
             invoice_ns.abort(400, f"Invalid invoice type: {data['type']}")
             
@@ -382,6 +447,8 @@ class InvoiceDetail(Resource):
             put_void(data, invoice, machine, mechanism, invoice_ns)
         elif invoice.type == 'حجز':
             put_booking(data, invoice, machine, mechanism, invoice_ns)
+        elif invoice.type == 'طلب شراء':
+            put_purchase_request(data, invoice, machine, mechanism, invoice_ns)
 
         return {"message": "Invoice updated successfully"}, 200
 
@@ -404,6 +471,8 @@ class InvoiceDetail(Resource):
             result = delete_void(invoice, invoice_ns)
         elif invoice.type == 'حجز':
             result = delete_booking(invoice, invoice_ns)
+        elif invoice.type == 'طلب شراء':
+            result = delete_purchase_request(invoice, invoice_ns)
             
         return {"message": "Invoice deleted successfully"}, 200
 
@@ -553,14 +622,70 @@ class ReturnWarranty(Resource):
         except Exception as e:
             db.session.rollback()
             invoice_ns.abort(500, f"Error returning warranty invoice: {str(e)}")
+            
+#Purchase Request Confirmation
+@invoice_ns.route('/<int:invoice_id>/PurchaseRequestConfirmation')
+class PurchaseRequestConfirmation(Resource):
+    @invoice_ns.doc('purchase_request_confirmation')
+    @jwt_required()
+    def post(self, invoice_id):
+        invoice = Invoice.query.get_or_404(invoice_id)
+        purchase_requests = PurchaseRequests.query.filter_by(invoice_id=invoice.id).all()
+        # Check if it's a purchase request invoice
+        if invoice.type != 'طلب شراء':
+            invoice_ns.abort(400, "Can only confirm purchase request invoices with this method")
 
+        # Check if the invoice is already confirmed
+        if invoice.status == 'confirmed':
+            invoice_ns.abort(400, "This purchase request invoice has already been confirmed")
+
+        try:
+            for request in purchase_requests:
+                invoice_item = InvoiceItem.query.filter_by(item_id=request.item_id, invoice_id=invoice.id).first()
+                invoice_price_datils = InvoicePriceDetail.query.filter_by(
+                    invoice_id=invoice.id,
+                    item_id=request.item_id
+                ).first()
+                
+                item_location = ItemLocations.query.filter_by(
+                    item_id=request.item_id,
+                    location=invoice_item.location
+                ).first()
+                item_location.quantity += request.requested_quantity
+                
+                source_price_id = Prices.query.filter_by(
+                    invoice_id=invoice_price_datils.source_price_id
+                ).first()
+                source_price_id.quantity += request.requested_quantity
+                request.status = 'confirmed'
+                
+            #Confirm the invoice
+            invoice.status = 'confirmed'
+            db.session.commit()
+            return {"message": "Purchase request invoice confirmed successfully"}, 200
+
+        except Exception as e:
+            db.session.rollback()
+            invoice_ns.abort(500, f"Error confirming purchase request invoice: {str(e)}")
+            
+            
+    
 @invoice_ns.route('/inventory-value')
 class InventoryValue(Resource):
+    @invoice_ns.expect(pagination_parser)
     @jwt_required()
     def get(self):
         """Get total inventory value based on FIFO pricing"""
         # Calculate inventory value by item
-        items = Warehouse.query.all()
+        args = pagination_parser.parse_args()
+        page = int(args['page'])
+        page_size = int(args['page_size'])
+        if page < 1 or page_size < 1:
+            invoice_ns.abort(400, "Page and page_size must be positive integers")
+        offset = (page - 1) * page_size
+        query = Warehouse.query
+        items = Warehouse.query.limit(page_size).offset(offset).all() 
+        total_count = query.count()
         inventory_value = 0
         item_values = []
         
@@ -585,11 +710,18 @@ class InventoryValue(Resource):
                     'value': item_value,
                     'average_unit_value': item_value / total_quantity if total_quantity > 0 else 0
                 })
-        
-        return {
+        result = {
             'total_inventory_value': inventory_value,
             'items': sorted(item_values, key=lambda x: x['value'], reverse=True)
-        }, 200
+        }
+        
+        return {
+            'result': result,
+            'total_count': total_count,
+            'page': page,
+            'page_size': page_size,
+            'total_pages': (total_count + page_size - 1) // page_size
+            }, 200
 
 @invoice_ns.route('/price-report/<int:invoice_id>')
 class PriceTrackingReport(Resource):
@@ -688,11 +820,21 @@ class PriceTrackingReport(Resource):
         return report, 200
 @invoice_ns.route('/fifo-report')
 class FifoInventoryReport(Resource):
+    @invoice_ns.expect(pagination_parser)
     @jwt_required()
     def get(self):
         """Get comprehensive FIFO inventory report with price tracking"""
         # Get all warehouse items
-        items = Warehouse.query.all()
+        args = pagination_parser.parse_args()
+        page = int(args['page'])
+        page_size = int(args['page_size'])
+        if page < 1 or page_size < 1:
+            invoice_ns.abort(400, "Page and page_size must be positive integers")
+            
+        offset = (page - 1) * page_size
+        query = Warehouse.query
+        items = query.limit(page_size).offset(offset).all()
+        total_count = query.count()
         
         # Initialize the report
         item_reports = []
@@ -775,7 +917,13 @@ class FifoInventoryReport(Resource):
             'items': item_reports
         }
         
-        return report, 200
+        return {
+            'report': report,
+            'total_items': total_count,
+            'page': page,
+            'page_size': page_size,
+            'total_pages': (total_count + page_size - 1) // page_size       
+                }, 200
     
 
 # Define the resource class
