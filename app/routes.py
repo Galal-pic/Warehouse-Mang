@@ -19,6 +19,7 @@ from .models import (
 )
 from sqlalchemy import desc
 from sqlalchemy.exc import SQLAlchemyError
+from .utils import parse_bool
 
 invoice_ns = Namespace('invoice', description='Invoice operations')
 
@@ -34,6 +35,11 @@ pagination_parser.add_argument('page_size',
                                required=False, 
                                default=10, 
                                help='Number of items per page (default: 10)')
+pagination_parser.add_argument('all',
+                               type=parse_bool,
+                               required=False, 
+                               default=True, 
+                               help='Get all invoices (default: True) \naccepts values [\'true\', \'false\', \'1\', \'0\', \'t\', \'f\', \'y\', \'n\', \'yes\', \'no\']')
 
 # Price Detail Model (for FIFO tracking)
 price_detail_model = invoice_ns.model('PriceDetail', {
@@ -84,7 +90,8 @@ pagination_model = invoice_ns.model('InvoicesPagination', {
     'page': fields.Integer(required=True),
     'page_size': fields.Integer(required=True),
     'total_pages': fields.Integer(required=True),
-    'total_items': fields.Integer(required=True)
+    'total_items': fields.Integer(required=True),
+    'all': fields.Boolean(required=True)
 })
 
 
@@ -98,6 +105,7 @@ class invoices_get(Resource):
         args = pagination_parser.parse_args()
         page = int(args['page'])
         page_size = int(args['page_size'])
+        all_results = bool(args['all'])
         if page < 1 or page_size < 1:
             invoice_ns.abort(400, "Page and page_size must be positive integers")
         
@@ -107,7 +115,10 @@ class invoices_get(Resource):
         query = Invoice.query.filter_by(type=type)
         
         # Applying pagination
-        invoices = query.limit(page_size).offset(offset).all()
+        if not all_results:
+            invoices = query.limit(page_size).offset(offset).all()
+        else:
+            invoices = query.all()
         total_count = query.count()
         
         result = []
@@ -184,7 +195,8 @@ class invoices_get(Resource):
             'page': page,
             'page_size': page_size,
             'total_pages': (total_count + page_size - 1) // page_size,
-            'total_items': total_count
+            'total_items': total_count,
+            'all': all_results 
         }
         return final_result
 
@@ -200,13 +212,17 @@ class InvoiceList(Resource):
         args = pagination_parser.parse_args()
         page = int(args['page'])
         page_size = int(args['page_size'])
+        all_results = bool(args['all'])
         if page < 1 or page_size < 1:
             invoice_ns.abort(400, "Page and page_size must be positive integers")
         
         offset = (page - 1) * page_size
         # Fetch all invoices
         query = Invoice.query
-        invoices = query.limit(page_size).offset(offset).all()
+        if not all_results:
+            invoices = query.limit(page_size).offset(offset).all()
+        else: 
+            invoices = query.all()
         total_count = query.count()
 
 
@@ -284,7 +300,8 @@ class InvoiceList(Resource):
             'page': page,
             'page_size': page_size,
             'total_pages': (total_count + page_size - 1) // page_size,
-            'total_items': total_count
+            'total_items': total_count,
+            'all': all_results 
         }, 200
 
     @invoice_ns.marshal_with(invoice_model)
@@ -680,11 +697,15 @@ class InventoryValue(Resource):
         args = pagination_parser.parse_args()
         page = int(args['page'])
         page_size = int(args['page_size'])
+        all_results = bool(args['all'])
         if page < 1 or page_size < 1:
             invoice_ns.abort(400, "Page and page_size must be positive integers")
         offset = (page - 1) * page_size
         query = Warehouse.query
-        items = Warehouse.query.limit(page_size).offset(offset).all() 
+        if not all_results:
+            items = query.limit(page_size).offset(offset).all() 
+        else:
+            items = query.all()
         total_count = query.count()
         inventory_value = 0
         item_values = []
@@ -720,7 +741,8 @@ class InventoryValue(Resource):
             'total_count': total_count,
             'page': page,
             'page_size': page_size,
-            'total_pages': (total_count + page_size - 1) // page_size
+            'total_pages': (total_count + page_size - 1) // page_size,
+            'all': all_results 
             }, 200
 
 @invoice_ns.route('/price-report/<int:invoice_id>')
@@ -828,12 +850,16 @@ class FifoInventoryReport(Resource):
         args = pagination_parser.parse_args()
         page = int(args['page'])
         page_size = int(args['page_size'])
+        all_results = bool(args['all'])
         if page < 1 or page_size < 1:
             invoice_ns.abort(400, "Page and page_size must be positive integers")
-            
+        
         offset = (page - 1) * page_size
         query = Warehouse.query
-        items = query.limit(page_size).offset(offset).all()
+        if not all_results:
+            items = query.limit(page_size).offset(offset).all()
+        else:
+            items = query.all()
         total_count = query.count()
         
         # Initialize the report
@@ -922,7 +948,8 @@ class FifoInventoryReport(Resource):
             'total_items': total_count,
             'page': page,
             'page_size': page_size,
-            'total_pages': (total_count + page_size - 1) // page_size       
+            'total_pages': (total_count + page_size - 1) // page_size,
+            'all': all_results     
                 }, 200
     
 

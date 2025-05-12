@@ -3,7 +3,7 @@ from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identi
 from werkzeug.security import generate_password_hash, check_password_hash
 from . import db
 from .models import Employee
-
+from .utils import parse_bool
 # Create namespace
 auth_ns = Namespace('auth', description='Authentication operations')
 
@@ -18,6 +18,11 @@ pagination_parser.add_argument('page_size',
                                required=False, 
                                default=10, 
                                help='Number of items per page (default: 10)')
+pagination_parser.add_argument('all',
+                               type=parse_bool,
+                               required=False,
+                               default=True,
+                               help='Get all items (default: True) \naccepts values [\'true\', \'false\', \'1\', \'0\', \'t\', \'f\', \'y\', \'n\', \'yes\', \'no\']')
 # Create Invoice Permissions
 create_invoice_model = auth_ns.model('CreateInvoicePermissions', {
     'create_inventory_operations': fields.Boolean(default=False, description='Permission to create inventory operations'),
@@ -144,7 +149,8 @@ pagination_model = auth_ns.model('UsersPagination', {
     'page': fields.Integer(required=True),
     'page_size': fields.Integer(required=True),
     'total_pages': fields.Integer(required=True),
-    'total_items': fields.Integer(required=True)
+    'total_items': fields.Integer(required=True),
+    'all': fields.Boolean(required=True)
 })
 # Endpoints
 @auth_ns.route('/register')
@@ -390,17 +396,24 @@ class Users(Resource):
         args = pagination_parser.parse_args()
         page = int(args['page'])
         page_size = int(args['page_size'])
+        all_results = bool(args['all'])
         if page < 1 or page_size < 1:
             auth_ns.abort(400, "Page and page_size must be positive integers")
         offset = (page - 1) * page_size
-        employees = Employee.query.limit(page_size).offset(offset).all()
+        query = Employee.query
+        if not all_results:
+            employees = query.limit(page_size).offset(offset).all()
+        else:
+            employees = query.all()
+
         total_count = Employee.query.count()
         return {
             'users': employees,
             'page': page,
             'page_size': page_size,
             'total_pages': (total_count + page_size - 1) // page_size,
-            'total_items': total_count
+            'total_items': total_count,
+            'all': all_results
         }, 200
 
 @auth_ns.route('/user')

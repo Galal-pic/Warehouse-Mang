@@ -2,6 +2,7 @@ from flask_restx import Namespace, Resource, fields
 from flask_jwt_extended import jwt_required
 from .. import db
 from ..models import Machine
+from ..utils import parse_bool
 
 machine_ns = Namespace('machine', description='Machine operations')
 pagination_parser = machine_ns.parser()
@@ -15,6 +16,11 @@ pagination_parser.add_argument('page_size',
                                required=False, 
                                default=10, 
                                help='Number of items per page (default: 10)')
+pagination_parser.add_argument('all',
+                               type=parse_bool,
+                               required=False, 
+                               default=True, 
+                               help='Get all items (default: True) \naccepts values [\'true\', \'false\', \'1\', \'0\', \'t\', \'f\', \'y\', \'n\', \'yes\', \'no\']')
 machine_model = machine_ns.model('Machine', {
     "id": fields.Integer(required=True),
     'name': fields.String(required=True),
@@ -26,7 +32,8 @@ pagination_model = machine_ns.model('MachinePagination', {
     'page': fields.Integer(required=True),
     'page_size': fields.Integer(required=True),
     'total_pages': fields.Integer(required=True),
-    'total_items': fields.Integer(required=True)
+    'total_items': fields.Integer(required=True),
+    'all': fields.Boolean(required=True)
 })
 @machine_ns.route('/excel')
 class MachineExcel(Resource):
@@ -59,17 +66,22 @@ class MachineList(Resource):
         args = pagination_parser.parse_args()
         page = int(args['page'])
         page_size = int(args['page_size'])
+        all_results = bool(args['all'])
         if page < 1 or page_size < 1:
             machine_ns.abort(400, "Page and page_size must be positive integers")
         offset = (page - 1) * page_size
         query = Machine.query
-        machines = query.limit(page_size).offset(offset).all()
+        if not all_results:
+            machines = query.limit(page_size).offset(offset).all()
+        else: 
+            machines = query.all()
         return {
             'machines': machines,
             'page': page,
             'page_size': page_size,
             'total_pages': (query.count() + page_size - 1) // page_size,
-            'total_items': query.count()
+            'total_items': query.count(),
+            'all': all_results
         }, 200
 
     # @machine_ns.expect(machine_model)

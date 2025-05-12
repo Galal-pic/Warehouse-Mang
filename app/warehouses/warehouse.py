@@ -2,6 +2,7 @@ from flask_restx import Namespace, Resource, fields
 from flask_jwt_extended import jwt_required
 from .. import db
 from ..models import Warehouse,ItemLocations
+from ..utils import parse_bool
 
 warehouse_ns = Namespace('warehouse', description='Warehouse operations')
 item_location_ns = Namespace('item_location', description='Item Location operations')
@@ -16,6 +17,11 @@ pagination_parser.add_argument('page_size',
                                required=False, 
                                default=10, 
                                help='Number of items per page (default: 10)')
+pagination_parser.add_argument('all',
+                               type=parse_bool,
+                               required=False, 
+                               default=True, 
+                               help='Get all items (default: True) \naccepts values [\'true\', \'false\', \'1\', \'0\', \'t\', \'f\', \'y\', \'n\', \'yes\', \'no\']')
 item_location_model = item_location_ns.model('ItemLocation', {
     'location': fields.String(required=True, description='Location of the item in the warehouse'),
     'quantity': fields.Integer(required=True, description='Quantity of the item', example=0)
@@ -35,7 +41,8 @@ pagination_model = warehouse_ns.model('WarehousePagination', {
     'page': fields.Integer(required=True),
     'page_size': fields.Integer(required=True),
     'total_pages': fields.Integer(required=True),
-    'total_items': fields.Integer(required=True)
+    'total_items': fields.Integer(required=True),
+    'all': fields.Boolean(required=True)
 })
 # Warehouse Endpoints
 @warehouse_ns.route('/')
@@ -48,11 +55,15 @@ class WarehouseList(Resource):
         args = pagination_parser.parse_args()
         page = int(args['page'])
         page_size = int(args['page_size'])
+        all_results = bool(args['all'])
         if page < 1 or page_size < 1:
             warehouse_ns.abort(400, "Page and page_size must be positive integers")
         offset = (page - 1) * page_size
         query = Warehouse.query
-        warehouse_items = query.limit(page_size).offset(offset).all()
+        if not all_results:
+            warehouse_items = query.limit(page_size).offset(offset).all()
+        else:
+            warehouse_items = query.all()
         total_count = query.count()
         
         # warehouse_items = Warehouse.query.all()
@@ -83,7 +94,8 @@ class WarehouseList(Resource):
             'page': page,
             'page_size': page_size,
             'total_pages': (total_count + page_size - 1) // page_size,
-            'total_items': total_count
+            'total_items': total_count,
+            'all': all_results
         }, 200
 
     # @warehouse_ns.expect(warehouse_model)

@@ -2,7 +2,7 @@ from flask_restx import Namespace, Resource, fields
 from flask_jwt_extended import jwt_required
 from .. import db
 from ..models import Mechanism
-
+from ..utils import parse_bool
 mechanism_ns = Namespace('mechanism', description='Mechanism operations')
 pagination_parser = mechanism_ns.parser()
 pagination_parser.add_argument('page',
@@ -15,6 +15,11 @@ pagination_parser.add_argument('page_size',
                                required=False, 
                                default=10, 
                                help='Number of items per page (default: 10)')
+pagination_parser.add_argument('all',
+                               type=parse_bool,
+                               required=False, 
+                               default=True,
+                               help='Get all mechanisms (default: True) \naccepts values [\'true\', \'false\', \'1\', \'0\', \'t\', \'f\', \'y\', \'n\', \'yes\', \'no\']')
 mechanism_model = mechanism_ns.model('Mechanism', {
     "id": fields.Integer(required=True),
     'name': fields.String(required=True),
@@ -26,7 +31,8 @@ pagination_model = mechanism_ns.model('MechanismPagination', {
     'page': fields.Integer(required=True),
     'page_size': fields.Integer(required=True),
     'total_pages': fields.Integer(required=True),
-    'total_items': fields.Integer(required=True)
+    'total_items': fields.Integer(required=True),
+    'all': fields.Boolean(required=True)
 })
 @mechanism_ns.route('/excel')
 class MachineExcel(Resource):
@@ -59,11 +65,15 @@ class MechanismList(Resource):
         args = pagination_parser.parse_args()
         page = int(args['page'])
         page_size = int(args['page_size'])
+        all_results = bool(args['all'])
         if page < 1 or page_size < 1:
             mechanism_ns.abort(400, "Page and page_size must be positive integers")
         offset = (page - 1) * page_size
         query = Mechanism.query
-        mechanisms = query.limit(page_size).offset(offset).all()
+        if not all_results:
+            mechanisms = query.limit(page_size).offset(offset).all()
+        else: 
+            mechanisms = query.all()
         total_count = query.count()
         
         return {
@@ -71,7 +81,8 @@ class MechanismList(Resource):
             'page': page,
             'page_size': page_size,
             'total_pages': (total_count + page_size - 1) // page_size,
-            'total_items': total_count
+            'total_items': total_count,
+            'all': all_results
         }
 
     # @mechanism_ns.expect(mechanism_model)

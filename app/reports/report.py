@@ -15,6 +15,7 @@ from ..models import (
     PurchaseRequests,
 )
 import datetime
+from ..utils import parse_bool
 reports_ns = Namespace("reports", description="Mechanism operations")
 pagination_parser = reports_ns.parser()
 pagination_parser.add_argument(
@@ -27,6 +28,14 @@ pagination_parser.add_argument(
     required=False,
     default=10,
     help="Number of items per page (default: 10)",
+)
+
+pagination_parser.add_argument(
+    "all",
+    type=parse_bool,
+    required=False,
+    default=True,
+    help="Get all items (default: True) \naccepts values [\'true\', \'false\', \'1\', \'0\', \'t\', \'f\', \'y\', \'n\', \'yes\', \'no\']",
 )
 
 def serialize_value(value):
@@ -43,6 +52,7 @@ class Reports(Resource):
         args = pagination_parser.parse_args()
         page = int(args["page"])
         page_size = int(args["page_size"])
+        all_results = bool(args["all"])
         if page < 1 or page_size < 1:
             reports_ns.abort(400, "Page and page_size must be positive integers")
         offset = (page - 1) * page_size
@@ -64,10 +74,16 @@ class Reports(Resource):
         for model in models:
             table_name = model.__tablename__
             columns = [col.name for col in model.__table__.columns if col.name not in ["password", "password_hash"]]
-            row_data = [
-                {col: serialize_value(getattr(row, col)) for col in columns}
-                for row in model.query.limit(page_size).offset(offset).all()
-            ]
+            if not all_results:
+                row_data = [
+                    {col: serialize_value(getattr(row, col)) for col in columns}
+                    for row in model.query.limit(page_size).offset(offset).all()
+                ]
+            else:
+                row_data = [
+                    {col: serialize_value(getattr(row, col)) for col in columns}
+                    for row in model.query.all()
+                ]
             full_report[table_name] = row_data
             rows_data.append({table_name: row_data})
             
