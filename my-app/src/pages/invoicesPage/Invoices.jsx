@@ -21,7 +21,6 @@ import CustomDataGrid from "../../components/dataGrid/CustomDataGrid";
 import FilterTabs from "../../components/filter/Filter";
 import { filtersTypes } from "../../components/filter/Filter";
 import { useGetUserQuery } from "../services/userApi";
-import { useGetWarehousesQuery } from "../services/warehouseApi";
 import {
   useGetInvoicesQuery,
   useDeleteInvoiceMutation,
@@ -37,10 +36,6 @@ import InvoiceDetails from "../../components/invoiceDetails/InvoiceDetails";
 import InvoiceModal from "../../components/invoice/Invoice";
 
 export default function Invoices() {
-  // RTK Query Hooks
-  const { data: warehouse = [] } = useGetWarehousesQuery(undefined, {
-    pollingInterval: 300000,
-  });
   const { data: user, isLoading: isLoadingUser } = useGetUserQuery();
 
   const [selectedInvoice, setSelectedInvoice] = useState(null);
@@ -52,7 +47,7 @@ export default function Invoices() {
   }, [user]);
 
   // Loaders - Only keep UI-specific loading states
-  const [isConfirmDone, setIsConfirmDone] = useState(false);
+  const [isConfirmDone, setIsConfirmDone] = useState({});
   const [isArrayDeleting, setIsArrayDeleting] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [isInvoiceDeleting, setIsInvoiceDeleting] = useState(false);
@@ -96,40 +91,31 @@ export default function Invoices() {
     return `${hoursIn12Format}:${minutes} ${ampm}`;
   };
 
-  // Transformed invoices state
-  const warehouseMap = useMemo(() => {
-    const map = new Map();
-
-    if (!Array.isArray(warehouse) || warehouse.length === 0) {
-      return map;
-    }
-
-    warehouse?.forEach((item) => map.set(item.item_name, item));
-    return map;
-  }, [warehouse]);
   const invoices = useMemo(() => {
-    if (!invoicesData.invoices || !warehouse) return [];
-    const warehouseMap = new Map();
-    warehouse.forEach((wh) => {
-      warehouseMap.set(wh.item_name, wh);
-    });
     return invoicesData.invoices
       .slice()
       .reverse()
       .map((invoice) => {
+        let displayStatus;
+        if (invoice.status === "draft") {
+          displayStatus = "لم تراجع";
+        } else if (invoice.status === "accreditation") {
+          displayStatus = "لم تؤكد";
+        } else if (invoice.status === "confirmed") {
+          displayStatus = "تم";
+        } else if (invoice.status === "returned") {
+          displayStatus = "تم الاسترداد";
+        } else {
+          displayStatus = invoice.status;
+        }
+
         return {
           refresh: invoice.items.some((item) => item.total_price === 0)
             ? "تحديث اسعار"
             : "",
           ...invoice,
-          status:
-            invoice.status === "returned"
-              ? "تم الاسترداد"
-              : invoice.status === "confirmed"
-              ? "تم"
-              : invoice.status === "draft"
-              ? "لم تراجع"
-              : "لم تؤكد",
+          status: displayStatus,
+          rawStatus: invoice.status,
           itemsNames: invoice.items.map((item) => item.item_name).join(", "),
           date: invoice.created_at.split(" ")[0],
           time: formatTime(invoice.created_at),
@@ -138,7 +124,7 @@ export default function Invoices() {
             : "",
         };
       });
-  }, [invoicesData.invoices, warehouse]);
+  }, [invoicesData.invoices]);
 
   const handleEditInfo = (invoice) => {
     setEditingInvoice(invoice);
@@ -149,7 +135,11 @@ export default function Invoices() {
   const handleDeleteSelectedRows = async (selectedIds) => {
     if (deleteCheckBoxConfirmationText.trim().toLowerCase() === "نعم") {
       const confirmedInvoices = selectedRows.filter(
-        (invoice) => invoice.status === "تم"
+        (invoice) =>
+          invoice.rawStatus === "تم" ||
+          invoice.rawStatus === "تم الاسترداد" ||
+          invoice.rawStatus === "confirmed" ||
+          invoice.rawStatus === "returned"
       );
       if (confirmedInvoices.length > 0) {
         setOpenSnackbar(true);
@@ -158,8 +148,6 @@ export default function Invoices() {
         setDeleteDialogCheckBoxOpen(false);
         setDeleteCheckBoxConfirmationText("");
         setIsArrayDeleting(false);
-        setDeleteDialogCheckBoxOpen(false);
-        setDeleteCheckBoxConfirmationText("");
         setSelectedRows([]);
         setRowSelectionModel([]);
         return;
@@ -472,20 +460,7 @@ export default function Invoices() {
       console.error("Invoice not found:", id);
       return;
     }
-    const items =
-      invoice.items?.map((item) => {
-        const matchedItem = warehouseMap.get(item.item_name);
-        const location = matchedItem?.locations?.find(
-          (l) => l.location === item.location
-        );
-        return {
-          ...item,
-          priceunit: location?.price_unit ?? 0,
-          maxquantity: (location?.quantity ?? 0) + (item.quantity ?? 0),
-          availableLocations: matchedItem?.locations ?? [],
-        };
-      }) ?? [];
-    setSelectedInvoice({ ...invoice, items });
+    setSelectedInvoice({ ...invoice });
     setIsModalOpen(true);
   };
   const closeModal = () => {
@@ -657,37 +632,6 @@ export default function Invoices() {
     );
   }
 
-  // handle confirm
-  const getButtonText = (invoiceType) => {
-    switch (invoiceType) {
-      case "صرف":
-        return "لم تراجع";
-      case "أمانات":
-        return "لم تراجع";
-      case "حجز":
-        return "لم تراجع";
-      case "مرتجع":
-        return "لم تراجع";
-      default:
-        return "لم تراجع";
-    }
-  };
-  // handle confirm
-  const getButtonTextStatge = (invoiceType) => {
-    switch (invoiceType) {
-      case "صرف":
-        return "لم تؤكد";
-      case "أمانات":
-        return "لم تؤكد";
-      case "حجز":
-        return "لم تؤكد";
-      case "مرتجع":
-        return "لم تؤكد";
-      default:
-        return "لم تؤكد";
-    }
-  };
-
   // manage Details component
   const [isInvoiceDetailsOpen, setIsInvoiceDetailsOpen] = useState(false);
   const [invoiceId, setInvoiceId] = useState(null);
@@ -791,22 +735,15 @@ export default function Invoices() {
       field: "status",
       headerName: "حالة العملية",
       renderCell: (params) => {
-        const { status, id } = params.row;
-        const invoiceType = selectedNowType?.label || "default";
+        const { status, rawStatus, id } = params.row;
         const isLoading = isConfirmDone[id] || false;
-
-        let buttonText;
-        let buttonColor;
 
         if (status === "تم" || status === "تم الاسترداد") {
           return "تم";
-        } else if (status === "لم تؤكد") {
-          buttonText = getButtonTextStatge(invoiceType);
-          buttonColor = "primary";
-        } else {
-          buttonText = getButtonText(invoiceType);
-          buttonColor = "error";
         }
+
+        let buttonText = status; // النص العربي من حقل status
+        let buttonColor = rawStatus === "draft" ? "error" : "primary";
 
         return (
           <Button
@@ -819,11 +756,11 @@ export default function Invoices() {
             }}
             disabled={
               isLoading ||
-              (status === "لم تراجع" &&
+              (rawStatus === "draft" &&
                 !(
                   user?.can_confirm_withdrawal || user?.username === "admin"
                 )) ||
-              (status === "لم تؤكد" &&
+              (rawStatus === "accreditation" &&
                 !(user?.can_withdraw || user?.username === "admin"))
             }
           >
@@ -935,7 +872,12 @@ export default function Invoices() {
   // Delete Single Invoice
   const handleDeleteClick = (id) => {
     const invoice = invoices.find((item) => item.id === id);
-    if (invoice?.status === "تم") {
+    if (
+      invoice?.rawStatus === "تم" ||
+      invoice?.rawStatus === "تم الاسترداد" ||
+      invoice?.rawStatus === "confirmed" ||
+      invoice?.rawStatus === "returned"
+    ) {
       setOpenSnackbar(true);
       setSnackbarMessage("لا يمكن حذف هذه الفاتورة");
       setSnackBarType("warning");
@@ -1028,7 +970,7 @@ export default function Invoices() {
           />
           {/* invoices data */}
           <CustomDataGrid
-            rows={invoicesData.invoices}
+            rows={invoices}
             columns={columns}
             paginationModel={paginationModel}
             onPageChange={handlePageChange}
@@ -1131,7 +1073,7 @@ export default function Invoices() {
                   ) : (
                     <div>
                       {(user?.can_edit || user?.username === "admin") &&
-                        selectedInvoice.status !== "تم" && (
+                        selectedInvoice.rawStatus !== "confirmed" && (
                           <button
                             onClick={() => {
                               handleEditInfo(selectedInvoice);
