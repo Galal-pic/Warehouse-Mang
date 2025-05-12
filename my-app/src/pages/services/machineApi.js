@@ -13,8 +13,12 @@ export const machineApi = createApi({
   tagTypes: ["Machine"],
   endpoints: (builder) => ({
     getMachines: builder.query({
-      query: ({ page, page_size }) =>
-        `/machine/?page=${page + 1}&page_size=${page_size}`,
+      query: ({ page, page_size, all = false }) => {
+        const queryParams = all
+          ? "all=true"
+          : `page=${page + 1}&page_size=${page_size}&all=false`;
+        return `/machine/?${queryParams}`;
+      },
       providesTags: ["Machine"],
       transformResponse: (response) => ({
         machines: response.machines,
@@ -22,6 +26,7 @@ export const machineApi = createApi({
         page_size: response.page_size,
         total_pages: response.total_pages,
         total_items: response.total_items,
+        all: response.all || false,
       }),
     }),
     addMachine: builder.mutation({

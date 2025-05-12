@@ -13,8 +13,12 @@ export const supplierApi = createApi({
   tagTypes: ["Supplier"],
   endpoints: (builder) => ({
     getSuppliers: builder.query({
-      query: ({ page, page_size }) =>
-        `/supplier/?page=${page + 1}&page_size=${page_size}`,
+      query: ({ page, page_size, all = false }) => {
+        const queryParams = all
+          ? "all=true"
+          : `page=${page + 1}&page_size=${page_size}&all=false`;
+        return `/supplier/?${queryParams}`;
+      },
       providesTags: ["Supplier"],
       transformResponse: (response) => ({
         suppliers: response.suppliers,
@@ -22,6 +26,7 @@ export const supplierApi = createApi({
         page_size: response.page_size,
         total_pages: response.total_pages,
         total_items: response.total_items,
+        all: response.all || false,
       }),
     }),
     addSupplier: builder.mutation({

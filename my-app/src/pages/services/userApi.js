@@ -1,4 +1,3 @@
-// services/userApi.js
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 
 export const userApi = createApi({
@@ -16,8 +15,12 @@ export const userApi = createApi({
   tagTypes: ["User"],
   endpoints: (builder) => ({
     getUsers: builder.query({
-      query: ({ page, page_size }) =>
-        `/auth/users?page=${page + 1}&page_size=${page_size}`,
+      query: ({ page, page_size, all = false }) => {
+        const queryParams = all
+          ? "all=true"
+          : `page=${page + 1}&page_size=${page_size}&all=false`;
+        return `/auth/users?${queryParams}`;
+      },
       providesTags: ["User"],
       transformResponse: (response) => ({
         users: response.users,
@@ -25,9 +28,9 @@ export const userApi = createApi({
         page_size: response.page_size,
         total_pages: response.total_pages,
         total_items: response.total_items,
+        all: response.all || false,
       }),
     }),
-    // Other endpoints remain unchanged
     getUser: builder.query({
       query: () => "/auth/user",
     }),

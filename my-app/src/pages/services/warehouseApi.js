@@ -13,8 +13,12 @@ export const warehouseApi = createApi({
   tagTypes: ["Warehouse"],
   endpoints: (builder) => ({
     getWarehouses: builder.query({
-      query: ({ page, page_size }) =>
-        `/warehouse/?page=${page + 1}&page_size=${page_size}`,
+      query: ({ page, page_size, all = false }) => {
+        const queryParams = all
+          ? "all=true"
+          : `page=${page + 1}&page_size=${page_size}&all=false`;
+        return `/warehouse/?${queryParams}`;
+      },
       providesTags: ["Warehouse"],
       transformResponse: (response) => ({
         warehouses: response.warehouses,
@@ -22,6 +26,7 @@ export const warehouseApi = createApi({
         page_size: response.page_size,
         total_pages: response.total_pages,
         total_items: response.total_items,
+        all: response.all || false,
       }),
     }),
     addWarehouse: builder.mutation({

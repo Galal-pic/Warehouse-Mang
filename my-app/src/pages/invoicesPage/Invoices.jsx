@@ -38,14 +38,10 @@ import InvoiceModal from "../../components/invoice/Invoice";
 
 export default function Invoices() {
   // RTK Query Hooks
-  const { data: warehouse = [], refetch } = useGetWarehousesQuery(undefined, {
+  const { data: warehouse = [] } = useGetWarehousesQuery(undefined, {
     pollingInterval: 300000,
   });
-  const {
-    data: user,
-    isLoading: isLoadingUser,
-    refetch: refetchUser,
-  } = useGetUserQuery();
+  const { data: user, isLoading: isLoadingUser } = useGetUserQuery();
 
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -61,14 +57,28 @@ export default function Invoices() {
   const [isSaved, setIsSaved] = useState(false);
   const [isInvoiceDeleting, setIsInvoiceDeleting] = useState(false);
 
-  // Invoices query with automatic refetch
+  // pagination
+  const [paginationModel, setPaginationModel] = useState({
+    page: 0,
+    pageSize: 10,
+  });
+  const handlePageChange = (newModel) => {
+    setPaginationModel((prev) => ({ ...prev, ...newModel }));
+  };
+
+  // Invoices query with pagination
   const {
-    data: invoicesData = [],
+    data: invoicesData = { invoices: [], total_pages: 1 },
     isLoading: isInvoicesLoading,
     refetch: refetchInvoices,
-  } = useGetInvoicesQuery(selectedNowType?.label, {
-    pollingInterval: 300000,
-  });
+  } = useGetInvoicesQuery(
+    {
+      type: selectedNowType?.label,
+      page: paginationModel.page,
+      page_size: paginationModel.pageSize,
+    },
+    { pollingInterval: 300000, skip: !selectedNowType?.label }
+  );
 
   // Mutations
   const [deleteInvoice] = useDeleteInvoiceMutation();
@@ -98,12 +108,12 @@ export default function Invoices() {
     return map;
   }, [warehouse]);
   const invoices = useMemo(() => {
-    if (!invoicesData || !warehouse) return [];
+    if (!invoicesData.invoices || !warehouse) return [];
     const warehouseMap = new Map();
     warehouse.forEach((wh) => {
       warehouseMap.set(wh.item_name, wh);
     });
-    return invoicesData
+    return invoicesData.invoices
       .slice()
       .reverse()
       .map((invoice) => {
@@ -128,7 +138,8 @@ export default function Invoices() {
             : "",
         };
       });
-  }, [invoicesData, warehouse]);
+  }, [invoicesData.invoices, warehouse]);
+
   const handleEditInfo = (invoice) => {
     setEditingInvoice(invoice);
     setIsEditingInvoice(true);
@@ -842,16 +853,6 @@ export default function Invoices() {
     { field: "id", headerName: "#", width: 50 },
   ];
 
-  // pagination
-  const [paginationModel, setPaginationModel] = useState({
-    page: 0,
-    pageSize: 10,
-  });
-  const pageCount = Math.ceil(invoices.length / paginationModel.pageSize);
-  const handlePageChange = (newModel) => {
-    setPaginationModel((prev) => ({ ...prev, ...newModel }));
-  };
-
   // edited invoice
   const [isEditingInvoice, setIsEditingInvoice] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState(null);
@@ -991,10 +992,6 @@ export default function Invoices() {
       setDeleteDialogCheckBoxOpen(true);
     }
   };
-  useEffect(() => {
-    refetch();
-    refetchInvoices();
-  }, []);
 
   if (isLoadingUser) {
     return (
@@ -1031,11 +1028,11 @@ export default function Invoices() {
           />
           {/* invoices data */}
           <CustomDataGrid
-            rows={invoices}
+            rows={invoicesData.invoices}
             columns={columns}
             paginationModel={paginationModel}
             onPageChange={handlePageChange}
-            pageCount={pageCount}
+            pageCount={invoicesData.total_pages}
             CustomToolbarFromComponent={CustomToolbar}
             loader={isInvoicesLoading}
             checkBox={true}

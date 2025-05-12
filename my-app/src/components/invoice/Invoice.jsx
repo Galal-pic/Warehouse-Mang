@@ -43,41 +43,47 @@ export default function InvoiceModal({
 }) {
   // Data from API
   const {
-    data: suppliers,
+    data: suppliersData,
     isLoading: isSuppliersLoading,
     refetch: refetchSuppliers,
-  } = useGetSuppliersQuery(undefined, { pollingInterval: 300000 });
+  } = useGetSuppliersQuery({ all: true }, { pollingInterval: 300000 });
+  const suppliers = suppliersData?.suppliers || [];
 
   const {
-    data: machines,
+    data: machinesData,
     isLoading: isMachinesLoading,
     refetch: refetchMachines,
-  } = useGetMachinesQuery(undefined, { pollingInterval: 300000 });
+  } = useGetMachinesQuery({ all: true }, { pollingInterval: 300000 });
+  const machines = machinesData?.machines || [];
 
   const {
-    data: mechanisms,
+    data: mechanismsData,
     isLoading: isMechanismsLoading,
     refetch: refetchMechanisms,
-  } = useGetMechanismsQuery(undefined, { pollingInterval: 300000 });
+  } = useGetMechanismsQuery({ all: true }, { pollingInterval: 300000 });
+  const mechanisms = mechanismsData?.mechanisms || [];
 
   const {
-    data: warehouse,
+    data: warehouseData,
     isLoading: isWarehousesLoading,
     refetch: refetchWarehouses,
-  } = useGetWarehousesQuery(undefined, { pollingInterval: 300000 });
+  } = useGetWarehousesQuery({ all: true }, { pollingInterval: 300000 });
+  const warehouse = warehouseData?.warehouses || [];
 
-  // Placeholder for fetching invoice numbers
+  // Fetch invoices with all=true
   const {
-    data: invoices,
+    data: invoicesData,
     isLoading: isInvoiceNumbersLoading,
     isError: isInvoiceNumbersError,
-  } = useGetInvoicesQuery("صرف", { pollingInterval: 300000 });
+  } = useGetInvoicesQuery(
+    { all: true, type: "صرف" },
+    { pollingInterval: 300000 }
+  );
+  const invoices = invoicesData?.invoices || [];
 
-  const invoiceNumbers = invoices
-    ? invoices.map((inv) => ({
-        id: inv.id.toString(),
-      }))
-    : [];
+  const invoiceNumbers = invoices.map((inv) => ({
+    id: inv.id.toString(),
+  }));
 
   useEffect(() => {
     if (isInvoiceNumbersError) {
@@ -238,17 +244,28 @@ export default function InvoiceModal({
         return {
           ...item,
           availableLocations,
-          unit_price: Number(warehouseItem?.unit_price) || 0,
+          unit_price:
+            selectedNowType?.type === "اضافه"
+              ? item.unit_price // الاحتفاظ بالقيمة الحالية لـ unit_price في نوع "إضافة"
+              : Number(warehouseItem?.unit_price) || 0,
           maxquantity,
         };
       });
-      setEditingInvoice({ ...editingInvoice, items: updatedItems });
+
+      // Check if updatedItems differ from current items to avoid infinite loop
+      const itemsChanged =
+        JSON.stringify(updatedItems) !== JSON.stringify(editingInvoice.items);
+
+      if (itemsChanged) {
+        setEditingInvoice((prev) => ({ ...prev, items: updatedItems }));
+      }
     }
   }, [
     warehouseMap,
     originalInvoice,
     selectedNowType?.type,
-    editingInvoice?.type,
+    editingInvoice,
+    setEditingInvoice,
   ]);
 
   // Snackbar

@@ -27,18 +27,35 @@ export const invoiceApi = createApi({
       }),
       invalidatesTags: ["Invoice"],
     }),
-    // get invoices with pagination
+    // get invoices with pagination or all
     getInvoices: builder.query({
-      query: ({ type, page, page_size }) =>
-        `/invoice/${type}?page=${page + 1}&page_size=${page_size}`,
+      query: ({ type, page, page_size, all = false }) => {
+        if (all) {
+          return `/invoice/${type}?all=true`;
+        }
+        return `/invoice/${type}?page=${page + 1}&page_size=${page_size}&all=false`;
+      },
       providesTags: ["Invoice"],
-      transformResponse: (response) => ({
-        invoices: response.invoices,
-        page: response.page,
-        page_size: response.page_size,
-        total_pages: response.total_pages,
-        total_items: response.total_items,
-      }),
+      transformResponse: (response) => {
+        // If fetching all, return only the invoices array
+        if (response.all) {
+          return {
+            invoices: response.invoices,
+            page: 1,
+            page_size: response.invoices.length,
+            total_pages: 1,
+            total_items: response.invoices.length,
+          };
+        }
+        // For paginated response, return full metadata
+        return {
+          invoices: response.invoices,
+          page: response.page,
+          page_size: response.page_size,
+          total_pages: response.total_pages,
+          total_items: response.total_items,
+        };
+      },
     }),
     // edit invoice
     updateInvoice: builder.mutation({
