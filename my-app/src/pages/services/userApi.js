@@ -13,12 +13,21 @@ export const userApi = createApi({
       return headers;
     },
   }),
-  tagTypes: ["User"], // Used for caching and invalidation
+  tagTypes: ["User"],
   endpoints: (builder) => ({
     getUsers: builder.query({
-      query: () => "/auth/users",
-      providesTags: ["User"], // Invalidate cache when users are updated or deleted
+      query: ({ page, page_size }) =>
+        `/auth/users?page=${page + 1}&page_size=${page_size}`,
+      providesTags: ["User"],
+      transformResponse: (response) => ({
+        users: response.users,
+        page: response.page,
+        page_size: response.page_size,
+        total_pages: response.total_pages,
+        total_items: response.total_items,
+      }),
     }),
+    // Other endpoints remain unchanged
     getUser: builder.query({
       query: () => "/auth/user",
     }),
@@ -28,14 +37,14 @@ export const userApi = createApi({
         method: "PUT",
         body: patch,
       }),
-      invalidatesTags: ["User"], // Invalidate cache after updating
+      invalidatesTags: ["User"],
     }),
     deleteUser: builder.mutation({
       query: (id) => ({
         url: `/auth/user/${id}`,
         method: "DELETE",
       }),
-      invalidatesTags: ["User"], // Invalidate cache after deleting
+      invalidatesTags: ["User"],
     }),
     addUser: builder.mutation({
       query: (newUser) => ({
@@ -43,7 +52,7 @@ export const userApi = createApi({
         method: "POST",
         body: newUser,
       }),
-      invalidatesTags: ["User"], // Invalidate cache after adding
+      invalidatesTags: ["User"],
     }),
   }),
 });

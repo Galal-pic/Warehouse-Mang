@@ -205,7 +205,6 @@ export default function CustomDataGrid({
       }}
       pagination
       paginationModel={paginationModel}
-      onPaginationModelChange={onPageChange}
       disableVirtualization={false}
       getRowClassName={(params) => {
         const { page, pageSize } = paginationModel;

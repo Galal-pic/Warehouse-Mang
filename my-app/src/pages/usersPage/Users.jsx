@@ -5,7 +5,6 @@ import { Snackbar, Alert, IconButton } from "@mui/material";
 import ClearOutlinedIcon from "@mui/icons-material/ClearOutlined";
 import { useNavigate } from "react-router-dom";
 import GroupAddIcon from "@mui/icons-material/GroupAdd";
-
 import "../../colors.css";
 import DeleteRow from "../../components/deleteItem/DeleteRow";
 import CustomDataGrid from "../../components/dataGrid/CustomDataGrid";
@@ -23,24 +22,28 @@ export default function Users() {
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackBarType, setSnackBarType] = useState("");
 
-  // get user info
-  const {
-    data: user,
-    isLoading: isLoadingUser,
-    refetch: refetchUser,
-  } = useGetUserQuery();
+  // Get user info
+  const { data: user, isLoading: isLoadingUser } = useGetUserQuery();
 
-  // get user data
+  // Pagination state
+  const [paginationModel, setPaginationModel] = useState({
+    page: 0,
+    pageSize: 10,
+  });
+
+  // Get users data with pagination
   const {
-    data: users = [],
+    data: usersData = { users: [], total_pages: 1 },
     isLoading,
     refetch: refetchUsers,
-  } = useGetUsersQuery(undefined, {
-    pollingInterval: 300000,
-  });
+  } = useGetUsersQuery(
+    { page: paginationModel.page, page_size: paginationModel.pageSize },
+    { pollingInterval: 300000 }
+  );
+
   const [deleteUser, { isLoading: isDeleting }] = useDeleteUserMutation();
 
-  // collors
+  // Colors
   const primaryColor = getComputedStyle(
     document.documentElement
   ).getPropertyValue("--primary-color");
@@ -63,7 +66,6 @@ export default function Users() {
         >
           <GroupAddIcon
             sx={{
-              // margin: "0px 8px 3px",
               fontSize: "3rem",
             }}
           />
@@ -94,19 +96,17 @@ export default function Users() {
     );
   }
 
-  // pagination
-  const [paginationModel, setPaginationModel] = useState({
-    page: 0,
-    pageSize: 10,
-  });
-  const pageCount = Math.ceil(users.length / paginationModel.pageSize);
+  // Handle page change
   const handlePageChange = (newModel) => {
-    setPaginationModel((prev) => ({ ...prev, ...newModel }));
+    setPaginationModel((prev) => {
+      const updatedModel = { ...prev, ...newModel };
+      return updatedModel;
+    });
   };
 
   // Edit
   const handleLaunchClick = (id) => {
-    const user = users.find((user) => user.id === id);
+    const user = usersData.users.find((user) => user.id === id);
     if (user) {
       setSelectedUser(user);
       setIsModalOpen(true);
@@ -115,7 +115,7 @@ export default function Users() {
     }
   };
 
-  // dialog
+  // Dialog
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [deleteConfirmationText, setDeleteConfirmationText] = useState("");
@@ -216,11 +216,12 @@ export default function Users() {
       sortable: false,
     },
   ];
+
   useEffect(() => {
     refetchUsers();
-  }, []);
+  }, [refetchUsers]);
 
-  // manage modal component
+  // Manage modal component
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
 
@@ -256,11 +257,11 @@ export default function Users() {
           />
 
           <CustomDataGrid
-            rows={users}
+            rows={usersData.users}
             columns={columns}
             paginationModel={paginationModel}
             onPageChange={handlePageChange}
-            pageCount={pageCount}
+            pageCount={usersData.total_pages}
             CustomToolbarFromComponent={CustomToolbar}
             loader={isLoading}
             onCellKeyDown={(params, event) => {
