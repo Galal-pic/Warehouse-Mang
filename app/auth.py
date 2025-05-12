@@ -7,7 +7,17 @@ from .models import Employee
 # Create namespace
 auth_ns = Namespace('auth', description='Authentication operations')
 
-# Models for API documentation
+pagination_parser = auth_ns.parser()
+pagination_parser.add_argument('page',
+                               type=str,
+                               required=False,
+                               default=1, 
+                               help='Page number (default: 1)')
+pagination_parser.add_argument('page_size',
+                               type=str,
+                               required=False, 
+                               default=10, 
+                               help='Number of items per page (default: 10)')
 # Create Invoice Permissions
 create_invoice_model = auth_ns.model('CreateInvoicePermissions', {
     'create_inventory_operations': fields.Boolean(default=False, description='Permission to create inventory operations'),
@@ -129,6 +139,13 @@ update_user_model = auth_ns.model('UpdateUser', {
     'permissions': fields.Nested(permissions_model, description='User permissions')
 })
 
+pagination_model = auth_ns.model('UsersPagination', {
+    'users': fields.List(fields.Nested(user_model)),
+    'page': fields.Integer(required=True),
+    'page_size': fields.Integer(required=True),
+    'total_pages': fields.Integer(required=True),
+    'total_items': fields.Integer(required=True)
+})
 # Endpoints
 @auth_ns.route('/register')
 class Register(Resource):
@@ -365,11 +382,26 @@ class UserManagement(Resource):
 
 @auth_ns.route('/users')
 class Users(Resource):
-    @auth_ns.marshal_list_with(user_model)
+    @auth_ns.marshal_list_with(pagination_model)
+    @auth_ns.expect(pagination_parser)
     @jwt_required()
     def get(self):
         """Get all users"""
-        return Employee.query.all()
+        args = pagination_parser.parse_args()
+        page = int(args['page'])
+        page_size = int(args['page_size'])
+        if page < 1 or page_size < 1:
+            auth_ns.abort(400, "Page and page_size must be positive integers")
+        offset = (page - 1) * page_size
+        employees = Employee.query.limit(page_size).offset(offset).all()
+        total_count = Employee.query.count()
+        return {
+            'users': employees,
+            'page': page,
+            'page_size': page_size,
+            'total_pages': (total_count + page_size - 1) // page_size,
+            'total_items': total_count
+        }, 200
 
 @auth_ns.route('/user')
 class CurrentUser(Resource):
