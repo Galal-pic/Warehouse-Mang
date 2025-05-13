@@ -1,5 +1,5 @@
 import styles from "./Machines.module.css";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Dialog,
   DialogActions,
@@ -45,6 +45,10 @@ export default function Machines() {
     { page: paginationModel.page, page_size: paginationModel.pageSize },
     { pollingInterval: 300000 }
   );
+
+  useEffect(() => {
+    refetch();
+  }, []);
 
   const [addMachine, { isLoading: isAdding }] = useAddMachineMutation();
   const [updateMachine, { isLoading: isUpdating }] = useUpdateMachineMutation();

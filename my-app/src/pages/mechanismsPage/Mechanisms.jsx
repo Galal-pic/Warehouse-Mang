@@ -1,5 +1,5 @@
 import styles from "./Mechanisms.module.css";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Dialog,
   DialogActions,
@@ -45,6 +45,10 @@ export default function Mechanisms() {
     { page: paginationModel.page, page_size: paginationModel.pageSize },
     { pollingInterval: 300000 }
   );
+
+  useEffect(() => {
+    refetch();
+  }, []);
 
   const [addMechanism, { isLoading: isAdding }] = useAddMechanismMutation();
   const [updateMechanism, { isLoading: isUpdating }] =

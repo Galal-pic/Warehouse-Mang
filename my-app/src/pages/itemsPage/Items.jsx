@@ -1,5 +1,5 @@
 import styles from "./Items.module.css";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Dialog,
   DialogActions,
@@ -57,6 +57,10 @@ export default function Items() {
     { page: paginationModel.page, page_size: paginationModel.pageSize },
     { pollingInterval: 300000 }
   );
+
+  useEffect(() => {
+    refetch();
+  }, []);
 
   const [addWarehouse, { isLoading: isAdding }] = useAddWarehouseMutation();
   const [updateWarehouse, { isLoading: isUpdating }] =
