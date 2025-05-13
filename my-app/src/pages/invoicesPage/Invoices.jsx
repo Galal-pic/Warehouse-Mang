@@ -26,6 +26,7 @@ import {
   useDeleteInvoiceMutation,
   useUpdateInvoiceMutation,
   useConfirmInvoiceMutation,
+  useConfirmTalabSheraaInvoiceMutation,
   useRefreshInvoiceMutation,
   useReturnWarrantyInvoiceMutation,
 } from "../services/invoiceApi";
@@ -79,6 +80,7 @@ export default function Invoices() {
   const [deleteInvoice] = useDeleteInvoiceMutation();
   const [updateInvoice] = useUpdateInvoiceMutation();
   const [confirmInvoice] = useConfirmInvoiceMutation();
+  const [confirmTalabSheraaInvoice] = useConfirmTalabSheraaInvoiceMutation();
   const [refreshInvoice] = useRefreshInvoiceMutation();
   const [ReturnWarrantyInvoice] = useReturnWarrantyInvoiceMutation();
 
@@ -98,11 +100,19 @@ export default function Invoices() {
       .map((invoice) => {
         let displayStatus;
         if (invoice.status === "draft") {
-          displayStatus = "لم تراجع";
+          if (selectedNowType?.label === "طلب شراء") {
+            displayStatus = "شراء الطلب";
+          } else {
+            displayStatus = "لم تراجع";
+          }
         } else if (invoice.status === "accreditation") {
           displayStatus = "لم تؤكد";
         } else if (invoice.status === "confirmed") {
-          displayStatus = "تم";
+          if (selectedNowType?.label === "طلب شراء") {
+            displayStatus = "تم الشراء";
+          } else {
+            displayStatus = "تم";
+          }
         } else if (invoice.status === "returned") {
           displayStatus = "تم الاسترداد";
         } else {
@@ -138,6 +148,7 @@ export default function Invoices() {
         (invoice) =>
           invoice.rawStatus === "تم" ||
           invoice.rawStatus === "تم الاسترداد" ||
+          invoice.rawStatus === "تم الشراء" ||
           invoice.rawStatus === "confirmed" ||
           invoice.rawStatus === "returned"
       );
@@ -363,6 +374,31 @@ export default function Invoices() {
     setLoadingRowsReturn((prev) => ({ ...prev, [id]: true }));
     try {
       await ReturnWarrantyInvoice(id).unwrap();
+      setSnackbarMessage("تم التحديث بنجاح");
+      setSnackBarType("success");
+    } catch (error) {
+      if (error.response && error.response.status === 500) {
+        setOpenSnackbar(true);
+        setSnackbarMessage("خطأ في الوصول إلى قاعدة البيانات");
+        setSnackBarType("error");
+      } else {
+        setOpenSnackbar(true);
+        setSnackbarMessage(
+          "خطأ في التحديث، إذا استمرت المشكله حاول اعادة تحميل الصفحة"
+        );
+        setSnackBarType("error");
+      }
+    } finally {
+      setOpenSnackbar(true);
+      setLoadingRowsReturn((prev) => ({ ...prev, [id]: false }));
+    }
+  };
+
+  // Purchase Confirmation
+  const handlePurchaseRequestConfirmation = async (id) => {
+    setLoadingRowsReturn((prev) => ({ ...prev, [id]: true }));
+    try {
+      await confirmTalabSheraaInvoice(id).unwrap();
       setSnackbarMessage("تم التحديث بنجاح");
       setSnackBarType("success");
     } catch (error) {
@@ -645,7 +681,11 @@ export default function Invoices() {
     {
       field: "refresh",
       headerName: "فتح الفاتورة",
-      width: selectedNowType?.label === "أمانات" ? 350 : 200,
+      width:
+        selectedNowType?.label === "أمانات" ||
+        selectedNowType?.label === "طلب شراء"
+          ? 350
+          : 200,
       renderCell: (params) => {
         return (
           <div
@@ -672,7 +712,8 @@ export default function Invoices() {
               </button>
             )}
             {(user?.view_prices || user?.username === "admin") &&
-              selectedNowType?.label !== "اضافه" && (
+              selectedNowType?.label !== "اضافه" &&
+              selectedNowType?.label !== "مرتجع" && (
                 <button
                   className={styles.iconBtn}
                   onClick={() => showInvoiceDetails(params.id)}
@@ -705,6 +746,34 @@ export default function Invoices() {
               ) : (
                 "تم الاسترداد"
               ))}
+
+            {selectedNowType?.label === "طلب شراء" &&
+              (params.row.status !== "تم الشراء" ? (
+                <Button
+                  variant="contained"
+                  color="info"
+                  onClick={() =>
+                    handlePurchaseRequestConfirmation(params.row.id)
+                  }
+                  sx={{
+                    borderRadius: "8px",
+                    padding: "6px 16px",
+                  }}
+                  disabled={
+                    loadingRowsReturn[params.row.id] ||
+                    (user?.username !== "admin" && !user?.can_recover_deposits)
+                  }
+                >
+                  {loadingRowsReturn[params.row.id] ? (
+                    <CircularProgress size={24} />
+                  ) : (
+                    "تأكيد الشراء"
+                  )}
+                </Button>
+              ) : (
+                "تم الشراء"
+              ))}
+
             {params.row.items.some((item) => item.total_price === 0) && (
               <Button
                 variant="contained"
@@ -730,45 +799,54 @@ export default function Invoices() {
         );
       },
     },
-    {
-      width: 86,
-      field: "status",
-      headerName: "حالة العملية",
-      renderCell: (params) => {
-        const { status, rawStatus, id } = params.row;
-        const isLoading = isConfirmDone[id] || false;
+    ...(selectedNowType?.label !== "طلب شراء"
+      ? [
+          {
+            width: 86,
+            field: "status",
+            headerName: "حالة العملية",
+            renderCell: (params) => {
+              const { status, rawStatus, id } = params.row;
+              const isLoading = isConfirmDone[id] || false;
 
-        if (status === "تم" || status === "تم الاسترداد") {
-          return "تم";
-        }
+              if (
+                status === "تم" ||
+                status === "تم الاسترداد" ||
+                status === "تم الشراء"
+              ) {
+                return "تم";
+              }
 
-        let buttonText = status; // النص العربي من حقل status
-        let buttonColor = rawStatus === "draft" ? "error" : "primary";
+              let buttonText = status;
+              let buttonColor = rawStatus === "draft" ? "error" : "primary";
 
-        return (
-          <Button
-            variant="contained"
-            color={buttonColor}
-            onClick={() => handleInvoiceAction(params.row.id)}
-            sx={{
-              borderRadius: "8px",
-              padding: "6px 10px",
-            }}
-            disabled={
-              isLoading ||
-              (rawStatus === "draft" &&
-                !(
-                  user?.can_confirm_withdrawal || user?.username === "admin"
-                )) ||
-              (rawStatus === "accreditation" &&
-                !(user?.can_withdraw || user?.username === "admin"))
-            }
-          >
-            {isLoading ? <CircularProgress size={24} /> : buttonText}
-          </Button>
-        );
-      },
-    },
+              return (
+                <Button
+                  variant="contained"
+                  color={buttonColor}
+                  onClick={() => handleInvoiceAction(params.row.id)}
+                  sx={{
+                    borderRadius: "8px",
+                    padding: "6px 10px",
+                  }}
+                  disabled={
+                    isLoading ||
+                    (rawStatus === "draft" &&
+                      !(
+                        user?.can_confirm_withdrawal ||
+                        user?.username === "admin"
+                      )) ||
+                    (rawStatus === "accreditation" &&
+                      !(user?.can_withdraw || user?.username === "admin"))
+                  }
+                >
+                  {isLoading ? <CircularProgress size={24} /> : buttonText}
+                </Button>
+              );
+            },
+          },
+        ]
+      : []),
     { flex: 1, field: "itemsNames", headerName: "أسماء العناصر" },
     { flex: 1, field: "mechanism_name", headerName: "الميكانيزم" },
     { flex: 1, field: "machine_name", headerName: "الماكينة" },
@@ -789,7 +867,6 @@ export default function Invoices() {
     { flex: 1, field: "type", headerName: "نوع العملية" },
     { field: "id", headerName: "#", width: 50 },
   ];
-
   // edited invoice
   const [isEditingInvoice, setIsEditingInvoice] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState(null);
@@ -875,6 +952,7 @@ export default function Invoices() {
     if (
       invoice?.rawStatus === "تم" ||
       invoice?.rawStatus === "تم الاسترداد" ||
+      invoice?.rawStatus === "تم الشراء" ||
       invoice?.rawStatus === "confirmed" ||
       invoice?.rawStatus === "returned"
     ) {

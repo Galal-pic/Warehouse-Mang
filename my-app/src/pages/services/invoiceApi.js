@@ -33,7 +33,9 @@ export const invoiceApi = createApi({
         if (all) {
           return `/invoice/${type}?all=true`;
         }
-        return `/invoice/${type}?page=${page + 1}&page_size=${page_size}&all=false`;
+        return `/invoice/${type}?page=${
+          page + 1
+        }&page_size=${page_size}&all=false`;
       },
       providesTags: ["Invoice"],
       transformResponse: (response) => {
@@ -82,6 +84,14 @@ export const invoiceApi = createApi({
       }),
       invalidatesTags: ["Invoice"],
     }),
+    // confirm talab sheraa
+    confirmTalabSheraaInvoice: builder.mutation({
+      query: (id) => ({
+        url: `/invoice/${id}/PurchaseRequestConfirmation`,
+        method: "POST",
+      }),
+      invalidatesTags: ["Invoice"],
+    }),
     // refresh invoice
     refreshInvoice: builder.mutation({
       query: (id) => ({
@@ -117,6 +127,7 @@ export const {
   useUpdateInvoiceMutation,
   useDeleteInvoiceMutation,
   useConfirmInvoiceMutation,
+  useConfirmTalabSheraaInvoiceMutation,
   useRefreshInvoiceMutation,
   useReturnWarrantyInvoiceMutation,
   usePriceReportQuery,
