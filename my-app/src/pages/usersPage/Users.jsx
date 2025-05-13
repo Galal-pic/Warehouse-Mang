@@ -5,6 +5,7 @@ import { Snackbar, Alert, IconButton } from "@mui/material";
 import ClearOutlinedIcon from "@mui/icons-material/ClearOutlined";
 import { useNavigate } from "react-router-dom";
 import GroupAddIcon from "@mui/icons-material/GroupAdd";
+import PasswordIcon from "@mui/icons-material/Password";
 import "../../colors.css";
 import DeleteRow from "../../components/deleteItem/DeleteRow";
 import CustomDataGrid from "../../components/dataGrid/CustomDataGrid";
@@ -16,11 +17,14 @@ import {
 } from "../services/userApi";
 import LaunchIcon from "@mui/icons-material/Launch";
 import EditUser from "../../components/editUser/EditUser";
+import ChangePassword from "../../components/changePassword/ChangePassword";
 
 export default function Users() {
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackBarType, setSnackBarType] = useState("");
+  const [changePassOpen, setChangePassOpen] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState(null);
 
   // Get user info
   const { data: user, isLoading: isLoadingUser } = useGetUserQuery();
@@ -117,13 +121,18 @@ export default function Users() {
 
   // Dialog
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [selectedUserId, setSelectedUserId] = useState(null);
   const [deleteConfirmationText, setDeleteConfirmationText] = useState("");
 
   const handleDeleteClick = (id) => {
     setSelectedUserId(id);
     setDeleteDialogOpen(true);
     setDeleteConfirmationText("");
+  };
+
+  // Change password
+  const handleChangePass = (id) => {
+    setSelectedUserId(id);
+    setChangePassOpen(true);
   };
 
   // Delete
@@ -154,6 +163,13 @@ export default function Users() {
     }
   };
 
+  // Handle snackbar for password change
+  const handlePasswordChangeSuccess = (message, type) => {
+    setOpenSnackbar(true);
+    setSnackbarMessage(message);
+    setSnackBarType(type);
+  };
+
   const columns = [
     {
       field: "actions",
@@ -178,6 +194,12 @@ export default function Users() {
                 onClick={() => handleLaunchClick(params.id)}
               >
                 <LaunchIcon />
+              </button>
+              <button
+                className={styles.iconBtn}
+                onClick={() => handleChangePass(params.id)}
+              >
+                <PasswordIcon />
               </button>
               <button
                 className={styles.iconBtn}
@@ -279,6 +301,13 @@ export default function Users() {
               user={selectedUser}
             />
           )}
+
+          <ChangePassword
+            open={changePassOpen}
+            onClose={() => setChangePassOpen(false)}
+            userId={selectedUserId}
+            onSuccess={handlePasswordChangeSuccess}
+          />
 
           {/* snack bar */}
           <Snackbar

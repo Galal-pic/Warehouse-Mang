@@ -10,10 +10,9 @@ import SnackBar from "../../components/snackBar/SnackBar";
 import { CustomTextField } from "../../components/customTextField/CustomTextField";
 import CircularProgress from "@mui/material/CircularProgress";
 import { useGetUserQuery } from "../services/userApi";
-import { translateError } from "../../components/translateError/translateError";
 
 const Login = () => {
-  const { data: user, isLoading: isLoadingUser, refetch } = useGetUserQuery();
+  const { isLoading: isLoadingUser, refetch } = useGetUserQuery();
 
   const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
