@@ -967,6 +967,7 @@ export default function Invoices() {
           <FilterTabs
             setNowType={setSelectedNowType}
             setSelectedRows={setSelectedRows}
+            setPaginationModel={setPaginationModel}
           />
           {/* invoices data */}
           <CustomDataGrid

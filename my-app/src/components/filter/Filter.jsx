@@ -79,7 +79,11 @@ export const filtersTypes = (user) => {
   ].filter(Boolean);
 };
 
-export default function FilterTabs({ setNowType, setSelectedRows }) {
+export default function FilterTabs({
+  setNowType,
+  setSelectedRows,
+  setPaginationModel,
+}) {
   const { data: user = {} } = useGetUserQuery();
   const [value, setValue] = React.useState(0);
   const filters = React.useMemo(() => filtersTypes(user), [user]);
@@ -95,6 +99,8 @@ export default function FilterTabs({ setNowType, setSelectedRows }) {
     setValue(newValue);
     setNowType(filters[newValue]);
     setSelectedRows([]);
+    // Reset pagination to the first page
+    setPaginationModel((prev) => ({ ...prev, page: 0 }));
   };
 
   if (filters.length === 0) return null;
