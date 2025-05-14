@@ -199,8 +199,16 @@ export default function CreateInvoice() {
   // Local storage persistence for main invoice
   useEffect(() => {
     if (!isInvoiceSaved) {
+      const modifiedInvoice = {
+        ...newInvoice,
+        items: newInvoice.items.map((item) => ({
+          ...item,
+          quantity: 0,
+        })),
+      };
+
       const draft = {
-        newInvoice,
+        newInvoice: modifiedInvoice,
         operationType,
         purchasesType,
         showCommentField,
@@ -219,8 +227,16 @@ export default function CreateInvoice() {
   // Local storage persistence for purchase order
   useEffect(() => {
     if (!isPurchaseOrderSaved) {
+      const modifiedPurchaseOrderInvoice = {
+        ...purchaseOrderInvoice,
+        items: purchaseOrderInvoice.items.map((item) => ({
+          ...item,
+          quantity: 0,
+        })),
+      };
+
       const draft = {
-        purchaseOrderInvoice,
+        purchaseOrderInvoice: modifiedPurchaseOrderInvoice,
         isPurchaseOrderSaved,
       };
       localStorage.setItem(

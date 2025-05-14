@@ -682,9 +682,8 @@ export default function Invoices() {
       field: "refresh",
       headerName: "فتح الفاتورة",
       width:
-        selectedNowType?.label === "أمانات" ||
-        selectedNowType?.label === "طلب شراء"
-          ? 350
+        selectedNowType?.label === "أمانات"
+          ? 250
           : 200,
       renderCell: (params) => {
         return (
@@ -713,7 +712,8 @@ export default function Invoices() {
             )}
             {(user?.view_prices || user?.username === "admin") &&
               selectedNowType?.label !== "اضافه" &&
-              selectedNowType?.label !== "مرتجع" && (
+              selectedNowType?.label !== "مرتجع" &&
+              selectedNowType?.label !== "طلب شراء" && (
                 <button
                   className={styles.iconBtn}
                   onClick={() => showInvoiceDetails(params.id)}
