@@ -7,13 +7,16 @@ import {
   Button,
   CircularProgress,
 } from "@mui/material";
+import { useChangePassMutation } from "../../pages/services/userApi"; // Import the mutation hook
 
 const ChangePassword = ({ open, onClose, userId, onSuccess }) => {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
+  const [changePass, { isLoading }] = useChangePassMutation(); // Use the mutation hook
 
   const handleSubmit = async () => {
+    // Client-side validation
     if (newPassword !== confirmPassword) {
       setError("كلمات المرور غير متطابقة");
       return;
@@ -22,18 +25,24 @@ const ChangePassword = ({ open, onClose, userId, onSuccess }) => {
       setError("كلمة المرور يجب أن تكون 6 أحرف على الأقل");
       return;
     }
-    console.log("done");
 
     try {
-      // Simulate API call (uncomment when using actual API)
-      // await changePassword({ userId, newPassword }).unwrap();
+      // Call the changePass mutation with the correct payload
+      await changePass({
+        id: userId,
+        new_password: newPassword,
+        confirm_new_password: confirmPassword,
+      }).unwrap();
       setNewPassword("");
       setConfirmPassword("");
       setError("");
-      onSuccess("تمت تغيير كلمة السر", "success");
+      onSuccess("تم تغيير كلمة المرور بنجاح", "success");
       onClose();
     } catch (err) {
-      setError("فشل في تغيير كلمة المرور");
+      // Extract server-side error message if available
+      const errorMessage =
+        err.data?.message || "فشل في تغيير كلمة المرور. حاول مرة أخرى.";
+      setError(errorMessage);
     }
   };
 
@@ -174,6 +183,7 @@ const ChangePassword = ({ open, onClose, userId, onSuccess }) => {
           variant="contained"
           color="primary"
           onClick={handleSubmit}
+          disabled={isLoading}
           sx={{
             fontSize: "1rem",
             padding: "8px 16px",
@@ -184,7 +194,7 @@ const ChangePassword = ({ open, onClose, userId, onSuccess }) => {
             },
           }}
         >
-          {false ? <CircularProgress size={25} /> : "تغيير"}
+          {isLoading ? <CircularProgress size={25} /> : "تغيير"}
         </Button>
       </DialogActions>
     </Dialog>

@@ -57,6 +57,14 @@ export const userApi = createApi({
       }),
       invalidatesTags: ["User"],
     }),
+    changePass: builder.mutation({
+      query: ({ id, ...newUser }) => ({
+        url: `/auth/user/${id}/change-password`,
+        method: "POST",
+        body: newUser,
+      }),
+      invalidatesTags: ["User"],
+    }),
   }),
 });
 
@@ -66,4 +74,5 @@ export const {
   useUpdateUserMutation,
   useDeleteUserMutation,
   useAddUserMutation,
+  useChangePassMutation,
 } = userApi;
