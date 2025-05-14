@@ -1,8 +1,11 @@
 from flask_restx import Namespace, Resource, fields
+from flask import send_file
 from flask_jwt_extended import jwt_required
 from .. import db
 from ..models import Supplier
-from ..utils import parse_bool
+from ..utils import parse_bool,  get_excel_sheet
+
+
 supplier_ns = Namespace('supplier', description='supplier operations')
 
 # Parser for query parameters
@@ -58,6 +61,24 @@ class MachineExcel(Resource):
             db.session.add(new_supplier)
             db.session.commit()
         return new_supplier, 201
+
+    def get(self):
+        """Get all suppliers in an excel file"""
+        try:
+            output, filename = get_excel_sheet(Supplier)
+            return send_file(
+                output,
+                as_attachment=True,
+                download_name=filename,
+                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )
+        except Exception as e:
+            import traceback
+            print(f"Excel export error: {str(e)}")
+            print(traceback.format_exc())
+            return {"message": f"Error exporting data: {str(e)}"}, 500
+
+        
     
 # Machine Endpoints
 @supplier_ns.route('/')
