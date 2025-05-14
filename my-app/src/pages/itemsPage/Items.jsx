@@ -150,7 +150,7 @@ export default function Items() {
       setSnackbarMessage("تمت اضافة المنتج");
       setSnackBarType("success");
     } catch (error) {
-      if (error.response && error.response.status === 500) {
+      if (error.response && error.response.status === "FETCH_ERROR") {
         setOpenSnackbar(true);
         setSnackbarMessage("خطأ في الوصول إلى قاعدة البيانات");
         setSnackBarType("error");
@@ -289,7 +289,7 @@ export default function Items() {
       setSnackbarMessage("تم تعديل المنتج");
       setSnackBarType("success");
     } catch (error) {
-      if (error.response && error.response.status === 500) {
+      if (error.response && error.response.status === "FETCH_ERROR") {
         setOpenSnackbar(true);
         setSnackbarMessage("خطأ في الوصول إلى قاعدة البيانات");
         setSnackBarType("error");
@@ -326,7 +326,7 @@ export default function Items() {
         setSelectedUserId(null);
         setDeleteDialogOpen(false);
       } catch (error) {
-        if (error.response && error.response.status === 500) {
+        if (error.response && error.response.status === "FETCH_ERROR") {
           setOpenSnackbar(true);
           setSnackbarMessage("خطأ في الوصول إلى قاعدة البيانات");
           setSnackBarType("error");

@@ -356,7 +356,7 @@ export default function CreateInvoice() {
       setSnackbar({
         open: true,
         message:
-          error.status === 500
+          error.status === "FETCH_ERROR"
             ? "خطأ في الوصول إلى قاعدة البيانات"
             : "حدث خطأ، الرجاء المحاولة مرة أخرى أو إعادة تحميل الصفحة",
         type: "error",
@@ -426,7 +426,7 @@ export default function CreateInvoice() {
       setSnackbar({
         open: true,
         message:
-          error.status === 500
+          error.status === "FETCH_ERROR"
             ? "خطأ في الوصول إلى قاعدة البيانات"
             : "حدث خطأ، الرجاء المحاولة مرة أخرى أو إعادة تحميل الصفحة",
         type: "error",

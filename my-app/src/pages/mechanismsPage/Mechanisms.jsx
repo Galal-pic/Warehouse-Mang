@@ -110,7 +110,7 @@ export default function Mechanisms() {
       setSnackbarMessage("تمت اضافة الميكانيزم");
       setSnackBarType("success");
     } catch (error) {
-      if (error.response && error.response.status === 500) {
+      if (error.response && error.response.status === "FETCH_ERROR") {
         setOpenSnackbar(true);
         setSnackbarMessage("خطأ في الوصول إلى قاعدة البيانات");
         setSnackBarType("error");
@@ -157,7 +157,7 @@ export default function Mechanisms() {
       setSnackbarMessage("تم تعديل الميكانيزم");
       setSnackBarType("success");
     } catch (error) {
-      if (error.response && error.response.status === 500) {
+      if (error.response && error.response.status === "FETCH_ERROR") {
         setOpenSnackbar(true);
         setSnackbarMessage("خطأ في الوصول إلى قاعدة البيانات");
         setSnackBarType("error");
@@ -334,7 +334,7 @@ export default function Mechanisms() {
         setSelectedUserId(null);
         setDeleteDialogOpen(false);
       } catch (error) {
-        if (error.response && error.response.status === 500) {
+        if (error.response && error.response.status === "FETCH_ERROR") {
           setOpenSnackbar(true);
           setSnackbarMessage("خطأ في الوصول إلى قاعدة البيانات");
           setSnackBarType("error");

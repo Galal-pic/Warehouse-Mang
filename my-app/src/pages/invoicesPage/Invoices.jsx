@@ -173,7 +173,7 @@ export default function Invoices() {
         setSnackbarMessage("تم الحذف بنجاح");
         setSnackBarType("success");
       } catch (error) {
-        if (error.response && error.response.status === 500) {
+        if (error.response && error.response.status === "FETCH_ERROR") {
           setOpenSnackbar(true);
           setSnackbarMessage("خطأ في الوصول إلى قاعدة البيانات");
           setSnackBarType("error");
@@ -208,7 +208,7 @@ export default function Invoices() {
       setSnackbarMessage("تم التحديث بنجاح");
       setSnackBarType("success");
     } catch (error) {
-      if (error.response && error.response.status === 500) {
+      if (error.response && error.response.status === "FETCH_ERROR") {
         setOpenSnackbar(true);
         setSnackbarMessage("خطأ في الوصول إلى قاعدة البيانات");
         setSnackBarType("error");
@@ -237,7 +237,7 @@ export default function Invoices() {
       setSnackbarMessage("تم التحديث بنجاح");
       setSnackBarType("success");
     } catch (error) {
-      if (error.response && error.response.status === 500) {
+      if (error.response && error.response.status === "FETCH_ERROR") {
         setOpenSnackbar(true);
         setSnackbarMessage("خطأ في الوصول إلى قاعدة البيانات");
         setSnackBarType("error");
@@ -352,7 +352,7 @@ export default function Invoices() {
       openInvoice(updatedInvoice.id);
       setSelectedInvoice(updatedInvoice);
     } catch (error) {
-      if (error.response && error.response.status === 500) {
+      if (error.response && error.response.status === "FETCH_ERROR") {
         setOpenSnackbar(true);
         setSnackbarMessage("خطأ في الوصول إلى قاعدة البيانات");
         setSnackBarType("error");
@@ -377,7 +377,7 @@ export default function Invoices() {
       setSnackbarMessage("تم التحديث بنجاح");
       setSnackBarType("success");
     } catch (error) {
-      if (error.response && error.response.status === 500) {
+      if (error.response && error.response.status === "FETCH_ERROR") {
         setOpenSnackbar(true);
         setSnackbarMessage("خطأ في الوصول إلى قاعدة البيانات");
         setSnackBarType("error");
@@ -402,7 +402,7 @@ export default function Invoices() {
       setSnackbarMessage("تم التحديث بنجاح");
       setSnackBarType("success");
     } catch (error) {
-      if (error.response && error.response.status === 500) {
+      if (error.response && error.response.status === "FETCH_ERROR") {
         setOpenSnackbar(true);
         setSnackbarMessage("خطأ في الوصول إلى قاعدة البيانات");
         setSnackBarType("error");
@@ -428,7 +428,7 @@ export default function Invoices() {
       setSnackbarMessage("تم التحديث بنجاح");
       setSnackBarType("success");
     } catch (error) {
-      if (error.response && error.response.status === 500) {
+      if (error.response && error.response.status === "FETCH_ERROR") {
         setOpenSnackbar(true);
         setSnackbarMessage("خطأ في الوصول إلى قاعدة البيانات");
         setSnackBarType("error");
@@ -455,7 +455,7 @@ export default function Invoices() {
         setSnackbarMessage("تم الحذف بنجاح");
         setSnackBarType("success");
       } catch (error) {
-        if (error.response && error.response.status === 500) {
+        if (error.response && error.response.status === "FETCH_ERROR") {
           setOpenSnackbar(true);
           setSnackbarMessage("خطأ في الوصول إلى قاعدة البيانات");
           setSnackBarType("error");
@@ -681,10 +681,7 @@ export default function Invoices() {
     {
       field: "refresh",
       headerName: "فتح الفاتورة",
-      width:
-        selectedNowType?.label === "أمانات"
-          ? 250
-          : 200,
+      width: selectedNowType?.label === "أمانات" ? 250 : 200,
       renderCell: (params) => {
         return (
           <div

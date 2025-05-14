@@ -98,7 +98,7 @@ export default function Suppliers() {
       setSnackbarMessage("تمت اضافة المورد");
       setSnackBarType("success");
     } catch (error) {
-      if (error.response && error.response.status === 500) {
+      if (error.response && error.response.status === "FETCH_ERROR") {
         setOpenSnackbar(true);
         setSnackbarMessage("خطأ في الوصول إلى قاعدة البيانات");
         setSnackBarType("error");
@@ -146,7 +146,7 @@ export default function Suppliers() {
       setSnackbarMessage("تم تحديث المورد");
       setSnackBarType("success");
     } catch (error) {
-      if (error.response && error.response.status === 500) {
+      if (error.response && error.response.status === "FETCH_ERROR") {
         setOpenSnackbar(true);
         setSnackbarMessage("خطأ في الوصول إلى قاعدة البيانات");
         setSnackBarType("error");
@@ -322,7 +322,7 @@ export default function Suppliers() {
         setSelectedUserId(null);
         setDeleteDialogOpen(false);
       } catch (error) {
-        if (error.response && error.response.status === 500) {
+        if (error.response && error.response.status === "FETCH_ERROR") {
           setOpenSnackbar(true);
           setSnackbarMessage("خطأ في الوصول إلى قاعدة البيانات");
           setSnackBarType("error");

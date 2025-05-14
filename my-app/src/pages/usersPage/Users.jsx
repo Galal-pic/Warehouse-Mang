@@ -148,7 +148,7 @@ export default function Users() {
         setDeleteDialogOpen(false);
       } catch (error) {
         setOpenSnackbar(true);
-        if (error.response && error.response.status === 500) {
+        if (error.response && error.response.status === "FETCH_ERROR") {
           setSnackbarMessage("خطأ في الوصول إلى قاعدة البيانات");
         } else {
           setSnackbarMessage(
