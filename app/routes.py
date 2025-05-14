@@ -745,6 +745,90 @@ class InventoryValue(Resource):
             'all': all_results 
             }, 200
 
+@invoice_ns.route('/sales-invoices')
+class SalesInvoices(Resource):
+    @jwt_required()
+    @invoice_ns.marshal_list_with(pagination_model)
+    def get(self):
+        """Get all sales invoices"""
+        invoices = Invoice.query.filter_by(type='صرف').all()
+        result = []
+        for invoice in invoices:
+            # Fetch related machine, mechanism and supplier data
+            machine = Machine.query.get(invoice.machine_id) if invoice.machine_id else None
+            mechanism = Mechanism.query.get(invoice.mechanism_id) if invoice.mechanism_id else None
+            supplier = Supplier.query.get(invoice.supplier_id) if invoice.supplier_id else None
+
+            # Fetch related items data
+            items = InvoiceItem.query.filter_by(invoice_id=invoice.id).all()
+            
+            # Prepare items with price details for FIFO transactions
+            item_list = []
+            for item in items:
+                # Get price details if this is a sales or void or warranty type invoice (FIFO consumer)
+                price_details = []
+                if invoice.type in ['صرف', 'توالف', 'أمانات']:
+                    details = InvoicePriceDetail.query.filter_by(
+                        invoice_id=invoice.id,
+                        item_id=item.item_id
+                    ).all()
+                    
+                    for detail in details:
+                        # Get source invoice information
+                        price_details.append({
+                            'source_invoice_id': detail.source_price_id,
+                            'source_price_id': detail.source_price_id,
+                            'quantity': detail.quantity,
+                            'unit_price': detail.unit_price,
+                            'subtotal': detail.subtotal
+                        })
+
+                item_data = {
+                    "item_name": Warehouse.query.get(item.item_id).item_name,
+                    "barcode": Warehouse.query.get(item.item_id).item_bar,
+                    "quantity": item.quantity,
+                    "location": item.location,
+                    "total_price": item.total_price,
+                    'unit_price': item.unit_price,
+                    "description": item.description,
+                }
+                
+                # Add price details if they exist
+                if price_details:
+                    item_data['price_details'] = price_details
+                    
+                item_list.append(item_data)
+            
+            # Serialize the invoice with related data
+            invoice_data = {
+                "id": invoice.id,
+                "type": invoice.type,
+                "client_name": invoice.client_name,
+                "warehouse_manager": invoice.warehouse_manager,
+                "accreditation_manager": invoice.accreditation_manager,
+                "total_amount": invoice.total_amount,
+                'paid': invoice.paid,
+                'residual': invoice.residual,
+                'comment': invoice.comment,
+                'status': invoice.status,
+                "employee_name": invoice.employee_name,
+                "machine_name": machine.name if machine else None,
+                "mechanism_name": mechanism.name if mechanism else None,
+                "supplier_name": supplier.name if supplier else None,
+                "created_at": invoice.created_at,
+                "items": item_list
+            }
+            result.append(invoice_data)
+
+        
+        return {
+            'invoices': result,
+            'total_count': len(invoices),
+            'page': 1,
+            'page_size': len(invoices),
+            'total_pages': 1,
+                }, 200
+
 @invoice_ns.route('/price-report/<int:invoice_id>')
 class PriceTrackingReport(Resource):
     @jwt_required()
@@ -753,7 +837,7 @@ class PriceTrackingReport(Resource):
         invoice = Invoice.query.get_or_404(invoice_id)
         
         # Only FIFO consumers have price details
-        if invoice.type not in ['صرف', 'توالف', 'أمانات']:
+        if invoice.type not in ['صرف', 'توالف', 'أمانات', 'طلب شراء']:
             return {
                 "message": f"Price tracking reports are only available for sales, void, and warranty invoices."
             }, 400

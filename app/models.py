@@ -23,12 +23,15 @@ class Employee(db.Model):
     view_damages = db.Column(db.Boolean, default=False)
     view_reservations = db.Column(db.Boolean, default=False)
     view_prices = db.Column(db.Boolean, default=False)
+    view_purchase_requests = db.Column(db.Boolean, default=False)
+    
     can_edit = db.Column(db.Boolean, default=False)
     can_delete = db.Column(db.Boolean, default=False)
     can_confirm_withdrawal = db.Column(db.Boolean, default=False)
     can_withdraw = db.Column(db.Boolean, default=False)
     can_update_prices = db.Column(db.Boolean, default=False)
     can_recover_deposits = db.Column(db.Boolean, default=False)
+    can_confirm_purchase_requests = db.Column(db.Boolean, default=False)
     
     # Items Permissions
     items_can_edit = db.Column(db.Boolean, default=False)

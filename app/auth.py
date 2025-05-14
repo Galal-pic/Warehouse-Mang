@@ -152,6 +152,11 @@ pagination_model = auth_ns.model('UsersPagination', {
     'total_items': fields.Integer(required=True),
     'all': fields.Boolean(required=True)
 })
+
+change_password_model = auth_ns.model('ChangePassword', {
+    'new_password': fields.String(required=True, description='New password'),
+    'confirm_new_password': fields.String(required=True, description='Confirm password')
+})
 # Endpoints
 @auth_ns.route('/register')
 class Register(Resource):
@@ -272,6 +277,22 @@ class Login(Resource):
 
         access_token = create_access_token(identity=str(employee.id))
         return {"access_token": access_token}, 200
+
+
+@auth_ns.route('/user/<int:user_id>/change-password')
+class ChangePassword(Resource):
+    @auth_ns.expect(change_password_model)
+    @auth_ns.response(200, 'Password changed successfully')
+    @jwt_required()
+    def post(self, user_id):
+        """Change user password"""
+        data = auth_ns.payload
+        employee = Employee.query.get_or_404(user_id)
+        if data["new_password"] != data["confirm_new_password"]:
+            auth_ns.abort(400, "Passwords do not match")
+        employee.password_hash = generate_password_hash(data['new_password'])
+        db.session.commit()
+        return {"message": "Password changed successfully"}, 200
 
 @auth_ns.route('/user/<int:user_id>')
 class UserManagement(Resource):
