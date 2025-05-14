@@ -1,5 +1,5 @@
 from datetime import datetime
-from ..models import Invoice, Warehouse, ItemLocations, InvoiceItem, Prices, InvoicePriceDetail
+from ..models import Invoice, Warehouse, ItemLocations, InvoiceItem, Prices, InvoicePriceDetail, ReturnSales
 from .. import db
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -65,6 +65,8 @@ def Return_Operations(data, machine, mechanism, supplier, employee, machine_ns, 
             unit_price = item_data.get("unit_price", 0)
             total_price = item_data.get('total_price', quantity * unit_price)
             
+                  
+            
             # Update the quantity in the warehouse (increase for return)
             item_location.quantity += quantity
             
@@ -89,6 +91,27 @@ def Return_Operations(data, machine, mechanism, supplier, employee, machine_ns, 
                 original_invoice_details = InvoicePriceDetail.query.filter_by(
                     invoice_id=data['original_invoice_id']
                 ).all()
+                
+                # Check for old return invoices
+                total_sales_items = sum([
+                    detail.quantity for detail in original_invoice_details
+                ])
+                old_return_invoices = ReturnSales.query.filter_by(
+                sales_invoice_id=data['original_invoice_id']
+                ).all()
+                
+                total_quantity = 0
+                if old_return_invoices:
+                    for old_invoice in old_return_invoices:
+                        old_invoice_items = InvoiceItem.query.filter_by(
+                            invoice_id=old_invoice.return_invoice_id,
+                            item_id=warehouse_item.id
+                        ).all()
+                        for old_invoice_item in old_invoice_items:
+                            total_quantity += old_invoice_item.quantity
+                            
+                if total_quantity + item_data['quantity'] > total_sales_items:
+                    invoice_ns.abort(400, f"Return quantity exceeds the total sales quantity for item '{item_data['item_name']}'")
                 
                 for detail in original_invoice_details:
                     if detail.item_id == warehouse_item.id:
@@ -116,6 +139,13 @@ def Return_Operations(data, machine, mechanism, supplier, employee, machine_ns, 
                 db.session.add(new_price)
                     
             total_invoice_amount += total_price
+            
+        # Create a return sales record
+        return_sales_invoice = ReturnSales(
+            sales_invoice_id=data['original_invoice_id'],
+            return_invoice_id=new_invoice.id
+        )
+        db.session.add(return_sales_invoice)
         
         # Update invoice totals
         new_invoice.total_amount = total_invoice_amount

@@ -112,7 +112,7 @@ class invoices_get(Resource):
         offset = (page - 1) * page_size
         # Building a query
         
-        query = Invoice.query.filter_by(type=type)
+        query = Invoice.query.filter_by(type=type).order_by(desc(Invoice.created_at))
         
         # Applying pagination
         if not all_results:
@@ -796,7 +796,6 @@ class SalesInvoices(Resource):
                 # Add price details if they exist
                 if price_details:
                     item_data['price_details'] = price_details
-                    
                 item_list.append(item_data)
             
             # Serialize the invoice with related data
@@ -848,13 +847,14 @@ class PriceTrackingReport(Resource):
         supplier = Supplier.query.get(invoice.supplier_id) if invoice.supplier_id else None
         employee = Employee.query.get(invoice.employee_id)
         
-        # Get invoice items
-        items = InvoiceItem.query.filter_by(invoice_id=invoice.id).all()
-        
+        # Get invoice items & Filter duplicates
+        items = InvoiceItem.query.filter_by(invoice_id=invoice.id).group_by(InvoiceItem.item_id).all()
+
         # Prepare detailed item reports
         item_reports = []
         for item in items:
             warehouse_item = Warehouse.query.get(item.item_id)
+            locations = ItemLocations.query.filter_by(item_id=item.item_id).all()
             
             # Get price details for this item
             price_details = InvoicePriceDetail.query.filter_by(
@@ -885,7 +885,7 @@ class PriceTrackingReport(Resource):
                 'item_id': item.item_id,
                 'item_name': warehouse_item.item_name,
                 'barcode': warehouse_item.item_bar,
-                'location': item.location,
+                'location': ", ".join([location_obj.location for location_obj in locations]),
                 'quantity': item.quantity,
                 'unit_price': item.unit_price,
                 'total_price': item.total_price,

@@ -227,4 +227,13 @@ class PurchaseRequests(db.Model):
     invoice = db.relationship('Invoice', back_populates='purchase_requests')
     
     
+# new Table to keep track of returned invoices
+class ReturnSales(db.Model):
+    __tablename__ = 'return_sales'
+    id = db.Column(db.Integer, primary_key=True)
+    sales_invoice_id = db.Column(db.Integer, db.ForeignKey('invoice.id'), nullable=False)
+    return_invoice_id = db.Column(db.Integer, db.ForeignKey('invoice.id'), nullable=False)
     
+    #Relationships
+    sales_invoice = db.relationship('Invoice', foreign_keys=[sales_invoice_id], backref='sales_returns')
+    return_invoice = db.relationship('Invoice', foreign_keys=[return_invoice_id], backref='return_invoices')
