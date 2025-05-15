@@ -221,8 +221,10 @@ export default function InvoiceModal({
         );
         let availableLocations = warehouseItem?.locations || [];
         let maxquantity = item.maxquantity || 0;
+        let unit_price = item.unit_price || 0;
+        let total_price = item.total_price || 0;
 
-        // For return invoices, filter locations and set maxquantity
+        // For return invoices, filter locations and set maxquantity, unit_price, and total_price
         if (
           (selectedNowType?.type === "مرتجع" ||
             editingInvoice?.type === "مرتجع") &&
@@ -243,7 +245,7 @@ export default function InvoiceModal({
                   oi.location === loc.location
               )
             );
-            // Set maxquantity based on the original invoice's quantity for the selected location
+            // Set maxquantity, unit_price, and total_price based on the original invoice
             if (item.location) {
               const originalLocationItem = originalInvoice.items.find(
                 (oi) =>
@@ -253,6 +255,12 @@ export default function InvoiceModal({
               );
               maxquantity = originalLocationItem
                 ? originalLocationItem.quantity
+                : 0;
+              unit_price = originalLocationItem
+                ? originalLocationItem.unit_price
+                : 0;
+              total_price = originalLocationItem
+                ? originalLocationItem.total_price
                 : 0;
             }
           }
@@ -267,10 +275,8 @@ export default function InvoiceModal({
         return {
           ...item,
           availableLocations,
-          // unit_price:
-          //   selectedNowType?.type === "اضافه"
-          //     ? item.unit_price
-          //     : Number(warehouseItem?.unit_price) || 0,
+          unit_price,
+          total_price,
           maxquantity,
         };
       });
@@ -280,7 +286,14 @@ export default function InvoiceModal({
         JSON.stringify(updatedItems) !== JSON.stringify(editingInvoice.items);
 
       if (itemsChanged) {
-        setEditingInvoice((prev) => ({ ...prev, items: updatedItems }));
+        setEditingInvoice((prev) => ({
+          ...prev,
+          items: updatedItems,
+          total_amount:
+            editingInvoice.type === "مرتجع" && originalInvoice
+              ? originalInvoice.total_amount
+              : prev.total_amount,
+        }));
       }
     }
   }, [
@@ -861,17 +874,8 @@ export default function InvoiceModal({
                   </TableCell>
                   {(show || isPurchasesType) && (
                     <>
-                      {!isEditingInvoice ? (
-                        <TableCell className={styles.tableCellRow}>
-                          {row.unit_price}
-                        </TableCell>
-                      ) : editingInvoice.type === "اضافه" ? (
-                        <TableCell
-                          className={styles.tableCellRow}
-                          sx={{
-                            width: "100px",
-                          }}
-                        >
+                      <TableCell className={styles.tableCellRow}>
+                        {isEditingInvoice && editingInvoice.type === "اضافه" ? (
                           <NumberInput
                             style={{
                               width: "100px",
@@ -964,14 +968,15 @@ export default function InvoiceModal({
                               }
                             }}
                           />
-                        </TableCell>
-                      ) : (
-                        <TableCell className={styles.tableCellRow}>-</TableCell>
-                      )}
+                        ) : (
+                          row.unit_price
+                        )}
+                      </TableCell>
                       <TableCell className={styles.tableCellRow}>
                         {!isEditingInvoice
                           ? row?.total_price
-                          : editingInvoice.type === "اضافه"
+                          : editingInvoice.type === "اضافه" ||
+                            editingInvoice.type === "مرتجع"
                           ? row?.total_price
                           : "-"}
                       </TableCell>

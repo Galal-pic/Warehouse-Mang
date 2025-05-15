@@ -283,6 +283,7 @@ export default function CreateInvoice() {
 
     const invoiceData = {
       ...newInvoice,
+      original_invoice_id: Number(newInvoice.original_invoice_id || 0),
       items: newInvoice.items
         .filter((item) => Number(item.quantity) > 0)
         .map((item) => ({
@@ -300,7 +301,6 @@ export default function CreateInvoice() {
       date,
       time,
     };
-      console.log(invoiceData)
 
     try {
       await createInvoice(invoiceData).unwrap();
