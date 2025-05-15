@@ -2,6 +2,7 @@ from datetime import datetime
 from ..models import Invoice, Warehouse, ItemLocations, InvoiceItem, Prices, InvoicePriceDetail
 from .. import db
 from sqlalchemy.exc import SQLAlchemyError
+from ..utils import operation_result
 
 def Booking_Operations(data, machine, mechanism, supplier, employee, machine_ns, warehouse_ns, invoice_ns, mechanism_ns, item_location_n, supplier_ns):
     """
@@ -9,6 +10,7 @@ def Booking_Operations(data, machine, mechanism, supplier, employee, machine_ns,
     Unlike Sales Operations, booking doesn't use FIFO pricing from the Prices table.
     It uses the price provided in the request.
     """
+    
     try:
         # Create new invoice
         new_invoice = Invoice(
@@ -36,7 +38,7 @@ def Booking_Operations(data, machine, mechanism, supplier, employee, machine_ns,
             # Look up the warehouse item by name
             warehouse_item = Warehouse.query.filter_by(item_name=item_data["item_name"]).first()
             if not warehouse_item:
-                invoice_ns.abort(404, f"Item '{item_data['item_name']}' not found in warehouse")
+                return operation_result(404, "error", f"Item '{item_data['item_name']}' not found in warehouse")
             
             # Verify the location exists and has enough quantity
             item_location = ItemLocations.query.filter_by(
@@ -45,18 +47,18 @@ def Booking_Operations(data, machine, mechanism, supplier, employee, machine_ns,
             ).first()
             
             if not item_location:
-                invoice_ns.abort(404, f"Item '{item_data['item_name']}' not found in location '{item_data['location']}'")
+                return operation_result(404, "error", f"Item '{item_data['item_name']}' not found in location '{item_data['location']}'")
             
             # Check for duplicate items
             if (warehouse_item.id, item_data['location']) in item_ids:
-                invoice_ns.abort(400, f"Item '{item_data['item_name']}' already added to invoice")
+                return operation_result(400, "error", f"Item '{item_data['item_name']}' already added to invoice")
             
             item_ids.append((warehouse_item.id, item_data['location']))
             
             # Check if enough quantity available
             requested_quantity = item_data["quantity"]
             if item_location.quantity < requested_quantity:
-                invoice_ns.abort(400, f"Not enough quantity for item '{item_data['item_name']}' in location '{item_data['location']}'. Available: {item_location.quantity}, Requested: {requested_quantity}")
+                return operation_result(400, "error", f"Not enough quantity for item '{item_data['item_name']}' in location '{item_data['location']}'. Available: {item_location.quantity}, Requested: {requested_quantity}",)
             
             # Update physical inventory in ItemLocations
             item_location.quantity -= requested_quantity
@@ -109,19 +111,19 @@ def Booking_Operations(data, machine, mechanism, supplier, employee, machine_ns,
         new_invoice.residual = total_invoice_amount - new_invoice.paid
         
         db.session.commit()
-        return new_invoice, 201
+        return operation_result(201, "success", "Invoice created successfully", invoice=new_invoice)
         
     except SQLAlchemyError as e:
         db.session.rollback()
-        invoice_ns.abort(500, f"Database error: {str(e)}")
+        return operation_result(500, "error", f"Database error: {str(e)}")
     except Exception as e:
         db.session.rollback()
-        invoice_ns.abort(500, f"Error processing booking: {str(e)}")
+        return operation_result(500, "error", f"Error processing booking: {str(e)}")
 
 def delete_booking(invoice, invoice_ns):
     # Check if it's a booking invoice
     if invoice.type != 'حجز':
-        invoice_ns.abort(400, "Can only delete booking invoices with this method")
+        return operation_result(400, "error", "Can only delete booking invoices with this method")
 
     try:
         # Restore quantities for each item
@@ -158,7 +160,7 @@ def delete_booking(invoice, invoice_ns):
 
     except Exception as e:
         db.session.rollback()
-        invoice_ns.abort(500, f"Error deleting booking invoice: {str(e)}")
+        return operation_result(500, "error", f"Error deleting booking invoice: {str(e)}")
 
 def put_booking(data, invoice, machine, mechanism, invoice_ns):
     try:
@@ -174,7 +176,7 @@ def put_booking(data, invoice, machine, mechanism, invoice_ns):
             for item_data in data["items"]:
                 warehouse_item = Warehouse.query.filter_by(item_name=item_data["item_name"]).first()
                 if not warehouse_item:
-                    invoice_ns.abort(404, f"Item '{item_data['item_name']}' not found in warehouse")
+                    return operation_result(404, "error", f"Item '{item_data['item_name']}' not found in warehouse")
                 
                 location = item_data["location"]
                 key = (warehouse_item.id, location)
@@ -185,7 +187,7 @@ def put_booking(data, invoice, machine, mechanism, invoice_ns):
                 ).first()
 
                 if not item_location:
-                    invoice_ns.abort(404, f"Item location not found")
+                    return operation_result(404, "error", f"Item location not found")
 
                 # Calculate quantity difference
                 if key in original_items:
@@ -199,7 +201,7 @@ def put_booking(data, invoice, machine, mechanism, invoice_ns):
 
                 # Check stock availability for increases
                 if quantity_diff > 0 and item_location.quantity < quantity_diff:
-                    invoice_ns.abort(400, f"Insufficient stock for {item_data['item_name']}")
+                    return operation_result(400, "error", f"Insufficient stock for {item_data['item_name']}")
 
                 # Update inventory
                 item_location.quantity -= quantity_diff
@@ -297,7 +299,7 @@ def put_booking(data, invoice, machine, mechanism, invoice_ns):
 
     except SQLAlchemyError as e:
         db.session.rollback()
-        invoice_ns.abort(500, f"Database error: {str(e)}")
+        return operation_result(500, "error", f"Database error: {str(e)}")
     except Exception as e:
         db.session.rollback()
-        invoice_ns.abort(500, f"Error updating booking invoice: {str(e)}")
+        return operation_result(500, "error", f"Error updating booking invoice: {str(e)}")

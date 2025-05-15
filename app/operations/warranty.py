@@ -2,6 +2,7 @@ from datetime import datetime
 from ..models import Invoice, Warehouse, ItemLocations, InvoiceItem, Prices, InvoicePriceDetail
 from .. import db
 from sqlalchemy.exc import SQLAlchemyError
+from ..utils import operation_result
 
 def Warranty_Operations(data, machine, mechanism, supplier, employee, machine_ns, warehouse_ns, invoice_ns, mechanism_ns, item_location_n, supplier_ns):
     """
@@ -36,7 +37,7 @@ def Warranty_Operations(data, machine, mechanism, supplier, employee, machine_ns
             # Look up the warehouse item by name
             warehouse_item = Warehouse.query.filter_by(item_name=item_data["item_name"]).first()
             if not warehouse_item:
-                invoice_ns.abort(404, f"Item '{item_data['item_name']}' not found in warehouse")
+                return operation_result(404, "error", f"Item '{item_data['item_name']}' not found in warehouse")
             
             # Verify the location exists and has enough quantity
             item_location = ItemLocations.query.filter_by(
@@ -45,18 +46,18 @@ def Warranty_Operations(data, machine, mechanism, supplier, employee, machine_ns
             ).first()
             
             if not item_location:
-                invoice_ns.abort(404, f"Item '{item_data['item_name']}' not found in location '{item_data['location']}'")
+                return operation_result(404, "error", f"Item '{item_data['item_name']}' not found in location '{item_data['location']}'")
             
             # Check for duplicate items
             if (warehouse_item.id, item_data['location']) in item_ids:
-                invoice_ns.abort(400, f"Item '{item_data['item_name']}' already added to invoice")
+                return operation_result(400, "error", f"Item '{item_data['item_name']}' already added to invoice")
             
             item_ids.append((warehouse_item.id, item_data['location']))
             
             # Check if enough quantity available in location
             requested_quantity = item_data["quantity"]
             if item_location.quantity < requested_quantity:
-                invoice_ns.abort(400, f"Not enough quantity for item '{item_data['item_name']}' in location '{item_data['location']}'. Available: {item_location.quantity}, Requested: {requested_quantity}")
+                return operation_result(400, "error", f"Not enough quantity for item '{item_data['item_name']}' in location '{item_data['location']}'. Available: {item_location.quantity}, Requested: {requested_quantity}")
             
             # Update physical inventory in ItemLocations
             item_location.quantity -= requested_quantity
@@ -172,19 +173,20 @@ def Warranty_Operations(data, machine, mechanism, supplier, employee, machine_ns
         new_invoice.residual = total_invoice_amount - new_invoice.paid
         
         db.session.commit()
-        return new_invoice, 201
+        return operation_result(201, "success", "Invoice created successfully", new_invoice)
         
     except SQLAlchemyError as e:
         db.session.rollback()
-        invoice_ns.abort(500, f"Database error: {str(e)}")
+        return operation_result(500, "error", f"Database error: {str(e)}")
+
     except Exception as e:
         db.session.rollback()
-        invoice_ns.abort(500, f"Error processing warranty: {str(e)}")
+        return operation_result(500, "error", f"Error processing warranty: {str(e)}")
 
 def delete_warranty(invoice, invoice_ns):
     # Check if it's a warranty invoice
     if invoice.type != 'أمانات':
-        invoice_ns.abort(400, "Can only delete warranty invoices with this method")
+        return operation_result(400, "error", "Can only delete warranty invoices with this method")
 
     try:
         # Get price details to restore prices
@@ -260,7 +262,7 @@ def delete_warranty(invoice, invoice_ns):
 
     except Exception as e:
         db.session.rollback()
-        invoice_ns.abort(500, f"Error deleting warranty invoice: {str(e)}")
+        return operation_result(500, "error", f"Error deleting warranty invoice: {str(e)}")
 
 def put_warranty(data, invoice, machine, mechanism, invoice_ns):
     try:
@@ -324,7 +326,7 @@ def put_warranty(data, invoice, machine, mechanism, invoice_ns):
                 # Look up the warehouse item by name
                 warehouse_item = Warehouse.query.filter_by(item_name=item_data["item_name"]).first()
                 if not warehouse_item:
-                    invoice_ns.abort(404, f"Item '{item_data['item_name']}' not found in warehouse")
+                    return operation_result(404, "error", f"Item '{item_data['item_name']}' not found in warehouse")
                 
                 # Verify the location exists and has enough quantity
                 item_location = ItemLocations.query.filter_by(
@@ -333,18 +335,18 @@ def put_warranty(data, invoice, machine, mechanism, invoice_ns):
                 ).first()
                 
                 if not item_location:
-                    invoice_ns.abort(404, f"Item '{item_data['item_name']}' not found in location '{item_data['location']}'")
+                    return operation_result(404, "error", f"Item '{item_data['item_name']}' not found in location '{item_data['location']}'")
                 
                 # Check for duplicate items
                 if (warehouse_item.id, item_data['location']) in item_ids:
-                    invoice_ns.abort(400, f"Item '{item_data['item_name']}' already added to invoice")
+                    return operation_result(400, "error", f"Item '{item_data['item_name']}' already added to invoice")
                 
                 item_ids.append((warehouse_item.id, item_data['location']))
                 
                 # Check if enough quantity available in location
                 requested_quantity = item_data["quantity"]
                 if item_location.quantity < requested_quantity:
-                    invoice_ns.abort(400, f"Not enough quantity for item '{item_data['item_name']}' in location '{item_data['location']}'. Available: {item_location.quantity}, Requested: {requested_quantity}")
+                    return operation_result(400, "error", f"Not enough quantity for item '{item_data['item_name']}' in location '{item_data['location']}'. Available: {item_location.quantity}, Requested: {requested_quantity}")
                 
                 # Update physical inventory in ItemLocations
                 item_location.quantity -= requested_quantity
@@ -477,7 +479,7 @@ def put_warranty(data, invoice, machine, mechanism, invoice_ns):
 
     except SQLAlchemyError as e:
         db.session.rollback()
-        invoice_ns.abort(500, f"Database error: {str(e)}")
+        return operation_result(500, "error", f"Database error: {str(e)}")
     except Exception as e:
         db.session.rollback()
-        invoice_ns.abort(500, f"Unexpected error: {str(e)}")
+        return operation_result(500, "error", f"Unexpected error: {str(e)}")

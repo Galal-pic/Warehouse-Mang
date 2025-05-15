@@ -2,6 +2,7 @@ from datetime import datetime
 from ..models import Invoice, Warehouse, ItemLocations, InvoiceItem, Prices
 from .. import db
 from sqlalchemy.exc import SQLAlchemyError
+from ..utils import operation_result
 
 def Purchase_Operations(data, machine, mechanism, supplier, employee, machine_ns, warehouse_ns, invoice_ns, mechanism_ns, item_location_n, supplier_ns):
     """
@@ -35,7 +36,7 @@ def Purchase_Operations(data, machine, mechanism, supplier, employee, machine_ns
             # Look up the warehouse item by name
             warehouse_item = Warehouse.query.filter_by(item_name=item_data["item_name"]).first()
             if not warehouse_item:
-                invoice_ns.abort(404, f"Item '{item_data['item_name']}' not found in warehouse")
+                return operation_result(404, "error" ,f"Item '{item_data['item_name']}' not found in warehouse")
             
             # Verify the location exists
             item_location = ItemLocations.query.filter_by(
@@ -54,7 +55,7 @@ def Purchase_Operations(data, machine, mechanism, supplier, employee, machine_ns
             
             # Check for duplicate items
             if (warehouse_item.id, item_data['location']) in item_ids:
-                invoice_ns.abort(400, f"Item '{item_data['item_name']}' already added to invoice")
+                return operation_result(400, "error", f"Item '{item_data['item_name']}' already added to invoice")
             
             item_ids.append((warehouse_item.id, item_data['location']))
             
@@ -95,19 +96,18 @@ def Purchase_Operations(data, machine, mechanism, supplier, employee, machine_ns
         new_invoice.residual = total_invoice_amount - new_invoice.paid
         
         db.session.commit()
-        return new_invoice, 201
-        
+        return operation_result(201, "success", "Purchase invoice created successfully", invoice=new_invoice)        
     except SQLAlchemyError as e:
         db.session.rollback()
-        invoice_ns.abort(500, f"Database error: {str(e)}")
+        return operation_result(500, "error", f"Error processing purchase: {str(e)}")
     except Exception as e:
         db.session.rollback()
-        invoice_ns.abort(500, f"Error processing purchase: {str(e)}")
+        return operation_result(500, "error", f"Error processing purchase: {str(e)}")
 
 def delete_purchase(invoice, invoice_ns):
     # Check if it's a purchase invoice
     if invoice.type != 'اضافه':
-        invoice_ns.abort(400, "Can only delete purchase invoices with this method")
+        return operation_result(400, "error", "Can only delete purchase invoices with this method")
 
     try:
         # First check if any items have been consumed in sales
@@ -121,11 +121,10 @@ def delete_purchase(invoice, invoice_ns):
             if price_record:
                 # If original quantity doesn't match current quantity, some has been consumed
                 if price_record.quantity < invoice_item.quantity:
-                    invoice_ns.abort(400, 
-                        f"Cannot delete purchase invoice: Item '{invoice_item.warehouse.item_name}' " +
+                    return operation_result(400, "error",  f"Cannot delete purchase invoice: Item '{invoice_item.warehouse.item_name}' " +
                         f"has already been partially sold using FIFO pricing. " +
                         f"Original: {invoice_item.quantity}, Remaining: {price_record.quantity}"
-                    )
+                        )
         
         # Restore quantities for each item (decrease for purchase deletion)
         for invoice_item in invoice.items:
@@ -145,11 +144,10 @@ def delete_purchase(invoice, invoice_ns):
             
             # Check for negative quantity
             if item_location.quantity < 0:
-                invoice_ns.abort(400, 
-                    f"Cannot delete purchase invoice: Not enough quantity for item " +
+                return operation_result(400, "error",  f"Cannot delete purchase invoice: Not enough quantity for item " +
                     f"'{invoice_item.warehouse.item_name}' in location '{invoice_item.location}'. " +
                     f"Some items may have already been moved or sold."
-                )
+                    )
 
         # Delete price records first
         Prices.query.filter_by(invoice_id=invoice.id).delete()
@@ -163,10 +161,10 @@ def delete_purchase(invoice, invoice_ns):
 
     except SQLAlchemyError as e:
         db.session.rollback()
-        invoice_ns.abort(500, f"Database error: {str(e)}")
+        return operation_result(500, "error", f"Database error: {str(e)}")
     except Exception as e:
         db.session.rollback()
-        invoice_ns.abort(500, f"Error deleting purchase invoice: {str(e)}")
+        return operation_result(500, "error", f"Error deleting purchase invoice: {str(e)}")
 
 def put_purchase(data, invoice, machine, mechanism, invoice_ns):
     """
@@ -192,7 +190,7 @@ def put_purchase(data, invoice, machine, mechanism, invoice_ns):
             for item_data in data["items"]:
                 warehouse_item = Warehouse.query.filter_by(item_name=item_data["item_name"]).first()
                 if not warehouse_item:
-                    invoice_ns.abort(404, f"Item '{item_data['item_name']}' not found in warehouse")
+                    return operation_result(404, "error", f"Item '{item_data['item_name']}' not found in warehouse")
                     
                 location = item_data["location"]
                 key = (warehouse_item.id, location)
@@ -229,11 +227,10 @@ def put_purchase(data, invoice, machine, mechanism, invoice_ns):
                 
                 # Check for negative quantity after adjustment
                 if item_location.quantity < 0:
-                    invoice_ns.abort(400, 
-                        f"Cannot update purchase invoice: Not enough quantity for item " +
+                    return operation_result(400, "error",  f"Cannot update purchase invoice: Not enough quantity for item " +
                         f"'{item_data['item_name']}' in location '{location}'. " +
                         f"Some items may have already been moved or sold."
-                    )
+                        )
 
                 # Update or create invoice item
                 if key in original_items:
@@ -273,11 +270,10 @@ def put_purchase(data, invoice, machine, mechanism, invoice_ns):
                         
                         # Cannot reduce below the consumed amount
                         if new_quantity < consumed:
-                            invoice_ns.abort(400, 
-                                f"Cannot update purchase invoice: {consumed} units of " +
+                            return operation_result(400, "error",  f"Cannot update purchase invoice: {consumed} units of " +
                                 f"'{item_data['item_name']}' have already been sold using FIFO pricing. " +
                                 f"Cannot reduce quantity below {consumed}."
-                            )
+                                )
                         
                         # Update price record with remaining available quantity
                         price_record.quantity = new_quantity - consumed
@@ -317,10 +313,9 @@ def put_purchase(data, invoice, machine, mechanism, invoice_ns):
                     if price_record and price_record.quantity < item.quantity:
                         # Items have been consumed, cannot remove
                         consumed = item.quantity - price_record.quantity
-                        invoice_ns.abort(400, 
-                            f"Cannot remove item: {consumed} units of " +
+                        return operation_result(400, "error",  f"Cannot remove item: {consumed} units of " +
                             f"'{item.warehouse.item_name}' have already been sold using FIFO pricing."
-                        )
+                            )
                     
                     if item_location:
                         # For purchases, we subtract when removing items
@@ -328,11 +323,10 @@ def put_purchase(data, invoice, machine, mechanism, invoice_ns):
                         
                         # Check for negative quantity
                         if item_location.quantity < 0:
-                            invoice_ns.abort(400, 
-                                f"Cannot remove item: Not enough quantity for " +
+                            return operation_result(400, "error",  f"Cannot remove item: Not enough quantity for " +
                                 f"'{item.warehouse.item_name}' in location '{location}'. " +
                                 f"Some items may have already been moved or sold."
-                            )
+                                )
                     
                     # Delete the price record if it exists
                     if price_record:
@@ -367,7 +361,7 @@ def put_purchase(data, invoice, machine, mechanism, invoice_ns):
 
     except SQLAlchemyError as e:
         db.session.rollback()
-        invoice_ns.abort(500, f"Database error: {str(e)}")
+        return operation_result(500, "error", f"Database error: {str(e)}")
     except Exception as e:
         db.session.rollback()
-        invoice_ns.abort(500, f"Unexpected error: {str(e)}")
+        return operation_result(500, "error", f"Unexpected error: {str(e)}")

@@ -2,6 +2,7 @@ from datetime import datetime
 from ..models import Invoice, Warehouse, ItemLocations, InvoiceItem, Prices, InvoicePriceDetail, PurchaseRequests
 from .. import db
 from sqlalchemy.exc import SQLAlchemyError
+from ..utils import operation_result
 
 def PurchaseRequest_Operations(data, machine, mechanism, supplier, employee, machine_ns, warehouse_ns, invoice_ns, mechanism_ns, item_location_n, supplier_ns):
     """
@@ -36,7 +37,7 @@ def PurchaseRequest_Operations(data, machine, mechanism, supplier, employee, mac
             # Verify the warehouse item exists
             warehouse_item = Warehouse.query.filter_by(item_name=item_data["item_name"]).first()
             if not warehouse_item:
-                invoice_ns.abort(404, f"Item '{item_data['item_name']}' not found in warehouse")
+                return operation_result(404, "error" ,f"Item '{item_data['item_name']}' not found in warehouse")
             
             item_location = ItemLocations.query.filter_by(
                 item_id=warehouse_item.id,
@@ -44,11 +45,11 @@ def PurchaseRequest_Operations(data, machine, mechanism, supplier, employee, mac
             ).first()
             
             if not item_location:
-                invoice_ns.abort(404, f"Item '{item_data['item_name']}' not found in location '{item_data['location']}'")
+                return operation_result(404, "error" ,f"Item '{item_data['item_name']}' not found in location '{item_data['location']}'")
             
             # Check for duplicate items
             if (warehouse_item.id, item_data['location']) in item_ids:
-                invoice_ns.abort(400, f"Item '{item_data['item_name']}' already added to invoice")
+                return operation_result(400, "error" ,f"Item '{item_data['item_name']}' already added to invoice")
             
             item_ids.append((warehouse_item.id, item_data['location']))
             
@@ -56,7 +57,7 @@ def PurchaseRequest_Operations(data, machine, mechanism, supplier, employee, mac
             last_price_entry = Prices.query.filter_by(item_id=warehouse_item.id).order_by(Prices.invoice_id.desc()).first()
             
             if not last_price_entry:
-                invoice_ns.abort(400, f"No price information found for item '{item_data['item_name']}'")
+                return operation_result(400, "error" ,f"No price information found for item '{item_data['item_name']}'")
 
 
             subtotal = item_data["quantity"] * last_price_entry.unit_price
@@ -100,23 +101,24 @@ def PurchaseRequest_Operations(data, machine, mechanism, supplier, employee, mac
         new_invoice.total_amount = total_invoice_amount
         
         db.session.commit()
-        return new_invoice, 201
+        return operation_result(201, "success", message="invoice created successfully", invoice=new_invoice)
         
     except SQLAlchemyError as e:
         db.session.rollback()
-        invoice_ns.abort(500, f"Database error: {str(e)}")
+        return operation_result(500, "error" ,f"Database error: {str(e)}")
+    
     except Exception as e:
         db.session.rollback()
-        invoice_ns.abort(500, f"Error processing sale: {str(e)}")
+        return operation_result(500, "error" ,f"Error processing sale: {str(e)}")
 
 def delete_purchase_request(invoice, invoice_ns):
     # Check if it's a sales invoice
     if invoice.type != 'طلب شراء':
-        invoice_ns.abort(400, "Can only delete purchase request invoices with this method")
+        return operation_result(400, "error", "Can only delete purchase request invoices with this method")
     try:
         purchase_request = PurchaseRequests.query.filter_by(invoice_id=invoice.id).first()
         if not purchase_request:
-            invoice_ns.abort(404, "لم يتم العثور على طلب شراء")
+            return operation_result(404, "error", "لم يتم العثور على طلب شراء")
         db.session.delete(purchase_request)
         db.session.delete(invoice)
         db.session.commit()
@@ -124,7 +126,7 @@ def delete_purchase_request(invoice, invoice_ns):
 
     except Exception as e:
         db.session.rollback()
-        invoice_ns.abort(500, f"Error deleting invoice: {str(e)}")
+        return operation_result(500, "error", f"Error deleting invoice: {str(e)}")
 
 def put_purchase_request(data, invoice, machine, mechanism, invoice_ns):
     try:
@@ -138,7 +140,7 @@ def put_purchase_request(data, invoice, machine, mechanism, invoice_ns):
             # Verify the warehouse item exists
                 warehouse_item = Warehouse.query.filter_by(item_name=item_data["item_name"]).first()
                 if not warehouse_item:
-                    invoice_ns.abort(404, f"Item '{item_data['item_name']}' not found in warehouse")
+                    return operation_result(404, "error", f"Item '{item_data['item_name']}' not found in warehouse")
                 
                 item_location = ItemLocations.query.filter_by(
                     item_id=warehouse_item.id,
@@ -146,11 +148,11 @@ def put_purchase_request(data, invoice, machine, mechanism, invoice_ns):
                 ).first()
                 
                 if not item_location:
-                    invoice_ns.abort(404, f"Item '{item_data['item_name']}' not found in location '{item_data['location']}'")
+                    return operation_result(404, "error", f"Item '{item_data['item_name']}' not found in location '{item_data['location']}'")
                 
                 # Check for duplicate items
                 if (warehouse_item.id, item_data['location']) in item_ids:
-                    invoice_ns.abort(400, f"Item '{item_data['item_name']}' already added to invoice")
+                    return operation_result(400, "error", f"Item '{item_data['item_name']}' already added to invoice")
                 
                 item_ids.append((warehouse_item.id, item_data['location']))
                 
@@ -158,8 +160,7 @@ def put_purchase_request(data, invoice, machine, mechanism, invoice_ns):
                 last_price_entry = Prices.query.filter_by(item_id=warehouse_item.id).order_by(Prices.invoice_id.desc()).first()
                 
                 if not last_price_entry:
-                    invoice_ns.abort(400, f"No price information found for item '{item_data['item_name']}'")
-
+                    return operation_result(400, "error", f"No price information found for item '{item_data['item_name']}'")
 
                 subtotal = item_data["quantity"] * last_price_entry.unit_price
                 price_detail = InvoicePriceDetail(
@@ -209,7 +210,7 @@ def put_purchase_request(data, invoice, machine, mechanism, invoice_ns):
 
     except SQLAlchemyError as e:
         db.session.rollback()
-        invoice_ns.abort(500, f"Database error: {str(e)}")
+        return operation_result(500, "error", f"Database error: {str(e)}")
     except Exception as e:
         db.session.rollback()
-        invoice_ns.abort(500, f"Error updating invoice: {str(e)}")
+        return operation_result(500, "error", f"Error updating invoice: {str(e)}")

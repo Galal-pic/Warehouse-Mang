@@ -2,6 +2,7 @@ from datetime import datetime
 from ..models import Invoice, Warehouse, ItemLocations, InvoiceItem, Prices, InvoicePriceDetail, ReturnSales
 from .. import db
 from sqlalchemy.exc import SQLAlchemyError
+from ..utils import operation_result
 
 def Return_Operations(data, machine, mechanism, supplier, employee, machine_ns, warehouse_ns, invoice_ns, mechanism_ns, item_location_n, supplier_ns):
     """
@@ -37,7 +38,7 @@ def Return_Operations(data, machine, mechanism, supplier, employee, machine_ns, 
             # Look up the warehouse item by name
             warehouse_item = Warehouse.query.filter_by(item_name=item_data["item_name"]).first()
             if not warehouse_item:
-                invoice_ns.abort(404, f"Item '{item_data['item_name']}' not found in warehouse")
+                return operation_result(404, "error",f"Item '{item_data['item_name']}' not found in warehouse", None)
             
             # Verify or create the location
             item_location = ItemLocations.query.filter_by(
@@ -56,7 +57,7 @@ def Return_Operations(data, machine, mechanism, supplier, employee, machine_ns, 
             
             # Check for duplicate items
             if (warehouse_item.id, item_data['location']) in item_ids:
-                invoice_ns.abort(400, f"Item '{item_data['item_name']}' already added to invoice")
+                return operation_result(400, "error",f"Item '{item_data['item_name']}' already added to invoice", None)
             
             item_ids.append((warehouse_item.id, item_data['location']))
             
@@ -111,7 +112,7 @@ def Return_Operations(data, machine, mechanism, supplier, employee, machine_ns, 
                             total_quantity += old_invoice_item.quantity
                             
                 if total_quantity + item_data['quantity'] > total_sales_items:
-                    invoice_ns.abort(400, f"Return quantity exceeds the total sales quantity for item '{item_data['item_name']}'")
+                    return operation_result(400, "error",f"Return quantity exceeds the total sales quantity for item '{item_data['item_name']}'", None)
                 
                 for detail in original_invoice_details:
                     if detail.item_id == warehouse_item.id:
@@ -152,19 +153,19 @@ def Return_Operations(data, machine, mechanism, supplier, employee, machine_ns, 
         new_invoice.residual = total_invoice_amount - new_invoice.paid
         
         db.session.commit()
-        return new_invoice, 201
+        return operation_result(200, "success", "Invoice created successfully", new_invoice)
         
     except SQLAlchemyError as e:
         db.session.rollback()
-        invoice_ns.abort(500, f"Database error: {str(e)}")
+        return operation_result(500, "error", f"Database error: {str(e)}", None)
     except Exception as e:
         db.session.rollback()
-        invoice_ns.abort(500, f"Error processing return: {str(e)}")
+        return operation_result(500, "error", f"Error processing return: {str(e)}", None)
 
 def delete_return(invoice, invoice_ns):
     # Check if it's a return invoice
     if invoice.type != 'مرتجع':
-        invoice_ns.abort(400, "Can only delete return invoices with this method")
+        return operation_result(400, "error", "Can only delete return invoices with this method")
 
     try:
         # Check if any of the returned items have been sold again
@@ -175,9 +176,8 @@ def delete_return(invoice, invoice_ns):
             original_quantity = sum([item.quantity for item in invoice.items 
                                    if item.item_id == price_record.item_id])
             if price_record.quantity < original_quantity:
-                invoice_ns.abort(400, 
-                    f"Cannot delete return invoice: Some returned items have already been sold again."
-                )
+
+                return operation_result(400, "error",  f"Cannot delete return invoice: Some returned items have already been sold again.")
         
         # Restore quantities for each item (decrease for return deletion)
         for invoice_item in invoice.items:
@@ -197,17 +197,19 @@ def delete_return(invoice, invoice_ns):
             
             # Check for negative quantity
             if item_location.quantity < 0:
-                invoice_ns.abort(400, 
-                    f"Cannot delete return invoice: Not enough quantity for item " +
+
+                return operation_result(400, "error",  f"Cannot delete return invoice: Not enough quantity for item " +
                     f"'{invoice_item.warehouse.item_name}' in location '{invoice_item.location}'. " +
-                    f"Some items may have already been moved or sold."
-                )
+                    f"Some items may have already been moved or sold.")
         
         # Delete price records
         Prices.query.filter_by(invoice_id=invoice.id).delete()
         
         # Delete invoice items and the invoice
         InvoiceItem.query.filter_by(invoice_id=invoice.id).delete()
+        
+        #Delete the return_sales records
+        ReturnSales.query.filter_by(return_invoice_id=invoice.id).delete()    
         db.session.delete(invoice)
         
         db.session.commit()
@@ -215,10 +217,10 @@ def delete_return(invoice, invoice_ns):
 
     except SQLAlchemyError as e:
         db.session.rollback()
-        invoice_ns.abort(500, f"Database error: {str(e)}")
+        return operation_result(500, "error", f"Database error: {str(e)}", None)
     except Exception as e:
         db.session.rollback()
-        invoice_ns.abort(500, f"Error deleting return invoice: {str(e)}")
+        return operation_result(500, "error", f"Error deleting return invoice: {str(e)}", None)
 
 def put_return(data, invoice, machine, mechanism, invoice_ns):
     try:
@@ -232,7 +234,7 @@ def put_return(data, invoice, machine, mechanism, invoice_ns):
             for item_data in data["items"]:
                 warehouse_item = Warehouse.query.filter_by(item_name=item_data["item_name"]).first()
                 if not warehouse_item:
-                    invoice_ns.abort(404, f"Item '{item_data['item_name']}' not found in warehouse")
+                    return operation_result(404, "error", f"Item '{item_data['item_name']}' not found in warehouse")
                 
                 location = item_data["location"]
                 key = (warehouse_item.id, location)
@@ -268,11 +270,9 @@ def put_return(data, invoice, machine, mechanism, invoice_ns):
                 
                 # Check for negative quantity after adjustment
                 if item_location.quantity < 0:
-                    invoice_ns.abort(400, 
-                        f"Cannot update return invoice: Not enough quantity for item " +
+                    return operation_result(400, "error",  f"Cannot update return invoice: Not enough quantity for item " +
                         f"'{item_data['item_name']}' in location '{location}'. " +
-                        f"Some items may have already been moved or sold."
-                    )
+                        f"Some items may have already been moved or sold.")
 
                 # Update or create invoice item
                 if key in original_items:
@@ -312,11 +312,9 @@ def put_return(data, invoice, machine, mechanism, invoice_ns):
                         
                         # Cannot reduce below the consumed amount
                         if new_quantity < consumed:
-                            invoice_ns.abort(400, 
-                                f"Cannot update return invoice: {consumed} units of " +
+                            return operation_result(400, "error",  f"Cannot update return invoice: {consumed} units of " +
                                 f"'{item_data['item_name']}' have already been sold again. " +
-                                f"Cannot reduce quantity below {consumed}."
-                            )
+                                f"Cannot reduce quantity below {consumed}.")
                         
                         # Update price record with remaining available quantity
                         price_record.quantity = new_quantity - consumed
@@ -357,10 +355,8 @@ def put_return(data, invoice, machine, mechanism, invoice_ns):
                     if price_record and price_record.quantity < item.quantity:
                         # Items have been consumed, cannot remove
                         consumed = item.quantity - price_record.quantity
-                        invoice_ns.abort(400, 
-                            f"Cannot remove item: {consumed} units of " +
-                            f"'{item.warehouse.item_name}' have already been sold again."
-                        )
+                        return operation_result(400, "error",  f"Cannot remove item: {consumed} units of " +
+                            f"'{item.warehouse.item_name}' have already been sold again.")
                     
                     if item_location:
                         # For returns, we subtract when removing items
@@ -368,11 +364,9 @@ def put_return(data, invoice, machine, mechanism, invoice_ns):
                         
                         # Check for negative quantity
                         if item_location.quantity < 0:
-                            invoice_ns.abort(400, 
-                                f"Cannot remove item: Not enough quantity for " +
+                            return operation_result(400, "error",  f"Cannot remove item: Not enough quantity for " +
                                 f"'{item.warehouse.item_name}' in location '{location}'. " +
-                                f"Some items may have already been moved or sold."
-                            )
+                                f"Some items may have already been moved or sold.")
                     
                     # Delete the price record if it exists
                     if price_record:
@@ -407,7 +401,8 @@ def put_return(data, invoice, machine, mechanism, invoice_ns):
 
     except SQLAlchemyError as e:
         db.session.rollback()
-        invoice_ns.abort(500, f"Database error: {str(e)}")
+        return operation_result(500, "error", f"Database error: {str(e)}")
+        
     except Exception as e:
         db.session.rollback()
-        invoice_ns.abort(500, f"Unexpected error: {str(e)}")
+        return operation_result(500, "error", f"Unexpected error: {str(e)}")

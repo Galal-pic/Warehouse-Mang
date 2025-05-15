@@ -83,3 +83,11 @@ def get_excel_sheet(model):
     filename = f"{model.__tablename__}_{timestamp}.xlsx"
     return output, filename
 
+
+def operation_result(status_code=200, status="success", message=None, invoice=None):
+    return {
+            "status": status,
+            "message": message,
+            "invoice": invoice,
+            "status_code": status_code
+        }

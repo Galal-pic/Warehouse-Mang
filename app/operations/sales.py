@@ -2,6 +2,7 @@ from datetime import datetime
 from ..models import Invoice, Warehouse, ItemLocations, InvoiceItem, Prices, InvoicePriceDetail
 from .. import db
 from sqlalchemy.exc import SQLAlchemyError
+from ..utils import operation_result
 
 def Sales_Operations(data, machine, mechanism, supplier, employee, machine_ns, warehouse_ns, invoice_ns, mechanism_ns, item_location_n, supplier_ns):
     try:
@@ -31,7 +32,7 @@ def Sales_Operations(data, machine, mechanism, supplier, employee, machine_ns, w
             # Verify the warehouse item exists
             warehouse_item = Warehouse.query.filter_by(item_name=item_data["item_name"]).first()
             if not warehouse_item:
-                invoice_ns.abort(404, f"Item '{item_data['item_name']}' not found in warehouse")
+                return operation_result(404, "error", f"Item '{item_data['item_name']}' not found in warehouse")
             
             # Verify the location exists and has enough quantity
             item_location = ItemLocations.query.filter_by(
@@ -40,18 +41,19 @@ def Sales_Operations(data, machine, mechanism, supplier, employee, machine_ns, w
             ).first()
             
             if not item_location:
-                invoice_ns.abort(404, f"Item '{item_data['item_name']}' not found in location '{item_data['location']}'")
+                return operation_result(404, "error", f"Item '{item_data['item_name']}' not found in location '{item_data['location']}'")
+                
             
             # Check for duplicate items
             if (warehouse_item.id, item_data['location']) in item_ids:
-                invoice_ns.abort(400, f"Item '{item_data['item_name']}' already added to invoice")
+                return operation_result(400, "error", f"Item '{item_data['item_name']}' already added to invoice")
             
             item_ids.append((warehouse_item.id, item_data['location']))
             
             # Check if enough quantity available in location
             requested_quantity = item_data["quantity"]
             if item_location.quantity < requested_quantity:
-                invoice_ns.abort(400, f"Not enough quantity for item '{item_data['item_name']}' in location '{item_data['location']}'. Available: {item_location.quantity}, Requested: {requested_quantity}")
+                return operation_result(400, "error", f"Not enough quantity for item '{item_data['item_name']}' in location '{item_data['location']}'. Available: {item_location.quantity}, Requested: {requested_quantity}")
             
             # Update physical inventory in ItemLocations
             item_location.quantity -= requested_quantity
@@ -64,7 +66,7 @@ def Sales_Operations(data, machine, mechanism, supplier, employee, machine_ns, w
             price_entries = Prices.query.filter_by(item_id=warehouse_item.id).order_by(Prices.invoice_id.asc()).all()
             
             if not price_entries:
-                invoice_ns.abort(400, f"No price information found for item '{item_data['item_name']}'")
+                return operation_result(400, "error", f"No price information found for item '{item_data['item_name']}'")
             
             # Keep track of entries to delete
             entries_to_delete = []
@@ -105,7 +107,7 @@ def Sales_Operations(data, machine, mechanism, supplier, employee, machine_ns, w
             
             # Check if we've fulfilled the entire requested quantity
             if remaining_to_sell > 0:
-                invoice_ns.abort(400, f"Insufficient priced inventory for '{item_data['item_name']}'. Missing price data for {remaining_to_sell} units.")
+                return operation_result(400, "error", f"Insufficient priced inventory for '{item_data['item_name']}'. Missing price data for {remaining_to_sell} units.")
             
             # Delete the empty price entries
             # for entry in entries_to_delete:
@@ -133,19 +135,19 @@ def Sales_Operations(data, machine, mechanism, supplier, employee, machine_ns, w
         new_invoice.residual = total_invoice_amount - new_invoice.paid
         
         db.session.commit()
-        return new_invoice, 201
+        return operation_result(201, "success", invoice=new_invoice)
         
     except SQLAlchemyError as e:
         db.session.rollback()
-        invoice_ns.abort(500, f"Database error: {str(e)}")
+        return operation_result(500, "error", message=f"Database error: {str(e)}")
     except Exception as e:
         db.session.rollback()
-        invoice_ns.abort(500, f"Error processing sale: {str(e)}")
+        return operation_result(500, "error", message=f"Error processing sale: {str(e)}")
 
 def delete_sales(invoice, invoice_ns):
     # Check if it's a sales invoice
     if invoice.type != 'صرف':
-        invoice_ns.abort(400, "Can only delete sales invoices with this method")
+        return operation_result(400, "error", "Can only delete sales invoices with this method")
 
     try:
         # Start by collecting information about the price details to restore prices
@@ -216,7 +218,7 @@ def delete_sales(invoice, invoice_ns):
 
     except Exception as e:
         db.session.rollback()
-        invoice_ns.abort(500, f"Error deleting invoice: {str(e)}")
+        return operation_result(500, "error", f"Error deleting invoice: {str(e)}")
 
 def put_sales(data, invoice, machine, mechanism, invoice_ns):
     try:
@@ -279,7 +281,7 @@ def put_sales(data, invoice, machine, mechanism, invoice_ns):
                 # Verify the warehouse item exists
                 warehouse_item = Warehouse.query.filter_by(item_name=item_data["item_name"]).first()
                 if not warehouse_item:
-                    invoice_ns.abort(404, f"Item '{item_data['item_name']}' not found in warehouse")
+                    return operation_result(404, "error", f"Item '{item_data['item_name']}' not found in warehouse")
                 
                 # Verify the location exists and has enough quantity
                 item_location = ItemLocations.query.filter_by(
@@ -288,18 +290,19 @@ def put_sales(data, invoice, machine, mechanism, invoice_ns):
                 ).first()
                 
                 if not item_location:
-                    invoice_ns.abort(404, f"Item '{item_data['item_name']}' not found in location '{item_data['location']}'")
+                    return operation_result(404, "error", f"Item '{item_data['item_name']}' not found in location '{item_data['location']}'")
                 
                 # Check for duplicate items
                 if (warehouse_item.id, item_data['location']) in item_ids:
-                    invoice_ns.abort(400, f"Item '{item_data['item_name']}' already added to invoice")
+                    return operation_result(400, "error", f"Item '{item_data['item_name']}' already added to invoice")
                 
                 item_ids.append((warehouse_item.id, item_data['location']))
                 
                 # Check if enough quantity available in location
                 requested_quantity = item_data["quantity"]
                 if item_location.quantity < requested_quantity:
-                    invoice_ns.abort(400, f"Not enough quantity for item '{item_data['item_name']}' in location '{item_data['location']}'. Available: {item_location.quantity}, Requested: {requested_quantity}")
+                    return operation_result(400, "error", f"Not enough quantity for item '{item_data['item_name']}' in location '{item_data['location']}'. Available: {item_location.quantity}, Requested: {requested_quantity}")
+                    
                 
                 # Update physical inventory in ItemLocations
                 item_location.quantity -= requested_quantity
@@ -312,7 +315,7 @@ def put_sales(data, invoice, machine, mechanism, invoice_ns):
                 price_entries = Prices.query.filter_by(item_id=warehouse_item.id).order_by(Prices.invoice_id.asc()).all()
                 
                 if not price_entries:
-                    invoice_ns.abort(400, f"No price information found for item '{item_data['item_name']}'")
+                    return operation_result(400, "error", f"No price information found for item '{item_data['item_name']}'")
                 
                 entries_to_delete = []
                 
@@ -352,7 +355,7 @@ def put_sales(data, invoice, machine, mechanism, invoice_ns):
                 
                 # Check if we've fulfilled the entire requested quantity
                 if remaining_to_sell > 0:
-                    invoice_ns.abort(400, f"Insufficient priced inventory for '{item_data['item_name']}'. Missing price data for {remaining_to_sell} units.")
+                    return operation_result(400, "error", f"Insufficient priced inventory for '{item_data['item_name']}'. Missing price data for {remaining_to_sell} units.")
                 
                 # Delete the empty price entries
                 # for entry in entries_to_delete:
@@ -397,7 +400,7 @@ def put_sales(data, invoice, machine, mechanism, invoice_ns):
 
     except SQLAlchemyError as e:
         db.session.rollback()
-        invoice_ns.abort(500, f"Database error: {str(e)}")
+        return operation_result(500, "error", f"Database error: {str(e)}")
     except Exception as e:
         db.session.rollback()
-        invoice_ns.abort(500, f"Error updating invoice: {str(e)}")
+        return operation_result(500, "error", f"Error updating invoice: {str(e)}")

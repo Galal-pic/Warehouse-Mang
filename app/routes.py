@@ -349,9 +349,12 @@ class InvoiceList(Resource):
         else:
             invoice_ns.abort(400, f"Invalid invoice type: {data['type']}")
             
-        # Return the created invoice
-        if result:
-            return result[0], result[1]
+    
+        if result["status"] == "error":
+            invoice_ns.abort(result["status_code"], result["message"])
+        else:
+            return result["invoice"], result["status_code"]
+
         return {"message": "Invoice created"}, 201
     
 @invoice_ns.route('/<int:invoice_id>')
@@ -453,20 +456,24 @@ class InvoiceDetail(Resource):
             
         # Call the appropriate update function based on invoice type
         if invoice.type == 'صرف':
-            put_sales(data, invoice, machine, mechanism, invoice_ns)
+            result = put_sales(data, invoice, machine, mechanism, invoice_ns)
         elif invoice.type == 'اضافه':
-            put_purchase(data, invoice, machine, mechanism, invoice_ns)
+            result = put_purchase(data, invoice, machine, mechanism, invoice_ns)
         elif invoice.type == 'أمانات':
-            put_warranty(data, invoice, machine, mechanism, invoice_ns)
+            result = put_warranty(data, invoice, machine, mechanism, invoice_ns)
         elif invoice.type == 'مرتجع':
-            put_return(data, invoice, machine, mechanism, invoice_ns)
+            result = put_return(data, invoice, machine, mechanism, invoice_ns)
         elif invoice.type == 'توالف':
-            put_void(data, invoice, machine, mechanism, invoice_ns)
+            result = put_void(data, invoice, machine, mechanism, invoice_ns)
         elif invoice.type == 'حجز':
-            put_booking(data, invoice, machine, mechanism, invoice_ns)
+            result = put_booking(data, invoice, machine, mechanism, invoice_ns)
         elif invoice.type == 'طلب شراء':
-            put_purchase_request(data, invoice, machine, mechanism, invoice_ns)
-
+            result = put_purchase_request(data, invoice, machine, mechanism, invoice_ns)
+            
+        if type(result) == dict:
+            if result["status"] == "error":
+                invoice_ns.abort(result["status_code"], result["message"])
+            
         return {"message": "Invoice updated successfully"}, 200
 
         
@@ -490,6 +497,11 @@ class InvoiceDetail(Resource):
             result = delete_booking(invoice, invoice_ns)
         elif invoice.type == 'طلب شراء':
             result = delete_purchase_request(invoice, invoice_ns)
+            
+            
+        if type(result) == dict:
+            if result["status"] == "error":
+                invoice_ns.abort(result["status_code"], result["message"])
             
         return {"message": "Invoice deleted successfully"}, 200
 
@@ -658,22 +670,28 @@ class PurchaseRequestConfirmation(Resource):
 
         try:
             for request in purchase_requests:
-                invoice_item = InvoiceItem.query.filter_by(item_id=request.item_id, invoice_id=invoice.id).first()
-                invoice_price_datils = InvoicePriceDetail.query.filter_by(
-                    invoice_id=invoice.id,
-                    item_id=request.item_id
-                ).first()
                 
-                item_location = ItemLocations.query.filter_by(
-                    item_id=request.item_id,
-                    location=invoice_item.location
-                ).first()
-                item_location.quantity += request.requested_quantity
                 
-                source_price_id = Prices.query.filter_by(
-                    invoice_id=invoice_price_datils.source_price_id
-                ).first()
-                source_price_id.quantity += request.requested_quantity
+                # invoice_item = InvoiceItem.query.filter_by(item_id=request.item_id, invoice_id=invoice.id).first()
+                # invoice_price_datils = InvoicePriceDetail.query.filter_by(
+                #     invoice_id=invoice.id,
+                #     item_id=request.item_id
+                # ).first()
+                
+                # item_location = ItemLocations.query.filter_by(
+                #     item_id=request.item_id,
+                #     location=invoice_item.location
+                # ).first()
+                # item_location.quantity += request.requested_quantity
+                
+                # source_price_id = Prices.query.filter_by(
+                #     invoice_id=invoice_price_datils.source_price_id
+                # ).first()
+                # source_price_id.quantity += request.requested_quantity
+                
+                
+                
+                # confirm the request
                 request.status = 'confirmed'
                 
             #Confirm the invoice
