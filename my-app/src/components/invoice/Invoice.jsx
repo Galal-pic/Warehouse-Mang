@@ -21,11 +21,11 @@ import SnackBar from "../snackBar/SnackBar";
 import { useGetSuppliersQuery } from "../../pages/services/supplierApi";
 import { useGetMachinesQuery } from "../../pages/services/machineApi";
 import { useGetMechanismsQuery } from "../../pages/services/mechanismApi";
-import { useGetWarehousesQuery } from "../../pages/services/warehouseApi";
+import { useGetWarehousesQuery } from "../../pages/services/invoice&warehouseApi";
 import {
   useGetInvoiceQuery,
   useGetInvoicesQuery,
-} from "../../pages/services/invoiceApi";
+} from "../../pages/services/invoice&warehouseApi";
 
 export default function InvoiceModal({
   selectedInvoice,
@@ -42,42 +42,65 @@ export default function InvoiceModal({
   className = "",
 }) {
   // Data from API
+  const isAdditionType =
+    selectedNowType?.type === "اضافه" ||
+    selectedInvoice?.type === "اضافه" ||
+    editingInvoice?.type === "اضافه";
+
   const {
     data: suppliersData,
     isLoading: isSuppliersLoading,
     refetch: refetchSuppliers,
-  } = useGetSuppliersQuery({ all: true }, { pollingInterval: 300000 });
+  } = useGetSuppliersQuery(
+    { all: true },
+    { pollingInterval: 300000, skip: !isEditingInvoice || !isAdditionType } // Only fetch when editing and isAdditionType
+  );
   const suppliers = suppliersData?.suppliers || [];
 
   const {
     data: machinesData,
     isLoading: isMachinesLoading,
     refetch: refetchMachines,
-  } = useGetMachinesQuery({ all: true }, { pollingInterval: 300000 });
+  } = useGetMachinesQuery(
+    { all: true },
+    { pollingInterval: 300000, skip: !isEditingInvoice } // Only fetch when editing
+  );
   const machines = machinesData?.machines || [];
 
   const {
     data: mechanismsData,
     isLoading: isMechanismsLoading,
     refetch: refetchMechanisms,
-  } = useGetMechanismsQuery({ all: true }, { pollingInterval: 300000 });
+  } = useGetMechanismsQuery(
+    { all: true },
+    { pollingInterval: 300000, skip: !isEditingInvoice } // Only fetch when editing
+  );
   const mechanisms = mechanismsData?.mechanisms || [];
 
   const {
     data: warehouseData,
     isLoading: isWarehousesLoading,
     refetch: refetchWarehouses,
-  } = useGetWarehousesQuery({ all: true }, { pollingInterval: 300000 });
+  } = useGetWarehousesQuery(
+    { all: true },
+    { pollingInterval: 300000, skip: !isEditingInvoice } // Only fetch when editing
+  );
   const warehouse = warehouseData?.warehouses || [];
 
   // Fetch invoices with all=true
+  const isMortaga3Type =
+    selectedNowType?.type === "مرتجع" ||
+    selectedInvoice?.type === "مرتجع" ||
+    editingInvoice?.type === "مرتجع";
+
   const {
     data: invoicesData,
     isLoading: isInvoiceNumbersLoading,
+    refetch: refetcInvoicesNumbers,
     isError: isInvoiceNumbersError,
   } = useGetInvoicesQuery(
     { all: true, type: "صرف" },
-    { pollingInterval: 300000 }
+    { pollingInterval: 300000, skip: !isEditingInvoice || !isMortaga3Type } // Only fetch when editing and isMortaga3Type
   );
   const invoices = invoicesData?.invoices || [];
 
@@ -191,7 +214,7 @@ export default function InvoiceModal({
 
   // Update items with filtered locations and maxquantity for return invoices
   useEffect(() => {
-    if (warehouseMap && editingInvoice) {
+    if (isEditingInvoice && warehouseMap && editingInvoice) {
       const updatedItems = editingInvoice.items.map((item) => {
         const warehouseItem = warehouseMap.get(
           item.item_name?.trim()?.toLowerCase()
@@ -244,10 +267,10 @@ export default function InvoiceModal({
         return {
           ...item,
           availableLocations,
-          unit_price:
-            selectedNowType?.type === "اضافه"
-              ? item.unit_price // الاحتفاظ بالقيمة الحالية لـ unit_price في نوع "إضافة"
-              : Number(warehouseItem?.unit_price) || 0,
+          // unit_price:
+          //   selectedNowType?.type === "اضافه"
+          //     ? item.unit_price
+          //     : Number(warehouseItem?.unit_price) || 0,
           maxquantity,
         };
       });
@@ -266,6 +289,7 @@ export default function InvoiceModal({
     selectedNowType?.type,
     editingInvoice,
     setEditingInvoice,
+    isEditingInvoice,
   ]);
 
   // Snackbar
@@ -276,14 +300,22 @@ export default function InvoiceModal({
     setOpenSnackbar(false);
   };
 
-  // Refetch data
+  // Refetch data only in editing mode
   useEffect(() => {
-    refetchMachines();
-    refetchMechanisms();
-    refetchSuppliers();
-    refetchWarehouses();
+    if (isEditingInvoice) {
+      if (isAdditionType) {
+        refetchSuppliers();
+      }
+      if (isMortaga3Type) {
+        refetcInvoicesNumbers();
+      }
+      refetchMachines();
+      refetchMechanisms();
+      refetchWarehouses();
+    }
   }, []);
 
+  // The rest of the JSX remains unchanged
   return (
     <>
       <div

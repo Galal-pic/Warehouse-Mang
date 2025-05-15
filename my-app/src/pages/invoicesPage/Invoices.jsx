@@ -29,7 +29,7 @@ import {
   useConfirmTalabSheraaInvoiceMutation,
   useRefreshInvoiceMutation,
   useReturnWarrantyInvoiceMutation,
-} from "../services/invoiceApi";
+} from "../services/invoice&warehouseApi";
 import PrintableTable from "../../components/printableTable/PrintableTable ";
 import PrintIcon from "@mui/icons-material/Print";
 import ArticleIcon from "@mui/icons-material/Article";
@@ -94,46 +94,43 @@ export default function Invoices() {
   };
 
   const invoices = useMemo(() => {
-    return invoicesData.invoices
-      .slice()
-      .reverse()
-      .map((invoice) => {
-        let displayStatus;
-        if (invoice.status === "draft") {
-          if (selectedNowType?.label === "طلب شراء") {
-            displayStatus = "شراء الطلب";
-          } else {
-            displayStatus = "لم تراجع";
-          }
-        } else if (invoice.status === "accreditation") {
-          displayStatus = "لم تؤكد";
-        } else if (invoice.status === "confirmed") {
-          if (selectedNowType?.label === "طلب شراء") {
-            displayStatus = "تم الشراء";
-          } else {
-            displayStatus = "تم";
-          }
-        } else if (invoice.status === "returned") {
-          displayStatus = "تم الاسترداد";
+    return invoicesData.invoices.slice().map((invoice) => {
+      let displayStatus;
+      if (invoice.status === "draft") {
+        if (selectedNowType?.label === "طلب شراء") {
+          displayStatus = "شراء الطلب";
         } else {
-          displayStatus = invoice.status;
+          displayStatus = "لم تراجع";
         }
+      } else if (invoice.status === "accreditation") {
+        displayStatus = "لم تؤكد";
+      } else if (invoice.status === "confirmed") {
+        if (selectedNowType?.label === "طلب شراء") {
+          displayStatus = "تم الشراء";
+        } else {
+          displayStatus = "تم";
+        }
+      } else if (invoice.status === "returned") {
+        displayStatus = "تم الاسترداد";
+      } else {
+        displayStatus = invoice.status;
+      }
 
-        return {
-          refresh: invoice.items.some((item) => item.total_price === 0)
-            ? "تحديث اسعار"
-            : "",
-          ...invoice,
-          status: displayStatus,
-          rawStatus: invoice.status,
-          itemsNames: invoice.items.map((item) => item.item_name).join(", "),
-          date: invoice.created_at.split(" ")[0],
-          time: formatTime(invoice.created_at),
-          classname: invoice.items.some((item) => item.total_price === 0)
-            ? "zero-total-price"
-            : "",
-        };
-      });
+      return {
+        refresh: invoice.items.some((item) => item.total_price === 0)
+          ? "تحديث اسعار"
+          : "",
+        ...invoice,
+        status: displayStatus,
+        rawStatus: invoice.status,
+        itemsNames: invoice.items.map((item) => item.item_name).join(", "),
+        date: invoice.created_at.split(" ")[0],
+        time: formatTime(invoice.created_at),
+        classname: invoice.items.some((item) => item.total_price === 0)
+          ? "zero-total-price"
+          : "",
+      };
+    });
   }, [invoicesData.invoices]);
 
   const handleEditInfo = (invoice) => {

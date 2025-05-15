@@ -1,34 +1,86 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 
-export const invoiceApi = createApi({
-  reducerPath: "invoiceApi",
+export const api = createApi({
+  reducerPath: "api",
   baseQuery: fetchBaseQuery({
     baseUrl: process.env.REACT_APP_API_BASE_URL,
     prepareHeaders: (headers) => {
       const token = localStorage.getItem("access_token");
-      if (token) {
-        headers.set("Authorization", `Bearer ${token}`);
-      }
+      if (token) headers.set("Authorization", `Bearer ${token}`);
       return headers;
     },
   }),
-  tagTypes: ["Invoice", "Warehouse"], // Add "Warehouse" to tagTypes
+  tagTypes: ["Invoice", "Warehouse"],
   endpoints: (builder) => ({
-    // get last id
+    // Endpoints من warehouseApi
+    getWarehouses: builder.query({
+      query: ({ page, page_size, all = false }) => {
+        const queryParams = all
+          ? "all=true"
+          : `page=${page + 1}&page_size=${page_size}&all=false`;
+        return `/warehouse/?${queryParams}`;
+      },
+      providesTags: ["Warehouse"],
+      transformResponse: (response) => ({
+        warehouses: response.warehouses,
+        page: response.page,
+        page_size: response.page_size,
+        total_pages: response.total_pages,
+        total_items: response.total_items,
+        all: response.all || false,
+      }),
+    }),
+    addWarehouse: builder.mutation({
+      query: (newItem) => ({
+        url: "/warehouse/",
+        method: "POST",
+        body: newItem,
+      }),
+      invalidatesTags: ["Warehouse"],
+    }),
+    updateWarehouse: builder.mutation({
+      query: ({ id, ...patch }) => ({
+        url: `/warehouse/${id}`,
+        method: "PUT",
+        body: patch,
+      }),
+      invalidatesTags: ["Warehouse"],
+    }),
+    deleteWarehouse: builder.mutation({
+      query: (id) => ({
+        url: `/warehouse/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Warehouse"],
+    }),
+    importWarehouse: builder.mutation({
+      query: (data) => ({
+        url: "/warehouse/excel",
+        method: "POST",
+        body: { data },
+      }),
+      invalidatesTags: ["Warehouse"],
+    }),
+    detailsReport: builder.query({
+      query: (id) => `/invoice/fifo-prices/${id}`,
+    }),
+    getItem: builder.query({
+      query: (id) => `/warehouse/${id}`,
+    }),
+
+    // Endpoints من invoiceApi
     getLastInvoiceId: builder.query({
       query: () => "/invoice/last-id",
       providesTags: ["Invoice"],
     }),
-    // create invoice
     createInvoice: builder.mutation({
       query: (invoice) => ({
         url: "/invoice/",
         method: "POST",
         body: invoice,
       }),
-      invalidatesTags: ["Invoice", "Warehouse"], // Invalidate both Invoice and Warehouse tags
+      invalidatesTags: ["Invoice", "Warehouse"],
     }),
-    // get invoices with pagination or all
     getInvoices: builder.query({
       query: ({ type, page, page_size, all = false }) => {
         if (all) {
@@ -40,7 +92,6 @@ export const invoiceApi = createApi({
       },
       providesTags: ["Invoice"],
       transformResponse: (response) => {
-        // If fetching all, return only the invoices array
         if (response.all) {
           return {
             invoices: response.invoices,
@@ -50,7 +101,6 @@ export const invoiceApi = createApi({
             total_items: response.invoices.length,
           };
         }
-        // For paginated response, return full metadata
         return {
           invoices: response.invoices,
           page: response.page,
@@ -60,7 +110,6 @@ export const invoiceApi = createApi({
         };
       },
     }),
-    // edit invoice
     updateInvoice: builder.mutation({
       query: ({ id, ...body }) => ({
         url: `/invoice/${id}`,
@@ -69,7 +118,6 @@ export const invoiceApi = createApi({
       }),
       invalidatesTags: ["Invoice"],
     }),
-    // delete invoice
     deleteInvoice: builder.mutation({
       query: (id) => ({
         url: `/invoice/${id}`,
@@ -77,7 +125,6 @@ export const invoiceApi = createApi({
       }),
       invalidatesTags: ["Invoice"],
     }),
-    // confirm invoice
     confirmInvoice: builder.mutation({
       query: (id) => ({
         url: `/invoice/${id}/confirm`,
@@ -85,7 +132,6 @@ export const invoiceApi = createApi({
       }),
       invalidatesTags: ["Invoice"],
     }),
-    // confirm talab sheraa
     confirmTalabSheraaInvoice: builder.mutation({
       query: (id) => ({
         url: `/invoice/${id}/PurchaseRequestConfirmation`,
@@ -93,7 +139,6 @@ export const invoiceApi = createApi({
       }),
       invalidatesTags: ["Invoice"],
     }),
-    // refresh invoice
     refreshInvoice: builder.mutation({
       query: (id) => ({
         url: `/invoice/updateprice/${id}`,
@@ -101,7 +146,6 @@ export const invoiceApi = createApi({
       }),
       invalidatesTags: ["Invoice"],
     }),
-    // return warranty invoice
     returnWarrantyInvoice: builder.mutation({
       query: (id) => ({
         url: `/invoice/${id}/ReturnWarranty`,
@@ -109,19 +153,25 @@ export const invoiceApi = createApi({
       }),
       invalidatesTags: ["Invoice"],
     }),
-    // price report
     priceReport: builder.query({
       query: (id) => `/invoice/price-report/${id}`,
     }),
-    // get single invoice
     getInvoice: builder.query({
       query: (id) => `/invoice/${id}`,
     }),
   }),
 });
 
-// Export hooks
 export const {
+  // Hooks من warehouseApi
+  useGetWarehousesQuery,
+  useAddWarehouseMutation,
+  useUpdateWarehouseMutation,
+  useDeleteWarehouseMutation,
+  useImportWarehouseMutation,
+  useDetailsReportQuery,
+  useGetItemQuery,
+  // Hooks من invoiceApi
   useGetLastInvoiceIdQuery,
   useCreateInvoiceMutation,
   useGetInvoicesQuery,
@@ -133,4 +183,4 @@ export const {
   useReturnWarrantyInvoiceMutation,
   usePriceReportQuery,
   useGetInvoiceQuery,
-} = invoiceApi;
+} = api;

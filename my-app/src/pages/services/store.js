@@ -4,8 +4,7 @@ import { userApi } from "./userApi";
 import { supplierApi } from "./supplierApi";
 import { machineApi } from "./machineApi";
 import { mechanismApi } from "./mechanismApi";
-import { warehouseApi } from "./warehouseApi";
-import { invoiceApi } from "./invoiceApi";
+import { api } from "./invoice&warehouseApi";
 
 export const store = configureStore({
   reducer: {
@@ -13,8 +12,7 @@ export const store = configureStore({
     [supplierApi.reducerPath]: supplierApi.reducer,
     [machineApi.reducerPath]: machineApi.reducer,
     [mechanismApi.reducerPath]: mechanismApi.reducer,
-    [warehouseApi.reducerPath]: warehouseApi.reducer,
-    [invoiceApi.reducerPath]: invoiceApi.reducer,
+    [api.reducerPath]: api.reducer, // أضف api هنا
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware()
@@ -22,6 +20,5 @@ export const store = configureStore({
       .concat(supplierApi.middleware)
       .concat(machineApi.middleware)
       .concat(mechanismApi.middleware)
-      .concat(warehouseApi.middleware)
-      .concat(invoiceApi.middleware),
+      .concat(api.middleware), // أضف middleware الخاص بـ api
 });

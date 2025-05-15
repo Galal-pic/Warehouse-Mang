@@ -14,11 +14,10 @@ import InvoiceModal from "../../components/invoice/Invoice";
 
 // RTK Query hooks
 import { useGetUserQuery } from "../services/userApi";
-import { useGetWarehousesQuery } from "../services/warehouseApi";
 import {
   useGetLastInvoiceIdQuery,
   useCreateInvoiceMutation,
-} from "../services/invoiceApi";
+} from "../services/invoice&warehouseApi";
 
 // Constants
 const operationTypes = ["صرف", "أمانات", "مرتجع", "توالف", "حجز"];
@@ -112,10 +111,6 @@ export default function CreateInvoice() {
   const { data: voucherNumber, refetch: refetchLastId } =
     useGetLastInvoiceIdQuery();
   const [createInvoice, { isLoading: isSaving }] = useCreateInvoiceMutation();
-  const { refetch: refetchWarehouses } = useGetWarehousesQuery(
-    { all: true },
-    { pollingInterval: 300000 }
-  );
 
   // Derived values
   const totalAmount = useMemo(
@@ -305,6 +300,7 @@ export default function CreateInvoice() {
       date,
       time,
     };
+      console.log(invoiceData)
 
     try {
       await createInvoice(invoiceData).unwrap();
@@ -351,7 +347,6 @@ export default function CreateInvoice() {
           type: "طلب شراء",
         }));
       }
-      refetchWarehouses();
     } catch (error) {
       setSnackbar({
         open: true,
@@ -421,7 +416,6 @@ export default function CreateInvoice() {
           id: null,
         }));
       }
-      refetchWarehouses();
     } catch (error) {
       setSnackbar({
         open: true,

@@ -8,7 +8,7 @@ import SnackBar from "../../components/snackBar/SnackBar";
 import { useImportMachinesMutation } from "../../pages/services/machineApi";
 import { useImportMechanismMutation } from "../../pages/services/mechanismApi";
 import { useImportSupplierMutation } from "../../pages/services/supplierApi";
-import { useImportWarehouseMutation } from "../../pages/services/warehouseApi";
+import { useImportWarehouseMutation } from "../../pages/services/invoice&warehouseApi";
 
 
 const CustomToolbar = ({

@@ -1,5 +1,5 @@
 import { Button } from "@mui/material";
-import { usePriceReportQuery } from "../../pages/services/invoiceApi";
+import { usePriceReportQuery } from "../../pages/services/invoice&warehouseApi";
 import { useEffect } from "react";
 
 const DetailItem = ({ label, value, valueStyle }) => (
