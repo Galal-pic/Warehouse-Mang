@@ -15,7 +15,7 @@ from .mechanisms.mechanism import mechanism_ns
 from .suppliers.supplier import supplier_ns
 from .models import (
     Employee, Machine, Mechanism, Warehouse, ItemLocations, Invoice, InvoiceItem,
-    Supplier, Prices, InvoicePriceDetail, PurchaseRequests
+    Supplier, Prices, InvoicePriceDetail, PurchaseRequests, ReturnSales
 )
 from sqlalchemy import desc
 from sqlalchemy.exc import SQLAlchemyError
@@ -152,7 +152,6 @@ class invoices_get(Resource):
                             'unit_price': detail.unit_price,
                             'subtotal': detail.subtotal
                         })
-
                 item_data = {
                     "item_name": Warehouse.query.get(item.item_id).item_name,
                     "barcode": Warehouse.query.get(item.item_id).item_bar,
@@ -166,7 +165,6 @@ class invoices_get(Resource):
                 # Add price details if they exist
                 if price_details:
                     item_data['price_details'] = price_details
-                    
                 item_list.append(item_data)
             
             # Serialize the invoice with related data
@@ -188,6 +186,12 @@ class invoices_get(Resource):
                 "created_at": invoice.created_at,
                 "items": item_list
             }
+            
+            # Add original invoice ID for returned sales
+            if type == 'مرتجع':
+                return_sales_record = ReturnSales.query.filter_by(return_invoice_id=invoice.id).first()
+                if return_sales_record:
+                    invoice_data['original_invoice_id'] = return_sales_record.sales_invoice_id
             result.append(invoice_data)
             
         final_result = {
