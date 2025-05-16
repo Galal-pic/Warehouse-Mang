@@ -222,7 +222,7 @@ export default function InvoiceModal({
         let availableLocations = warehouseItem?.locations || [];
         let maxquantity = item.maxquantity || 0;
         let unit_price = item.unit_price || 0;
-        let total_price = item.total_price || 0;
+        let price_details = item.price_details || [];
 
         // For return invoices, filter locations and set maxquantity, unit_price, and total_price
         if (
@@ -259,9 +259,9 @@ export default function InvoiceModal({
               unit_price = originalLocationItem
                 ? originalLocationItem.unit_price
                 : 0;
-              total_price = originalLocationItem
-                ? originalLocationItem.total_price
-                : 0;
+              price_details = originalLocationItem
+                ? originalLocationItem.price_details
+                : [];
             }
           }
         } else if (selectedNowType?.type !== "اضافه") {
@@ -276,7 +276,7 @@ export default function InvoiceModal({
           ...item,
           availableLocations,
           unit_price,
-          total_price,
+          price_details,
           maxquantity,
         };
       });

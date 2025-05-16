@@ -300,7 +300,9 @@ export default function Invoices() {
       location: row.location,
       total_price: row.total_price,
       unit_price:
-        selectedNowType?.type !== "purchase"
+        editingInvoice.type === "مرتجع"
+          ? row.unit_price
+          : selectedNowType?.type !== "purchase"
           ? Number(row.priceunit)
           : Number(row.unit_price),
       description: row.description,
@@ -320,6 +322,10 @@ export default function Invoices() {
       client_name: editingInvoice.client_name,
       warehouse_manager: editingInvoice.warehouse_manager,
       comment: editingInvoice.comment,
+      original_invoice_id:
+        editingInvoice.type === "مرتجع"
+          ? editingInvoice.original_invoice_id
+          : undefined,
       items: newRows.map((row) => ({
         item_name: row.item_name,
         barcode: row.barcode,
@@ -327,7 +333,9 @@ export default function Invoices() {
         quantity: Number(row.quantity),
         total_price: row.total_price,
         unit_price:
-          selectedNowType?.type !== "purchase"
+          editingInvoice.type === "مرتجع"
+            ? row.unit_price
+            : selectedNowType?.type !== "purchase"
             ? Number(row.priceunit)
             : Number(row.unit_price),
         description: row.description,

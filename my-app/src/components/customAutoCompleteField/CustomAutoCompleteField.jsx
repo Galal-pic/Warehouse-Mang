@@ -30,13 +30,13 @@ export default function CustomAutoCompleteField({
         },
       }}
       value={
-        Array.isArray(values) && editingItem[fieldName] !== undefined
+        Array.isArray(values) && String(editingItem[fieldName]) !== undefined
           ? values.find(
               (item) =>
                 item &&
                 (fieldName === "original_invoice_id"
-                  ? item.id === editingItem[fieldName]
-                  : item.name === editingItem[fieldName])
+                  ? item.id === String(editingItem[fieldName])
+                  : item.name === String(editingItem[fieldName]))
             ) || null
           : null
       }
