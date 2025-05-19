@@ -56,8 +56,8 @@ class WarehouseExcel(Resource):
             warehouse_ns.abort(400, "warehouse_manager is required")
         errors = []
         success_count = 0
-        employee = Employee.query.filter_by(id=employee_id).first()
         employee_id = get_jwt_identity()
+        employee = Employee.query.filter_by(id=employee_id).first()
         new_invoice = Invoice(
                 type="اضافه",
                 client_name="",
