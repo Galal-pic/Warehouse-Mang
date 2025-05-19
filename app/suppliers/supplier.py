@@ -75,20 +75,20 @@ class MachineExcel(Resource):
                 except Exception as e:
                     errors.append(f"Error adding supplier '{item['name']}': {str(e)}")
                 
-                # Commit if there are no errors, rollback otherwise
-                if not errors:
-                    db.session.commit()
-                    return {
-                        'status': 'success',
-                        'message': f'Successfully imported {success_count} suppliers'
-                    }, 200
-                else:
-                    db.session.rollback()
-                    return {
-                        'status': 'error',
-                        'message': 'Some suppliers could not be imported',
-                        'errors': errors
-                    }, 400
+            # Commit if there are no errors, rollback otherwise
+            if not errors:
+                db.session.commit()
+                return {
+                    'status': 'success',
+                    'message': f'Successfully imported {success_count} suppliers'
+                }, 200
+            else:
+                db.session.rollback()
+                return {
+                    'status': 'error',
+                    'message': 'Some suppliers could not be imported',
+                    'errors': errors
+                }, 400
         except Exception as e:
             db.session.rollback()
             supplier_ns.abort(400, f"Error processing import for suppliers: {str(e)}")
