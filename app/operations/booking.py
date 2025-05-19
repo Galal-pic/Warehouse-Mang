@@ -38,6 +38,7 @@ def Booking_Operations(data, machine, mechanism, supplier, employee, machine_ns,
             # Look up the warehouse item by name
             warehouse_item = Warehouse.query.filter_by(item_name=item_data["item_name"]).first()
             if not warehouse_item:
+                db.session.rollback()
                 return operation_result(404, "error", f"Item '{item_data['item_name']}' not found in warehouse")
             
             # Verify the location exists and has enough quantity
@@ -47,10 +48,12 @@ def Booking_Operations(data, machine, mechanism, supplier, employee, machine_ns,
             ).first()
             
             if not item_location:
+                db.session.rollback()
                 return operation_result(404, "error", f"Item '{item_data['item_name']}' not found in location '{item_data['location']}'")
             
             # Check for duplicate items
             if (warehouse_item.id, item_data['location']) in item_ids:
+                db.session.rollback()
                 return operation_result(400, "error", f"Item '{item_data['item_name']}' already added to invoice")
             
             item_ids.append((warehouse_item.id, item_data['location']))
@@ -58,6 +61,7 @@ def Booking_Operations(data, machine, mechanism, supplier, employee, machine_ns,
             # Check if enough quantity available
             requested_quantity = item_data["quantity"]
             if item_location.quantity < requested_quantity:
+                db.session.rollback()
                 return operation_result(400, "error", f"Not enough quantity for item '{item_data['item_name']}' in location '{item_data['location']}'. Available: {item_location.quantity}, Requested: {requested_quantity}",)
             
             # Update physical inventory in ItemLocations
@@ -123,6 +127,7 @@ def Booking_Operations(data, machine, mechanism, supplier, employee, machine_ns,
 def delete_booking(invoice, invoice_ns):
     # Check if it's a booking invoice
     if invoice.type != 'حجز':
+        db.session.rollback()
         return operation_result(400, "error", "Can only delete booking invoices with this method")
 
     try:
@@ -176,6 +181,7 @@ def put_booking(data, invoice, machine, mechanism, invoice_ns):
             for item_data in data["items"]:
                 warehouse_item = Warehouse.query.filter_by(item_name=item_data["item_name"]).first()
                 if not warehouse_item:
+                    db.session.rollback()
                     return operation_result(404, "error", f"Item '{item_data['item_name']}' not found in warehouse")
                 
                 location = item_data["location"]
@@ -187,6 +193,7 @@ def put_booking(data, invoice, machine, mechanism, invoice_ns):
                 ).first()
 
                 if not item_location:
+                    db.session.rollback()
                     return operation_result(404, "error", f"Item location not found")
 
                 # Calculate quantity difference
@@ -201,6 +208,7 @@ def put_booking(data, invoice, machine, mechanism, invoice_ns):
 
                 # Check stock availability for increases
                 if quantity_diff > 0 and item_location.quantity < quantity_diff:
+                    db.session.rollback()
                     return operation_result(400, "error", f"Insufficient stock for {item_data['item_name']}")
 
                 # Update inventory

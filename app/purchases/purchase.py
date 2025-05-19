@@ -1,5 +1,5 @@
 from datetime import datetime
-from ..models import Invoice, Warehouse, ItemLocations, InvoiceItem, Prices
+from ..models import Invoice, Warehouse, ItemLocations, InvoiceItem, Prices, InvoicePriceDetail
 from .. import db
 from sqlalchemy.exc import SQLAlchemyError
 from ..utils import operation_result
@@ -36,6 +36,7 @@ def Purchase_Operations(data, machine, mechanism, supplier, employee, machine_ns
             # Look up the warehouse item by name
             warehouse_item = Warehouse.query.filter_by(item_name=item_data["item_name"]).first()
             if not warehouse_item:
+                db.session.rollback()
                 return operation_result(404, "error" ,f"Item '{item_data['item_name']}' not found in warehouse")
             
             # Verify the location exists
@@ -55,6 +56,7 @@ def Purchase_Operations(data, machine, mechanism, supplier, employee, machine_ns
             
             # Check for duplicate items
             if (warehouse_item.id, item_data['location']) in item_ids:
+                db.session.rollback()
                 return operation_result(400, "error", f"Item '{item_data['item_name']}' already added to invoice")
             
             item_ids.append((warehouse_item.id, item_data['location']))
@@ -121,6 +123,7 @@ def delete_purchase(invoice, invoice_ns):
             if price_record:
                 # If original quantity doesn't match current quantity, some has been consumed
                 if price_record.quantity < invoice_item.quantity:
+                    db.session.rollback()
                     return operation_result(400, "error",  f"Cannot delete purchase invoice: Item '{invoice_item.warehouse.item_name}' " +
                         f"has already been partially sold using FIFO pricing. " +
                         f"Original: {invoice_item.quantity}, Remaining: {price_record.quantity}"
@@ -144,6 +147,7 @@ def delete_purchase(invoice, invoice_ns):
             
             # Check for negative quantity
             if item_location.quantity < 0:
+                db.session.rollback()
                 return operation_result(400, "error",  f"Cannot delete purchase invoice: Not enough quantity for item " +
                     f"'{invoice_item.warehouse.item_name}' in location '{invoice_item.location}'. " +
                     f"Some items may have already been moved or sold."
@@ -227,6 +231,7 @@ def put_purchase(data, invoice, machine, mechanism, invoice_ns):
                 
                 # Check for negative quantity after adjustment
                 if item_location.quantity < 0:
+                    db.session.rollback()
                     return operation_result(400, "error",  f"Cannot update purchase invoice: Not enough quantity for item " +
                         f"'{item_data['item_name']}' in location '{location}'. " +
                         f"Some items may have already been moved or sold."
@@ -264,19 +269,24 @@ def put_purchase(data, invoice, machine, mechanism, invoice_ns):
                 if price_record:
                     # Check if this price record has been partially consumed
                     original_price_quantity = original_items[key].quantity if key in original_items else 0
-                    if price_record.quantity < original_price_quantity:
-                        # Items have been consumed, calculate how many
-                        consumed = original_price_quantity - price_record.quantity
-                        
-                        # Cannot reduce below the consumed amount
-                        if new_quantity < consumed:
-                            return operation_result(400, "error",  f"Cannot update purchase invoice: {consumed} units of " +
-                                f"'{item_data['item_name']}' have already been sold using FIFO pricing. " +
-                                f"Cannot reduce quantity below {consumed}."
-                                )
-                        
-                        # Update price record with remaining available quantity
-                        price_record.quantity = new_quantity - consumed
+                    price_details = InvoicePriceDetail.query.filter_by(
+                        source_price_id=price_record.invoice_id,
+                    ).all()
+                    if price_details:
+                        consumed_quantity = sum(detail.quantity for detail in price_details)
+                        if consumed_quantity < original_price_quantity:
+                            # Items have been consumed, calculate how many
+                            consumed = original_price_quantity - consumed_quantity                            
+                            # Cannot reduce below the consumed amount
+                            if new_quantity < consumed:
+                                db.session.rollback()
+                                return operation_result(400, "error",  f"Cannot update purchase invoice: {consumed} units of " +
+                                    f"'{item_data['item_name']}' have already been sold using FIFO pricing. " +
+                                    f"Cannot reduce quantity below {consumed}."
+                                    )
+                            
+                            # Update price record with remaining available quantity
+                            price_record.quantity = new_quantity - consumed
                     else:
                         # No consumption has occurred, can fully update
                         price_record.quantity = new_quantity
@@ -313,6 +323,7 @@ def put_purchase(data, invoice, machine, mechanism, invoice_ns):
                     if price_record and price_record.quantity < item.quantity:
                         # Items have been consumed, cannot remove
                         consumed = item.quantity - price_record.quantity
+                        db.session.rollback()
                         return operation_result(400, "error",  f"Cannot remove item: {consumed} units of " +
                             f"'{item.warehouse.item_name}' have already been sold using FIFO pricing."
                             )
@@ -323,6 +334,7 @@ def put_purchase(data, invoice, machine, mechanism, invoice_ns):
                         
                         # Check for negative quantity
                         if item_location.quantity < 0:
+                            db.session.rollback()
                             return operation_result(400, "error",  f"Cannot remove item: Not enough quantity for " +
                                 f"'{item.warehouse.item_name}' in location '{location}'. " +
                                 f"Some items may have already been moved or sold."

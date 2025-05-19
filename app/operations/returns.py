@@ -38,6 +38,7 @@ def Return_Operations(data, machine, mechanism, supplier, employee, machine_ns, 
             # Look up the warehouse item by name
             warehouse_item = Warehouse.query.filter_by(item_name=item_data["item_name"]).first()
             if not warehouse_item:
+                db.session.rollback()
                 return operation_result(404, "error",f"Item '{item_data['item_name']}' not found in warehouse", None)
             
             # Verify or create the location
@@ -57,6 +58,7 @@ def Return_Operations(data, machine, mechanism, supplier, employee, machine_ns, 
             
             # Check for duplicate items
             if (warehouse_item.id, item_data['location']) in item_ids:
+                db.session.rollback()
                 return operation_result(400, "error",f"Item '{item_data['item_name']}' already added to invoice", None)
             
             item_ids.append((warehouse_item.id, item_data['location']))
@@ -112,6 +114,7 @@ def Return_Operations(data, machine, mechanism, supplier, employee, machine_ns, 
                             total_quantity += old_invoice_item.quantity
                             
                 if total_quantity + item_data['quantity'] > total_sales_items:
+                    db.session.rollback()
                     return operation_result(400, "error",f"Return quantity exceeds the total sales quantity for item '{item_data['item_name']}'", None)
                 
                 for detail in original_invoice_details:
@@ -165,6 +168,7 @@ def Return_Operations(data, machine, mechanism, supplier, employee, machine_ns, 
 def delete_return(invoice, invoice_ns):
     # Check if it's a return invoice
     if invoice.type != 'مرتجع':
+        db.session.rollback()
         return operation_result(400, "error", "Can only delete return invoices with this method")
 
     try:
@@ -176,7 +180,7 @@ def delete_return(invoice, invoice_ns):
             original_quantity = sum([item.quantity for item in invoice.items 
                                    if item.item_id == price_record.item_id])
             if price_record.quantity < original_quantity:
-
+                db.session.rollback()
                 return operation_result(400, "error",  f"Cannot delete return invoice: Some returned items have already been sold again.")
         
         # Restore quantities for each item (decrease for return deletion)
@@ -197,7 +201,7 @@ def delete_return(invoice, invoice_ns):
             
             # Check for negative quantity
             if item_location.quantity < 0:
-
+                db.session.rollback()
                 return operation_result(400, "error",  f"Cannot delete return invoice: Not enough quantity for item " +
                     f"'{invoice_item.warehouse.item_name}' in location '{invoice_item.location}'. " +
                     f"Some items may have already been moved or sold.")
@@ -234,6 +238,7 @@ def put_return(data, invoice, machine, mechanism, invoice_ns):
             for item_data in data["items"]:
                 warehouse_item = Warehouse.query.filter_by(item_name=item_data["item_name"]).first()
                 if not warehouse_item:
+                    db.session.rollback()
                     return operation_result(404, "error", f"Item '{item_data['item_name']}' not found in warehouse")
                 
                 location = item_data["location"]
@@ -270,6 +275,7 @@ def put_return(data, invoice, machine, mechanism, invoice_ns):
                 
                 # Check for negative quantity after adjustment
                 if item_location.quantity < 0:
+                    db.session.rollback()
                     return operation_result(400, "error",  f"Cannot update return invoice: Not enough quantity for item " +
                         f"'{item_data['item_name']}' in location '{location}'. " +
                         f"Some items may have already been moved or sold.")
@@ -312,6 +318,7 @@ def put_return(data, invoice, machine, mechanism, invoice_ns):
                         
                         # Cannot reduce below the consumed amount
                         if new_quantity < consumed:
+                            db.session.rollback()
                             return operation_result(400, "error",  f"Cannot update return invoice: {consumed} units of " +
                                 f"'{item_data['item_name']}' have already been sold again. " +
                                 f"Cannot reduce quantity below {consumed}.")
@@ -355,6 +362,7 @@ def put_return(data, invoice, machine, mechanism, invoice_ns):
                     if price_record and price_record.quantity < item.quantity:
                         # Items have been consumed, cannot remove
                         consumed = item.quantity - price_record.quantity
+                        db.session.rollback()
                         return operation_result(400, "error",  f"Cannot remove item: {consumed} units of " +
                             f"'{item.warehouse.item_name}' have already been sold again.")
                     
@@ -364,6 +372,7 @@ def put_return(data, invoice, machine, mechanism, invoice_ns):
                         
                         # Check for negative quantity
                         if item_location.quantity < 0:
+                            db.session.rollback()
                             return operation_result(400, "error",  f"Cannot remove item: Not enough quantity for " +
                                 f"'{item.warehouse.item_name}' in location '{location}'. " +
                                 f"Some items may have already been moved or sold.")

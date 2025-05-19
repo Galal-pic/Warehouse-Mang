@@ -37,6 +37,7 @@ def PurchaseRequest_Operations(data, machine, mechanism, supplier, employee, mac
             # Verify the warehouse item exists
             warehouse_item = Warehouse.query.filter_by(item_name=item_data["item_name"]).first()
             if not warehouse_item:
+                db.session.rollback()
                 return operation_result(404, "error" ,f"Item '{item_data['item_name']}' not found in warehouse")
             
             item_location = ItemLocations.query.filter_by(
@@ -45,10 +46,12 @@ def PurchaseRequest_Operations(data, machine, mechanism, supplier, employee, mac
             ).first()
             
             if not item_location:
+                db.session.rollback()
                 return operation_result(404, "error" ,f"Item '{item_data['item_name']}' not found in location '{item_data['location']}'")
             
             # Check for duplicate items
             if (warehouse_item.id, item_data['location']) in item_ids:
+                db.session.rollback()
                 return operation_result(400, "error" ,f"Item '{item_data['item_name']}' already added to invoice")
             
             item_ids.append((warehouse_item.id, item_data['location']))
@@ -57,6 +60,7 @@ def PurchaseRequest_Operations(data, machine, mechanism, supplier, employee, mac
             last_price_entry = Prices.query.filter_by(item_id=warehouse_item.id).order_by(Prices.invoice_id.desc()).first()
             
             if not last_price_entry:
+                db.session.rollback()
                 return operation_result(400, "error" ,f"No price information found for item '{item_data['item_name']}'")
 
 
@@ -114,10 +118,12 @@ def PurchaseRequest_Operations(data, machine, mechanism, supplier, employee, mac
 def delete_purchase_request(invoice, invoice_ns):
     # Check if it's a sales invoice
     if invoice.type != 'طلب شراء':
+        db.session.rollback()
         return operation_result(400, "error", "Can only delete purchase request invoices with this method")
     try:
         purchase_request = PurchaseRequests.query.filter_by(invoice_id=invoice.id).first()
         if not purchase_request:
+            db.session.rollback()
             return operation_result(404, "error", "لم يتم العثور على طلب شراء")
         db.session.delete(purchase_request)
         db.session.delete(invoice)
@@ -140,6 +146,7 @@ def put_purchase_request(data, invoice, machine, mechanism, invoice_ns):
             # Verify the warehouse item exists
                 warehouse_item = Warehouse.query.filter_by(item_name=item_data["item_name"]).first()
                 if not warehouse_item:
+                    db.session.rollback()
                     return operation_result(404, "error", f"Item '{item_data['item_name']}' not found in warehouse")
                 
                 item_location = ItemLocations.query.filter_by(
@@ -148,10 +155,12 @@ def put_purchase_request(data, invoice, machine, mechanism, invoice_ns):
                 ).first()
                 
                 if not item_location:
+                    db.session.rollback()
                     return operation_result(404, "error", f"Item '{item_data['item_name']}' not found in location '{item_data['location']}'")
                 
                 # Check for duplicate items
                 if (warehouse_item.id, item_data['location']) in item_ids:
+                    db.session.rollback()
                     return operation_result(400, "error", f"Item '{item_data['item_name']}' already added to invoice")
                 
                 item_ids.append((warehouse_item.id, item_data['location']))
@@ -160,6 +169,7 @@ def put_purchase_request(data, invoice, machine, mechanism, invoice_ns):
                 last_price_entry = Prices.query.filter_by(item_id=warehouse_item.id).order_by(Prices.invoice_id.desc()).first()
                 
                 if not last_price_entry:
+                    db.session.rollback()
                     return operation_result(400, "error", f"No price information found for item '{item_data['item_name']}'")
 
                 subtotal = item_data["quantity"] * last_price_entry.unit_price

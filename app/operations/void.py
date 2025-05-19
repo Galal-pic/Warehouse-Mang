@@ -37,6 +37,7 @@ def Void_Operations(data, machine, mechanism, supplier, employee, machine_ns, wa
             # Look up the warehouse item by name
             warehouse_item = Warehouse.query.filter_by(item_name=item_data["item_name"]).first()
             if not warehouse_item:
+                db.session.rollback()
                 return operation_result(404, "error", f"Item '{item_data['item_name']}' not found in warehouse")
             
             # Verify the location exists and has enough quantity
@@ -46,10 +47,12 @@ def Void_Operations(data, machine, mechanism, supplier, employee, machine_ns, wa
             ).first()
             
             if not item_location:
+                db.session.rollback()
                 return operation_result(404, "error", f"Item '{item_data['item_name']}' not found in location '{item_data['location']}'")
             
             # Check for duplicate items
             if (warehouse_item.id, item_data['location']) in item_ids:
+                db.session.rollback()
                 return operation_result(400, "error", f"Item '{item_data['item_name']}' already added to invoice")
             
             item_ids.append((warehouse_item.id, item_data['location']))
@@ -57,6 +60,7 @@ def Void_Operations(data, machine, mechanism, supplier, employee, machine_ns, wa
             # Check if enough quantity available in location
             requested_quantity = item_data["quantity"]
             if item_location.quantity < requested_quantity:
+                db.session.rollback()
                 return operation_result(400, "error", f"Not enough quantity for item '{item_data['item_name']}' in location '{item_data['location']}'. Available: {item_location.quantity}, Requested: {requested_quantity}")
             # Update physical inventory in ItemLocations
             item_location.quantity -= requested_quantity
@@ -182,6 +186,7 @@ def Void_Operations(data, machine, mechanism, supplier, employee, machine_ns, wa
 def delete_void(invoice, invoice_ns):
     # Check if it's a void invoice
     if invoice.type != 'توالف':
+        db.session.rollback()
         return operation_result(400, "error", "Can only delete void invoices with this method")
 
     try:
@@ -322,6 +327,7 @@ def put_void(data, invoice, machine, mechanism, invoice_ns):
                 # Look up the warehouse item by name
                 warehouse_item = Warehouse.query.filter_by(item_name=item_data["item_name"]).first()
                 if not warehouse_item:
+                    db.session.rollback()
                     return operation_result(404, "error", f"Item '{item_data['item_name']}' not found in warehouse")
                 
                 # Verify the location exists and has enough quantity
@@ -331,10 +337,12 @@ def put_void(data, invoice, machine, mechanism, invoice_ns):
                 ).first()
                 
                 if not item_location:
+                    db.session.rollback()
                     return operation_result(404, "error", f"Item '{item_data['item_name']}' not found in location '{item_data['location']}'")
                 
                 # Check for duplicate items
                 if (warehouse_item.id, item_data['location']) in item_ids:
+                    db.session.rollback()
                     return operation_result(400, "error", f"Item '{item_data['item_name']}' already added to invoice")
                 
                 item_ids.append((warehouse_item.id, item_data['location']))
@@ -342,6 +350,7 @@ def put_void(data, invoice, machine, mechanism, invoice_ns):
                 # Check if enough quantity available in location
                 requested_quantity = item_data["quantity"]
                 if item_location.quantity < requested_quantity:
+                    db.session.rollback()
                     return operation_result(400, "error", f"Not enough quantity for item '{item_data['item_name']}' in location '{item_data['location']}'. Available: {item_location.quantity}, Requested: {requested_quantity}")
                 
                 # Update physical inventory in ItemLocations

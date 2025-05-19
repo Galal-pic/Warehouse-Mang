@@ -1,8 +1,6 @@
 from datetime import datetime
 from . import db
 
-# Add this to your models.py file, replacing the existing Employee model
-
 class Employee(db.Model):
     __tablename__ = 'employee'
     id = db.Column(db.Integer, primary_key=True)

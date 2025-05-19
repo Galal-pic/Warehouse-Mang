@@ -1,7 +1,7 @@
 from flask_restx import Namespace, Resource, fields
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from .. import db
-from ..models import Warehouse,ItemLocations, Invoice, Employee, Machine, Mechanism, InvoiceItem, Prices
+from ..models import Warehouse,ItemLocations, Invoice, Employee, InvoiceItem, Prices
 from ..utils import parse_bool
 from datetime import datetime
 warehouse_ns = Namespace('warehouse', description='Warehouse operations')
@@ -58,8 +58,6 @@ class WarehouseExcel(Resource):
         success_count = 0
         employee = Employee.query.filter_by(id=employee_id).first()
         employee_id = get_jwt_identity()
-        machine = Machine.query.first()
-        mechanism = Mechanism.query.first()
         new_invoice = Invoice(
                 type="اضافه",
                 client_name="",
@@ -73,8 +71,8 @@ class WarehouseExcel(Resource):
                 supplier_id=None,
                 employee_name=employee.username,
                 employee_id=employee.id,
-                machine_id=machine.id if machine else None,
-                mechanism_id=mechanism.id if mechanism else None,
+                machine_id=None,
+                mechanism_id=None,
             )
         db.session.add(new_invoice)
         try:
