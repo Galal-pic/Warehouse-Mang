@@ -9,14 +9,17 @@ import { useImportMachinesMutation } from "../../pages/services/machineApi";
 import { useImportMechanismMutation } from "../../pages/services/mechanismApi";
 import { useImportSupplierMutation } from "../../pages/services/supplierApi";
 import { useImportWarehouseMutation } from "../../pages/services/invoice&warehouseApi";
-
+import { supplierApi } from "../../pages/services/supplierApi";
+import { machineApi } from "../../pages/services/machineApi";
+import { mechanismApi } from "../../pages/services/mechanismApi";
+import { useDispatch } from "react-redux";
 
 const CustomToolbar = ({
   initialItems,
   setOpenDialog,
   paginationModel,
   type,
-  addPermissions=false
+  addPermissions = false,
 }) => {
   const primaryColor = getComputedStyle(
     document.documentElement
@@ -26,16 +29,17 @@ const CustomToolbar = ({
   const [importMechanisms] = useImportMechanismMutation();
   const [importSuppliers] = useImportSupplierMutation();
   const [importWarehouses] = useImportWarehouseMutation();
+  const dispatch = useDispatch();
 
-  // snackbar
+  // SnackBar state
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackBarType, setSnackBarType] = useState("");
-  // Handle close snack
   const handleCloseSnackbar = () => {
     setOpenSnackbar(false);
   };
 
+  // Menu state
   const [anchorEl, setAnchorEl] = useState(null);
   const open = Boolean(anchorEl);
 
@@ -56,8 +60,7 @@ const CustomToolbar = ({
         result = await importMechanisms(data).unwrap();
       else if (type === "supplier")
         result = await importSuppliers(data).unwrap();
-      else if (type === "items")
-        result = await importWarehouses(data).unwrap();
+      else if (type === "items") result = await importWarehouses(data).unwrap();
 
       setOpenSnackbar(true);
       setSnackbarMessage("تم إضافة البيانات بنجاح");
@@ -91,7 +94,7 @@ const CustomToolbar = ({
     handleClose();
   };
 
-  const handleExport = () => {
+  const handleExportOnePage = () => {
     if (!paginationModel) {
       console.error("paginationModel is undefined");
       return;
@@ -126,6 +129,74 @@ const CustomToolbar = ({
     handleClose();
   };
 
+  const handleExportAllPages = async () => {
+    try {
+      let allData = [];
+      setOpenSnackbar(true);
+      setSnackbarMessage("جارٍ تحميل البيانات، يرجى الانتظار...");
+      setSnackBarType("info");
+
+      // Select the appropriate endpoint based on type
+      if (type === "supplier") {
+        const { data } = await dispatch(
+          supplierApi.endpoints.getSuppliers.initiate({ all: true })
+        );
+        allData = data?.suppliers || [];
+      } else if (type === "machine") {
+        const { data } = await dispatch(
+          machineApi.endpoints.getMachines.initiate({ all: true })
+        );
+        allData = data?.machines || [];
+      } else if (type === "mechanism") {
+        const { data } = await dispatch(
+          mechanismApi.endpoints.getMechanisms.initiate({ all: true })
+        );
+        allData = data?.mechanisms || [];
+      } else if (type === "items") {
+        // For items, use initialItems and flatten locations
+        allData = initialItems.flatMap((item) =>
+          item.locations && Array.isArray(item.locations)
+            ? item.locations.map((location) => ({
+                id: item.id,
+                item_name: item.item_name,
+                item_bar: item.item_bar,
+                location: location.location,
+                price_unit: location.price_unit,
+                quantity: location.quantity,
+              }))
+            : item
+        );
+      }
+
+      if (!allData.length) {
+        setOpenSnackbar(true);
+        setSnackbarMessage("لا توجد بيانات للتصدير");
+        setSnackBarType("info");
+        return;
+      }
+
+      // Export to Excel
+      const ws = XLSX.utils.json_to_sheet(allData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+      XLSX.writeFile(wb, `exported_${type}_all_data.xlsx`, {
+        bookType: "xlsx",
+        type: "binary",
+      });
+
+      setOpenSnackbar(true);
+      setSnackbarMessage("تم تصدير جميع البيانات بنجاح");
+      setSnackBarType("success");
+    } catch (error) {
+      console.error("Error exporting all data:", error);
+      setOpenSnackbar(true);
+      setSnackbarMessage("حدث خطأ أثناء تصدير البيانات");
+      setSnackBarType("error");
+    }
+
+    handleClose();
+  };
+
   return (
     <GridToolbarContainer>
       <Box
@@ -145,15 +216,13 @@ const CustomToolbar = ({
               cursor: "pointer",
             }}
             onClick={() => {
-              if(addPermissions){
-                setOpenDialog(true)
-              }
-              else{
+              if (addPermissions) {
+                setOpenDialog(true);
+              } else {
                 setOpenSnackbar(true);
                 setSnackbarMessage("ليس لديك صلاحيات لإضافة عنصر");
                 setSnackBarType("info");
               }
-              
             }}
           >
             <AddCircleIcon sx={{ fontSize: "50px" }} fontSize="large" />
@@ -227,7 +296,8 @@ const CustomToolbar = ({
                 onChange={handleImport}
               />
             </MenuItem>
-            <MenuItem onClick={handleExport}>Export</MenuItem>
+            <MenuItem onClick={handleExportOnePage}>Export one page</MenuItem>
+            <MenuItem onClick={handleExportAllPages}>Export all page</MenuItem>
           </Menu>
         </Box>
       </Box>
