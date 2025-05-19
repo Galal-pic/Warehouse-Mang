@@ -483,23 +483,29 @@ const CustomToolbar = ({
             <MenuItem onClick={handleExportOnePage}>Export this page</MenuItem>
             <MenuItem onClick={handleExportAllPages}>Export all pages</MenuItem>
             {/* New export options only for items page */}
-            {type === "items" && (
-              <>
-                <MenuItem onClick={handleExportBasicItemData}>
-                  Export Basic Item Data
-                </MenuItem>
-                <MenuItem onClick={handleExportItemLocationData}>
-                  Export Item Location Data
-                </MenuItem>
-                <MenuItem onClick={handleExportItemPriceData}>
-                  Export Item Price Data
-                </MenuItem>
-              </>
-            )}
+            {type === "items" && [
+              <MenuItem
+                key="basic-item-data"
+                onClick={handleExportBasicItemData}
+              >
+                Export Basic Item Data
+              </MenuItem>,
+              <MenuItem
+                key="item-location-data"
+                onClick={handleExportItemLocationData}
+              >
+                Export Item Location Data
+              </MenuItem>,
+              <MenuItem
+                key="item-price-data"
+                onClick={handleExportItemPriceData}
+              >
+                Export Item Price Data
+              </MenuItem>,
+            ]}
           </Menu>
         </Box>
       </Box>
-      {/* Snackbar */}
       <SnackBar
         open={openSnackbar}
         message={snackbarMessage}
