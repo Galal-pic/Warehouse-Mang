@@ -10,9 +10,9 @@ export const api = createApi({
       return headers;
     },
   }),
-  tagTypes: ["Invoice", "Warehouse"],
+  tagTypes: ["Invoice", "Warehouse", "Reports"],
   endpoints: (builder) => ({
-    // Endpoints من warehouseApi
+    // Existing warehouseApi endpoints
     getWarehouses: builder.query({
       query: ({ page, page_size, all = false }) => {
         const queryParams = all
@@ -68,7 +68,7 @@ export const api = createApi({
       query: (id) => `/warehouse/${id}`,
     }),
 
-    // Endpoints من invoiceApi
+    // Existing invoiceApi endpoints
     getLastInvoiceId: builder.query({
       query: () => "/invoice/last-id",
       providesTags: ["Invoice"],
@@ -159,11 +159,30 @@ export const api = createApi({
     getInvoice: builder.query({
       query: (id) => `/invoice/${id}`,
     }),
+
+    // Modified endpoint for /reports/
+    getReports: builder.query({
+      query: () => "/reports/?all=true",
+      providesTags: ["Reports"],
+      transformResponse: (response) => ({
+        employee: response.employee || [],
+        supplier: response.supplier || [],
+        machine: response.machine || [],
+        mechanism: response.mechanism || [],
+        invoice: response.invoice || [],
+        invoice_item: response.invoice_item || [],
+        warehouse: response.warehouse || [],
+        item_locations: response.item_locations || [],
+        prices: response.prices || [],
+        invoice_price_detail: response.invoice_price_detail || [],
+        purchase_requests: response.purchase_requests || [],
+      }),
+    }),
   }),
 });
 
 export const {
-  // Hooks من warehouseApi
+  // Existing warehouseApi hooks
   useGetWarehousesQuery,
   useAddWarehouseMutation,
   useUpdateWarehouseMutation,
@@ -171,7 +190,7 @@ export const {
   useImportWarehouseMutation,
   useDetailsReportQuery,
   useGetItemQuery,
-  // Hooks من invoiceApi
+  // Existing invoiceApi hooks
   useGetLastInvoiceIdQuery,
   useCreateInvoiceMutation,
   useGetInvoicesQuery,
@@ -183,4 +202,6 @@ export const {
   useReturnWarrantyInvoiceMutation,
   usePriceReportQuery,
   useGetInvoiceQuery,
+  // Hook for reports
+  useGetReportsQuery,
 } = api;

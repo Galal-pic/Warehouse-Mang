@@ -8,7 +8,11 @@ import SnackBar from "../../components/snackBar/SnackBar";
 import { useImportMachinesMutation } from "../../pages/services/machineApi";
 import { useImportMechanismMutation } from "../../pages/services/mechanismApi";
 import { useImportSupplierMutation } from "../../pages/services/supplierApi";
-import { useImportWarehouseMutation } from "../../pages/services/invoice&warehouseApi";
+import {
+  useImportWarehouseMutation,
+  useGetReportsQuery,
+  api,
+} from "../../pages/services/invoice&warehouseApi";
 import { supplierApi } from "../../pages/services/supplierApi";
 import { machineApi } from "../../pages/services/machineApi";
 import { mechanismApi } from "../../pages/services/mechanismApi";
@@ -31,6 +35,12 @@ const CustomToolbar = ({
   const [importSuppliers] = useImportSupplierMutation();
   const [importWarehouses] = useImportWarehouseMutation();
   const dispatch = useDispatch();
+
+  // Fetch reports data for the new export options (only when needed)
+  const { data: reportsData, error: reportsError } = useGetReportsQuery(
+    { all: true },
+    { skip: type !== "items" } // Only fetch when type is "items"
+  );
 
   // SnackBar state
   const [openSnackbar, setOpenSnackbar] = useState(false);
@@ -196,7 +206,10 @@ const CustomToolbar = ({
         );
         allData = data?.mechanisms || [];
       } else if (type === "items") {
-        allData = initialItems.flatMap((item) =>
+        const { data } = await dispatch(
+          api.endpoints.getWarehouses.initiate({ all: true })
+        );
+        allData = (data?.warehouses || []).flatMap((item) =>
           item.locations && Array.isArray(item.locations)
             ? item.locations.map((location) => ({
                 id: item.id,
@@ -246,6 +259,122 @@ const CustomToolbar = ({
       console.error("Error exporting all data:", error);
       setOpenSnackbar(true);
       setSnackbarMessage("حدث خطأ أثناء تصدير البيانات");
+      setSnackBarType("error");
+    }
+
+    handleClose();
+  };
+
+  // New export handlers for items page
+  const handleExportBasicItemData = () => {
+    if (reportsError) {
+      setOpenSnackbar(true);
+      setSnackbarMessage("خطأ في جلب بيانات التقارير");
+      setSnackBarType("error");
+      return;
+    }
+
+    const warehouseData = reportsData?.warehouse || [];
+    console.log("warehouseData", reportsData);
+    if (!warehouseData.length) {
+      setOpenSnackbar(true);
+      setSnackbarMessage("لا توجد بيانات أساسية للمنتجات للتصدير");
+      setSnackBarType("info");
+      return;
+    }
+
+    try {
+      const ws = XLSX.utils.json_to_sheet(warehouseData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Basic Item Data");
+      XLSX.writeFile(wb, `exported_items_basic_data.xlsx`, {
+        bookType: "xlsx",
+        type: "binary",
+      });
+
+      setOpenSnackbar(true);
+      setSnackbarMessage("تم تصدير بيانات المنتجات الأساسية بنجاح");
+      setSnackBarType("success");
+    } catch (error) {
+      console.error("Error exporting basic item data:", error);
+      setOpenSnackbar(true);
+      setSnackbarMessage("حدث خطأ أثناء تصدير بيانات المنتجات الأساسية");
+      setSnackBarType("error");
+    }
+
+    handleClose();
+  };
+
+  const handleExportItemLocationData = () => {
+    if (reportsError) {
+      setOpenSnackbar(true);
+      setSnackbarMessage("خطأ في جلب بيانات التقارير");
+      setSnackBarType("error");
+      return;
+    }
+
+    const itemLocationsData = reportsData?.item_locations || [];
+    if (!itemLocationsData.length) {
+      setOpenSnackbar(true);
+      setSnackbarMessage("لا توجد بيانات مواقع المنتجات للتصدير");
+      setSnackBarType("info");
+      return;
+    }
+
+    try {
+      const ws = XLSX.utils.json_to_sheet(itemLocationsData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Item Locations");
+      XLSX.writeFile(wb, `exported_item_locations.xlsx`, {
+        bookType: "xlsx",
+        type: "binary",
+      });
+
+      setOpenSnackbar(true);
+      setSnackbarMessage("تم تصدير بيانات مواقع المنتجات بنجاح");
+      setSnackBarType("success");
+    } catch (error) {
+      console.error("Error exporting item location data:", error);
+      setOpenSnackbar(true);
+      setSnackbarMessage("حدث خطأ أثناء تصدير بيانات مواقع المنتجات");
+      setSnackBarType("error");
+    }
+
+    handleClose();
+  };
+
+  const handleExportItemPriceData = () => {
+    if (reportsError) {
+      setOpenSnackbar(true);
+      setSnackbarMessage("خطأ في جلب بيانات التقارير");
+      setSnackBarType("error");
+      return;
+    }
+
+    const pricesData = reportsData?.prices || [];
+    if (!pricesData.length) {
+      setOpenSnackbar(true);
+      setSnackbarMessage("لا توجد بيانات أسعار المنتجات للتصدير");
+      setSnackBarType("info");
+      return;
+    }
+
+    try {
+      const ws = XLSX.utils.json_to_sheet(pricesData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Item Prices");
+      XLSX.writeFile(wb, `exported_item_prices.xlsx`, {
+        bookType: "xlsx",
+        type: "binary",
+      });
+
+      setOpenSnackbar(true);
+      setSnackbarMessage("تم تصدير بيانات أسعار المنتجات بنجاح");
+      setSnackBarType("success");
+    } catch (error) {
+      console.error("Error exporting item price data:", error);
+      setOpenSnackbar(true);
+      setSnackbarMessage("حدث خطأ أثناء تصدير بيانات أسعار المنتجات");
       setSnackBarType("error");
     }
 
@@ -352,7 +481,21 @@ const CustomToolbar = ({
               />
             </MenuItem>
             <MenuItem onClick={handleExportOnePage}>Export this page</MenuItem>
-            <MenuItem onClick={handleExportAllPages}>Export all page</MenuItem>
+            <MenuItem onClick={handleExportAllPages}>Export all pages</MenuItem>
+            {/* New export options only for items page */}
+            {type === "items" && (
+              <>
+                <MenuItem onClick={handleExportBasicItemData}>
+                  Export Basic Item Data
+                </MenuItem>
+                <MenuItem onClick={handleExportItemLocationData}>
+                  Export Item Location Data
+                </MenuItem>
+                <MenuItem onClick={handleExportItemPriceData}>
+                  Export Item Price Data
+                </MenuItem>
+              </>
+            )}
           </Menu>
         </Box>
       </Box>
