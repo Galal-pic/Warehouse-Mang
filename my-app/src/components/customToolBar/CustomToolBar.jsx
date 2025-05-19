@@ -20,6 +20,7 @@ const CustomToolbar = ({
   paginationModel,
   type,
   addPermissions = false,
+  columnVisibilityModel,
 }) => {
   const primaryColor = getComputedStyle(
     document.documentElement
@@ -95,36 +96,78 @@ const CustomToolbar = ({
   };
 
   const handleExportOnePage = () => {
-    if (!paginationModel) {
-      console.error("paginationModel is undefined");
+    // Use initialItems directly as it contains the current page's data
+    const currentPageRows = initialItems;
+
+    if (!currentPageRows || currentPageRows.length === 0) {
+      setOpenSnackbar(true);
+      setSnackbarMessage("لا توجد بيانات في الصفحة الحالية للتصدير");
+      setSnackBarType("info");
+      console.warn("No data available for the current page");
       return;
     }
 
-    const { page, pageSize } = paginationModel;
-    const start = page * pageSize;
-    const end = start + pageSize;
-    const currentPageRows = initialItems.slice(start, end);
+    // Flatten data based on type
+    let exportData = [];
+    if (type === "items") {
+      // For items, flatten locations
+      exportData = currentPageRows.flatMap((item) =>
+        item.locations && Array.isArray(item.locations)
+          ? item.locations.map((location) => ({
+              id: item.id,
+              item_name: item.item_name,
+              item_bar: item.item_bar,
+              location: location.location,
+              price_unit: location.price_unit,
+              quantity: location.quantity,
+            }))
+          : item
+      );
+    } else {
+      // For supplier, machine, mechanism, use the data as is
+      exportData = currentPageRows.map((item) => ({
+        id: item.id,
+        name: item.name,
+        description: item.description,
+      }));
+    }
 
-    const flattenedItems = currentPageRows.flatMap((item) =>
-      item.locations && Array.isArray(item.locations)
-        ? item.locations.map((location) => ({
-            id: item.id,
-            item_name: item.item_name,
-            item_bar: item.item_bar,
-            location: location.location,
-            price_unit: location.price_unit,
-            quantity: location.quantity,
-          }))
-        : item
-    );
+    // Optional: Filter out hidden columns using columnVisibilityModel
+    if (columnVisibilityModel) {
+      exportData = exportData.map((item) => {
+        const filteredItem = {};
+        Object.keys(item).forEach((key) => {
+          if (columnVisibilityModel[key] !== false) {
+            filteredItem[key] = item[key];
+          }
+        });
+        return filteredItem;
+      });
+    }
 
-    const ws = XLSX.utils.json_to_sheet(flattenedItems);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
-    XLSX.writeFile(wb, "exported_data.xlsx", {
-      bookType: "xlsx",
-      type: "binary",
-    });
+    // Create Excel file
+    try {
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+      XLSX.writeFile(
+        wb,
+        `exported_${type}_page_${paginationModel.page + 1}.xlsx`,
+        {
+          bookType: "xlsx",
+          type: "binary",
+        }
+      );
+
+      setOpenSnackbar(true);
+      setSnackbarMessage("تم تصدير الصفحة الحالية بنجاح");
+      setSnackBarType("success");
+    } catch (error) {
+      console.error("Error exporting current page:", error);
+      setOpenSnackbar(true);
+      setSnackbarMessage("حدث خطأ أثناء تصدير الصفحة");
+      setSnackBarType("error");
+    }
 
     handleClose();
   };
@@ -153,7 +196,6 @@ const CustomToolbar = ({
         );
         allData = data?.mechanisms || [];
       } else if (type === "items") {
-        // For items, use initialItems and flatten locations
         allData = initialItems.flatMap((item) =>
           item.locations && Array.isArray(item.locations)
             ? item.locations.map((location) => ({
@@ -173,6 +215,19 @@ const CustomToolbar = ({
         setSnackbarMessage("لا توجد بيانات للتصدير");
         setSnackBarType("info");
         return;
+      }
+
+      // Optional: Filter out hidden columns using columnVisibilityModel
+      if (columnVisibilityModel) {
+        allData = allData.map((item) => {
+          const filteredItem = {};
+          Object.keys(item).forEach((key) => {
+            if (columnVisibilityModel[key] !== false) {
+              filteredItem[key] = item[key];
+            }
+          });
+          return filteredItem;
+        });
       }
 
       // Export to Excel
@@ -296,7 +351,7 @@ const CustomToolbar = ({
                 onChange={handleImport}
               />
             </MenuItem>
-            <MenuItem onClick={handleExportOnePage}>Export one page</MenuItem>
+            <MenuItem onClick={handleExportOnePage}>Export this page</MenuItem>
             <MenuItem onClick={handleExportAllPages}>Export all page</MenuItem>
           </Menu>
         </Box>
