@@ -526,7 +526,7 @@ export default function Invoices() {
   const [selectedRows, setSelectedRows] = useState([]);
 
   // custom toolbar
-  function CustomToolbar() {
+  function CustomToolbar({ columnVisibilityModel, ...props }) {
     const printableTableRef = useRef(null);
 
     const handlePrint = () => {
@@ -542,26 +542,26 @@ export default function Invoices() {
         iframeDocument.open();
 
         iframeDocument.write(`
-          <html>
-            <head>
-              <title>Print</title>
-              <style>
-                table {
-                  width: 100%;
-                  border-collapse: collapse;
-                }
-                th, td {
-                  border: 1px solid black;
-                  padding: 8px;
-                  text-align: center;
-                }
-              </style>
-            </head>
-            <body>
-              ${printableTableRef.current.innerHTML}
-            </body>
-          </html>
-        `);
+        <html>
+          <head>
+            <title>Print</title>
+            <style>
+              table {
+                width: 100%;
+                border-collapse: collapse;
+              }
+              th, td {
+                border: 1px solid black;
+                padding: 8px;
+                text-align: center;
+              }
+            </style>
+          </head>
+          <body>
+            ${printableTableRef.current.innerHTML}
+          </body>
+        </html>
+      `);
 
         iframeDocument.close();
 
@@ -668,6 +668,7 @@ export default function Invoices() {
           ref={printableTableRef}
           data={invoices}
           columns={columns}
+          columnVisibilityModel={columnVisibilityModel}
         />
       </GridToolbarContainer>
     );

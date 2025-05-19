@@ -155,6 +155,8 @@ export default function CustomDataGrid({
     handleSelectionChange(newSelection);
   };
 
+  const [columnVisibilityModel, setColumnVisibilityModel] = React.useState({});
+
   return (
     <DataGrid
       rowSelectionModel={rowSelectionModel}
@@ -196,6 +198,7 @@ export default function CustomDataGrid({
           type,
           setOpenDialog,
           addPermissions,
+          columnVisibilityModel, // تمرير نموذج إخفاء الأعمدة
         },
         pagination: {
           page: paginationModel.page,
@@ -205,6 +208,10 @@ export default function CustomDataGrid({
       }}
       pagination
       paginationModel={paginationModel}
+      columnVisibilityModel={columnVisibilityModel} // إضافة نموذج إخفاء الأعمدة
+      onColumnVisibilityModelChange={(newModel) =>
+        setColumnVisibilityModel(newModel)
+      } // تحديث النموذج عند التغيير
       disableVirtualization={false}
       getRowClassName={(params) => {
         const { page, pageSize } = paginationModel;
