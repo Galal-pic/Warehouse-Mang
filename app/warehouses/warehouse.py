@@ -1,9 +1,9 @@
 from flask_restx import Namespace, Resource, fields
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from .. import db
-from ..models import Warehouse,ItemLocations
+from ..models import Warehouse,ItemLocations, Invoice, Employee, Machine, Mechanism, InvoiceItem, Prices
 from ..utils import parse_bool
-
+from datetime import datetime
 warehouse_ns = Namespace('warehouse', description='Warehouse operations')
 item_location_ns = Namespace('item_location', description='Item Location operations')
 pagination_parser = warehouse_ns.parser()
@@ -44,7 +44,120 @@ pagination_model = warehouse_ns.model('WarehousePagination', {
     'total_items': fields.Integer(required=True),
     'all': fields.Boolean(required=True)
 })
-# Warehouse Endpoints
+@warehouse_ns.route('/excel')
+class WarehouseExcel(Resource):
+    @jwt_required()
+    def post(self):
+        """Import warehouse data from Excel"""
+        payload = warehouse_ns.payload
+        if not payload or 'data' not in payload:
+            warehouse_ns.abort(400, "Invalid payload format")
+        if 'warehouse_manager' not in payload:
+            warehouse_ns.abort(400, "warehouse_manager is required")
+        errors = []
+        success_count = 0
+        employee = Employee.query.filter_by(id=employee_id).first()
+        employee_id = get_jwt_identity()
+        machine = Machine.query.first()
+        mechanism = Mechanism.query.first()
+        new_invoice = Invoice(
+                type="اضافه",
+                client_name="",
+                warehouse_manager=payload.get("warehouse_manager"),
+                accreditation_manager=payload.get("warehouse_manager"),
+                total_amount=0,
+                paid=0,
+                residual=0,
+                comment="",
+                status="draft",  # Default to draft if not provided
+                supplier_id=None,
+                employee_name=employee.username,
+                employee_id=employee.id,
+                machine_id=machine.id if machine else None,
+                mechanism_id=mechanism.id if mechanism else None,
+            )
+        db.session.add(new_invoice)
+        try:
+            for item in payload['data']:
+                if 'item_name' not in item:
+                    warehouse_ns.abort(400, f"Item name is required for item {item['item_name']}")
+                if 'item_bar' not in item:
+                    warehouse_ns.abort(400, f"Item bar is required for item {item['item_name']}")
+                if 'quantity' not in item:
+                    warehouse_ns.abort(400, f"Quantity is required for item {item['item_name']}")
+                if 'location' not in item:
+                    item['location'] = 'raf1'
+
+                # Check if item already exists
+                existing_item = Warehouse.query.filter(
+                    (Warehouse.item_name == item['item_name']) | 
+                    (Warehouse.item_bar == item['item_bar'])
+                ).first()
+                
+                if existing_item:
+                    errors.append(f"Item '{item['item_name']}' or barcode '{item['item_bar']}' already exists")
+                    continue
+                
+                # Create new item
+                try:
+                    new_item = Warehouse(
+                        item_name=item['item_name'],
+                        item_bar=item['item_bar']
+                    )
+                    db.session.add(new_item)
+                    db.session.flush()  # Flush to get the new item's ID
+                    
+                    # Add the item location with quantity
+                    item_location = ItemLocations(
+                        item_id=new_item.id,
+                        location=item['location'],
+                        quantity=item['quantity']
+                    )
+                    db.session.add(item_location)
+                    
+                    invoice_item = InvoiceItem(
+                        invoice_id=new_invoice.id,
+                        item_id=new_item.id,
+                        quantity=item['quantity'],
+                        location="raf1",
+                        unit_price=0,
+                        total_price=0,
+                        description=""
+                    )
+                    db.session.add(invoice_item)
+                    price = Prices(
+                        invoice_id=new_invoice.id,
+                        item_id=new_item.id,
+                        quantity=item['quantity'],
+                        unit_price=0,
+                        created_at=datetime.now()  # Explicitly set creation time for FIFO ordering
+                    )
+                    db.session.add(price)
+                    
+                    success_count += 1
+                
+                except Exception as e:
+                    errors.append(f"Error adding item '{item['item_name']}': {str(e)}")
+            
+            # Commit if there are no errors, rollback otherwise
+            if not errors:
+                db.session.commit()
+                return {
+                    'status': 'success',
+                    'message': f'Successfully imported {success_count} items'
+                }, 200
+            else:
+                db.session.rollback()
+                return {
+                    'status': 'error',
+                    'message': 'Some items could not be imported',
+                    'errors': errors
+                }, 400
+                
+        except Exception as e:
+            db.session.rollback()
+            warehouse_ns.abort(400, f"Error processing warehouse excel import: {str(e)}")     
+
 @warehouse_ns.route('/')
 class WarehouseList(Resource):
     @warehouse_ns.marshal_list_with(pagination_model)

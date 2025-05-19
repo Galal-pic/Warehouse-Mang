@@ -37,23 +37,56 @@ pagination_model = machine_ns.model('MachinePagination', {
 })
 @machine_ns.route('/excel')
 class MachineExcel(Resource):
-
-    @machine_ns.marshal_with(machine_model)
     @jwt_required()
     def post(self):
-        """Create a new machine"""
-        data = machine_ns.payload
-        data = data.get("data",[])
-        for machine in data:
-            if Machine.query.filter_by(name=machine["name"]).first() or Machine.query.filter_by(name=machine["description"]).first():
-                return machine_ns.abort(400, "Machine already exists")
-            new_machine = Machine(
-                name=machine["name"],
-                description=str(machine.get("description"))
-            )
-            db.session.add(new_machine)
-            db.session.commit()
-        return new_machine, 201
+        payload = machine_ns.payload
+        if not payload or 'data' not in payload:
+            machine_ns.abort(400, "Invalid payload format")
+        errors = []
+        success_count = 0
+        try:
+            for item in payload['data']:
+                if 'name' not in item:
+                    machine_ns.abort(400, "Machine name is required")
+                if 'description' not in item:
+                    machine_ns.abort(400, "Machine description is required")
+                
+                # Check if mechanism already exists
+                existing_supplier = Machine.query.filter_by(name=item['name'], description=item['description']).first()
+                    
+                if existing_supplier:
+                    errors.append(f"Machine '{item['name']}' already exists")
+                    continue
+                    
+                # Create new supplier
+                try:
+                    new_supplier = Machine(
+                        name=item['name'],
+                        description=item['description']  
+                    )
+                    db.session.add(new_supplier)
+                    success_count += 1
+                except Exception as e:
+                    errors.append(f"Error adding supplier '{item['name']}': {str(e)}")
+                
+                # Commit if there are no errors, rollback otherwise
+                if not errors:
+                    db.session.commit()
+                    return {
+                        'status': 'success',
+                        'message': f'Successfully imported {success_count} machines'
+                    }, 200
+                else:
+                    db.session.rollback()
+                    return {
+                        'status': 'error',
+                        'message': 'Some machines could not be imported',
+                        'errors': errors
+                    }, 400
+        except Exception as e:
+            db.session.rollback()
+            machine_ns.abort(400, f"Error processing import for machines: {str(e)}")
+
 
 # Machine Endpoints
 @machine_ns.route('/')

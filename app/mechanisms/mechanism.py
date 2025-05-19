@@ -36,23 +36,56 @@ pagination_model = mechanism_ns.model('MechanismPagination', {
 })
 @mechanism_ns.route('/excel')
 class MachineExcel(Resource):
-
-    @mechanism_ns.marshal_with(mechanism_model)
     @jwt_required()
     def post(self):
-        """Create a new mechanism"""
-        data = mechanism_ns.payload
-        data = data.get("data",[])
-        for mechanism in data:
-            if Mechanism.query.filter_by(name=mechanism["name"]).first() or Mechanism.query.filter_by(name=mechanism["description"]).first():
-                return mechanism_ns.abort(400, "mechanism already exists")
-            new_mechanism = Mechanism(
-                name=mechanism["name"],
-                description=str(mechanism.get("description"))
-            )
-            db.session.add(new_mechanism)
-            db.session.commit()
-        return new_mechanism, 201
+        payload = mechanism_ns.payload
+        if not payload or 'data' not in payload:
+            mechanism_ns.abort(400, "Invalid payload format")
+        errors = []
+        success_count = 0
+        try:
+            for item in payload['data']:
+                if 'name' not in item:
+                    mechanism_ns.abort(400, "Mechanism name is required")
+                if 'description' not in item:
+                    mechanism_ns.abort(400, "Mechanism description is required")
+                
+                # Check if mechanism already exists
+                existing_supplier = Mechanism.query.filter_by(name=item['name'], description=item['description']).first()
+                    
+                if existing_supplier:
+                    errors.append(f"Mechanism '{item['name']}' already exists")
+                    continue
+                    
+                # Create new supplier
+                try:
+                    new_supplier = Mechanism(
+                        name=item['name'],
+                        description=item['description']  
+                    )
+                    db.session.add(new_supplier)
+                    success_count += 1
+                except Exception as e:
+                    errors.append(f"Error adding supplier '{item['name']}': {str(e)}")
+                
+                # Commit if there are no errors, rollback otherwise
+                if not errors:
+                    db.session.commit()
+                    return {
+                        'status': 'success',
+                        'message': f'Successfully imported {success_count} mechanisms'
+                    }, 200
+                else:
+                    db.session.rollback()
+                    return {
+                        'status': 'error',
+                        'message': 'Some mechanisms could not be imported',
+                        'errors': errors
+                    }, 400
+        except Exception as e:
+            db.session.rollback()
+            mechanism_ns.abort(400, f"Error processing import for mechanisms: {str(e)}")
+            
 
 # Mechanism Endpoints
 @mechanism_ns.route('/')

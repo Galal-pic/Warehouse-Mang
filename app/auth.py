@@ -115,12 +115,14 @@ user_model = auth_ns.model('User', {
     'view_damages': fields.Boolean(description='Permission to view damages'),
     'view_reservations': fields.Boolean(description='Permission to view reservations'),
     'view_prices': fields.Boolean(description='Permission to view prices'),
+    'view_purchase_requests': fields.Boolean(description='Permission to view purchase requests'),
     'can_edit': fields.Boolean(description='Permission to edit operations'),
     'can_delete': fields.Boolean(description='Permission to delete operations'),
     'can_confirm_withdrawal': fields.Boolean(description='Permission to confirm withdrawals'),
     'can_withdraw': fields.Boolean(description='Permission to withdraw'),
     'can_update_prices': fields.Boolean(description='Permission to update prices'),
     'can_recover_deposits': fields.Boolean(description='Permission to recover deposits'),
+    'can_confirm_purchase_requests': fields.Boolean(description='Permission to confirm purchase requests'),
     'items_can_edit': fields.Boolean(description='Permission to edit items'),
     'items_can_delete': fields.Boolean(description='Permission to delete items'),
     'items_can_add': fields.Boolean(description='Permission to add items'),
@@ -187,12 +189,14 @@ class Register(Resource):
         view_damages = manage_operations.get('view_damages', False)
         view_reservations = manage_operations.get('view_reservations', False)
         view_prices = manage_operations.get('view_prices', False)
+        view_purchase_requests = manage_operations.get('view_purchase_requests', False)
         can_edit = manage_operations.get('can_edit', False)
         can_delete = manage_operations.get('can_delete', False)
         can_confirm_withdrawal = manage_operations.get('can_confirm_withdrawal', False)
         can_withdraw = manage_operations.get('can_withdraw', False)
         can_update_prices = manage_operations.get('can_update_prices', False)
         can_recover_deposits = manage_operations.get('can_recover_deposits', False)
+        can_confirm_purchase_requests = manage_operations.get('can_confirm_purchase_requests', False)
         
         # Items permissions
         items = permissions.get('items', {})
@@ -235,12 +239,14 @@ class Register(Resource):
             view_damages=view_damages,
             view_reservations=view_reservations,
             view_prices=view_prices,
+            view_purchase_requests=view_purchase_requests,
             can_edit=can_edit,
             can_delete=can_delete,
             can_confirm_withdrawal=can_confirm_withdrawal,
             can_withdraw=can_withdraw,
             can_update_prices=can_update_prices,
             can_recover_deposits=can_recover_deposits,
+            can_confirm_purchase_requests=can_confirm_purchase_requests,
             
             items_can_edit=items_can_edit,
             items_can_delete=items_can_delete,
