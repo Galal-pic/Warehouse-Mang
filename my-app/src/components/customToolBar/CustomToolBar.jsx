@@ -66,29 +66,42 @@ const CustomToolbar = ({
     console.log("Sending data to API:", data);
     try {
       let result;
-      if (type === "machine") result = await importMachines(data).unwrap();
-      else if (type === "mechanism")
+      if (type === "machine") {
+        result = await importMachines(data).unwrap();
+      } else if (type === "mechanism") {
         result = await importMechanisms(data).unwrap();
-      else if (type === "supplier")
+      } else if (type === "supplier") {
         result = await importSuppliers(data).unwrap();
-      else if (type === "items") result = await importWarehouses(data).unwrap();
+      } else if (type === "items") {
+        const formattedData = {
+          warehouse_manager: "esraa",
+          data: data.map((row) => ({
+            id: row.id,
+            item_name: row.item_name,
+            item_bar: row.item_bar,
+            location: row.location,
+            quantity: row.quantity,
+          })),
+        };
+        console.log("Formatted Data for API:", formattedData);
+        result = await importWarehouses(formattedData).unwrap();
+      }
 
       setOpenSnackbar(true);
       setSnackbarMessage("تم إضافة البيانات بنجاح");
       setSnackBarType("success");
       console.log("Data sent successfully", result);
+
+      if (type === "items") {
+        dispatch(api.util.invalidateTags(["Warehouses"]));
+      }
     } catch (error) {
       console.error("Error:", error);
       setOpenSnackbar(true);
-      setSnackbarMessage(
-        error.data?.message === "Machine already exists"
-          ? "الماكينات موجودة بالفعل"
-          : "البيانات غير متوافقة"
-      );
+      setSnackbarMessage("البيانات غير متوافقة");
       setSnackBarType("error");
     }
   };
-
   const handleImport = (event) => {
     const uploadedFile = event.target.files[0];
     const reader = new FileReader();

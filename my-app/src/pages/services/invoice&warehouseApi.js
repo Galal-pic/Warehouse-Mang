@@ -57,7 +57,7 @@ export const api = createApi({
       query: (data) => ({
         url: "/warehouse/excel",
         method: "POST",
-        body: { data },
+        body: data,
       }),
       invalidatesTags: ["Warehouse"],
     }),
