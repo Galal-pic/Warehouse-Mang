@@ -55,7 +55,6 @@
 .navbarContainer {
     display: flex;
     justify-content: space-around;
-    gap: 50px;
     flex: 1;
     transition: 0.2s;
     height: 100%;

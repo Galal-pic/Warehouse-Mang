@@ -12,7 +12,7 @@ export const api = createApi({
   }),
   tagTypes: ["Invoice", "Warehouse", "Reports"],
   endpoints: (builder) => ({
-    // Existing warehouseApi endpoints
+    // Existing endpoints (unchanged)
     getWarehouses: builder.query({
       query: ({ page, page_size, all = false }) => {
         const queryParams = all
@@ -67,8 +67,6 @@ export const api = createApi({
     getItem: builder.query({
       query: (id) => `/warehouse/${id}`,
     }),
-
-    // Existing invoiceApi endpoints
     getLastInvoiceId: builder.query({
       query: () => "/invoice/last-id",
       providesTags: ["Invoice"],
@@ -159,8 +157,6 @@ export const api = createApi({
     getInvoice: builder.query({
       query: (id) => `/invoice/${id}`,
     }),
-
-    // Modified endpoint for /reports/
     getReports: builder.query({
       query: () => "/reports/?all=true",
       providesTags: ["Reports"],
@@ -178,11 +174,65 @@ export const api = createApi({
         purchase_requests: response.purchase_requests || [],
       }),
     }),
+
+    // Updated endpoint for /reports/filter (no pagination)
+    getFilteredReports: builder.query({
+      query: ({
+        type,
+        warehouse_manager,
+        machine,
+        mechanism,
+        client_name,
+        accreditation_manager,
+        employee_name,
+        supplier,
+        status,
+        invoice_type,
+        item_name,
+        item_bar,
+        location,
+        start_date,
+        end_date,
+      }) => {
+        // Build query parameters dynamically
+        const params = new URLSearchParams();
+
+        // Required parameter
+        params.append("type", type);
+
+        // Optional filter parameters
+        if (warehouse_manager)
+          params.append("warehouse_manager", warehouse_manager);
+        if (machine) params.append("machine", machine);
+        if (mechanism) params.append("mechanism", mechanism);
+        if (client_name) params.append("client_name", client_name);
+        if (accreditation_manager)
+          params.append("accreditation_manager", accreditation_manager);
+        if (employee_name) params.append("employee_name", employee_name);
+        if (supplier) params.append("supplier", supplier);
+        if (status) params.append("status", status);
+        if (invoice_type) params.append("invoice_type", invoice_type);
+        if (item_name) params.append("item_name", item_name);
+        if (item_bar) params.append("item_bar", item_bar);
+        if (location) params.append("location", location);
+        if (start_date) params.append("start_date", start_date);
+        if (end_date) params.append("end_date", end_date);
+
+        return `/reports/filter?${params.toString()}`;
+      },
+      providesTags: ["Reports"],
+      transformResponse: (response) => ({
+        results: response.results || [],
+        page: 1, // Default to page 1 since no pagination
+        page_size: response.results?.length || 0, // Use results length as page_size
+        total: response.results?.length || 0, // Total is the length of results
+        total_pages: 1, // Default to 1 since no pagination
+      }),
+    }),
   }),
 });
 
 export const {
-  // Existing warehouseApi hooks
   useGetWarehousesQuery,
   useAddWarehouseMutation,
   useUpdateWarehouseMutation,
@@ -190,7 +240,6 @@ export const {
   useImportWarehouseMutation,
   useDetailsReportQuery,
   useGetItemQuery,
-  // Existing invoiceApi hooks
   useGetLastInvoiceIdQuery,
   useCreateInvoiceMutation,
   useGetInvoicesQuery,
@@ -202,6 +251,6 @@ export const {
   useReturnWarrantyInvoiceMutation,
   usePriceReportQuery,
   useGetInvoiceQuery,
-  // Hook for reports
   useGetReportsQuery,
+  useGetFilteredReportsQuery,
 } = api;
