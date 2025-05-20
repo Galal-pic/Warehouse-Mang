@@ -207,8 +207,6 @@ class Reports(Resource):
 class FilterReports(Resource):
     @reports_ns.expect(filter_parser)
     @jwt_required()
-    @reports_ns.expect(filter_parser)
-    @jwt_required()
     def get(self):
         """Filter reports based on query parameters"""
         args = filter_parser.parse_args()
@@ -251,7 +249,6 @@ class FilterReports(Resource):
         else:
             reports_ns.abort(400, f"Unsupported report type: {report_type}")
     
-    @reports_ns.marshal_with(machine_report_model)
     def _filter_machines(self, args, start_date, end_date, page_size, offset, all_results):
         """Filter machines and get related data"""
         # Start with base query
@@ -423,7 +420,6 @@ class FilterReports(Resource):
             "results": result
         }, 200
     
-    @reports_ns.marshal_with(mechanism_report_model)
     def _filter_mechanisms(self, args, start_date, end_date, page_size, offset, all_results):
         """Filter mechanisms and get related data"""
         # Start with base query
