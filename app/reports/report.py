@@ -14,7 +14,7 @@ from ..models import (
     InvoicePriceDetail,
     PurchaseRequests,
 )
-import datetime
+from datetime import datetime
 from ..utils import parse_bool
 reports_ns = Namespace("reports", description="Mechanism operations")
 pagination_parser = reports_ns.parser()
@@ -78,8 +78,9 @@ filter_parser.add_argument("location", type=str, required=False, help="Filter by
 # Date filters
 filter_parser.add_argument("start_date", type=str, required=False, help="Start date (YYYY-MM-DD)")
 filter_parser.add_argument("end_date", type=str, required=False, help="End date (YYYY-MM-DD)")
+
 def serialize_value(value):
-    if isinstance(value, datetime.datetime):
+    if isinstance(value, datetime):
         return value.strftime("%Y-%m-%d %H:%M:%S")  
     return value
 

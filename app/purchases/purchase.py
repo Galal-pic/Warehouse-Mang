@@ -271,6 +271,7 @@ def put_purchase(data, invoice, machine, mechanism, invoice_ns):
                     original_price_quantity = original_items[key].quantity if key in original_items else 0
                     price_details = InvoicePriceDetail.query.filter_by(
                         source_price_id=price_record.invoice_id,
+                        item_id=warehouse_item.id
                     ).all()
                     if price_details:
                         consumed_quantity = sum(detail.quantity for detail in price_details)
@@ -290,9 +291,51 @@ def put_purchase(data, invoice, machine, mechanism, invoice_ns):
                     else:
                         # No consumption has occurred, can fully update
                         price_record.quantity = new_quantity
+                        
+                    old_unit_price = price_record.unit_price
                     
-                    # Always update the unit price
+                    # Always update the unit price in the price record
                     price_record.unit_price = new_unit_price
+                    
+                    # Update price details and related invoice items if unit price changed
+                    if old_unit_price != new_unit_price and price_details:
+                        # Track affected sales invoices to avoid double processing
+                        processed_invoices = set()
+                        
+                        # Loop through all price details that use this specific item's price
+                        for detail in price_details:
+                            # Update the detail unit price and subtotal
+                            detail.unit_price = new_unit_price
+                            detail.subtotal = detail.quantity * new_unit_price
+                            
+                            # Get the sales invoice this detail belongs to
+                            sales_invoice_id = detail.invoice_id
+                            
+                            # Skip if we've already processed this invoice
+                            if sales_invoice_id in processed_invoices:
+                                continue
+                                
+                            sales_invoice = Invoice.query.get(sales_invoice_id)
+                            if sales_invoice:
+                                # Mark this invoice as processed
+                                processed_invoices.add(sales_invoice_id)
+                                
+                                # Recalculate the entire invoice total from scratch
+                                # This is more reliable than applying incremental adjustments
+                                invoice_items = InvoiceItem.query.filter_by(invoice_id=sales_invoice_id).all()
+                                
+                                # Find items in this invoice that match our current item
+                                matching_items = [ii for ii in invoice_items if ii.item_id == warehouse_item.id]
+                                
+                                # Update unit price and total price for each matching item
+                                for sales_item in matching_items:
+                                    old_total = sales_item.total_price
+                                    sales_item.unit_price = new_unit_price
+                                    sales_item.total_price = sales_item.quantity * new_unit_price
+                                
+                                # Recalculate the total invoice amount
+                                sales_invoice.total_amount = sum(item.total_price for item in invoice_items)
+                                sales_invoice.residual = sales_invoice.total_amount - sales_invoice.paid
                 else:
                     # Create a new price record
                     price_record = Prices(
