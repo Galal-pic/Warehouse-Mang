@@ -267,31 +267,35 @@ def put_purchase(data, invoice, machine, mechanism, invoice_ns):
                 ).first()
                 
                 if price_record:
-                    # Check if this price record has been partially consumed
+                    # Store original values for proper calculations
                     original_price_quantity = original_items[key].quantity if key in original_items else 0
+                    
+                    # Get price details related to THIS specific item
                     price_details = InvoicePriceDetail.query.filter_by(
-                        source_price_id=price_record.invoice_id,
+                        source_price_id=invoice.id,
                         item_id=warehouse_item.id
                     ).all()
-                    if price_details:
-                        consumed_quantity = sum(detail.quantity for detail in price_details)
-                        if consumed_quantity < original_price_quantity:
-                            # Items have been consumed, calculate how many
-                            consumed = original_price_quantity - consumed_quantity                            
-                            # Cannot reduce below the consumed amount
-                            if new_quantity < consumed:
-                                db.session.rollback()
-                                return operation_result(400, "error",  f"Cannot update purchase invoice: {consumed} units of " +
-                                    f"'{item_data['item_name']}' have already been sold using FIFO pricing. " +
-                                    f"Cannot reduce quantity below {consumed}."
-                                    )
-                            
-                            # Update price record with remaining available quantity
-                            price_record.quantity = new_quantity - consumed
+                    
+                    # Calculate consumed quantity from price details
+                    consumed_quantity = sum(detail.quantity for detail in price_details)
+                    
+                    # FIX: Calculate available quantity correctly
+                    if consumed_quantity > 0:
+                        # Check if we're reducing quantity below what's already consumed
+                        if new_quantity < consumed_quantity:
+                            db.session.rollback()
+                            return operation_result(400, "error", f"Cannot update purchase invoice: {consumed_quantity} units of " +
+                                f"'{item_data['item_name']}' have already been sold using FIFO pricing. " +
+                                f"Cannot reduce quantity below {consumed_quantity}."
+                                )
+                        
+                        # FIX: Set available quantity correctly - the new total minus what's been consumed
+                        price_record.quantity = new_quantity - consumed_quantity
                     else:
                         # No consumption has occurred, can fully update
                         price_record.quantity = new_quantity
-                        
+                    
+                    # Get the old unit price for comparison
                     old_unit_price = price_record.unit_price
                     
                     # Always update the unit price in the price record
@@ -320,21 +324,20 @@ def put_purchase(data, invoice, machine, mechanism, invoice_ns):
                                 # Mark this invoice as processed
                                 processed_invoices.add(sales_invoice_id)
                                 
-                                # Recalculate the entire invoice total from scratch
-                                # This is more reliable than applying incremental adjustments
-                                invoice_items = InvoiceItem.query.filter_by(invoice_id=sales_invoice_id).all()
-                                
                                 # Find items in this invoice that match our current item
-                                matching_items = [ii for ii in invoice_items if ii.item_id == warehouse_item.id]
+                                sales_invoice_items = InvoiceItem.query.filter_by(
+                                    invoice_id=sales_invoice_id,
+                                    item_id=warehouse_item.id
+                                ).all()
                                 
                                 # Update unit price and total price for each matching item
-                                for sales_item in matching_items:
-                                    old_total = sales_item.total_price
+                                for sales_item in sales_invoice_items:
                                     sales_item.unit_price = new_unit_price
                                     sales_item.total_price = sales_item.quantity * new_unit_price
                                 
                                 # Recalculate the total invoice amount
-                                sales_invoice.total_amount = sum(item.total_price for item in invoice_items)
+                                all_invoice_items = InvoiceItem.query.filter_by(invoice_id=sales_invoice_id).all()
+                                sales_invoice.total_amount = sum(item.total_price for item in all_invoice_items)
                                 sales_invoice.residual = sales_invoice.total_amount - sales_invoice.paid
                 else:
                     # Create a new price record
@@ -362,12 +365,18 @@ def put_purchase(data, invoice, machine, mechanism, invoice_ns):
                         item_id=item_id
                     ).first()
                     
-                    # Check if this price record has been partially consumed
-                    if price_record and price_record.quantity < item.quantity:
-                        # Items have been consumed, cannot remove
-                        consumed = item.quantity - price_record.quantity
+                    # Get price details to check consumption
+                    price_details = InvoicePriceDetail.query.filter_by(
+                        source_price_id=invoice.id,
+                        item_id=item_id
+                    ).all()
+                    
+                    consumed_quantity = sum(detail.quantity for detail in price_details) if price_details else 0
+                    
+                    # Check if items have been consumed
+                    if consumed_quantity > 0:
                         db.session.rollback()
-                        return operation_result(400, "error",  f"Cannot remove item: {consumed} units of " +
+                        return operation_result(400, "error", f"Cannot remove item: {consumed_quantity} units of " +
                             f"'{item.warehouse.item_name}' have already been sold using FIFO pricing."
                             )
                     
@@ -378,7 +387,7 @@ def put_purchase(data, invoice, machine, mechanism, invoice_ns):
                         # Check for negative quantity
                         if item_location.quantity < 0:
                             db.session.rollback()
-                            return operation_result(400, "error",  f"Cannot remove item: Not enough quantity for " +
+                            return operation_result(400, "error", f"Cannot remove item: Not enough quantity for " +
                                 f"'{item.warehouse.item_name}' in location '{location}'. " +
                                 f"Some items may have already been moved or sold."
                                 )
