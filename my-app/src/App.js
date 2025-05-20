@@ -16,6 +16,7 @@ import Machines from "./pages/machinesPage/Machines";
 import Mechanisms from "./pages/mechanismsPage/Mechanisms";
 import Supliers from "./pages/supliers/Supliers";
 import ProtectedRoute from "./components/protectPages/ProtectedRoute";
+import Report from "./pages/reportPage/Report";
 
 function App() {
   return (
@@ -36,6 +37,7 @@ function App() {
                     <Route path="/register" element={<Register />} />
                     <Route path="/createinvoice" element={<CreateInvoice />} />
                     <Route path="/invoices" element={<Invoices />} />
+                    <Route path="/reports" element={<Report />} />
                     <Route path="/others/items" element={<Items />} />
                     <Route path="/others/machines" element={<Machines />} />
                     <Route path="/others/mechanisms" element={<Mechanisms />} />

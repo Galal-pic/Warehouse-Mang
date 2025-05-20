@@ -61,6 +61,10 @@ const links = [
     text: "إدارة العمليات",
     href: "/invoices",
   },
+    {
+    text: "تقارير",
+    href: "/reports",
+  },
   {
     text: "إدارة الموارد",
     submenu: resourceManagementLinks,
