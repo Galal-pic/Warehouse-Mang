@@ -113,6 +113,10 @@ const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
   // Pagination model for all tables
   const paginationModel = { page: 0, pageSize: 100 };
 
+  const primaryColor = getComputedStyle(
+    document.documentElement
+  ).getPropertyValue("--main-color");
+
   // Content to be rendered
   const content = item ? (
     <Box
@@ -121,7 +125,7 @@ const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
         flexDirection: "column",
         gap: 4,
         p: 2,
-        backgroundColor: "#ddd",
+        backgroundColor: primaryColor,
       }}
     >
       {/* Item basic information */}
