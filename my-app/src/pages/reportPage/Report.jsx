@@ -8,6 +8,8 @@ import {
   Select,
   MenuItem,
   IconButton,
+  Dialog,
+  Menu, // Added import for Dialog
 } from "@mui/material";
 import CustomAutoCompleteField from "../../components/customAutoCompleteField/CustomAutoCompleteField";
 import SnackBar from "../../components/snackBar/SnackBar";
@@ -20,8 +22,103 @@ import {
   useGetWarehousesQuery,
   useGetFilteredReportsQuery,
 } from "../services/invoice&warehouseApi";
+import LaunchIcon from "@mui/icons-material/Launch";
+import InvoiceModal from "../../components/invoice/Invoice";
+import { GridToolbarContainer } from "@mui/x-data-grid";
 
 export default function Report() {
+  function CustomToolbar({ columnVisibilityModel, ...props }) {
+    const handleExport = () => {
+      const columnTranslations = {
+        id: "#",
+        items: "العناصر",
+        supplier: "المورد",
+        mechanism: "الميكانيزم",
+        machine: "الماكينة",
+        employee_name: "اسم الموظف",
+        status: "الحالة",
+        comment: "التعليق",
+        residual: "المتبقى",
+        paid: "المدفوع",
+        total_amount: "الإجمالي",
+        accreditation_manager: "المراجع",
+        warehouse_manager: "عامل المخازن",
+        client_name: "اسم العميل",
+        type: "نوع العملية",
+        created_at: "تاريخ الإصدار",
+      };
+
+      const csvData = searchResults.map((row) => {
+        const formattedRow = {};
+        Object.keys(columnTranslations).forEach((key) => {
+          if (key === "created_at" && row[key]) {
+            formattedRow[columnTranslations[key]] = row[key].split(" ")[0];
+          } else {
+            formattedRow[columnTranslations[key]] = row[key] || "-";
+          }
+        });
+        return formattedRow;
+      });
+
+      // إنشاء CSV يدويًا
+      const headers = Object.values(columnTranslations);
+      const escapeCsvValue = (value) => {
+        if (value === null || value === undefined) return "";
+        const str = String(value);
+        if (str.includes(",") || str.includes("\n") || str.includes('"')) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      };
+      const csvRows = [
+        headers.map(escapeCsvValue).join(","),
+        ...csvData.map((row) =>
+          headers.map((header) => escapeCsvValue(row[header])).join(",")
+        ),
+      ];
+      const csv = csvRows.join("\n");
+
+      const blob = new Blob(["\uFEFF" + csv], {
+        type: "text/csv;charset=utf-8;",
+      });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `تقرير_فواتير_${
+        new Date().toISOString().split("T")[0]
+      }.csv`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+    };
+    return (
+      <GridToolbarContainer
+        sx={{
+          textAlign: "center",
+        }}
+      >
+        <Box sx={{ width: "100% !important", textAlign: "right" }}>
+          <Button
+            variant="contained"
+            onClick={handleExport}
+            sx={{
+              py: 0.8,
+              backgroundColor: "#f39c12",
+              borderRadius: "6px",
+              fontSize: "0.95rem",
+              fontWeight: 600,
+              boxShadow: "0 2px 6px rgba(0, 0, 0, 0.05)",
+              "&:hover": {
+                backgroundColor: "#e68e0f",
+                boxShadow: "0 3px 8px rgba(0, 0, 0, 0.08)",
+              },
+            }}
+          >
+            تصدير
+          </Button>
+        </Box>
+      </GridToolbarContainer>
+    );
+  }
+
   const [reportType, setReportType] = useState("");
   const [filters, setFilters] = useState({
     "اسم الموظف": "",
@@ -76,7 +173,14 @@ export default function Report() {
     error: filteredReportsError,
   } = useGetFilteredReportsQuery(
     {
-      type: reportType === "فواتير" ? "invoice" : "item",
+      type:
+        reportType === "فواتير"
+          ? "invoice"
+          : reportType === "ماكينة"
+          ? "machine"
+          : reportType === "ميكانيزم"
+          ? "mechanism"
+          : "item",
       page: paginationModel.page,
       page_size: paginationModel.pageSize,
       all: false,
@@ -96,30 +200,92 @@ export default function Report() {
     { skip: !fetchReports }
   );
 
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const openInvoice = (id) => {
+    const invoice = searchResults?.find((item) => item.id === id);
+    if (!invoice) {
+      console.error("Invoice not found:", id);
+      return;
+    }
+    setSelectedInvoice({ ...invoice });
+    setIsModalOpen(true);
+  };
+  const closeModal = () => {
+    setSelectedInvoice(null);
+    setIsModalOpen(false);
+  };
+
   // Define columns for invoices
   const invoiceColumns = [
-    { field: "id", headerName: "المعرف", width: 100 },
-    { field: "employeeName", headerName: "اسم الموظف", width: 150 },
-    { field: "clientName", headerName: "اسم العميل", width: 150 },
-    { field: "reference", headerName: "المراجع", width: 150 },
-    { field: "storeWorker", headerName: "عامل المخزن", width: 150 },
-    { field: "machine", headerName: "الماكينة", width: 150 },
-    { field: "mechanism", headerName: "الميكانيزم", width: 150 },
-    { field: "supplierName", headerName: "اسم المورد", width: 150 },
-    { field: "status", headerName: "الحالة", width: 150 },
-    { field: "date", headerName: "التاريخ", width: 150 },
-    { field: "amount", headerName: "المبلغ", width: 150 },
+    {
+      field: "refresh",
+      headerName: "فتح الفاتورة",
+      width: 70,
+      renderCell: (params) => {
+        return (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-around",
+              alignItems: "center",
+              height: "100%",
+            }}
+          >
+            <button
+              onClick={() => openInvoice(params.id)}
+              style={{
+                cursor: "pointer",
+                border: "none",
+                backgroundColor: "transparent",
+                display: "flex",
+              }}
+            >
+              <LaunchIcon
+                sx={{
+                  fontSize: "2.1rem",
+                  padding: "3px",
+                  "&:hover": {
+                    backgroundColor: "#ddd",
+                  },
+                }}
+              />
+            </button>
+          </div>
+        );
+      },
+    },
+    { flex: 1, field: "items", headerName: "العناصر" },
+    { flex: 1, field: "supplier", headerName: "المورد" },
+    { flex: 1, field: "mechanism", headerName: "الميكانيزم" },
+    { flex: 1, field: "machine", headerName: "الماكينة" },
+    { flex: 1, field: "employee_name", headerName: "اسم الموظف" },
+    { flex: 1, field: "status", headerName: "الحالة" },
+    { flex: 1, field: "comment", headerName: "التعليق" },
+    { flex: 1, field: "residual", headerName: "المتبقى" },
+    { flex: 1, field: "paid", headerName: "المدفوع" },
+    { flex: 1, field: "total_amount", headerName: "الاجمالى" },
+    { flex: 1, field: "accreditation_manager", headerName: "المراجع" },
+    { flex: 1, field: "warehouse_manager", headerName: "عامل المخازن" },
+    { flex: 1, field: "client_name", headerName: "اسم العميل" },
+    { flex: 1, field: "type", headerName: "نوع العملية" },
+    {
+      flex: 1,
+      field: "created_at",
+      headerName: "تاريخ الإصدار",
+      renderCell: (params) => (params.value ? params.value.split(" ")[0] : "-"),
+    },
+    { field: "id", headerName: "#", width: 50 },
   ];
 
   // Define columns for inventory
-  const inventoryColumns = [
-    { field: "id", headerName: "المعرف", width: 100 },
-    { field: "item", headerName: "العنصر", width: 150 },
-    { field: "barcode", headerName: "باركود العنصر", width: 150 },
-    { field: "quantity", headerName: "الكمية", width: 150 },
-    { field: "location", headerName: "الموقع", width: 150 },
-    { field: "date", headerName: "التاريخ", width: 150 },
-  ];
+  const inventoryColumns = [{ field: "id", headerName: "المعرف", width: 100 }];
+
+  // Define columns for machines
+  const machinesColumns = [{ field: "id", headerName: "المعرف", width: 100 }];
+
+  // Define columns for mechanisms
+  const mechanismsColumns = [{ field: "id", headerName: "المعرف", width: 100 }];
 
   // Dynamic filter options using API data
   const filterOptions = useMemo(
@@ -180,7 +346,11 @@ export default function Report() {
 
     // Validate filters for "فواتير"
     let hasFilter = false;
-    if (reportType === "فواتير") {
+    if (
+      reportType === "فواتير" ||
+      reportType === "ماكينة" ||
+      reportType === "ميكانيزم"
+    ) {
       hasFilter = invoiceFields.some((field) => filters[field]);
       if (!hasFilter) {
         errorMessages.push("يجب إدخال فلتر واحد على الأقل");
@@ -243,6 +413,7 @@ export default function Report() {
     setFetchReports(false);
     setSearchResults([]);
   };
+  console.log(searchResults);
 
   const handleFilterChange = (fieldName, value) => {
     setFilters((prev) => ({
@@ -275,10 +446,11 @@ export default function Report() {
       sx={{
         display: "flex",
         flexDirection: "column",
-        minHeight: !(!showFilters && searchResults.length > 0) && "100vh",
+        minHeight:
+          !showFilters && searchResults.length > 0 ? undefined : "100vh",
         justifyContent: "center",
         alignItems: "center",
-        marginTop: searchResults.length > 0 && "70px",
+        marginTop: searchResults.length > 0 ? "70px" : undefined,
       }}
     >
       {showFilters && (
@@ -374,12 +546,16 @@ export default function Report() {
                   اختر نوع التقرير
                 </MenuItem>
                 <MenuItem value="فواتير">فواتير</MenuItem>
+                <MenuItem value="ماكينة">ماكينة</MenuItem>
+                <MenuItem value="ميكانيزم">ميكانيزم</MenuItem>
                 <MenuItem value="مخازن">مخازن</MenuItem>
               </Select>
             </FormControl>
           </Box>
 
-          {reportType === "فواتير" && (
+          {(reportType === "فواتير" ||
+            reportType === "ماكينة" ||
+            reportType === "ميكانيزم") && (
             <>
               <Box
                 sx={{
@@ -571,7 +747,10 @@ export default function Report() {
             </Box>
           )}
 
-          {(reportType === "فواتير" || reportType === "مخازن") && (
+          {(reportType === "فواتير" ||
+            reportType === "ماكينة" ||
+            reportType === "ميكانيزم" ||
+            reportType === "مخازن") && (
             <Box
               sx={{
                 display: "flex",
@@ -674,7 +853,10 @@ export default function Report() {
             </Box>
           )}
 
-          {(reportType === "فواتير" || reportType === "مخازن") && (
+          {(reportType === "فواتير" ||
+            reportType === "ماكينة" ||
+            reportType === "ميكانيزم" ||
+            reportType === "مخازن") && (
             <Button
               variant="contained"
               fullWidth
@@ -730,20 +912,58 @@ export default function Report() {
           <CustomDataGrid
             rows={searchResults}
             columns={
-              reportType === "فواتير" ? invoiceColumns : inventoryColumns
+              reportType === "فواتير" ||
+              reportType === "ماكينة" ||
+              reportType === "ميكانيزم"
+                ? invoiceColumns
+                : inventoryColumns
             }
             paginationModel={paginationModel}
             onPageChange={(newModel) => {
               setPaginationModel(newModel);
               setFetchReports(true);
             }}
+            CustomToolbarFromComponent={(props) => (
+              <CustomToolbar {...props} searchResults={searchResults} />
+            )}
             pageCount={filteredReportsData?.total_pages || 1}
             loader={isFilteredReportsLoading}
-            type={reportType === "فواتير" ? "invoices" : "inventory"}
+            type={
+              reportType === "فواتير"
+                ? "invoices"
+                : reportType === "ماكينة"
+                ? "machine"
+                : reportType === "ميكانيزم"
+                ? "mechanism"
+                : "inventory"
+            }
             checkBox={false}
           />
         </Box>
       )}
+
+      {/* Modal for displaying the invoice */}
+      <Dialog open={isModalOpen} onClose={closeModal} maxWidth="lg" fullWidth>
+        <Box sx={{ padding: "20px", direction: "rtl" }}>
+          {selectedInvoice ? (
+            <InvoiceModal
+              selectedInvoice={selectedInvoice}
+              isEditingInvoice={false}
+              editingInvoice={selectedInvoice}
+              setEditingInvoice={() => {}}
+              show={true}
+              selectedNowType={{ type: selectedInvoice.type }}
+              addRow={() => {}}
+              handleDeleteItemClick={() => {}}
+              isPurchasesType={selectedInvoice.type === "purchase"}
+              isCreate={false}
+              showCommentField={true}
+            />
+          ) : (
+            <Box>لم يتم العثور على الفاتورة</Box>
+          )}
+        </Box>
+      </Dialog>
     </Box>
   );
 }
