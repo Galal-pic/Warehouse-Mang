@@ -335,7 +335,14 @@ export default function Report() {
         );
       },
     },
-    { flex: 1, field: "items", headerName: "العناصر" },
+
+    {
+      flex: 1,
+      field: "items",
+      headerName: "العناصر",
+      renderCell: (params) =>
+        params.value.map((item) => item.item_name).join(", "),
+    },
     { flex: 1, field: "supplier", headerName: "المورد" },
     { flex: 1, field: "mechanism", headerName: "الميكانيزم" },
     { flex: 1, field: "machine", headerName: "الماكينة" },
