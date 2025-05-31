@@ -68,32 +68,31 @@ export default function Report() {
       let headers = [];
 
       if (dataType === "invoices") {
-        csvData = searchResults.flatMap((machine) =>
-          (machine.invoices || []).map((invoice) => ({
-            [columnTranslations.invoice_id]: invoice.id,
-            [columnTranslations.reportType]: invoice.reportType || "-",
-            [columnTranslations.created_at]:
-              invoice.created_at?.split(" ")[0] || "-",
-            [columnTranslations.total_amount]: invoice.total_amount || "-",
-            [columnTranslations.paid]: invoice.paid || "-",
-            [columnTranslations.residual]: invoice.residual || "-",
-            [columnTranslations.status]: invoice.status || "-",
-            [columnTranslations.employee_name]: invoice.employee_name || "-",
-            [columnTranslations.comment]: invoice.comment || "-",
-            [columnTranslations.supplier]: invoice.supplier || "-",
-            [columnTranslations.items]: invoice.items || "-",
-            [columnTranslations.mechanism]: invoice.mechanism || "-",
-            [columnTranslations.machine]: invoice.machine || "-",
-            [columnTranslations.accreditation_manager]:
-              invoice.accreditation_manager || "-",
-            [columnTranslations.warehouse_manager]:
-              invoice.warehouse_manager || "-",
-            [columnTranslations.client_name]: invoice.client_name || "-",
-          }))
-        );
+        csvData = searchResults.map((invoice) => ({
+          [columnTranslations.invoice_id]: invoice.id || "-",
+          [columnTranslations.type]: invoice.type || "-",
+          [columnTranslations.created_at]:
+            invoice.created_at?.split(" ")[0] || "-",
+          [columnTranslations.total_amount]: invoice.total_amount || "-",
+          [columnTranslations.paid]: invoice.paid || "-",
+          [columnTranslations.residual]: invoice.residual || "-",
+          [columnTranslations.status]: invoice.status || "-",
+          [columnTranslations.employee_name]: invoice.employee_name || "-",
+          [columnTranslations.comment]: invoice.comment || "-",
+          [columnTranslations.supplier]: invoice.supplier || "-",
+          [columnTranslations.items]:
+            invoice.items?.map((item) => item.item_name).join(", ") || "-",
+          [columnTranslations.mechanism]: invoice.mechanism || "-",
+          [columnTranslations.machine]: invoice.machine || "-",
+          [columnTranslations.accreditation_manager]:
+            invoice.accreditation_manager || "-",
+          [columnTranslations.warehouse_manager]:
+            invoice.warehouse_manager || "-",
+          [columnTranslations.client_name]: invoice.client_name || "-",
+        }));
         headers = [
           columnTranslations.invoice_id,
-          columnTranslations.reportType,
+          columnTranslations.type,
           columnTranslations.created_at,
           columnTranslations.total_amount,
           columnTranslations.paid,
@@ -110,15 +109,13 @@ export default function Report() {
           columnTranslations.client_name,
         ];
       } else if (dataType === "items") {
-        csvData = searchResults.flatMap((machine) =>
-          (machine.items || []).map((item) => ({
-            [columnTranslations.item_id]: item.id,
-            [columnTranslations.item_name]: item.item_name || "-",
-            [columnTranslations.item_bar]: item.item_bar || "-",
-            [columnTranslations.item_created_at]:
-              item.created_at?.split(" ")[0] || "-",
-          }))
-        );
+        csvData = searchResults.map((item) => ({
+          [columnTranslations.item_id]: item.id || "-",
+          [columnTranslations.item_name]: item.item_name || "-",
+          [columnTranslations.item_bar]: item.item_bar || "-",
+          [columnTranslations.item_created_at]:
+            item.created_at?.split(" ")[0] || "-",
+        }));
         headers = [
           columnTranslations.item_id,
           columnTranslations.item_name,
@@ -135,6 +132,7 @@ export default function Report() {
         }
         return str;
       };
+
       const csvRows = [
         headers.map(escapeCsvValue).join(","),
         ...csvData.map((row) =>
@@ -154,6 +152,7 @@ export default function Report() {
       link.click();
       URL.revokeObjectURL(link.href);
     };
+
     return (
       <GridToolbarContainer
         sx={{
@@ -189,7 +188,6 @@ export default function Report() {
       </GridToolbarContainer>
     );
   }
-
   const [reportType, setReportType] = useState("");
   const [filters, setFilters] = useState({
     "اسم الموظف": "",
@@ -255,6 +253,13 @@ export default function Report() {
     { skip: reportType !== "مخازن" }
   );
 
+  const statusToEnglishMap = {
+    "لم تراجع": "draft",
+    "لم تؤكد": "accreditation",
+    تم: "confirmed",
+    "تم الاسترداد": "returned",
+  };
+
   // Fetch filtered reports
   const [fetchReports, setFetchReports] = useState(false);
   const {
@@ -282,7 +287,7 @@ export default function Report() {
       machine: filters["الماكينه"],
       mechanism: filters["الميكانيزم"],
       supplier: filters["اسم المورد"],
-      status: filters["الحالة"],
+      status: statusToEnglishMap[filters["الحالة"]] || filters["الحالة"],
       item_name: filters["عنصر"],
       item_bar: filters["باركود العنصر"],
       start_date: filters.fromDate,
@@ -377,7 +382,6 @@ export default function Report() {
         );
       },
     },
-
     {
       flex: 1,
       field: "items",
@@ -389,7 +393,20 @@ export default function Report() {
     { flex: 1, field: "mechanism", headerName: "الميكانيزم" },
     { flex: 1, field: "machine", headerName: "الماكينة" },
     { flex: 1, field: "employee_name", headerName: "اسم الموظف" },
-    { flex: 1, field: "status", headerName: "الحالة" },
+    {
+      flex: 1,
+      field: "status",
+      headerName: "الحالة",
+      renderCell: (params) => {
+        const statusMap = {
+          draft: "لم تراجع",
+          accreditation: "لم تؤكد",
+          confirmed: "تم",
+          returned: "تم الاسترداد",
+        };
+        return statusMap[params.value] || params.value || "-";
+      },
+    },
     { flex: 1, field: "accreditation_manager", headerName: "المراجع" },
     { flex: 1, field: "warehouse_manager", headerName: "عامل المخازن" },
     { flex: 1, field: "client_name", headerName: "اسم العميل" },
@@ -486,7 +503,16 @@ export default function Report() {
         suppliersData?.suppliers?.map((supplier) => ({
           name: supplier.name,
         })) || [],
-      الحالة: ["لم تراجع", "لم تؤكد"].map((name) => ({ name })),
+      الحالة: [
+        // { name: "لم تراجع", value: "draft" },
+        // { name: "لم تؤكد", value: "accreditation" },
+        // { name: "تم", value: "confirmed" },
+        // { name: "تم الاسترداد", value: "returned" },
+        { name: "لم تراجع", value: "لم تراجع" },
+        { name: "لم تؤكد", value: "لم تؤكد" },
+        { name: "تم", value: "تم" },
+        { name: "تم الاسترداد", value: "تم الاسترداد" },
+      ],
       عنصر:
         itemsData?.warehouses?.map((item) => ({ name: item.item_name })) || [],
       "باركود العنصر":
@@ -613,7 +639,11 @@ export default function Report() {
   const handleFilterChange = (fieldName, value) => {
     setFilters((prev) => ({
       ...prev,
-      [fieldName]: value,
+      [fieldName]:
+        fieldName === "الحالة"
+          ? filterOptions["الحالة"].find((option) => option.name === value)
+              ?.value || ""
+          : value,
     }));
     if (fieldName === "fromDate" || fieldName === "toDate") {
       setErrors((prev) => ({
@@ -635,7 +665,7 @@ export default function Report() {
     "الحالة",
   ];
   const firstRowInvoiceFields = invoiceFields.slice(0, 4);
-  const secondRowInvoiceFields = invoiceFields.slice(4, 8);
+  const secondRowInvoiceFields = invoiceFields.slice(4, 9);
 
   return (
     <Box

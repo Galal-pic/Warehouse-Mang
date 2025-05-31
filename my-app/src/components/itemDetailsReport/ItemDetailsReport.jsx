@@ -12,7 +12,7 @@ import {
 } from "@mui/material";
 import CustomDataGrid from "../dataGrid/CustomDataGrid";
 import { GridToolbarContainer } from "@mui/x-data-grid";
-import { useState } from "react"; // Add useState for tab management
+import { useState } from "react";
 
 const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
   // State for active tab
@@ -25,8 +25,94 @@ const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
     ...props
   }) {
     const handleExport = () => {
-      console.log("handleExport");
+      const columnTranslations = {
+        quantity: "الكمية",
+        location: "الموقع",
+        unit_price: "سعر الوحدة",
+        created_at: "التاريخ",
+        invoice_id: "#",
+        total_price: "السعر الإجمالي",
+        status: "الحالة",
+        invoice_date: "تاريخ الفاتورة",
+        invoice_type: "نوع الفاتورة",
+      };
+
+      let csvData = [];
+      let headers = [];
+
+      if (dataType === "locations") {
+        csvData = searchResults.map((location) => ({
+          [columnTranslations.quantity]: location.quantity || "-",
+          [columnTranslations.location]: location.location || "-",
+        }));
+        headers = [columnTranslations.quantity, columnTranslations.location];
+      } else if (dataType === "prices") {
+        csvData = searchResults.map((price) => ({
+          [columnTranslations.unit_price]: price.unit_price || "-",
+          [columnTranslations.quantity]: price.quantity || "-",
+          [columnTranslations.created_at]:
+            price.created_at?.split(" ")[0] || "-",
+          [columnTranslations.invoice_id]: price.invoice_id || "-",
+        }));
+        headers = [
+          columnTranslations.unit_price,
+          columnTranslations.quantity,
+          columnTranslations.created_at,
+          columnTranslations.invoice_id,
+        ];
+      } else if (dataType === "invoice_history") {
+        csvData = searchResults.map((invoice) => ({
+          [columnTranslations.unit_price]: invoice.unit_price || "-",
+          [columnTranslations.quantity]: invoice.quantity || "-",
+          [columnTranslations.location]: invoice.location || "-",
+          [columnTranslations.total_price]: invoice.total_price || "-",
+          [columnTranslations.status]: invoice.status || "-",
+          [columnTranslations.invoice_date]:
+            invoice.invoice_date?.split(" ")[0] || "-",
+          [columnTranslations.invoice_type]: invoice.invoice_type || "-",
+          [columnTranslations.invoice_id]: invoice.invoice_id || "-",
+        }));
+        headers = [
+          columnTranslations.unit_price,
+          columnTranslations.quantity,
+          columnTranslations.location,
+          columnTranslations.total_price,
+          columnTranslations.status,
+          columnTranslations.invoice_date,
+          columnTranslations.invoice_type,
+          columnTranslations.invoice_id,
+        ];
+      }
+
+      const escapeCsvValue = (value) => {
+        if (value === null || value === undefined) return "";
+        const str = String(value);
+        if (str.includes(",") || str.includes("\n") || str.includes('"')) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      };
+
+      const csvRows = [
+        headers.map(escapeCsvValue).join(","),
+        ...csvData.map((row) =>
+          headers.map((header) => escapeCsvValue(row[header])).join(",")
+        ),
+      ];
+      const csv = csvRows.join("\n");
+
+      const blob = new Blob(["\uFEFF" + csv], {
+        type: "text/csv;charset=utf-8;",
+      });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `تقرير_${dataType}_${
+        new Date().toISOString().split("T")[0]
+      }.csv`;
+      link.click();
+      URL.revokeObjectURL(link.href);
     };
+
     return (
       <GridToolbarContainer
         sx={{
@@ -68,36 +154,36 @@ const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
 
   // Columns for tables
   const locationColumns = [
-    { field: "location", headerName: "الموقع", flex: 1 },
     { field: "quantity", headerName: "الكمية", flex: 1 },
+    { field: "location", headerName: "الموقع", flex: 1 },
   ];
 
   const priceColumns = [
-    { field: "invoice_id", headerName: "معرف الفاتورة", flex: 1 },
-    { field: "quantity", headerName: "الكمية", flex: 1 },
     { field: "unit_price", headerName: "سعر الوحدة", flex: 1 },
+    { field: "quantity", headerName: "الكمية", flex: 1 },
     {
       field: "created_at",
-      headerName: "تاريخ الإنشاء",
+      headerName: "التاريخ",
       flex: 1,
       renderCell: (params) => (params.value ? params.value.split(" ")[0] : "-"),
     },
+    { field: "invoice_id", headerName: "#", flex: 1 },
   ];
 
   const invoiceHistoryColumns = [
-    { field: "invoice_id", headerName: "معرف الفاتورة", flex: 1 },
-    { field: "invoice_type", headerName: "نوع الفاتورة", flex: 1 },
+    { field: "unit_price", headerName: "سعر الوحدة", flex: 1 },
+    { field: "quantity", headerName: "الكمية", flex: 1 },
+    { field: "location", headerName: "الموقع", flex: 1 },
+    { field: "total_price", headerName: "السعر الإجمالي", flex: 1 },
+    { field: "status", headerName: "الحالة", flex: 1 },
     {
       field: "invoice_date",
       headerName: "تاريخ الفاتورة",
       flex: 1,
       renderCell: (params) => (params.value ? params.value.split(" ")[0] : "-"),
     },
-    { field: "location", headerName: "الموقع", flex: 1 },
-    { field: "quantity", headerName: "الكمية", flex: 1 },
-    { field: "unit_price", headerName: "سعر الوحدة", flex: 1 },
-    { field: "total_price", headerName: "السعر الإجمالي", flex: 1 },
-    { field: "status", headerName: "الحالة", flex: 1 },
+    { field: "invoice_type", headerName: "نوع الفاتورة", flex: 1 },
+    { field: "invoice_id", headerName: "#", flex: 1 },
   ];
 
   // Pagination model for all tables
@@ -139,7 +225,7 @@ const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
               variant="body1"
               sx={{ fontSize: "1rem", color: "#4b6584" }}
             >
-              <strong>المعرف:</strong> {item.id}
+              {item.id}
             </Typography>
             <Typography
               variant="body1"
