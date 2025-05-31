@@ -580,12 +580,14 @@ export default function Report() {
     }
 
     // Trigger API call for filtered reports
+    setSearchExecuted(true);
     setFetchReports(true);
+    setShowFilters(false);
   };
 
   // Handle API response
   useEffect(() => {
-    if (filteredReportsData) {
+    if (filteredReportsData && searchExecuted) {
       const results = filteredReportsData.results.map((item) => ({
         ...item,
         invoices: item.invoices || [],
@@ -601,6 +603,7 @@ export default function Report() {
       });
       setShowFilters(false);
       setFetchReports(false);
+      setSearchExecuted(false);
     }
 
     if (filteredReportsError) {
@@ -610,26 +613,13 @@ export default function Report() {
     }
   }, [filteredReportsData]);
 
+  const [searchExecuted, setSearchExecuted] = useState(false);
+
   const handleBackToFilters = () => {
     setShowFilters(true);
     setFetchReports(false);
-    setSearchResults([]);
+    setSearchExecuted(false);
     setTabValue(0);
-    setFilters({
-      "اسم الموظف": "",
-      النوع: "",
-      "اسم العميل": "",
-      المراجع: "",
-      "عامل المخزن": "",
-      الماكينه: "",
-      الميكانيزم: "",
-      "اسم المورد": "",
-      الحالة: "",
-      عنصر: "",
-      "باركود العنصر": "",
-      fromDate: "",
-      toDate: "",
-    });
     setPaginationModel({
       page: 0,
       pageSize: 10,
@@ -1117,7 +1107,7 @@ export default function Report() {
       )}
 
       {/* Display search results */}
-      {!showFilters && (
+      {!showFilters && (searchExecuted || searchResults.length > 0) && (
         <Box sx={{ width: "100%", maxWidth: 1200, mt: 2 }}>
           <Box
             sx={{

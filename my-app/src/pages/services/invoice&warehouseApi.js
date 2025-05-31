@@ -77,7 +77,7 @@ export const api = createApi({
         method: "POST",
         body: invoice,
       }),
-      invalidatesTags: ["Invoice", "Warehouse"],
+      invalidatesTags: ["Invoice", "Warehouse", "Reports"],
     }),
     getInvoices: builder.query({
       query: ({ type, page, page_size, all = false }) => {
