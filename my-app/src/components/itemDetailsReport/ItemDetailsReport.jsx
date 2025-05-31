@@ -7,11 +7,17 @@ import {
   Card,
   CardContent,
   Box,
+  Tabs,
+  Tab,
 } from "@mui/material";
 import CustomDataGrid from "../dataGrid/CustomDataGrid";
 import { GridToolbarContainer } from "@mui/x-data-grid";
+import { useState } from "react"; // Add useState for tab management
 
 const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
+  // State for active tab
+  const [tabValue, setTabValue] = useState(0);
+
   function CustomToolbar({
     columnVisibilityModel,
     searchResults,
@@ -25,23 +31,23 @@ const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
       <GridToolbarContainer
         sx={{
           display: "flex",
-          justifyContent: "flex-end", // المحاذاة لليمين (RTL)
+          justifyContent: "flex-end",
           padding: "12px 16px",
-          backgroundColor: "#f8fafc", // خلفية فاتحة
-          borderBottom: "1px solid #e2e8f0", // خط سفلي
-          borderRadius: "8px 8px 0 0", // زوايا مستديرة في الأعلى
+          backgroundColor: "#f8fafc",
+          borderBottom: "1px solid #e2e8f0",
+          borderRadius: "8px 8px 0 0",
         }}
       >
         <Button
           variant="contained"
           onClick={handleExport}
           sx={{
-            padding: "8px 24px", // تباعد داخلي أكبر
+            padding: "8px 24px",
             backgroundColor: "#f39c12",
             borderRadius: "6px",
             fontSize: "0.95rem",
             fontWeight: 600,
-            textTransform: "none", // نص طبيعي
+            textTransform: "none",
             boxShadow: "0 2px 6px rgba(0, 0, 0, 0.1)",
             transition: "background-color 0.2s, box-shadow 0.2s",
             "&:hover": {
@@ -92,22 +98,6 @@ const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
     { field: "unit_price", headerName: "سعر الوحدة", flex: 1 },
     { field: "total_price", headerName: "السعر الإجمالي", flex: 1 },
     { field: "status", headerName: "الحالة", flex: 1 },
-  ];
-
-  const purchaseRequestColumns = [
-    { field: "id", headerName: "معرف الطلب", flex: 1 },
-    { field: "status", headerName: "الحالة", flex: 1 },
-    { field: "requested_quantity", headerName: "الكمية المطلوبة", flex: 1 },
-    {
-      field: "created_at",
-      headerName: "تاريخ الإنشاء",
-      flex: 1,
-      renderCell: (params) => (params.value ? params.value.split(" ")[0] : "-"),
-    },
-    { field: "subtotal", headerName: "الإجمالي", flex: 1 },
-    { field: "machine", headerName: "الماكينة", flex: 1 },
-    { field: "mechanism", headerName: "الميكانيزم", flex: 1 },
-    { field: "employee", headerName: "الموظف", flex: 1 },
   ];
 
   // Pagination model for all tables
@@ -174,104 +164,143 @@ const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
         </CardContent>
       </Card>
 
-      {/* Locations table */}
+      {/* Tabs for tables */}
       <Box>
-        <Typography
-          variant="h6"
-          sx={{ fontWeight: 600, color: "#1e293b", mb: 2, direction: "rtl" }}
+        <Tabs
+          value={tabValue}
+          onChange={(e, newValue) => setTabValue(newValue)}
+          sx={{
+            mb: 3,
+            backgroundColor: "#f8fafc",
+            borderRadius: "8px",
+            boxShadow: "0 2px 4px rgba(0, 0, 0, 0.05)",
+            padding: "4px",
+            direction: "rtl",
+            "& .MuiTabs-indicator": {
+              backgroundColor: "#f39c12",
+              height: "3px",
+              borderRadius: "2px",
+              transition: "all 0.3s ease",
+            },
+            "& .MuiTabs-flexContainer": {
+              justifyContent: "flex-start",
+            },
+          }}
         >
-          المواقع
-        </Typography>
-        <CustomDataGrid
-          CustomToolbarFromComponent={(props) => (
-            <CustomToolbar
-              {...props}
-              searchResults={item.locations || []}
-              dataType="locations"
-            />
-          )}
-          rows={item.locations || []}
-          columns={locationColumns}
-          getRowId={(row) => row.location}
-          paginationModel={paginationModel}
-          pageCount={1}
-          checkBox={false}
-        />
-      </Box>
+          <Tab
+            label="المواقع"
+            sx={{
+              fontSize: "1.1rem",
+              fontWeight: 600,
+              color: "#4b6584",
+              padding: "12px 24px",
+              borderRadius: "6px",
+              transition: "all 0.2s ease",
+              "&.Mui-selected": {
+                color: "#f39c12",
+                backgroundColor: "#fff",
+                boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+              },
+              "&:hover": {
+                color: "#f39c12",
+                backgroundColor: "#f1f5f9",
+              },
+            }}
+          />
+          <Tab
+            label="الأسعار"
+            sx={{
+              fontSize: "1.1rem",
+              fontWeight: 600,
+              color: "#4b6584",
+              padding: "12px 24px",
+              borderRadius: "6px",
+              transition: "all 0.2s ease",
+              "&.Mui-selected": {
+                color: "#f39c12",
+                backgroundColor: "#fff",
+                boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+              },
+              "&:hover": {
+                color: "#f39c12",
+                backgroundColor: "#f1f5f9",
+              },
+            }}
+          />
+          <Tab
+            label="تاريخ الفواتير"
+            sx={{
+              fontSize: "1.1rem",
+              fontWeight: 600,
+              color: "#4b6584",
+              padding: "12px 24px",
+              borderRadius: "6px",
+              transition: "all 0.2s ease",
+              "&.Mui-selected": {
+                color: "#f39c12",
+                backgroundColor: "#fff",
+                boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+              },
+              "&:hover": {
+                color: "#f39c12",
+                backgroundColor: "#f1f5f9",
+              },
+            }}
+          />
+        </Tabs>
 
-      {/* Prices table */}
-      <Box>
-        <Typography
-          variant="h6"
-          sx={{ fontWeight: 600, color: "#1e293b", mb: 2, direction: "rtl" }}
-        >
-          الأسعار
-        </Typography>
-        <CustomDataGrid
-          CustomToolbarFromComponent={(props) => (
-            <CustomToolbar
-              {...props}
-              searchResults={item.prices || []}
-              dataType="prices"
-            />
-          )}
-          rows={item.prices || []}
-          columns={priceColumns}
-          getRowId={(row) => row.invoice_id + row.created_at}
-          paginationModel={paginationModel}
-          pageCount={1}
-          checkBox={false}
-        />
-      </Box>
-
-      {/* Invoice history table */}
-      <Box>
-        <Typography
-          variant="h6"
-          sx={{ fontWeight: 600, color: "#1e293b", mb: 2, direction: "rtl" }}
-        >
-          تاريخ الفواتير
-        </Typography>
-        <CustomDataGrid
-          CustomToolbarFromComponent={(props) => (
-            <CustomToolbar
-              {...props}
-              searchResults={item.invoice_history || []}
-              dataType="invoice_history"
-            />
-          )}
-          rows={item.invoice_history || []}
-          columns={invoiceHistoryColumns}
-          getRowId={(row) => row.invoice_id + row.invoice_date}
-          paginationModel={paginationModel}
-          pageCount={1}
-          checkBox={false}
-        />
-      </Box>
-
-      {/* Purchase requests table */}
-      <Box>
-        <Typography
-          variant="h6"
-          sx={{ fontWeight: 600, color: "#1e293b", mb: 2, direction: "rtl" }}
-        >
-          طلبات الشراء
-        </Typography>
-        <CustomDataGrid
-          CustomToolbarFromComponent={(props) => (
-            <CustomToolbar
-              {...props}
-              searchResults={item.purchase_requests || []}
-              dataType="purchase_requests"
-            />
-          )}
-          rows={item.purchase_requests || []}
-          columns={purchaseRequestColumns}
-          getRowId={(row) => row.id}
-          paginationModel={paginationModel}
-          pageCount={1}
-          checkBox={false}
-        />
+        {/* Tab content */}
+        {tabValue === 0 && (
+          <CustomDataGrid
+            CustomToolbarFromComponent={(props) => (
+              <CustomToolbar
+                {...props}
+                searchResults={item.locations || []}
+                dataType="locations"
+              />
+            )}
+            rows={item.locations || []}
+            columns={locationColumns}
+            getRowId={(row) => row.location}
+            paginationModel={paginationModel}
+            pageCount={1}
+            checkBox={false}
+          />
+        )}
+        {tabValue === 1 && (
+          <CustomDataGrid
+            CustomToolbarFromComponent={(props) => (
+              <CustomToolbar
+                {...props}
+                searchResults={item.prices || []}
+                dataType="prices"
+              />
+            )}
+            rows={item.prices || []}
+            columns={priceColumns}
+            getRowId={(row) => row.invoice_id + row.created_at}
+            paginationModel={paginationModel}
+            pageCount={1}
+            checkBox={false}
+          />
+        )}
+        {tabValue === 2 && (
+          <CustomDataGrid
+            CustomToolbarFromComponent={(props) => (
+              <CustomToolbar
+                {...props}
+                searchResults={item.invoice_history || []}
+                dataType="invoice_history"
+              />
+            )}
+            rows={item.invoice_history || []}
+            columns={invoiceHistoryColumns}
+            getRowId={(row) => row.invoice_id + row.invoice_date}
+            paginationModel={paginationModel}
+            pageCount={1}
+            checkBox={false}
+          />
+        )}
       </Box>
     </Box>
   ) : (
@@ -303,8 +332,8 @@ const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
           display: "flex",
           direction: "rtl",
           justifyContent: "space-between",
-          borderBottom: "1px solid #e2e8f0", // تعديل الحد
-          boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)", // إضافة ظل
+          borderBottom: "1px solid #e2e8f0",
+          boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
         }}
       >
         <DialogTitle

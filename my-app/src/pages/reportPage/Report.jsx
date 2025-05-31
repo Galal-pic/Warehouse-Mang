@@ -71,7 +71,7 @@ export default function Report() {
         csvData = searchResults.flatMap((machine) =>
           (machine.invoices || []).map((invoice) => ({
             [columnTranslations.invoice_id]: invoice.id,
-            [columnTranslations.type]: invoice.type || "-",
+            [columnTranslations.reportType]: invoice.reportType || "-",
             [columnTranslations.created_at]:
               invoice.created_at?.split(" ")[0] || "-",
             [columnTranslations.total_amount]: invoice.total_amount || "-",
@@ -93,7 +93,7 @@ export default function Report() {
         );
         headers = [
           columnTranslations.invoice_id,
-          columnTranslations.type,
+          columnTranslations.reportType,
           columnTranslations.created_at,
           columnTranslations.total_amount,
           columnTranslations.paid,
@@ -193,6 +193,7 @@ export default function Report() {
   const [reportType, setReportType] = useState("");
   const [filters, setFilters] = useState({
     "اسم الموظف": "",
+    النوع: "",
     "اسم العميل": "",
     المراجع: "",
     "عامل المخزن": "",
@@ -212,30 +213,47 @@ export default function Report() {
   });
   const [tabValue, setTabValue] = useState(0);
 
-  // Fetch data from APIs
+  // Fetch data from APIs with conditional skip
+  const shouldFetchMachineAndSuppliers = [
+    "فواتير",
+    "ماكينة",
+    "ميكانيزم",
+  ].includes(reportType);
   const { data: machinesData, isLoading: isMachinesLoading } =
-    useGetMachinesQuery({
-      page: 0,
-      page_size: 1000,
-      all: true,
-    });
+    useGetMachinesQuery(
+      {
+        page: 0,
+        page_size: 1000,
+        all: true,
+      },
+      { skip: !shouldFetchMachineAndSuppliers }
+    );
   const { data: mechanismsData, isLoading: isMechanismsLoading } =
-    useGetMechanismsQuery({
-      page: 0,
-      page_size: 1000,
-      all: true,
-    });
+    useGetMechanismsQuery(
+      {
+        page: 0,
+        page_size: 1000,
+        all: true,
+      },
+      { skip: !shouldFetchMachineAndSuppliers }
+    );
   const { data: suppliersData, isLoading: isSuppliersLoading } =
-    useGetSuppliersQuery({
+    useGetSuppliersQuery(
+      {
+        page: 0,
+        page_size: 1000,
+        all: true,
+      },
+      { skip: !shouldFetchMachineAndSuppliers }
+    );
+  const { data: itemsData, isLoading: isItemsLoading } = useGetWarehousesQuery(
+    {
       page: 0,
       page_size: 1000,
       all: true,
-    });
-  const { data: itemsData, isLoading: isItemsLoading } = useGetWarehousesQuery({
-    page: 0,
-    page_size: 1000,
-    all: true,
-  });
+    },
+    { skip: reportType !== "مخازن" }
+  );
 
   // Fetch filtered reports
   const [fetchReports, setFetchReports] = useState(false);
@@ -245,7 +263,7 @@ export default function Report() {
     error: filteredReportsError,
   } = useGetFilteredReportsQuery(
     {
-      type:
+      reportType:
         reportType === "فواتير"
           ? "invoice"
           : reportType === "ماكينة"
@@ -254,6 +272,7 @@ export default function Report() {
           ? "mechanism"
           : "item",
       page: paginationModel.page,
+      type: filters["النوع"],
       page_size: paginationModel.pageSize,
       all: false,
       employee_name: filters["اسم الموظف"],
@@ -288,7 +307,30 @@ export default function Report() {
       console.error("Invoice not found:", id);
       return;
     }
-    setSelectedInvoice({ ...invoice });
+
+    // Transform the invoice to match the expected structure for InvoiceModal
+    const transformedInvoice = {
+      ...invoice,
+      date: invoice.created_at ? invoice.created_at.split(" ")[0] : "-", // Extract date
+      time: invoice.created_at
+        ? new Date(
+            `1970-01-01 ${invoice.created_at.split(" ")[1]}`
+          ).toLocaleTimeString("en-US", {
+            hour12: true,
+            hour: "numeric",
+            minute: "2-digit",
+          })
+        : "-", // Format time
+      supplier_name: invoice.supplier || "-", // Rename supplier to supplier_name
+      machine_name: invoice.machine || "-", // Rename machine to machine_name
+      mechanism_name: invoice.mechanism || "-", // Rename mechanism to mechanism_name
+      items: invoice.items.map((item) => ({
+        ...item,
+        barcode: item.item_bar || "-", // Rename item_bar to barcode
+      })),
+    };
+
+    setSelectedInvoice(transformedInvoice);
     setIsModalOpen(true);
   };
   const closeModal = () => {
@@ -419,6 +461,16 @@ export default function Report() {
   // Dynamic filter options using API data
   const filterOptions = useMemo(
     () => ({
+      النوع: [
+        "اضافه",
+        "صرف",
+        "أمانات",
+        "مرتجع",
+        "توالف",
+        "حجز",
+        "طلب شراء",
+        "الكل",
+      ].map((name) => ({ name })),
       "اسم الموظف": ["أحمد", "منى", "سعيد"].map((name) => ({ name })),
       "اسم العميل": ["عميل 1", "عميل 2", "عميل 3"].map((name) => ({ name })),
       المراجع: ["مراجع أ", "مراجع ب"].map((name) => ({ name })),
@@ -519,9 +571,10 @@ export default function Report() {
         pageSize:
           reportType === "فواتير"
             ? filteredReportsData.page_size
-            : filteredReportsData.results[0].invoices?.length,
+            : filteredReportsData.results[0]?.invoices?.length || 10,
       });
-      setShowFilters(false); // إخفاء الفلاتر بعد البحث
+      setShowFilters(false);
+      setFetchReports(false);
     }
 
     if (filteredReportsError) {
@@ -529,7 +582,6 @@ export default function Report() {
       setSnackbarMessage("فشل في جلب البيانات من السيرفر");
       setSnackBarType("error");
     }
-    // يضمن هذا الجزء أن البحث الجديد يعمل بسلاسة مع الفلاتر الحالية أو الجديدة
   }, [filteredReportsData]);
 
   const handleBackToFilters = () => {
@@ -539,6 +591,7 @@ export default function Report() {
     setTabValue(0);
     setFilters({
       "اسم الموظف": "",
+      النوع: "",
       "اسم العميل": "",
       المراجع: "",
       "عامل المخزن": "",
@@ -572,6 +625,7 @@ export default function Report() {
 
   const invoiceFields = [
     "اسم الموظف",
+    "النوع",
     "اسم العميل",
     "المراجع",
     "عامل المخزن",
@@ -628,6 +682,7 @@ export default function Report() {
                   setReportType(e.target.value);
                   setFilters({
                     "اسم الموظف": "",
+                    النوع: "",
                     "اسم العميل": "",
                     المراجع: "",
                     "عامل المخزن": "",
@@ -1032,7 +1087,7 @@ export default function Report() {
       )}
 
       {/* Display search results */}
-      {!showFilters && searchResults?.length > 0 && (
+      {!showFilters && (
         <Box sx={{ width: "100%", maxWidth: 1200, mt: 2 }}>
           <Box
             sx={{
@@ -1056,9 +1111,9 @@ export default function Report() {
             </Typography>
             <Box></Box>
           </Box>
-          {(reportType === "ماكينة" || reportType === "ميكانيزم") &&
-            searchResults?.length > 0 && (
-              <>
+          {(reportType === "ماكينة" || reportType === "ميكانيزم") && (
+            <>
+              {searchResults?.[0] && (
                 <Card
                   sx={{ mb: 3, boxShadow: "0 2px 8px rgba(0, 0, 0, 0.05)" }}
                 >
@@ -1081,133 +1136,157 @@ export default function Report() {
                     </Typography>
                   </CardContent>
                 </Card>
+              )}
 
-                <Tabs
-                  value={tabValue}
-                  onChange={(e, newValue) => setTabValue(newValue)}
+              <Tabs
+                value={tabValue}
+                onChange={(e, newValue) => setTabValue(newValue)}
+                sx={{
+                  mb: 3,
+                  backgroundColor: "#f8fafc",
+                  borderRadius: "8px",
+                  boxShadow: "0 2px 4px rgba(0, 0, 0, 0.05)",
+                  padding: "4px",
+                  direction: "rtl",
+                  "& .MuiTabs-indicator": {
+                    backgroundColor: "#f39c12",
+                    height: "3px",
+                    borderRadius: "2px",
+                    transition: "all 0.3s ease",
+                  },
+                  "& .MuiTabs-flexContainer": {
+                    justifyContent: "flex-start",
+                  },
+                }}
+              >
+                <Tab
+                  label="الفواتير"
                   sx={{
-                    mb: 3,
-                    backgroundColor: "#f8fafc",
-                    borderRadius: "8px",
-                    boxShadow: "0 2px 4px rgba(0, 0, 0, 0.05)",
-                    padding: "4px",
-                    direction: "rtl",
-                    "& .MuiTabs-indicator": {
-                      backgroundColor: "#f39c12",
-                      height: "3px",
-                      borderRadius: "2px",
-                      transition: "all 0.3s ease",
+                    fontSize: "1.1rem",
+                    fontWeight: 600,
+                    color: "#4b6584",
+                    padding: "12px 24px",
+                    borderRadius: "6px",
+                    transition: "all 0.2s ease",
+                    "&.Mui-selected": {
+                      color: "#f39c12",
+                      backgroundColor: "#fff",
+                      boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
                     },
-                    "& .MuiTabs-flexContainer": {
-                      justifyContent: "flex-start",
+                    "&:hover": {
+                      color: "#f39c12",
+                      backgroundColor: "#f1f5f9",
                     },
                   }}
-                >
-                  <Tab
-                    label="الفواتير"
-                    sx={{
-                      fontSize: "1.1rem",
-                      fontWeight: 600,
-                      color: "#4b6584",
-                      padding: "12px 24px",
-                      borderRadius: "6px",
-                      transition: "all 0.2s ease",
-                      "&.Mui-selected": {
-                        color: "#f39c12",
-                        backgroundColor: "#fff",
-                        boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
-                      },
-                      "&:hover": {
-                        color: "#f39c12",
-                        backgroundColor: "#f1f5f9",
-                      },
-                    }}
-                  />
-                  <Tab
-                    label="العناصر"
-                    sx={{
-                      fontSize: "1.1rem",
-                      fontWeight: 600,
-                      color: "#4b6584",
-                      padding: "12px 24px",
-                      borderRadius: "6px",
-                      transition: "all 0.2s ease",
-                      "&.Mui-selected": {
-                        color: "#f39c12",
-                        backgroundColor: "#fff",
-                        boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
-                      },
-                      "&:hover": {
-                        color: "#f39c12",
-                        backgroundColor: "#f1f5f9",
-                      },
-                    }}
-                  />
-                </Tabs>
+                />
+                <Tab
+                  label="العناصر"
+                  sx={{
+                    fontSize: "1.1rem",
+                    fontWeight: 600,
+                    color: "#4b6584",
+                    padding: "12px 24px",
+                    borderRadius: "6px",
+                    transition: "all 0.2s ease",
+                    "&.Mui-selected": {
+                      color: "#f39c12",
+                      backgroundColor: "#fff",
+                      boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+                    },
+                    "&:hover": {
+                      color: "#f39c12",
+                      backgroundColor: "#f1f5f9",
+                    },
+                  }}
+                />
+              </Tabs>
 
-                {tabValue === 0 && (
-                  <CustomDataGrid
-                    rows={searchResults[0].invoices}
-                    columns={invoiceColumns}
-                    paginationModel={paginationModel}
-                    onPageChange={(newModel) => {
-                      setPaginationModel(newModel);
-                      setFetchReports(true);
-                    }}
-                    CustomToolbarFromComponent={(props) => (
-                      <CustomToolbar
-                        {...props}
-                        searchResults={searchResults[0].invoices}
-                        dataType="invoices"
-                      />
-                    )}
-                    pageCount={filteredReportsData?.total_pages || 1}
-                    loader={isFilteredReportsLoading}
-                    type="invoices"
-                    checkBox={false}
-                  />
-                )}
+              {tabValue === 0 && (
+                <CustomDataGrid
+                  rows={searchResults[0]?.invoices || []}
+                  columns={invoiceColumns}
+                  paginationModel={paginationModel}
+                  onPageChange={(newModel) => {
+                    setPaginationModel(newModel);
+                    setFetchReports(true);
+                  }}
+                  CustomToolbarFromComponent={(props) => (
+                    <CustomToolbar
+                      {...props}
+                      searchResults={searchResults[0]?.invoices || []}
+                      dataType="invoices"
+                    />
+                  )}
+                  pageCount={filteredReportsData?.total_pages || 1}
+                  loader={isFilteredReportsLoading}
+                  type="invoices"
+                  checkBox={false}
+                />
+              )}
 
-                {tabValue === 1 && (
-                  <CustomDataGrid
-                    rows={searchResults
-                      .flatMap((machine) => machine.items || [])
-                      .map((item) => ({
-                        ...item,
-                        id: item.id,
-                      }))}
-                    columns={itemColumns}
-                    paginationModel={paginationModel}
-                    onPageChange={(newModel) => {
-                      setPaginationModel(newModel);
-                      setFetchReports(true);
-                    }}
-                    CustomToolbarFromComponent={(props) => (
-                      <CustomToolbar
-                        {...props}
-                        searchResults={searchResults}
-                        dataType="items"
-                      />
-                    )}
-                    pageCount={filteredReportsData?.total_pages || 1}
-                    loader={isFilteredReportsLoading}
-                    type="items"
-                    checkBox={false}
-                  />
-                )}
-              </>
-            )}
-          {reportType === "مخازن" && searchResults.length > 0 && (
-            <>
-              {/* Render ItemDetailsDialog content directly */}
-              <ItemDetailsDialog
-                item={searchResults[0]}
-                renderAsDialog={false}
-              />
+              {tabValue === 1 && (
+                <CustomDataGrid
+                  rows={searchResults
+                    .flatMap((machine) => machine.items || [])
+                    .map((item) => ({
+                      ...item,
+                      id: item.id,
+                    }))}
+                  columns={itemColumns}
+                  paginationModel={paginationModel}
+                  onPageChange={(newModel) => {
+                    setPaginationModel(newModel);
+                    setFetchReports(true);
+                  }}
+                  CustomToolbarFromComponent={(props) => (
+                    <CustomToolbar
+                      {...props}
+                      searchResults={searchResults}
+                      dataType="items"
+                    />
+                  )}
+                  pageCount={filteredReportsData?.total_pages || 1}
+                  loader={isFilteredReportsLoading}
+                  type="items"
+                  checkBox={false}
+                />
+              )}
             </>
           )}
 
-          {reportType === "فواتير" && searchResults?.length > 0 && (
+          {reportType === "مخازن" && (
+            <>
+              {searchResults.length > 0 ? (
+                <ItemDetailsDialog
+                  item={searchResults[0]}
+                  renderAsDialog={false}
+                />
+              ) : (
+                <CustomDataGrid
+                  rows={[]}
+                  columns={itemColumns}
+                  paginationModel={paginationModel}
+                  onPageChange={(newModel) => {
+                    setPaginationModel(newModel);
+                    setFetchReports(true);
+                  }}
+                  CustomToolbarFromComponent={(props) => (
+                    <CustomToolbar
+                      {...props}
+                      searchResults={[]}
+                      dataType="items"
+                    />
+                  )}
+                  pageCount={1}
+                  loader={isFilteredReportsLoading}
+                  type="items"
+                  checkBox={false}
+                />
+              )}
+            </>
+          )}
+
+          {reportType === "فواتير" && (
             <CustomDataGrid
               rows={searchResults}
               columns={invoiceColumns}
