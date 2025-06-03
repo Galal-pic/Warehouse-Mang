@@ -21,6 +21,7 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { useGetMachinesQuery } from "../services/machineApi";
 import { useGetMechanismsQuery } from "../services/mechanismApi";
 import { useGetSuppliersQuery } from "../services/supplierApi";
+import { useGetUsersQuery } from "../services/userApi";
 import {
   useGetWarehousesQuery,
   useGetFilteredReportsQuery,
@@ -252,6 +253,15 @@ export default function Report() {
       },
       { skip: !shouldFetchMachineAndSuppliers }
     );
+  // Get users data with pagination
+  const { data: usersData, isLoading: isUsersLoading } = useGetUsersQuery(
+    {
+      page: 0,
+      page_size: 1000,
+      all: true,
+    },
+    { skip: !shouldFetchMachineAndSuppliers }
+  );
   const { data: itemsData, isLoading: isItemsLoading } = useGetWarehousesQuery(
     {
       page: 0,
@@ -496,10 +506,10 @@ export default function Report() {
         "طلب شراء",
         "الكل",
       ].map((name) => ({ name })),
-      "اسم الموظف": ["أحمد", "منى", "سعيد"].map((name) => ({ name })),
-      "اسم العميل": ["عميل 1", "عميل 2", "عميل 3"].map((name) => ({ name })),
-      المراجع: ["مراجع أ", "مراجع ب"].map((name) => ({ name })),
-      "عامل المخزن": ["عامل 1", "عامل 2"].map((name) => ({ name })),
+      "اسم الموظف":
+        usersData?.users?.map((user) => ({
+          name: user.username,
+        })) || [],
       الماكينه:
         machinesData?.machines?.map((machine) => ({ name: machine.name })) ||
         [],
@@ -522,7 +532,13 @@ export default function Report() {
       "باركود العنصر":
         itemsData?.warehouses?.map((item) => ({ name: item.item_bar })) || [],
     }),
-    [machinesData, mechanismsData, suppliersData, itemsData]
+    [
+      usersData?.users,
+      machinesData?.machines,
+      mechanismsData?.mechanisms,
+      suppliersData?.suppliers,
+      itemsData?.warehouses,
+    ]
   );
 
   // Snackbar state
@@ -801,33 +817,51 @@ export default function Report() {
                       backgroundColor: "#ddd",
                     }}
                   >
-                    <CustomAutoCompleteField
-                      isLoading={false}
-                      values={filterOptions[fieldName]}
-                      editingItem={{ [fieldName]: filters[fieldName] }}
-                      setEditingItem={(newItem) =>
-                        handleFilterChange(fieldName, newItem[fieldName])
-                      }
-                      fieldName={fieldName}
-                      placeholder={`اختر ${fieldName}`}
-                      sx={{
-                        "& .MuiInputBase-root": {
-                          fontSize: "0.95rem",
-                          backgroundColor: "#f8fafc",
-                          borderRadius: "6px",
-                          "&:hover": {
-                            backgroundColor: "#f1f5f9",
+                    {["المراجع", "اسم العميل"].includes(fieldName) ? (
+                      <input
+                        placeholder={fieldName}
+                        value={filters[fieldName]}
+                        onChange={(e) =>
+                          handleFilterChange(fieldName, e.target.value)
+                        }
+                        style={{
+                          border: "none",
+                          outline: "none",
+                          height: "50px",
+                          width: "100%",
+                          backgroundColor: "#ddd",
+                          textAlign: "center",
+                        }}
+                      />
+                    ) : (
+                      <CustomAutoCompleteField
+                        isLoading={false}
+                        values={filterOptions[fieldName]}
+                        editingItem={{ [fieldName]: filters[fieldName] }}
+                        setEditingItem={(newItem) =>
+                          handleFilterChange(fieldName, newItem[fieldName])
+                        }
+                        fieldName={fieldName}
+                        placeholder={`اختر ${fieldName}`}
+                        sx={{
+                          "& .MuiInputBase-root": {
+                            fontSize: "0.95rem",
+                            backgroundColor: "#f8fafc",
+                            borderRadius: "6px",
+                            "&:hover": {
+                              backgroundColor: "#f1f5f9",
+                            },
                           },
-                        },
-                        "& .MuiInputLabel-root": {
-                          fontSize: "0.95rem",
-                          color: "#4b6584",
-                          "&.Mui-focused": {
+                          "& .MuiInputLabel-root": {
+                            fontSize: "0.95rem",
                             color: "#4b6584",
+                            "&.Mui-focused": {
+                              color: "#4b6584",
+                            },
                           },
-                        },
-                      }}
-                    />
+                        }}
+                      />
+                    )}
                   </Box>
                 ))}
               </Box>
@@ -849,41 +883,61 @@ export default function Report() {
                       backgroundColor: "#ddd",
                     }}
                   >
-                    <CustomAutoCompleteField
-                      isLoading={
-                        fieldName === "الماكينه"
-                          ? isMachinesLoading
-                          : fieldName === "الميكانيزم"
-                          ? isMechanismsLoading
-                          : fieldName === "اسم المورد"
-                          ? isSuppliersLoading
-                          : false
-                      }
-                      values={filterOptions[fieldName]}
-                      editingItem={{ [fieldName]: filters[fieldName] }}
-                      setEditingItem={(newItem) =>
-                        handleFilterChange(fieldName, newItem[fieldName])
-                      }
-                      fieldName={fieldName}
-                      placeholder={`اختر ${fieldName}`}
-                      sx={{
-                        "& .MuiInputBase-root": {
-                          fontSize: "0.95rem",
-                          backgroundColor: "#f8fafc",
-                          borderRadius: "6px",
-                          "&:hover": {
-                            backgroundColor: "#f1f5f9",
+                    {fieldName === "عامل المخزن" ? (
+                      <input
+                        placeholder={fieldName}
+                        value={filters[fieldName]}
+                        onChange={(e) =>
+                          handleFilterChange(fieldName, e.target.value)
+                        }
+                        style={{
+                          border: "none",
+                          outline: "none",
+                          height: "50px",
+                          width: "100%",
+                          backgroundColor: "#ddd",
+                          textAlign: "center",
+                        }}
+                      />
+                    ) : (
+                      <CustomAutoCompleteField
+                        isLoading={
+                          fieldName === "الماكينه"
+                            ? isMachinesLoading
+                            : fieldName === "الميكانيزم"
+                            ? isMechanismsLoading
+                            : fieldName === "اسم المورد"
+                            ? isSuppliersLoading
+                            : fieldName === "اسم الموظف"
+                            ? isUsersLoading
+                            : false
+                        }
+                        values={filterOptions[fieldName]}
+                        editingItem={{ [fieldName]: filters[fieldName] }}
+                        setEditingItem={(newItem) =>
+                          handleFilterChange(fieldName, newItem[fieldName])
+                        }
+                        fieldName={fieldName}
+                        placeholder={`اختر ${fieldName}`}
+                        sx={{
+                          "& .MuiInputBase-root": {
+                            fontSize: "0.95rem",
+                            backgroundColor: "#f8fafc",
+                            borderRadius: "6px",
+                            "&:hover": {
+                              backgroundColor: "#f1f5f9",
+                            },
                           },
-                        },
-                        "& .MuiInputLabel-root": {
-                          fontSize: "0.95rem",
-                          color: "#4b6584",
-                          "&.Mui-focused": {
+                          "& .MuiInputLabel-root": {
+                            fontSize: "0.95rem",
                             color: "#4b6584",
+                            "&.Mui-focused": {
+                              color: "#4b6584",
+                            },
                           },
-                        },
-                      }}
-                    />
+                        }}
+                      />
+                    )}
                   </Box>
                 ))}
               </Box>
