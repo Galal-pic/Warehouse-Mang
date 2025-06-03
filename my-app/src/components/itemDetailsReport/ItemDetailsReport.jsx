@@ -37,6 +37,13 @@ const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
         invoice_type: "نوع الفاتورة",
       };
 
+      const statusMap = {
+        draft: "لم تراجع",
+        accreditation: "لم تؤكد",
+        confirmed: "تم",
+        returned: "تم الاسترداد",
+      };
+
       let csvData = [];
       let headers = [];
 
@@ -66,7 +73,8 @@ const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
           [columnTranslations.quantity]: invoice.quantity || "-",
           [columnTranslations.location]: invoice.location || "-",
           [columnTranslations.total_price]: invoice.total_price || "-",
-          [columnTranslations.status]: invoice.status || "-",
+          [columnTranslations.status]:
+            statusMap[invoice.status] || invoice.status || "-",
           [columnTranslations.invoice_date]:
             invoice.invoice_date?.split(" ")[0] || "-",
           [columnTranslations.invoice_type]: invoice.invoice_type || "-",
@@ -175,7 +183,20 @@ const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
     { field: "quantity", headerName: "الكمية", flex: 1 },
     { field: "location", headerName: "الموقع", flex: 1 },
     { field: "total_price", headerName: "السعر الإجمالي", flex: 1 },
-    { field: "status", headerName: "الحالة", flex: 1 },
+    {
+      field: "status",
+      headerName: "الحالة",
+      flex: 1,
+      renderCell: (params) => {
+        const statusMap = {
+          draft: "لم تراجع",
+          accreditation: "لم تؤكد",
+          confirmed: "تم",
+          returned: "تم الاسترداد",
+        };
+        return statusMap[params.value] || params.value || "-";
+      },
+    },
     {
       field: "invoice_date",
       headerName: "تاريخ الفاتورة",

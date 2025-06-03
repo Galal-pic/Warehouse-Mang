@@ -64,6 +64,13 @@ export default function Report() {
         item_created_at: "تاريخ الإنشاء",
       };
 
+      const statusMap = {
+        draft: "لم تراجع",
+        accreditation: "لم تؤكد",
+        confirmed: "تم",
+        returned: "تم الاسترداد",
+      };
+
       let csvData = [];
       let headers = [];
 
@@ -76,7 +83,8 @@ export default function Report() {
           [columnTranslations.total_amount]: invoice.total_amount || "-",
           [columnTranslations.paid]: invoice.paid || "-",
           [columnTranslations.residual]: invoice.residual || "-",
-          [columnTranslations.status]: invoice.status || "-",
+          [columnTranslations.status]:
+            statusMap[invoice.status] || invoice.status || "-",
           [columnTranslations.employee_name]: invoice.employee_name || "-",
           [columnTranslations.comment]: invoice.comment || "-",
           [columnTranslations.supplier]: invoice.supplier || "-",
@@ -504,10 +512,6 @@ export default function Report() {
           name: supplier.name,
         })) || [],
       الحالة: [
-        // { name: "لم تراجع", value: "draft" },
-        // { name: "لم تؤكد", value: "accreditation" },
-        // { name: "تم", value: "confirmed" },
-        // { name: "تم الاسترداد", value: "returned" },
         { name: "لم تراجع", value: "لم تراجع" },
         { name: "لم تؤكد", value: "لم تؤكد" },
         { name: "تم", value: "تم" },
@@ -553,15 +557,21 @@ export default function Report() {
 
     // Validate filters for "فواتير"
     let hasFilter = false;
-    if (
-      reportType === "فواتير" ||
-      reportType === "ماكينة" ||
-      reportType === "ميكانيزم"
-    ) {
+    if (reportType === "فواتير") {
       hasFilter = invoiceFields.some((field) => filters[field]);
       if (!hasFilter) {
         errorMessages.push("يجب إدخال فلتر واحد على الأقل");
       }
+    }
+
+    // Validate machine selection for "ماكينة" report type
+    if (reportType === "ماكينة" && !filters["الماكينه"]) {
+      errorMessages.push("يجب اختيار ماكينة");
+    }
+
+    // Validate mechanism selection for "ميكانيزم" report type
+    if (reportType === "ميكانيزم" && !filters["الميكانيزم"]) {
+      errorMessages.push("يجب اختيار ميكانيزم");
     }
 
     // Validate fields for "مخازن"
@@ -1142,7 +1152,8 @@ export default function Report() {
                       variant="h6"
                       sx={{ fontWeight: 600, color: "#1e293b" }}
                     >
-                      تفاصيل الماكينة
+                      تفاصيل
+                      {reportType === "ماكينة" ? " الماكينة" : " الميكانيزم"}
                     </Typography>
                     <Typography variant="body1">
                       <strong>المعرف:</strong> {searchResults[0].id}

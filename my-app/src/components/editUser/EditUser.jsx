@@ -248,7 +248,12 @@ const EditUser = ({ open, onClose, user: initialUser }) => {
         suppliers_can_add: edittingUser.permissions.suppliers.suppliers_can_add,
       });
     } catch (error) {
-      setSnackbarMessage("اسم الموظف موجود بالفعل");
+      const message =
+        error.status === "FETCH_ERROR"
+          ? "خطأ في الوصول إلى قاعدة البيانات"
+          : "اسم الموظف موجود بالفعل";
+
+      setSnackbarMessage(message);
       setSnackBarType("error");
       setOpenSnackbar(true);
       console.error("Error updating user:", error);

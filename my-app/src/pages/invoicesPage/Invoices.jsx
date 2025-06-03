@@ -589,7 +589,7 @@ export default function Invoices() {
                 حذف المحدد ({selectedRows.length})
               </Button>
             )}
-            {selectedRows.some((invoice) =>
+            {/* {selectedRows.some((invoice) =>
               invoice.items.every((item) => item.total_price !== 0)
             )
               ? ""
@@ -611,7 +611,7 @@ export default function Invoices() {
                       `تحديث اسعار المحدد (${selectedRows.length})`
                     )}
                   </Button>
-                )}
+                )} */}
           </>
         )}
         <Button
@@ -714,7 +714,7 @@ export default function Invoices() {
                 "تم الاسترداد"
               ))}
 
-            {params.row.items.some((item) => item.total_price === 0) && (
+            {/* {params.row.items.some((item) => item.total_price === 0) && (
               <Button
                 variant="contained"
                 color="info"
@@ -734,7 +734,7 @@ export default function Invoices() {
                   "تحديث اسعار"
                 )}
               </Button>
-            )}
+            )} */}
           </div>
         );
       },
