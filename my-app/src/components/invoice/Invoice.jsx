@@ -266,10 +266,18 @@ export default function InvoiceModal({
           }
         } else if (selectedNowType?.type !== "اضافه") {
           // For non-return invoices, use warehouse quantities
-          maxquantity =
-            warehouseItem?.locations?.find(
-              (loc) => loc.location === item.location
-            )?.quantity || 0;
+          const otherQuantity = selectedInvoice?.items?.find(
+            (i) => i.barcode === item.barcode && i.location === item.location
+          );
+
+          maxquantity = otherQuantity
+            ? otherQuantity?.quantity +
+              warehouseItem?.locations?.find(
+                (loc) => loc.location === item.location
+              )?.quantity
+            : warehouseItem?.locations?.find(
+                (loc) => loc.location === item.location
+              )?.quantity || 0;
         }
 
         return {
@@ -968,6 +976,8 @@ export default function InvoiceModal({
                               }
                             }}
                           />
+                        ) : isEditingInvoice ? (
+                          "-"
                         ) : (
                           row.unit_price
                         )}
@@ -975,8 +985,7 @@ export default function InvoiceModal({
                       <TableCell className={styles.tableCellRow}>
                         {!isEditingInvoice
                           ? row?.total_price
-                          : editingInvoice.type === "اضافه" ||
-                            editingInvoice.type === "مرتجع"
+                          : editingInvoice.type === "اضافه"
                           ? row?.total_price
                           : "-"}
                       </TableCell>
