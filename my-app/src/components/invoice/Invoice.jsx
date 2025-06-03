@@ -221,7 +221,7 @@ export default function InvoiceModal({
         );
         let availableLocations = warehouseItem?.locations || [];
         let maxquantity = item.maxquantity || 0;
-        let unit_price = item.unit_price || 0;
+        let unit_price = item.unit_price;
         let price_details = item.price_details || [];
 
         // For return invoices, filter locations and set maxquantity, unit_price, and total_price

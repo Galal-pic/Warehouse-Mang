@@ -349,6 +349,10 @@ export default function Invoices() {
         setOpenSnackbar(true);
         setSnackbarMessage("خطأ في الوصول إلى قاعدة البيانات");
         setSnackBarType("error");
+      } else if (error?.data?.message?.includes("exceeds")) {
+        setOpenSnackbar(true);
+        setSnackbarMessage("الكمية التى يتم ارجاعها تفوق الحد المسموح");
+        setSnackBarType("error");
       } else {
         setOpenSnackbar(true);
         setSnackbarMessage(
