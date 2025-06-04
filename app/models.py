@@ -5,7 +5,7 @@ class Employee(db.Model):
     __tablename__ = 'employee'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False, index=True)
-    password_hash = db.Column(db.String(120), nullable=False)
+    password_hash = db.Column(db.String(255), nullable=False)
     job_name = db.Column(db.String(100), nullable=False)
     phone_number = db.Column(db.String(20))
     
@@ -174,8 +174,8 @@ class Prices(db.Model):
     invoice = db.relationship('Invoice', back_populates='prices')
     warehouse = db.relationship('Warehouse', back_populates='prices')
     price_details = db.relationship('InvoicePriceDetail', 
-                                   primaryjoin="and_(Prices.invoice_id==InvoicePriceDetail.source_price_id, "
-                                               "Prices.item_id==InvoicePriceDetail.item_id)",
+                                   primaryjoin="and_(Prices.invoice_id==InvoicePriceDetail.source_price_invoice_id, "
+                                               "Prices.item_id==InvoicePriceDetail.source_price_item_id)",
                                    backref="source_price", viewonly=True)
 
 # New model to store price breakdown details
@@ -184,7 +184,8 @@ class InvoicePriceDetail(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     invoice_id = db.Column(db.Integer, db.ForeignKey('invoice.id'), nullable=False)
     item_id = db.Column(db.Integer, db.ForeignKey('warehouse.id'), nullable=False)
-    source_price_id = db.Column(db.Integer, db.ForeignKey('prices.invoice_id'), nullable=False)
+    source_price_invoice_id = db.Column(db.Integer, nullable=False)  # Changed name for clarity
+    source_price_item_id = db.Column(db.Integer, nullable=False)     # Added for composite FK
     quantity = db.Column(db.Integer, nullable=False)
     unit_price = db.Column(db.Float, nullable=False)
     subtotal = db.Column(db.Float, nullable=False)
@@ -193,10 +194,10 @@ class InvoicePriceDetail(db.Model):
     # Relationships
     invoice = db.relationship('Invoice', back_populates='price_details')
     
-    # Composite foreign key constraints
+    # Composite foreign key constraint to prices table
     __table_args__ = (
         db.ForeignKeyConstraint(
-            ['source_price_id', 'item_id'],
+            ['source_price_invoice_id', 'source_price_item_id'],
             ['prices.invoice_id', 'prices.item_id']
         ),
     )

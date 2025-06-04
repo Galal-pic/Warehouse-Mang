@@ -206,6 +206,7 @@ class Reports(Resource):
 @reports_ns.route("/filter")
 class FilterReports(Resource):
     @reports_ns.expect(filter_parser)
+    @reports_ns.expect(pagination_parser)
     @jwt_required()
     def get(self):
         """Filter reports based on query parameters"""
@@ -250,13 +251,13 @@ class FilterReports(Resource):
             reports_ns.abort(400, f"Unsupported report type: {report_type}")
     
     def _filter_machines(self, args, start_date, end_date, page_size, offset, all_results):
-        """Filter machines and get related data"""
+        """Filter machines and get related data with nested pagination"""
         # Start with base query
         query = Machine.query
         
-        # Apply filters if they exist
+        # Apply filters with exact matching
         if args["machine"]:
-            query = query.filter(Machine.name.ilike(f"%{args['machine']}%"))
+            query = query.filter(Machine.name == args["machine"])
         
         # Get total count for pagination info
         total_count = query.count()
@@ -267,10 +268,15 @@ class FilterReports(Resource):
         else:
             machines = query.limit(page_size).offset(offset).all()
         
+        # Use existing pagination parameters for nested lists
+        nested_page = int(args["page"])
+        nested_page_size = int(args["page_size"])
+        nested_offset = (nested_page - 1) * nested_page_size
+        
         # Prepare results
         result = []
         for machine in machines:
-            # Get related invoices
+            # Get related invoices with pagination
             invoices_query = Invoice.query.filter(Invoice.machine_id == machine.id)
             
             # Apply date filters if provided
@@ -278,10 +284,14 @@ class FilterReports(Resource):
                 invoices_query = invoices_query.filter(Invoice.created_at >= start_date)
             if end_date:
                 invoices_query = invoices_query.filter(Invoice.created_at <= end_date)
-                
-            invoices = invoices_query.all()
             
-            # Get related purchase requests
+            # Count total invoices for this machine
+            total_invoices = invoices_query.count()
+            
+            # Apply nested pagination to invoices
+            invoices = invoices_query.limit(nested_page_size).offset(nested_offset).all()
+            
+            # Get related purchase requests with pagination
             purchase_requests_query = PurchaseRequests.query.filter(PurchaseRequests.machine_id == machine.id)
             
             # Apply date filters if provided
@@ -289,14 +299,24 @@ class FilterReports(Resource):
                 purchase_requests_query = purchase_requests_query.filter(PurchaseRequests.created_at >= start_date)
             if end_date:
                 purchase_requests_query = purchase_requests_query.filter(PurchaseRequests.created_at <= end_date)
-                
-            purchase_requests = purchase_requests_query.all()
             
-            # Get items related to this machine through purchase requests
-            item_ids = [pr.item_id for pr in purchase_requests]
-            related_items = Warehouse.query.filter(Warehouse.id.in_(item_ids)).all() if item_ids else []
+            # Count total purchase requests
+            total_purchase_requests = purchase_requests_query.count()
             
-            # Serialize invoices
+            # Apply nested pagination to purchase requests
+            purchase_requests = purchase_requests_query.limit(nested_page_size).offset(nested_offset).all()
+            
+            # Get items related to this machine through purchase requests with pagination
+            item_ids = [pr.item_id for pr in purchase_requests_query.all()]  # Get all IDs first
+            related_items_query = Warehouse.query.filter(Warehouse.id.in_(item_ids)) if item_ids else Warehouse.query.filter(False)
+            
+            # Count total related items
+            total_items = related_items_query.count() if item_ids else 0
+            
+            # Apply nested pagination to items
+            related_items = related_items_query.limit(nested_page_size).offset(nested_offset).all() if item_ids else []
+            
+            # Serialize invoices (same as before)
             serialized_invoices = []
             for invoice in invoices:
                 invoice_data = {
@@ -327,7 +347,7 @@ class FilterReports(Resource):
                 }
                 serialized_invoices.append(invoice_data)
             
-            # Serialize items
+            # Serialize items (same logic as before, but only for paginated items)
             serialized_items = []
             for item in related_items:
                 # Get all locations for this item
@@ -401,14 +421,32 @@ class FilterReports(Resource):
                 "employee": pr.employee.username if pr.employee else None
             } for pr in purchase_requests]
             
-            # Build machine data
+            # Build machine data with pagination info for nested lists
             machine_data = {
                 "id": machine.id,
                 "name": machine.name,
                 "description": machine.description,
-                "invoices": serialized_invoices,
-                "items": serialized_items,
-                "purchase_requests": serialized_prs
+                "invoices": {
+                    "total": total_invoices,
+                    "page": nested_page,
+                    "page_size": nested_page_size,
+                    "pages": (total_invoices + nested_page_size - 1) // nested_page_size,
+                    "results": serialized_invoices
+                },
+                "items": {
+                    "total": total_items,
+                    "page": nested_page,
+                    "page_size": nested_page_size,
+                    "pages": (total_items + nested_page_size - 1) // nested_page_size,
+                    "results": serialized_items
+                },
+                "purchase_requests": {
+                    "total": total_purchase_requests,
+                    "page": nested_page,
+                    "page_size": nested_page_size,
+                    "pages": (total_purchase_requests + nested_page_size - 1) // nested_page_size,
+                    "results": serialized_prs
+                }
             }
             result.append(machine_data)
         
@@ -421,13 +459,13 @@ class FilterReports(Resource):
         }, 200
     
     def _filter_mechanisms(self, args, start_date, end_date, page_size, offset, all_results):
-        """Filter mechanisms and get related data"""
+        """Filter mechanisms and get related data with nested pagination"""
         # Start with base query
         query = Mechanism.query
         
-        # Apply filters if they exist
+        # Apply filters with exact matching
         if args["mechanism"]:
-            query = query.filter(Mechanism.name.ilike(f"%{args['mechanism']}%"))
+            query = query.filter(Mechanism.name == args["mechanism"])
         
         # Get total count for pagination info
         total_count = query.count()
@@ -438,10 +476,16 @@ class FilterReports(Resource):
         else:
             mechanisms = query.limit(page_size).offset(offset).all()
         
+        # Use existing pagination parameters for nested lists
+        nested_page = int(args["page"])
+        nested_page_size = int(args["page_size"])
+        nested_offset = (nested_page - 1) * nested_page_size
+        
+        # Prepare results
         # Prepare results
         result = []
         for mechanism in mechanisms:
-            # Get related invoices
+            # Get related invoices with pagination
             invoices_query = Invoice.query.filter(Invoice.mechanism_id == mechanism.id)
             
             # Apply date filters if provided
@@ -449,10 +493,14 @@ class FilterReports(Resource):
                 invoices_query = invoices_query.filter(Invoice.created_at >= start_date)
             if end_date:
                 invoices_query = invoices_query.filter(Invoice.created_at <= end_date)
-                
-            invoices = invoices_query.all()
             
-            # Get related purchase requests
+            # Count total invoices for this machine
+            total_invoices = invoices_query.count()
+            
+            # Apply nested pagination to invoices
+            invoices = invoices_query.limit(nested_page_size).offset(nested_offset).all()
+            
+            # Get related purchase requests with pagination
             purchase_requests_query = PurchaseRequests.query.filter(PurchaseRequests.mechanism_id == mechanism.id)
             
             # Apply date filters if provided
@@ -460,14 +508,24 @@ class FilterReports(Resource):
                 purchase_requests_query = purchase_requests_query.filter(PurchaseRequests.created_at >= start_date)
             if end_date:
                 purchase_requests_query = purchase_requests_query.filter(PurchaseRequests.created_at <= end_date)
-                
-            purchase_requests = purchase_requests_query.all()
             
-            # Get items related to this mechanism through purchase requests
-            item_ids = [pr.item_id for pr in purchase_requests]
-            related_items = Warehouse.query.filter(Warehouse.id.in_(item_ids)).all() if item_ids else []
+            # Count total purchase requests
+            total_purchase_requests = purchase_requests_query.count()
             
-            # Serialize invoices
+            # Apply nested pagination to purchase requests
+            purchase_requests = purchase_requests_query.limit(nested_page_size).offset(nested_offset).all()
+            
+            # Get items related to this machine through purchase requests with pagination
+            item_ids = [pr.item_id for pr in purchase_requests_query.all()]  # Get all IDs first
+            related_items_query = Warehouse.query.filter(Warehouse.id.in_(item_ids)) if item_ids else Warehouse.query.filter(False)
+            
+            # Count total related items
+            total_items = related_items_query.count() if item_ids else 0
+            
+            # Apply nested pagination to items
+            related_items = related_items_query.limit(nested_page_size).offset(nested_offset).all() if item_ids else []
+            
+            # Serialize invoices (same as before)
             serialized_invoices = []
             for invoice in invoices:
                 invoice_data = {
@@ -498,7 +556,7 @@ class FilterReports(Resource):
                 }
                 serialized_invoices.append(invoice_data)
             
-            # Serialize items
+            # Serialize items (same logic as before, but only for paginated items)
             serialized_items = []
             for item in related_items:
                 # Get all locations for this item
@@ -507,10 +565,10 @@ class FilterReports(Resource):
                     "quantity": loc.quantity
                 } for loc in item.item_locations]
                 
-                # Get this mechanism's purchase requests for this item
-                mechanism_prs = [pr for pr in purchase_requests if pr.item_id == item.id]
+                # Get this machine's purchase requests for this item
+                machine_prs = [pr for pr in purchase_requests if pr.item_id == item.id]
                 
-                # Get all invoices for this item related to this mechanism
+                # Get all invoices for this item related to this machine
                 invoice_items = InvoiceItem.query.join(Invoice).filter(
                     and_(
                         InvoiceItem.item_id == item.id,
@@ -555,7 +613,7 @@ class FilterReports(Resource):
                         "machine": pr.machine.name if pr.machine else None,
                         "mechanism": pr.mechanism.name if pr.mechanism else None,
                         "employee": pr.employee.username if pr.employee else None
-                    } for pr in mechanism_prs]
+                    } for pr in machine_prs]
                 }
                 serialized_items.append(item_data)
             
@@ -572,16 +630,34 @@ class FilterReports(Resource):
                 "employee": pr.employee.username if pr.employee else None
             } for pr in purchase_requests]
             
-            # Build mechanism data
-            mechanism_data = {
+            # Build machine data with pagination info for nested lists
+            machine_data = {
                 "id": mechanism.id,
                 "name": mechanism.name,
                 "description": mechanism.description,
-                "invoices": serialized_invoices,
-                "items": serialized_items,
-                "purchase_requests": serialized_prs
+                "invoices": {
+                    "total": total_invoices,
+                    "page": nested_page,
+                    "page_size": nested_page_size,
+                    "pages": (total_invoices + nested_page_size - 1) // nested_page_size,
+                    "results": serialized_invoices
+                },
+                "items": {
+                    "total": total_items,
+                    "page": nested_page,
+                    "page_size": nested_page_size,
+                    "pages": (total_items + nested_page_size - 1) // nested_page_size,
+                    "results": serialized_items
+                },
+                "purchase_requests": {
+                    "total": total_purchase_requests,
+                    "page": nested_page,
+                    "page_size": nested_page_size,
+                    "pages": (total_purchase_requests + nested_page_size - 1) // nested_page_size,
+                    "results": serialized_prs
+                }
             }
-            result.append(mechanism_data)
+            result.append(machine_data)
         
         return {
             "total": total_count,
@@ -689,12 +765,12 @@ class FilterReports(Resource):
         # Start with base query
         query = Warehouse.query
         
-        # Apply filters if they exist
+        # Apply filters if they exist - using exact matching by default
         if args["item_name"]:
-            query = query.filter(Warehouse.item_name.ilike(f"%{args['item_name']}%"))
+            query = query.filter(Warehouse.item_name == args["item_name"])
             
         if args["item_bar"]:
-            query = query.filter(Warehouse.item_bar.ilike(f"%{args['item_bar']}%"))
+            query = query.filter(Warehouse.item_bar == args["item_bar"])
         
         # Get total count for pagination info
         total_count = query.count()

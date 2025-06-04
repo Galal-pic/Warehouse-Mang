@@ -7,6 +7,7 @@ from .utils import parse_bool
 # Create namespace
 auth_ns = Namespace('auth', description='Authentication operations')
 
+
 pagination_parser = auth_ns.parser()
 pagination_parser.add_argument('page',
                                type=str,
@@ -38,12 +39,14 @@ manage_operations_model = auth_ns.model('ManageOperationsPermissions', {
     'view_damages': fields.Boolean(default=False, description='Permission to view damages'),
     'view_reservations': fields.Boolean(default=False, description='Permission to view reservations'),
     'view_prices': fields.Boolean(default=False, description='Permission to view prices'),
+    'view_purchase_requests': fields.Boolean(default=False, description='Permission to view purchase requests'),
     'can_edit': fields.Boolean(default=False, description='Permission to edit operations'),
     'can_delete': fields.Boolean(default=False, description='Permission to delete operations'),
     'can_confirm_withdrawal': fields.Boolean(default=False, description='Permission to confirm withdrawals'),
     'can_withdraw': fields.Boolean(default=False, description='Permission to withdraw'),
     'can_update_prices': fields.Boolean(default=False, description='Permission to update prices'),
-    'can_recover_deposits': fields.Boolean(default=False, description='Permission to recover deposits')
+    'can_recover_deposits': fields.Boolean(default=False, description='Permission to recover deposits'),
+    'can_confirm_purchase_requests': fields.Boolean(default=False, description='Permission to confirm purchase requests')
 })
 
 # Items Permissions
@@ -454,3 +457,5 @@ class CurrentUser(Resource):
         if not user:
             auth_ns.abort(404, "User not found")
         return user, 200
+    
+    

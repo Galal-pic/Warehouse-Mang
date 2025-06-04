@@ -1151,3 +1151,6 @@ class UpdateInvoicePrice(Resource):
         except Exception as e:
             db.session.rollback()
             return {"error": f"Error updating prices: {str(e)}"}, 500
+        
+        
+    

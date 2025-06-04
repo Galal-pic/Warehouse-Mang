@@ -6,3 +6,4 @@ Flask-JWT-Extended
 python-dotenv
 flask_restx
 pandas
+psycopg2-binary
