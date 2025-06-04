@@ -32,8 +32,7 @@ def create_app():
     # Initialize extensions
     db.init_app(app)
     migrate.init_app(app, db)
-    cors.init_app(app, resources={r"/*": {"origins": "http://localhost:3000"}})
-    # cors.init_app(app, resources={r"/*": {"origins": "https://demo.thunder-project.xyz"}})
+    cors.init_app(app, resources={r"/*": {"origins": "http://localhost:3000" if flask_env == 'development' else "https://demo.thunder-project.xyz"}})
     jwt.init_app(app)
 
     # Initialize Flask-RestX API
@@ -64,7 +63,7 @@ def create_app():
                 'message': 'Warehouse Management API',
                 'version': '1.0',
                 'documentation': '/docs/',
-                'environment': "development" if flask_env == 'DEV' else "production",
+                'environment': "development" if flask_env == 'development' else "production",
                 'endpoints': {
                     'auth': '/auth/',
                     'warehouses': '/warehouses/',
