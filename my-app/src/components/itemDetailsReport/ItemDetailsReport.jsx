@@ -7,11 +7,17 @@ import {
   Card,
   CardContent,
   Box,
+  Tabs,
+  Tab,
 } from "@mui/material";
 import CustomDataGrid from "../dataGrid/CustomDataGrid";
 import { GridToolbarContainer } from "@mui/x-data-grid";
+import { useState } from "react";
 
 const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
+  // State for active tab
+  const [tabValue, setTabValue] = useState(0);
+
   function CustomToolbar({
     columnVisibilityModel,
     searchResults,
@@ -19,29 +25,123 @@ const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
     ...props
   }) {
     const handleExport = () => {
-      console.log("handleExport");
+      const columnTranslations = {
+        quantity: "الكمية",
+        location: "الموقع",
+        unit_price: "سعر الوحدة",
+        created_at: "التاريخ",
+        invoice_id: "#",
+        total_price: "السعر الإجمالي",
+        status: "الحالة",
+        invoice_date: "تاريخ الفاتورة",
+        invoice_type: "نوع الفاتورة",
+      };
+
+      const statusMap = {
+        draft: "لم تراجع",
+        accreditation: "لم تؤكد",
+        confirmed: "تم",
+        returned: "تم الاسترداد",
+      };
+
+      let csvData = [];
+      let headers = [];
+
+      if (dataType === "locations") {
+        csvData = searchResults.map((location) => ({
+          [columnTranslations.quantity]: location.quantity || "-",
+          [columnTranslations.location]: location.location || "-",
+        }));
+        headers = [columnTranslations.quantity, columnTranslations.location];
+      } else if (dataType === "prices") {
+        csvData = searchResults.map((price) => ({
+          [columnTranslations.unit_price]: price.unit_price || "-",
+          [columnTranslations.quantity]: price.quantity || "-",
+          [columnTranslations.created_at]:
+            price.created_at?.split(" ")[0] || "-",
+          [columnTranslations.invoice_id]: price.invoice_id || "-",
+        }));
+        headers = [
+          columnTranslations.unit_price,
+          columnTranslations.quantity,
+          columnTranslations.created_at,
+          columnTranslations.invoice_id,
+        ];
+      } else if (dataType === "invoice_history") {
+        csvData = searchResults.map((invoice) => ({
+          [columnTranslations.unit_price]: invoice.unit_price || "-",
+          [columnTranslations.quantity]: invoice.quantity || "-",
+          [columnTranslations.location]: invoice.location || "-",
+          [columnTranslations.total_price]: invoice.total_price || "-",
+          [columnTranslations.status]:
+            statusMap[invoice.status] || invoice.status || "-",
+          [columnTranslations.invoice_date]:
+            invoice.invoice_date?.split(" ")[0] || "-",
+          [columnTranslations.invoice_type]: invoice.invoice_type || "-",
+          [columnTranslations.invoice_id]: invoice.invoice_id || "-",
+        }));
+        headers = [
+          columnTranslations.unit_price,
+          columnTranslations.quantity,
+          columnTranslations.location,
+          columnTranslations.total_price,
+          columnTranslations.status,
+          columnTranslations.invoice_date,
+          columnTranslations.invoice_type,
+          columnTranslations.invoice_id,
+        ];
+      }
+
+      const escapeCsvValue = (value) => {
+        if (value === null || value === undefined) return "";
+        const str = String(value);
+        if (str.includes(",") || str.includes("\n") || str.includes('"')) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      };
+
+      const csvRows = [
+        headers.map(escapeCsvValue).join(","),
+        ...csvData.map((row) =>
+          headers.map((header) => escapeCsvValue(row[header])).join(",")
+        ),
+      ];
+      const csv = csvRows.join("\n");
+
+      const blob = new Blob(["\uFEFF" + csv], {
+        type: "text/csv;charset=utf-8;",
+      });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `تقرير_${dataType}_${
+        new Date().toISOString().split("T")[0]
+      }.csv`;
+      link.click();
+      URL.revokeObjectURL(link.href);
     };
+
     return (
       <GridToolbarContainer
         sx={{
           display: "flex",
-          justifyContent: "flex-end", // المحاذاة لليمين (RTL)
+          justifyContent: "flex-end",
           padding: "12px 16px",
-          backgroundColor: "#f8fafc", // خلفية فاتحة
-          borderBottom: "1px solid #e2e8f0", // خط سفلي
-          borderRadius: "8px 8px 0 0", // زوايا مستديرة في الأعلى
+          backgroundColor: "#f8fafc",
+          borderBottom: "1px solid #e2e8f0",
+          borderRadius: "8px 8px 0 0",
         }}
       >
         <Button
           variant="contained"
           onClick={handleExport}
           sx={{
-            padding: "8px 24px", // تباعد داخلي أكبر
+            padding: "8px 24px",
             backgroundColor: "#f39c12",
             borderRadius: "6px",
             fontSize: "0.95rem",
             fontWeight: 600,
-            textTransform: "none", // نص طبيعي
+            textTransform: "none",
             boxShadow: "0 2px 6px rgba(0, 0, 0, 0.1)",
             transition: "background-color 0.2s, box-shadow 0.2s",
             "&:hover": {
@@ -62,52 +162,49 @@ const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
 
   // Columns for tables
   const locationColumns = [
-    { field: "location", headerName: "الموقع", flex: 1 },
     { field: "quantity", headerName: "الكمية", flex: 1 },
+    { field: "location", headerName: "الموقع", flex: 1 },
   ];
 
   const priceColumns = [
-    { field: "invoice_id", headerName: "معرف الفاتورة", flex: 1 },
-    { field: "quantity", headerName: "الكمية", flex: 1 },
     { field: "unit_price", headerName: "سعر الوحدة", flex: 1 },
+    { field: "quantity", headerName: "الكمية", flex: 1 },
     {
       field: "created_at",
-      headerName: "تاريخ الإنشاء",
+      headerName: "التاريخ",
       flex: 1,
       renderCell: (params) => (params.value ? params.value.split(" ")[0] : "-"),
     },
+    { field: "invoice_id", headerName: "#", flex: 1 },
   ];
 
   const invoiceHistoryColumns = [
-    { field: "invoice_id", headerName: "معرف الفاتورة", flex: 1 },
-    { field: "invoice_type", headerName: "نوع الفاتورة", flex: 1 },
+    { field: "unit_price", headerName: "سعر الوحدة", flex: 1 },
+    { field: "quantity", headerName: "الكمية", flex: 1 },
+    { field: "location", headerName: "الموقع", flex: 1 },
+    { field: "total_price", headerName: "السعر الإجمالي", flex: 1 },
+    {
+      field: "status",
+      headerName: "الحالة",
+      flex: 1,
+      renderCell: (params) => {
+        const statusMap = {
+          draft: "لم تراجع",
+          accreditation: "لم تؤكد",
+          confirmed: "تم",
+          returned: "تم الاسترداد",
+        };
+        return statusMap[params.value] || params.value || "-";
+      },
+    },
     {
       field: "invoice_date",
       headerName: "تاريخ الفاتورة",
       flex: 1,
       renderCell: (params) => (params.value ? params.value.split(" ")[0] : "-"),
     },
-    { field: "location", headerName: "الموقع", flex: 1 },
-    { field: "quantity", headerName: "الكمية", flex: 1 },
-    { field: "unit_price", headerName: "سعر الوحدة", flex: 1 },
-    { field: "total_price", headerName: "السعر الإجمالي", flex: 1 },
-    { field: "status", headerName: "الحالة", flex: 1 },
-  ];
-
-  const purchaseRequestColumns = [
-    { field: "id", headerName: "معرف الطلب", flex: 1 },
-    { field: "status", headerName: "الحالة", flex: 1 },
-    { field: "requested_quantity", headerName: "الكمية المطلوبة", flex: 1 },
-    {
-      field: "created_at",
-      headerName: "تاريخ الإنشاء",
-      flex: 1,
-      renderCell: (params) => (params.value ? params.value.split(" ")[0] : "-"),
-    },
-    { field: "subtotal", headerName: "الإجمالي", flex: 1 },
-    { field: "machine", headerName: "الماكينة", flex: 1 },
-    { field: "mechanism", headerName: "الميكانيزم", flex: 1 },
-    { field: "employee", headerName: "الموظف", flex: 1 },
+    { field: "invoice_type", headerName: "نوع الفاتورة", flex: 1 },
+    { field: "invoice_id", headerName: "#", flex: 1 },
   ];
 
   // Pagination model for all tables
@@ -149,7 +246,7 @@ const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
               variant="body1"
               sx={{ fontSize: "1rem", color: "#4b6584" }}
             >
-              <strong>المعرف:</strong> {item.id}
+              {item.id}
             </Typography>
             <Typography
               variant="body1"
@@ -174,104 +271,143 @@ const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
         </CardContent>
       </Card>
 
-      {/* Locations table */}
+      {/* Tabs for tables */}
       <Box>
-        <Typography
-          variant="h6"
-          sx={{ fontWeight: 600, color: "#1e293b", mb: 2, direction: "rtl" }}
+        <Tabs
+          value={tabValue}
+          onChange={(e, newValue) => setTabValue(newValue)}
+          sx={{
+            mb: 3,
+            backgroundColor: "#f8fafc",
+            borderRadius: "8px",
+            boxShadow: "0 2px 4px rgba(0, 0, 0, 0.05)",
+            padding: "4px",
+            direction: "rtl",
+            "& .MuiTabs-indicator": {
+              backgroundColor: "#f39c12",
+              height: "3px",
+              borderRadius: "2px",
+              transition: "all 0.3s ease",
+            },
+            "& .MuiTabs-flexContainer": {
+              justifyContent: "flex-start",
+            },
+          }}
         >
-          المواقع
-        </Typography>
-        <CustomDataGrid
-          CustomToolbarFromComponent={(props) => (
-            <CustomToolbar
-              {...props}
-              searchResults={item.locations || []}
-              dataType="locations"
-            />
-          )}
-          rows={item.locations || []}
-          columns={locationColumns}
-          getRowId={(row) => row.location}
-          paginationModel={paginationModel}
-          pageCount={1}
-          checkBox={false}
-        />
-      </Box>
+          <Tab
+            label="المواقع"
+            sx={{
+              fontSize: "1.1rem",
+              fontWeight: 600,
+              color: "#4b6584",
+              padding: "12px 24px",
+              borderRadius: "6px",
+              transition: "all 0.2s ease",
+              "&.Mui-selected": {
+                color: "#f39c12",
+                backgroundColor: "#fff",
+                boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+              },
+              "&:hover": {
+                color: "#f39c12",
+                backgroundColor: "#f1f5f9",
+              },
+            }}
+          />
+          <Tab
+            label="الأسعار"
+            sx={{
+              fontSize: "1.1rem",
+              fontWeight: 600,
+              color: "#4b6584",
+              padding: "12px 24px",
+              borderRadius: "6px",
+              transition: "all 0.2s ease",
+              "&.Mui-selected": {
+                color: "#f39c12",
+                backgroundColor: "#fff",
+                boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+              },
+              "&:hover": {
+                color: "#f39c12",
+                backgroundColor: "#f1f5f9",
+              },
+            }}
+          />
+          <Tab
+            label="تاريخ الفواتير"
+            sx={{
+              fontSize: "1.1rem",
+              fontWeight: 600,
+              color: "#4b6584",
+              padding: "12px 24px",
+              borderRadius: "6px",
+              transition: "all 0.2s ease",
+              "&.Mui-selected": {
+                color: "#f39c12",
+                backgroundColor: "#fff",
+                boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+              },
+              "&:hover": {
+                color: "#f39c12",
+                backgroundColor: "#f1f5f9",
+              },
+            }}
+          />
+        </Tabs>
 
-      {/* Prices table */}
-      <Box>
-        <Typography
-          variant="h6"
-          sx={{ fontWeight: 600, color: "#1e293b", mb: 2, direction: "rtl" }}
-        >
-          الأسعار
-        </Typography>
-        <CustomDataGrid
-          CustomToolbarFromComponent={(props) => (
-            <CustomToolbar
-              {...props}
-              searchResults={item.prices || []}
-              dataType="prices"
-            />
-          )}
-          rows={item.prices || []}
-          columns={priceColumns}
-          getRowId={(row) => row.invoice_id + row.created_at}
-          paginationModel={paginationModel}
-          pageCount={1}
-          checkBox={false}
-        />
-      </Box>
-
-      {/* Invoice history table */}
-      <Box>
-        <Typography
-          variant="h6"
-          sx={{ fontWeight: 600, color: "#1e293b", mb: 2, direction: "rtl" }}
-        >
-          تاريخ الفواتير
-        </Typography>
-        <CustomDataGrid
-          CustomToolbarFromComponent={(props) => (
-            <CustomToolbar
-              {...props}
-              searchResults={item.invoice_history || []}
-              dataType="invoice_history"
-            />
-          )}
-          rows={item.invoice_history || []}
-          columns={invoiceHistoryColumns}
-          getRowId={(row) => row.invoice_id + row.invoice_date}
-          paginationModel={paginationModel}
-          pageCount={1}
-          checkBox={false}
-        />
-      </Box>
-
-      {/* Purchase requests table */}
-      <Box>
-        <Typography
-          variant="h6"
-          sx={{ fontWeight: 600, color: "#1e293b", mb: 2, direction: "rtl" }}
-        >
-          طلبات الشراء
-        </Typography>
-        <CustomDataGrid
-          CustomToolbarFromComponent={(props) => (
-            <CustomToolbar
-              {...props}
-              searchResults={item.purchase_requests || []}
-              dataType="purchase_requests"
-            />
-          )}
-          rows={item.purchase_requests || []}
-          columns={purchaseRequestColumns}
-          getRowId={(row) => row.id}
-          paginationModel={paginationModel}
-          pageCount={1}
-          checkBox={false}
-        />
+        {/* Tab content */}
+        {tabValue === 0 && (
+          <CustomDataGrid
+            CustomToolbarFromComponent={(props) => (
+              <CustomToolbar
+                {...props}
+                searchResults={item.locations || []}
+                dataType="locations"
+              />
+            )}
+            rows={item.locations || []}
+            columns={locationColumns}
+            getRowId={(row) => row.location}
+            paginationModel={paginationModel}
+            pageCount={1}
+            checkBox={false}
+          />
+        )}
+        {tabValue === 1 && (
+          <CustomDataGrid
+            CustomToolbarFromComponent={(props) => (
+              <CustomToolbar
+                {...props}
+                searchResults={item.prices || []}
+                dataType="prices"
+              />
+            )}
+            rows={item.prices || []}
+            columns={priceColumns}
+            getRowId={(row) => row.invoice_id + row.created_at}
+            paginationModel={paginationModel}
+            pageCount={1}
+            checkBox={false}
+          />
+        )}
+        {tabValue === 2 && (
+          <CustomDataGrid
+            CustomToolbarFromComponent={(props) => (
+              <CustomToolbar
+                {...props}
+                searchResults={item.invoice_history || []}
+                dataType="invoice_history"
+              />
+            )}
+            rows={item.invoice_history || []}
+            columns={invoiceHistoryColumns}
+            getRowId={(row) => row.invoice_id + row.invoice_date}
+            paginationModel={paginationModel}
+            pageCount={1}
+            checkBox={false}
+          />
+        )}
       </Box>
     </Box>
   ) : (
@@ -303,8 +439,8 @@ const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
           display: "flex",
           direction: "rtl",
           justifyContent: "space-between",
-          borderBottom: "1px solid #e2e8f0", // تعديل الحد
-          boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)", // إضافة ظل
+          borderBottom: "1px solid #e2e8f0",
+          boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
         }}
       >
         <DialogTitle

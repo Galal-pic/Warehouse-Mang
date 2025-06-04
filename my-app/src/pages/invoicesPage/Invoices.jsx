@@ -344,11 +344,14 @@ export default function Invoices() {
       setIsEditingInvoice(false);
       setIsModalOpen(true);
       openInvoice(updatedInvoice.id);
-      setSelectedInvoice(updatedInvoice);
     } catch (error) {
       if (error.response && error.response.status === "FETCH_ERROR") {
         setOpenSnackbar(true);
         setSnackbarMessage("خطأ في الوصول إلى قاعدة البيانات");
+        setSnackBarType("error");
+      } else if (error?.data?.message?.includes("exceeds")) {
+        setOpenSnackbar(true);
+        setSnackbarMessage("الكمية التى يتم ارجاعها تفوق الحد المسموح");
         setSnackBarType("error");
       } else {
         setOpenSnackbar(true);
@@ -589,7 +592,7 @@ export default function Invoices() {
                 حذف المحدد ({selectedRows.length})
               </Button>
             )}
-            {selectedRows.some((invoice) =>
+            {/* {selectedRows.some((invoice) =>
               invoice.items.every((item) => item.total_price !== 0)
             )
               ? ""
@@ -611,7 +614,7 @@ export default function Invoices() {
                       `تحديث اسعار المحدد (${selectedRows.length})`
                     )}
                   </Button>
-                )}
+                )} */}
           </>
         )}
         <Button
@@ -714,7 +717,7 @@ export default function Invoices() {
                 "تم الاسترداد"
               ))}
 
-            {params.row.items.some((item) => item.total_price === 0) && (
+            {/* {params.row.items.some((item) => item.total_price === 0) && (
               <Button
                 variant="contained"
                 color="info"
@@ -734,7 +737,7 @@ export default function Invoices() {
                   "تحديث اسعار"
                 )}
               </Button>
-            )}
+            )} */}
           </div>
         );
       },

@@ -77,7 +77,7 @@ export const api = createApi({
         method: "POST",
         body: invoice,
       }),
-      invalidatesTags: ["Invoice", "Warehouse"],
+      invalidatesTags: ["Invoice", "Warehouse", "Reports"],
     }),
     getInvoices: builder.query({
       query: ({ type, page, page_size, all = false }) => {
@@ -178,6 +178,7 @@ export const api = createApi({
     // Updated endpoint for /reports/filter (no pagination)
     getFilteredReports: builder.query({
       query: ({
+        reportType,
         type,
         warehouse_manager,
         machine,
@@ -198,7 +199,7 @@ export const api = createApi({
         const params = new URLSearchParams();
 
         // Required parameter
-        params.append("type", type);
+        params.append("type", reportType);
 
         // Optional filter parameters
         if (warehouse_manager)
@@ -209,6 +210,7 @@ export const api = createApi({
         if (accreditation_manager)
           params.append("accreditation_manager", accreditation_manager);
         if (employee_name) params.append("employee_name", employee_name);
+        if (type) params.append("invoice_type", type === "الكل" ? "all" : type);
         if (supplier) params.append("supplier", supplier);
         if (status) params.append("status", status);
         if (invoice_type) params.append("invoice_type", invoice_type);

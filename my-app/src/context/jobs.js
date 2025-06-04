@@ -20,7 +20,7 @@ export const InvoicesPageOptions = {
   view_deposits: "عرض الأمانات",
   view_returns: "عرض الاسترجاع",
   view_damages: "عرض التوالفات",
-  view_reservations: "عرض الحجزات",
+  view_reservations: "عرض الحجوزات",
   view_prices: "عرض الأسعار",
   can_edit: "التعديل",
   can_delete: "الحذف",

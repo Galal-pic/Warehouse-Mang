@@ -198,7 +198,7 @@ export default function CustomDataGrid({
           type,
           setOpenDialog,
           addPermissions,
-          columnVisibilityModel, // تمرير نموذج إخفاء الأعمدة
+          columnVisibilityModel,
         },
         pagination: {
           page: paginationModel.page,
@@ -208,10 +208,10 @@ export default function CustomDataGrid({
       }}
       pagination
       paginationModel={paginationModel}
-      columnVisibilityModel={columnVisibilityModel} // إضافة نموذج إخفاء الأعمدة
+      columnVisibilityModel={columnVisibilityModel}
       onColumnVisibilityModelChange={(newModel) =>
         setColumnVisibilityModel(newModel)
-      } // تحديث النموذج عند التغيير
+      }
       disableVirtualization={false}
       getRowClassName={(params) => {
         const { page, pageSize } = paginationModel;

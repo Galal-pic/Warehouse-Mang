@@ -6,7 +6,9 @@ import {
   DialogActions,
   Button,
   CircularProgress,
+  IconButton,
 } from "@mui/material";
+import { Visibility, VisibilityOff } from "@mui/icons-material";
 import { useChangePassMutation } from "../../pages/services/userApi"; // Import the mutation hook
 
 const ChangePassword = ({ open, onClose, userId, onSuccess }) => {
@@ -14,6 +16,15 @@ const ChangePassword = ({ open, onClose, userId, onSuccess }) => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [changePass, { isLoading }] = useChangePassMutation(); // Use the mutation hook
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const handleToggleNewPassword = () => {
+    setShowNewPassword((prev) => !prev);
+  };
+
+  const handleToggleConfirmPassword = () => {
+    setShowConfirmPassword((prev) => !prev);
+  };
 
   const handleSubmit = async () => {
     // Client-side validation
@@ -40,8 +51,7 @@ const ChangePassword = ({ open, onClose, userId, onSuccess }) => {
       onClose();
     } catch (err) {
       // Extract server-side error message if available
-      const errorMessage =
-        err.data?.message || "فشل في تغيير كلمة المرور. حاول مرة أخرى.";
+      const errorMessage = "فشل في تغيير كلمة المرور. حاول مرة أخرى.";
       setError(errorMessage);
     }
   };
@@ -88,26 +98,40 @@ const ChangePassword = ({ open, onClose, userId, onSuccess }) => {
           >
             كلمة المرور الجديدة
           </label>
-          <input
-            type="password"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "10px",
-              fontSize: "1rem",
-              border: error ? "1px solid #d32f2f" : "1px solid #ccc",
-              borderRadius: "4px",
-              direction: "rtl",
-              textAlign: "right",
-              outline: "none",
-              transition: "border-color 0.2s",
-            }}
-            onFocus={(e) => (e.target.style.borderColor = "#1976d2")}
-            onBlur={(e) =>
-              (e.target.style.borderColor = error ? "#d32f2f" : "#ccc")
-            }
-          />
+          <div style={{ position: "relative" }}>
+            <input
+              type={showNewPassword ? "text" : "password"}
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "10px",
+                fontSize: "1rem",
+                border: error ? "1px solid #d32f2f" : "1px solid #ccc",
+                borderRadius: "4px",
+                direction: "rtl",
+                textAlign: "right",
+                outline: "none",
+                transition: "border-color 0.2s",
+              }}
+              onFocus={(e) => (e.target.style.borderColor = "#1976d2")}
+              onBlur={(e) =>
+                (e.target.style.borderColor = error ? "#d32f2f" : "#ccc")
+              }
+            />
+            <IconButton
+              onClick={handleToggleNewPassword}
+              sx={{
+                position: "absolute",
+                left: "10px",
+                top: "50%",
+                transform: "translateY(-50%)",
+                color: "#555",
+              }}
+            >
+              {showNewPassword ? <VisibilityOff /> : <Visibility />}
+            </IconButton>
+          </div>
         </div>
         <div style={{ marginBottom: "10px", marginTop: "10px" }}>
           <label
@@ -121,26 +145,40 @@ const ChangePassword = ({ open, onClose, userId, onSuccess }) => {
           >
             تأكيد كلمة المرور
           </label>
-          <input
-            type="password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "10px",
-              fontSize: "1rem",
-              border: error ? "1px solid #d32f2f" : "1px solid #ccc",
-              borderRadius: "4px",
-              direction: "rtl",
-              textAlign: "right",
-              outline: "none",
-              transition: "border-color 0.2s",
-            }}
-            onFocus={(e) => (e.target.style.borderColor = "#1976d2")}
-            onBlur={(e) =>
-              (e.target.style.borderColor = error ? "#d32f2f" : "#ccc")
-            }
-          />
+          <div style={{ position: "relative" }}>
+            <input
+              type={showConfirmPassword ? "text" : "password"}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "10px",
+                fontSize: "1rem",
+                border: error ? "1px solid #d32f2f" : "1px solid #ccc",
+                borderRadius: "4px",
+                direction: "rtl",
+                textAlign: "right",
+                outline: "none",
+                transition: "border-color 0.2s",
+              }}
+              onFocus={(e) => (e.target.style.borderColor = "#1976d2")}
+              onBlur={(e) =>
+                (e.target.style.borderColor = error ? "#d32f2f" : "#ccc")
+              }
+            />
+            <IconButton
+              onClick={handleToggleConfirmPassword}
+              sx={{
+                position: "absolute",
+                left: "10px",
+                top: "50%",
+                transform: "translateY(-50%)",
+                color: "#555",
+              }}
+            >
+              {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
+            </IconButton>
+          </div>
           {error && (
             <span
               style={{

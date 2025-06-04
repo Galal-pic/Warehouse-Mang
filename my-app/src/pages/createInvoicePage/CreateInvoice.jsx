@@ -348,12 +348,14 @@ export default function CreateInvoice() {
         }));
       }
     } catch (error) {
+      const m = error?.data?.message?.includes("exceeds")
+        ? "الكمية التى يتم ارجاعها تفوق الحد المسموح"
+        : error?.status === "FETCH_ERROR"
+        ? "خطأ في الوصول إلى قاعدة البيانات"
+        : "حدث خطأ، الرجاء المحاولة مرة أخرى أو إعادة تحميل الصفحة";
       setSnackbar({
         open: true,
-        message:
-          error.status === "FETCH_ERROR"
-            ? "خطأ في الوصول إلى قاعدة البيانات"
-            : "حدث خطأ، الرجاء المحاولة مرة أخرى أو إعادة تحميل الصفحة",
+        message: m,
         type: "error",
       });
     }
