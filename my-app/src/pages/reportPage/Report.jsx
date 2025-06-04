@@ -629,7 +629,6 @@ export default function Report() {
       });
       setShowFilters(false);
       setFetchReports(false);
-      setSearchExecuted(false);
     }
 
     if (filteredReportsError) {
@@ -1347,9 +1346,63 @@ export default function Report() {
                   renderAsDialog={false}
                 />
               ) : (
+                  <CustomDataGrid
+                    rows={[]}
+                    columns={itemColumns}
+                    paginationModel={paginationModel}
+                    onPageChange={(newModel) => {
+                      setPaginationModel(newModel);
+                      setFetchReports(true);
+                    }}
+                    CustomToolbarFromComponent={(props) => (
+                      <CustomToolbar
+                        {...props}
+                        searchResults={[]}
+                        dataType="items"
+                      />
+                    )}
+                    pageCount={1}
+                    loader={isFilteredReportsLoading}
+                    type="items"
+                    checkBox={false}
+                  />
+              )}
+            </>
+          )}
+
+          {reportType === "فواتير" && (
+            <>
+              {searchResults?.length > 0 ? (
+                <CustomDataGrid
+                  rows={searchResults}
+                  columns={invoiceColumns}
+                  paginationModel={paginationModel}
+                  onPageChange={(newModel) => {
+                    setPaginationModel(newModel);
+                    setFetchReports(true);
+                  }}
+                  CustomToolbarFromComponent={(props) => (
+                    <CustomToolbar
+                      {...props}
+                      searchResults={searchResults}
+                      dataType="invoices"
+                    />
+                  )}
+                  pageCount={filteredReportsData?.total_pages || 1}
+                  loader={isFilteredReportsLoading}
+                  type={
+                    reportType === "فواتير"
+                      ? "invoices"
+                      : reportType === "ميكانيزم"
+                      ? "mechanism"
+                      : "inventory"
+                  }
+                  checkBox={false}
+                />
+              ) : (
                 <CustomDataGrid
                   rows={[]}
-                  columns={itemColumns}
+                  columns={invoiceColumns}
                   paginationModel={paginationModel}
                   onPageChange={(newModel) => {
                     setPaginationModel(newModel);
@@ -1359,45 +1412,16 @@ export default function Report() {
                     <CustomToolbar
                       {...props}
                       searchResults={[]}
-                      dataType="items"
+                      dataType="invoices"
                     />
                   )}
                   pageCount={1}
                   loader={isFilteredReportsLoading}
-                  type="items"
+                  type="invoices"
                   checkBox={false}
                 />
               )}
             </>
-          )}
-
-          {reportType === "فواتير" && (
-            <CustomDataGrid
-              rows={searchResults}
-              columns={invoiceColumns}
-              paginationModel={paginationModel}
-              onPageChange={(newModel) => {
-                setPaginationModel(newModel);
-                setFetchReports(true);
-              }}
-              CustomToolbarFromComponent={(props) => (
-                <CustomToolbar
-                  {...props}
-                  searchResults={searchResults}
-                  dataType="invoices"
-                />
-              )}
-              pageCount={filteredReportsData?.total_pages || 1}
-              loader={isFilteredReportsLoading}
-              type={
-                reportType === "فواتير"
-                  ? "invoices"
-                  : reportType === "ميكانيزم"
-                  ? "mechanism"
-                  : "inventory"
-              }
-              checkBox={false}
-            />
           )}
         </Box>
       )}

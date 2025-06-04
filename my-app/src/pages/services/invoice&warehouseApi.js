@@ -210,7 +210,7 @@ export const api = createApi({
         if (accreditation_manager)
           params.append("accreditation_manager", accreditation_manager);
         if (employee_name) params.append("employee_name", employee_name);
-        // if (reportType) params.append("reportType", reportType);
+        if (type) params.append("invoice_type", type === "الكل" ? "all" : type);
         if (supplier) params.append("supplier", supplier);
         if (status) params.append("status", status);
         if (invoice_type) params.append("invoice_type", invoice_type);
