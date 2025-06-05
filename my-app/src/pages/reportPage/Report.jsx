@@ -328,14 +328,13 @@ export default function Report() {
 
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
   const openInvoice = (id) => {
     let invoice;
     if (reportType === "فواتير") {
       invoice = searchResults.find((item) => item.id === id);
     } else {
-      const allInvoices = searchResults.flatMap(
-        (machine) => machine.invoices || []
-      );
+      const allInvoices = searchResults[0].invoices.results;
       invoice = allInvoices.find((item) => item.id === id);
     }
     if (!invoice) {
@@ -368,6 +367,7 @@ export default function Report() {
     setSelectedInvoice(transformedInvoice);
     setIsModalOpen(true);
   };
+
   const closeModal = () => {
     setSelectedInvoice(null);
     setIsModalOpen(false);
