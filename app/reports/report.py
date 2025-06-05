@@ -260,6 +260,7 @@ class FilterReports(Resource):
             query = query.filter(Machine.name == args["machine"])
         
         # Get total count for pagination info
+        
         total_count = query.count()
         
         # Apply pagination or get all
@@ -286,10 +287,11 @@ class FilterReports(Resource):
                 invoices_query = invoices_query.filter(Invoice.created_at <= end_date)
             
             # Count total invoices for this machine
-            total_invoices = invoices_query.count()
+            # total_invoices = invoices_query.count()
             
             # Apply nested pagination to invoices
             invoices = invoices_query.limit(nested_page_size).offset(nested_offset).all()
+            total_invoices = len(invoices)
             
             # Get related purchase requests with pagination
             purchase_requests_query = PurchaseRequests.query.filter(PurchaseRequests.machine_id == machine.id)
@@ -301,20 +303,21 @@ class FilterReports(Resource):
                 purchase_requests_query = purchase_requests_query.filter(PurchaseRequests.created_at <= end_date)
             
             # Count total purchase requests
-            total_purchase_requests = purchase_requests_query.count()
+            # total_purchase_requests = purchase_requests_query.count()
             
             # Apply nested pagination to purchase requests
             purchase_requests = purchase_requests_query.limit(nested_page_size).offset(nested_offset).all()
-            
+            total_purchase_requests = len(purchase_requests)
             # Get items related to this machine through purchase requests with pagination
             item_ids = [pr.item_id for pr in purchase_requests_query.all()]  # Get all IDs first
             related_items_query = Warehouse.query.filter(Warehouse.id.in_(item_ids)) if item_ids else Warehouse.query.filter(False)
             
             # Count total related items
-            total_items = related_items_query.count() if item_ids else 0
+            # total_items = related_items_query.count() if item_ids else 0
             
             # Apply nested pagination to items
             related_items = related_items_query.limit(nested_page_size).offset(nested_offset).all() if item_ids else []
+            total_items = len(related_items)
             
             # Serialize invoices (same as before)
             serialized_invoices = []
@@ -495,10 +498,11 @@ class FilterReports(Resource):
                 invoices_query = invoices_query.filter(Invoice.created_at <= end_date)
             
             # Count total invoices for this machine
-            total_invoices = invoices_query.count()
+            # total_invoices = invoices_query.count()
             
             # Apply nested pagination to invoices
             invoices = invoices_query.limit(nested_page_size).offset(nested_offset).all()
+            total_invoices = len(invoices)
             
             # Get related purchase requests with pagination
             purchase_requests_query = PurchaseRequests.query.filter(PurchaseRequests.mechanism_id == mechanism.id)
@@ -510,20 +514,22 @@ class FilterReports(Resource):
                 purchase_requests_query = purchase_requests_query.filter(PurchaseRequests.created_at <= end_date)
             
             # Count total purchase requests
-            total_purchase_requests = purchase_requests_query.count()
+            # total_purchase_requests = purchase_requests_query.count()
             
             # Apply nested pagination to purchase requests
             purchase_requests = purchase_requests_query.limit(nested_page_size).offset(nested_offset).all()
+            total_purchase_requests = len(purchase_requests)
             
             # Get items related to this machine through purchase requests with pagination
             item_ids = [pr.item_id for pr in purchase_requests_query.all()]  # Get all IDs first
             related_items_query = Warehouse.query.filter(Warehouse.id.in_(item_ids)) if item_ids else Warehouse.query.filter(False)
             
             # Count total related items
-            total_items = related_items_query.count() if item_ids else 0
+            # total_items = related_items_query.count() if item_ids else 0
             
             # Apply nested pagination to items
             related_items = related_items_query.limit(nested_page_size).offset(nested_offset).all() if item_ids else []
+            total_items = len(related_items)
             
             # Serialize invoices (same as before)
             serialized_invoices = []
