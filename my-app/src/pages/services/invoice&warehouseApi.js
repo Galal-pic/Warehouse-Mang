@@ -194,14 +194,16 @@ export const api = createApi({
         location,
         start_date,
         end_date,
+        page,
+        page_size,
+        invoices_page,
+        invoices_page_size,
+        items_page,
+        items_page_size,
+        all = false,
       }) => {
-        // Build query parameters dynamically
         const params = new URLSearchParams();
-
-        // Required parameter
         params.append("type", reportType);
-
-        // Optional filter parameters
         if (warehouse_manager)
           params.append("warehouse_manager", warehouse_manager);
         if (machine) params.append("machine", machine);
@@ -219,17 +221,41 @@ export const api = createApi({
         if (location) params.append("location", location);
         if (start_date) params.append("start_date", start_date);
         if (end_date) params.append("end_date", end_date);
-
+        if (!all) {
+          params.append("page", page + 1);
+          params.append("page_size", page_size);
+          if (invoices_page !== undefined)
+            params.append("invoices_page", invoices_page + 1);
+          if (invoices_page_size)
+            params.append("invoices_page_size", invoices_page_size);
+          if (items_page !== undefined)
+            params.append("items_page", items_page + 1);
+          if (items_page_size)
+            params.append("items_page_size", items_page_size);
+        } else {
+          params.append("all", "true");
+        }
         return `/reports/filter?${params.toString()}`;
       },
       providesTags: ["Reports"],
-      transformResponse: (response) => ({
+      transformResponse: (response) => {
+        if (response.all) {
+          return {
+            results: response.results || [],
+            page: 1,
+            page_size: response.results?.length || 0,
+            total_pages: 1,
+            total: response.results?.length || 0,
+          };
+        }
+        return {
           results: response.results || [],
-        page: 1, // Default to page 1 since no pagination
-        page_size: response.results?.length || 0, // Use results length as page_size
-        total: response.results?.length || 0, // Total is the length of results
-        total_pages: 1, // Default to 1 since no pagination
-      }),
+          page: response.page || 1,
+          page_size: response.page_size || 10,
+          total_pages: response.pages || response.total_pages || 1,
+          total: response.total || 0,
+        };
+      },
     }),
   }),
 });

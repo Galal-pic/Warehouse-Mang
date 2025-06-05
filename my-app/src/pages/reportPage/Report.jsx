@@ -278,6 +278,15 @@ export default function Report() {
     "تم الاسترداد": "returned",
   };
 
+  const [invoicesPaginationModel, setInvoicesPaginationModel] = useState({
+    page: 0,
+    pageSize: 10,
+  });
+  const [itemsPaginationModel, setItemsPaginationModel] = useState({
+    page: 0,
+    pageSize: 10,
+  });
+
   // Fetch filtered reports
   const [fetchReports, setFetchReports] = useState(false);
   const {
@@ -295,8 +304,11 @@ export default function Report() {
           ? "mechanism"
           : "item",
       page: paginationModel.page,
-      type: filters["النوع"],
-      page_size: paginationModel.pageSize,
+      page_size: paginationModel.pageSize || 10,
+      invoices_page: invoicesPaginationModel.page,
+      invoices_page_size: invoicesPaginationModel.pageSize || 10,
+      items_page: itemsPaginationModel.page,
+      items_page_size: itemsPaginationModel.pageSize || 10,
       all: false,
       employee_name: filters["اسم الموظف"],
       client_name: filters["اسم العميل"],
@@ -311,7 +323,7 @@ export default function Report() {
       start_date: filters.fromDate,
       end_date: filters.toDate,
     },
-    { skip: !fetchReports }
+    { skip: !fetchReports || !reportType }
   );
 
   const [selectedInvoice, setSelectedInvoice] = useState(null);
@@ -454,10 +466,9 @@ export default function Report() {
           >
             <button
               onClick={() => {
-                // تعديل لتمرير العنصر بالكامل لنوع التقرير "ماكينة"
-                const selectedItemData = searchResults
-                  .flatMap((machine) => machine.items || [])
-                  .find((item) => item.id === params.row.id);
+                const selectedItemData = searchResults[0].items.results.find(
+                  (item) => item.id === params.row.id
+                );
                 setSelectedItem(selectedItemData);
                 setDialogOpen(true);
               }}
@@ -616,16 +627,26 @@ export default function Report() {
     if (filteredReportsData && searchExecuted) {
       const results = filteredReportsData.results.map((item) => ({
         ...item,
-        invoices: item.invoices || [],
-        items: item.items || [],
+        invoices: item.invoices || {
+          results: [],
+          page: 1,
+          page_size: 10,
+          pages: 1,
+        },
+        items: item.items || { results: [], page: 1, page_size: 10, pages: 1 },
       }));
       setSearchResults(results);
       setPaginationModel({
         page: filteredReportsData.page - 1,
-        pageSize:
-          reportType === "فواتير"
-            ? filteredReportsData.page_size
-            : filteredReportsData.results[0]?.invoices?.length || 10,
+        pageSize: filteredReportsData.page_size || 10,
+      });
+      setInvoicesPaginationModel({
+        page: (results[0]?.invoices?.page || 1) - 1,
+        pageSize: results[0]?.invoices?.page_size || 10,
+      });
+      setItemsPaginationModel({
+        page: (results[0]?.items?.page || 1) - 1,
+        pageSize: results[0]?.items?.page_size || 10,
       });
       setShowFilters(false);
       setFetchReports(false);
@@ -742,6 +763,7 @@ export default function Report() {
                   });
                   setSearchResults([]);
                   setFetchReports(false);
+                  setPaginationModel({ page: 0, pageSize: 10 });
                 }}
                 displayEmpty
                 inputProps={{ "aria-label": "نوع التقرير" }}
@@ -1287,21 +1309,21 @@ export default function Report() {
 
               {tabValue === 0 && (
                 <CustomDataGrid
-                  rows={searchResults[0]?.invoices || []}
+                  rows={searchResults[0]?.invoices?.results || []}
                   columns={invoiceColumns}
-                  paginationModel={paginationModel}
+                  paginationModel={invoicesPaginationModel}
                   onPageChange={(newModel) => {
-                    setPaginationModel(newModel);
+                    setInvoicesPaginationModel(newModel);
                     setFetchReports(true);
                   }}
                   CustomToolbarFromComponent={(props) => (
                     <CustomToolbar
                       {...props}
-                      searchResults={searchResults[0]?.invoices || []}
+                      searchResults={searchResults[0]?.invoices?.results || []}
                       dataType="invoices"
                     />
                   )}
-                  pageCount={filteredReportsData?.total_pages || 1}
+                  pageCount={searchResults[0]?.invoices?.pages || 1}
                   loader={isFilteredReportsLoading}
                   type="invoices"
                   checkBox={false}
@@ -1311,25 +1333,30 @@ export default function Report() {
               {tabValue === 1 && (
                 <CustomDataGrid
                   rows={searchResults
-                    .flatMap((machine) => machine.items || [])
+                    .flatMap((machine) => machine.items?.results || [])
                     .map((item) => ({
                       ...item,
                       id: item.id,
                     }))}
                   columns={itemColumns}
-                  paginationModel={paginationModel}
+                  paginationModel={itemsPaginationModel}
                   onPageChange={(newModel) => {
-                    setPaginationModel(newModel);
+                    setItemsPaginationModel(newModel);
                     setFetchReports(true);
                   }}
                   CustomToolbarFromComponent={(props) => (
                     <CustomToolbar
                       {...props}
-                      searchResults={searchResults}
+                      searchResults={searchResults
+                        .flatMap((machine) => machine.items?.results || [])
+                        .map((item) => ({
+                          ...item,
+                          id: item.id,
+                        }))}
                       dataType="items"
                     />
                   )}
-                  pageCount={filteredReportsData?.total_pages || 1}
+                  pageCount={searchResults[0]?.items?.pages || 1}
                   loader={isFilteredReportsLoading}
                   type="items"
                   checkBox={false}
@@ -1346,26 +1373,26 @@ export default function Report() {
                   renderAsDialog={false}
                 />
               ) : (
-                  <CustomDataGrid
-                    rows={[]}
-                    columns={itemColumns}
-                    paginationModel={paginationModel}
-                    onPageChange={(newModel) => {
-                      setPaginationModel(newModel);
-                      setFetchReports(true);
-                    }}
-                    CustomToolbarFromComponent={(props) => (
-                      <CustomToolbar
-                        {...props}
-                        searchResults={[]}
-                        dataType="items"
-                      />
-                    )}
-                    pageCount={1}
-                    loader={isFilteredReportsLoading}
-                    type="items"
-                    checkBox={false}
-                  />
+                <CustomDataGrid
+                  rows={[]}
+                  columns={itemColumns}
+                  paginationModel={paginationModel}
+                  onPageChange={(newModel) => {
+                    setPaginationModel(newModel);
+                    setFetchReports(true);
+                  }}
+                  CustomToolbarFromComponent={(props) => (
+                    <CustomToolbar
+                      {...props}
+                      searchResults={[]}
+                      dataType="items"
+                    />
+                  )}
+                  pageCount={1}
+                  loader={isFilteredReportsLoading}
+                  type="items"
+                  checkBox={false}
+                />
               )}
             </>
           )}
@@ -1378,7 +1405,10 @@ export default function Report() {
                   columns={invoiceColumns}
                   paginationModel={paginationModel}
                   onPageChange={(newModel) => {
-                    setPaginationModel(newModel);
+                    setPaginationModel({
+                      ...newModel,
+                      page: newModel.page,
+                    });
                     setFetchReports(true);
                   }}
                   CustomToolbarFromComponent={(props) => (
@@ -1388,15 +1418,9 @@ export default function Report() {
                       dataType="invoices"
                     />
                   )}
-                  pageCount={filteredReportsData?.total_pages || 1}
+                  pageCount={filteredReportsData?.total_pages || 1} // التأكد من تمرير total_pages
                   loader={isFilteredReportsLoading}
-                  type={
-                    reportType === "فواتير"
-                      ? "invoices"
-                      : reportType === "ميكانيزم"
-                      ? "mechanism"
-                      : "inventory"
-                  }
+                  type="invoices"
                   checkBox={false}
                 />
               ) : (
@@ -1405,7 +1429,10 @@ export default function Report() {
                   columns={invoiceColumns}
                   paginationModel={paginationModel}
                   onPageChange={(newModel) => {
-                    setPaginationModel(newModel);
+                    setPaginationModel({
+                      ...newModel,
+                      page: newModel.page,
+                    });
                     setFetchReports(true);
                   }}
                   CustomToolbarFromComponent={(props) => (
@@ -1415,7 +1442,7 @@ export default function Report() {
                       dataType="invoices"
                     />
                   )}
-                  pageCount={1}
+                  pageCount={filteredReportsData?.total_pages || 1}
                   loader={isFilteredReportsLoading}
                   type="invoices"
                   checkBox={false}
