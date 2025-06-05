@@ -291,12 +291,13 @@ export default function Report() {
     page: 0,
     pageSize: 10,
   });
-
+  const [searchKey, setSearchKey] = useState(Date.now());
   // Fetch filtered reports
   const [fetchReports, setFetchReports] = useState(false);
   const {
     data: filteredReportsData,
     isLoading: isFilteredReportsLoading,
+    isFetching: isFilteredReportsFetching,
     error: filteredReportsError,
   } = useGetFilteredReportsQuery(
     {
@@ -328,6 +329,7 @@ export default function Report() {
       item_bar: filters["باركود العنصر"],
       start_date: filters.fromDate,
       end_date: filters.toDate,
+      searchKey,
     },
     { skip: !fetchReports || !reportType }
   );
@@ -625,7 +627,10 @@ export default function Report() {
     // Trigger API call for filtered reports
     setSearchExecuted(true);
     setFetchReports(true);
-    setShowFilters(false);
+    if (isFilteredReportsFetching) {
+      setShowFilters(false);
+    }
+    setSearchKey(Date.now());
   };
 
   // Handle API response
@@ -1182,9 +1187,9 @@ export default function Report() {
                 },
               }}
               onClick={handleSearch}
-              disabled={isFilteredReportsLoading}
+              disabled={isFilteredReportsFetching}
             >
-              {isFilteredReportsLoading ? "جاري البحث..." : "بحث"}
+              {isFilteredReportsFetching ? "جاري البحث..." : "بحث"}
             </Button>
           )}
 
