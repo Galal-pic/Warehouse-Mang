@@ -30,6 +30,8 @@ def PurchaseRequest_Operations(data, machine, mechanism, supplier, employee, mac
         )
         
         db.session.add(new_invoice)
+        db.session.flush()  # Flush to get the invoice ID
+        
         item_ids = []
         total_invoice_amount = 0
         
@@ -65,10 +67,13 @@ def PurchaseRequest_Operations(data, machine, mechanism, supplier, employee, mac
 
 
             subtotal = item_data["quantity"] * last_price_entry.unit_price
+            
+            # Create a price detail record - FIXED VERSION
             price_detail = InvoicePriceDetail(
                 invoice_id=new_invoice.id,
                 item_id=warehouse_item.id,
-                source_price_id=last_price_entry.invoice_id,
+                source_price_invoice_id=last_price_entry.invoice_id,  # Changed from source_price_id
+                source_price_item_id=last_price_entry.item_id,        # Added this
                 quantity=item_data["quantity"],
                 unit_price=last_price_entry.unit_price,
                 subtotal=subtotal
@@ -125,8 +130,15 @@ def delete_purchase_request(invoice, invoice_ns):
         if not purchase_request:
             db.session.rollback()
             return operation_result(404, "error", "لم يتم العثور على طلب شراء")
+        
+        # Delete price detail records
+        InvoicePriceDetail.query.filter_by(invoice_id=invoice.id).delete()
+        
+        # Delete purchase request, invoice items, and invoice
         db.session.delete(purchase_request)
+        InvoiceItem.query.filter_by(invoice_id=invoice.id).delete()
         db.session.delete(invoice)
+        
         db.session.commit()
         return {"message": "Purchase request deleted successfully"}, 200
 
@@ -137,13 +149,21 @@ def delete_purchase_request(invoice, invoice_ns):
 def put_purchase_request(data, invoice, machine, mechanism, invoice_ns):
     try:
         with db.session.begin_nested():  # Use a savepoint for the complex operation
-            # First, restore everything as if we're deleting the invoice
-            # But keep the invoice itself
+            
+            # Delete existing invoice items and price details first
+            InvoiceItem.query.filter_by(invoice_id=invoice.id).delete()
+            InvoicePriceDetail.query.filter_by(invoice_id=invoice.id).delete()
+            
+            # Update or create purchase requests
+            existing_requests = PurchaseRequests.query.filter_by(invoice_id=invoice.id).all()
+            for req in existing_requests:
+                db.session.delete(req)
+            
             item_ids = []
             total_invoice_amount = 0
             
             for item_data in data["items"]:
-            # Verify the warehouse item exists
+                # Verify the warehouse item exists
                 warehouse_item = Warehouse.query.filter_by(item_name=item_data["item_name"]).first()
                 if not warehouse_item:
                     db.session.rollback()
@@ -173,10 +193,13 @@ def put_purchase_request(data, invoice, machine, mechanism, invoice_ns):
                     return operation_result(400, "error", f"No price information found for item '{item_data['item_name']}'")
 
                 subtotal = item_data["quantity"] * last_price_entry.unit_price
+                
+                # Create a price detail record - FIXED VERSION
                 price_detail = InvoicePriceDetail(
                     invoice_id=invoice.id,
                     item_id=warehouse_item.id,
-                    source_price_id=last_price_entry.invoice_id,
+                    source_price_invoice_id=last_price_entry.invoice_id,  # Changed from source_price_id
+                    source_price_item_id=last_price_entry.item_id,        # Added this
                     quantity=item_data["quantity"],
                     unit_price=last_price_entry.unit_price,
                     subtotal=subtotal
@@ -196,9 +219,23 @@ def put_purchase_request(data, invoice, machine, mechanism, invoice_ns):
                 )
                     
                 db.session.add(invoice_item)
+                
+                # Create new purchase request
+                purchase_request = PurchaseRequests(
+                    requested_quantity=item_data["quantity"],
+                    status="draft",
+                    invoice_id=invoice.id,
+                    item_id=warehouse_item.id,
+                    employee_id=invoice.employee_id,
+                    machine_id=machine.id if machine else invoice.machine_id,
+                    mechanism_id=mechanism.id if mechanism else invoice.mechanism_id,
+                    subtotal=subtotal
+                )
+                db.session.add(purchase_request)
+                
                 total_invoice_amount += subtotal
             
-            # 5. Update invoice fields
+            # Update invoice fields
             invoice.type = data["type"]
             invoice.client_name = data.get("client_name")
             invoice.warehouse_manager = data.get("warehouse_manager")

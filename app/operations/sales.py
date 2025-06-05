@@ -25,6 +25,8 @@ def Sales_Operations(data, machine, mechanism, supplier, employee, machine_ns, w
         )
         
         db.session.add(new_invoice)
+        db.session.flush()  # Flush to get the invoice ID
+        
         item_ids = []
         total_invoice_amount = 0
         
@@ -87,11 +89,12 @@ def Sales_Operations(data, machine, mechanism, supplier, employee, machine_ns, w
                 # Calculate price for this portion
                 subtotal = quantity_from_this_entry * price_entry.unit_price
                 
-                # Create a price detail record
+                # Create a price detail record - FIXED VERSION
                 price_detail = InvoicePriceDetail(
                     invoice_id=new_invoice.id,
                     item_id=warehouse_item.id,
-                    source_price_id=price_entry.invoice_id,
+                    source_price_invoice_id=price_entry.invoice_id,  # Changed from source_price_id
+                    source_price_item_id=price_entry.item_id,        # Added this
                     quantity=quantity_from_this_entry,
                     unit_price=price_entry.unit_price,
                     subtotal=subtotal
@@ -115,7 +118,7 @@ def Sales_Operations(data, machine, mechanism, supplier, employee, machine_ns, w
                 db.session.rollback()
                 return operation_result(400, "error", f"Insufficient priced inventory for '{item_data['item_name']}'. Missing price data for {remaining_to_sell} units.")
             
-            # Delete the empty price entries
+            # Delete the empty price entries (optional - you can keep them with 0 quantity)
             # for entry in entries_to_delete:
             #     db.session.delete(entry)
             
@@ -163,15 +166,15 @@ def delete_sales(invoice, invoice_ns):
         # Dictionary to track price restorations by source
         price_restorations = {}
         
-        # Process each price detail to prepare for restoring
+        # Process each price detail to prepare for restoring - FIXED VERSION
         for detail in price_details:
-            key = (detail.source_price_id, detail.item_id)
+            key = (detail.source_price_invoice_id, detail.source_price_item_id)  # Updated field names
             if key in price_restorations:
                 price_restorations[key]['quantity'] += detail.quantity
             else:
                 price_restorations[key] = {
-                    'invoice_id': detail.source_price_id,
-                    'item_id': detail.item_id,
+                    'invoice_id': detail.source_price_invoice_id,  # Updated field name
+                    'item_id': detail.source_price_item_id,       # Updated field name
                     'quantity': detail.quantity,
                     'unit_price': detail.unit_price
                 }
@@ -243,18 +246,18 @@ def put_sales(data, invoice, machine, mechanism, invoice_ns):
                 if location:
                     location.quantity += item.quantity
             
-            # 2. Restore prices based on price details
+            # 2. Restore prices based on price details - FIXED VERSION
             price_details = InvoicePriceDetail.query.filter_by(invoice_id=invoice.id).all()
             price_restorations = {}
             
             for detail in price_details:
-                key = (detail.source_price_id, detail.item_id)
+                key = (detail.source_price_invoice_id, detail.source_price_item_id)  # Updated field names
                 if key in price_restorations:
                     price_restorations[key]['quantity'] += detail.quantity
                 else:
                     price_restorations[key] = {
-                        'invoice_id': detail.source_price_id,
-                        'item_id': detail.item_id,
+                        'invoice_id': detail.source_price_invoice_id,  # Updated field name
+                        'item_id': detail.source_price_item_id,       # Updated field name
                         'quantity': detail.quantity,
                         'unit_price': detail.unit_price
                     }
@@ -342,11 +345,12 @@ def put_sales(data, invoice, machine, mechanism, invoice_ns):
                     # Calculate price for this portion
                     subtotal = quantity_from_this_entry * price_entry.unit_price
                     
-                    # Create a price detail record
+                    # Create a price detail record - FIXED VERSION
                     price_detail = InvoicePriceDetail(
                         invoice_id=invoice.id,
                         item_id=warehouse_item.id,
-                        source_price_id=price_entry.invoice_id,
+                        source_price_invoice_id=price_entry.invoice_id,  # Changed from source_price_id
+                        source_price_item_id=price_entry.item_id,        # Added this
                         quantity=quantity_from_this_entry,
                         unit_price=price_entry.unit_price,
                         subtotal=subtotal
@@ -370,7 +374,7 @@ def put_sales(data, invoice, machine, mechanism, invoice_ns):
                     db.session.rollback()
                     return operation_result(400, "error", f"Insufficient priced inventory for '{item_data['item_name']}'. Missing price data for {remaining_to_sell} units.")
                 
-                # Delete the empty price entries
+                # Delete the empty price entries (optional)
                 # for entry in entries_to_delete:
                 #     db.session.delete(entry)
                 

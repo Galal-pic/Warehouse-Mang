@@ -30,6 +30,8 @@ def Warranty_Operations(data, machine, mechanism, supplier, employee, machine_ns
         )
         
         db.session.add(new_invoice)
+        db.session.flush()  # Flush to get the invoice ID
+        
         item_ids = []
         total_invoice_amount = 0
         
@@ -102,11 +104,12 @@ def Warranty_Operations(data, machine, mechanism, supplier, employee, machine_ns
                         # Calculate price for this portion
                         subtotal = quantity_from_this_entry * price_entry.unit_price
                         
-                        # Create a price detail record
+                        # Create a price detail record - FIXED VERSION
                         price_detail = InvoicePriceDetail(
                             invoice_id=new_invoice.id,
                             item_id=warehouse_item.id,
-                            source_price_id=price_entry.invoice_id,
+                            source_price_invoice_id=price_entry.invoice_id,  # Changed from source_price_id
+                            source_price_item_id=price_entry.item_id,        # Added this
                             quantity=quantity_from_this_entry,
                             unit_price=price_entry.unit_price,
                             subtotal=subtotal
@@ -136,11 +139,12 @@ def Warranty_Operations(data, machine, mechanism, supplier, employee, machine_ns
                             remainder_price = remaining_to_process * latest_price
                             calculated_total_price += remainder_price
                             
-                            # Create a price detail for the remainder
+                            # Create a price detail for the remainder - FIXED VERSION
                             remainder_detail = InvoicePriceDetail(
                                 invoice_id=new_invoice.id,
                                 item_id=warehouse_item.id,
-                                source_price_id=price_entries[-1].invoice_id,
+                                source_price_invoice_id=price_entries[-1].invoice_id,  # Changed from source_price_id
+                                source_price_item_id=price_entries[-1].item_id,        # Added this
                                 quantity=remaining_to_process,
                                 unit_price=latest_price,
                                 subtotal=remainder_price
@@ -193,21 +197,21 @@ def delete_warranty(invoice, invoice_ns):
         return operation_result(400, "error", "Can only delete warranty invoices with this method")
 
     try:
-        # Get price details to restore prices
+        # Get price details to restore prices - FIXED VERSION
         price_details = InvoicePriceDetail.query.filter_by(invoice_id=invoice.id).all()
         
         # Dictionary to track price restorations by source
         price_restorations = {}
         
-        # Process each price detail to prepare for restoring
+        # Process each price detail to prepare for restoring - FIXED VERSION
         for detail in price_details:
-            key = (detail.source_price_id, detail.item_id)
+            key = (detail.source_price_invoice_id, detail.source_price_item_id)  # Updated field names
             if key in price_restorations:
                 price_restorations[key]['quantity'] += detail.quantity
             else:
                 price_restorations[key] = {
-                    'invoice_id': detail.source_price_id,
-                    'item_id': detail.item_id,
+                    'invoice_id': detail.source_price_invoice_id,  # Updated field name
+                    'item_id': detail.source_price_item_id,       # Updated field name
                     'quantity': detail.quantity,
                     'unit_price': detail.unit_price
                 }
@@ -274,18 +278,18 @@ def put_warranty(data, invoice, machine, mechanism, invoice_ns):
             # First, restore everything as if we're deleting the invoice
             # But keep the invoice itself
             
-            # 1. Restore prices based on price details
+            # 1. Restore prices based on price details - FIXED VERSION
             price_details = InvoicePriceDetail.query.filter_by(invoice_id=invoice.id).all()
             price_restorations = {}
             
             for detail in price_details:
-                key = (detail.source_price_id, detail.item_id)
+                key = (detail.source_price_invoice_id, detail.source_price_item_id)  # Updated field names
                 if key in price_restorations:
                     price_restorations[key]['quantity'] += detail.quantity
                 else:
                     price_restorations[key] = {
-                        'invoice_id': detail.source_price_id,
-                        'item_id': detail.item_id,
+                        'invoice_id': detail.source_price_invoice_id,  # Updated field name
+                        'item_id': detail.source_price_item_id,       # Updated field name
                         'quantity': detail.quantity,
                         'unit_price': detail.unit_price
                     }
@@ -391,11 +395,12 @@ def put_warranty(data, invoice, machine, mechanism, invoice_ns):
                             # Calculate price for this portion
                             subtotal = quantity_from_this_entry * price_entry.unit_price
                             
-                            # Create a price detail record
+                            # Create a price detail record - FIXED VERSION
                             price_detail = InvoicePriceDetail(
                                 invoice_id=invoice.id,
                                 item_id=warehouse_item.id,
-                                source_price_id=price_entry.invoice_id,
+                                source_price_invoice_id=price_entry.invoice_id,  # Changed from source_price_id
+                                source_price_item_id=price_entry.item_id,        # Added this
                                 quantity=quantity_from_this_entry,
                                 unit_price=price_entry.unit_price,
                                 subtotal=subtotal
@@ -425,11 +430,12 @@ def put_warranty(data, invoice, machine, mechanism, invoice_ns):
                                 remainder_price = remaining_to_process * latest_price
                                 calculated_total_price += remainder_price
                                 
-                                # Create a price detail for the remainder
+                                # Create a price detail for the remainder - FIXED VERSION
                                 remainder_detail = InvoicePriceDetail(
                                     invoice_id=invoice.id,
                                     item_id=warehouse_item.id,
-                                    source_price_id=price_entries[-1].invoice_id,
+                                    source_price_invoice_id=price_entries[-1].invoice_id,  # Changed from source_price_id
+                                    source_price_item_id=price_entries[-1].item_id,        # Added this
                                     quantity=remaining_to_process,
                                     unit_price=latest_price,
                                     subtotal=remainder_price

@@ -29,6 +29,8 @@ def Purchase_Operations(data, machine, mechanism, supplier, employee, machine_ns
         )
         
         db.session.add(new_invoice)
+        db.session.flush()  # Flush to get the invoice ID
+        
         item_ids = []
         total_invoice_amount = 0
         
@@ -270,10 +272,10 @@ def put_purchase(data, invoice, machine, mechanism, invoice_ns):
                     # Store original values for proper calculations
                     original_price_quantity = original_items[key].quantity if key in original_items else 0
                     
-                    # Get price details related to THIS specific item
+                    # Get price details related to THIS specific item - FIXED VERSION
                     price_details = InvoicePriceDetail.query.filter_by(
-                        source_price_id=invoice.id,
-                        item_id=warehouse_item.id
+                        source_price_invoice_id=invoice.id,  # Changed from source_price_id
+                        source_price_item_id=warehouse_item.id  # Changed from item_id to source_price_item_id
                     ).all()
                     
                     # Calculate consumed quantity from price details
@@ -365,10 +367,10 @@ def put_purchase(data, invoice, machine, mechanism, invoice_ns):
                         item_id=item_id
                     ).first()
                     
-                    # Get price details to check consumption
+                    # Get price details to check consumption - FIXED VERSION
                     price_details = InvoicePriceDetail.query.filter_by(
-                        source_price_id=invoice.id,
-                        item_id=item_id
+                        source_price_invoice_id=invoice.id,  # Changed from source_price_id
+                        source_price_item_id=item_id  # Changed from item_id to source_price_item_id
                     ).all()
                     
                     consumed_quantity = sum(detail.quantity for detail in price_details) if price_details else 0

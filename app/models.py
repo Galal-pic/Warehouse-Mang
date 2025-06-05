@@ -184,8 +184,10 @@ class InvoicePriceDetail(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     invoice_id = db.Column(db.Integer, db.ForeignKey('invoice.id'), nullable=False)
     item_id = db.Column(db.Integer, db.ForeignKey('warehouse.id'), nullable=False)
-    source_price_invoice_id = db.Column(db.Integer, nullable=False)  # Changed name for clarity
-    source_price_item_id = db.Column(db.Integer, nullable=False)     # Added for composite FK
+    # Remove this line - it's causing the error
+    # source_price_id = db.Column(db.Integer, db.ForeignKey('prices.invoice_id'), nullable=False)
+    source_price_invoice_id = db.Column(db.Integer, nullable=False)
+    source_price_item_id = db.Column(db.Integer, nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
     unit_price = db.Column(db.Float, nullable=False)
     subtotal = db.Column(db.Float, nullable=False)
@@ -194,13 +196,14 @@ class InvoicePriceDetail(db.Model):
     # Relationships
     invoice = db.relationship('Invoice', back_populates='price_details')
     
-    # Composite foreign key constraint to prices table
+    # Composite foreign key constraints
     __table_args__ = (
         db.ForeignKeyConstraint(
             ['source_price_invoice_id', 'source_price_item_id'],
             ['prices.invoice_id', 'prices.item_id']
         ),
     )
+    
     
 class PurchaseRequests(db.Model):
     __tablename__ = 'purchase_requests'

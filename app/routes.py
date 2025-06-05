@@ -44,7 +44,8 @@ pagination_parser.add_argument('all',
 # Price Detail Model (for FIFO tracking)
 price_detail_model = invoice_ns.model('PriceDetail', {
     'source_invoice_id': fields.Integer(description='ID of the source invoice'),
-    'source_price_id': fields.Integer(description='ID of the source price'),
+    'source_price_invoice_id': fields.Integer(description='Invoice ID from source price'),
+    'source_price_item_id': fields.Integer(description='Item ID from source price'),
     'quantity': fields.Integer(description='Quantity from this price point'),
     'unit_price': fields.Float(description='Unit price at this price point'),
     'subtotal': fields.Float(description='Subtotal for this price point')
@@ -144,10 +145,11 @@ class invoices_get(Resource):
                     
                     for detail in details:
                         # Get source invoice information
-                        source_invoice = Invoice.query.get(detail.source_price_id)
+                        source_invoice = Invoice.query.get(detail.source_price_invoice_id)
                         price_details.append({
-                            'source_invoice_id': detail.source_price_id,
-                            'source_price_id': detail.source_price_id,
+                            'source_invoice_id': detail.source_price_invoice_id,
+                            'source_price_invoice_id': detail.source_price_invoice_id,
+                            'source_price_item_id': detail.source_price_item_id,
                             'quantity': detail.quantity,
                             'unit_price': detail.unit_price,
                             'subtotal': detail.subtotal
@@ -255,8 +257,9 @@ class InvoiceList(Resource):
                     for detail in details:
                         # Get source invoice information
                         price_details.append({
-                            'source_invoice_id': detail.source_price_id,
-                            'source_price_id': detail.source_price_id,
+                            'source_invoice_id': detail.source_price_invoice_id,
+                            'source_price_invoice_id': detail.source_price_invoice_id,
+                            'source_price_item_id': detail.source_price_item_id,
                             'quantity': detail.quantity,
                             'unit_price': detail.unit_price,
                             'subtotal': detail.subtotal
@@ -391,8 +394,9 @@ class InvoiceDetail(Resource):
                 for detail in details:
                     # Get source invoice information
                     price_details.append({
-                        'source_invoice_id': detail.source_price_id,
-                        'source_price_id': detail.source_price_id,
+                        'source_invoice_id': detail.source_price_invoice_id,
+                        'source_price_invoice_id': detail.source_price_invoice_id,
+                        'source_price_item_id': detail.source_price_item_id,
                         'quantity': detail.quantity,
                         'unit_price': detail.unit_price,
                         'subtotal': detail.subtotal
@@ -597,13 +601,13 @@ class ReturnWarranty(Resource):
             price_restorations = {}
             
             for detail in price_details:
-                key = (detail.source_price_id, detail.item_id)
+                key = (detail.source_price_invoice_id, detail.source_price_item_id)
                 if key in price_restorations:
                     price_restorations[key]['quantity'] += detail.quantity
                 else:
                     price_restorations[key] = {
-                        'invoice_id': detail.source_price_id,
-                        'item_id': detail.item_id,
+                        'invoice_id': detail.source_price_invoice_id,
+                        'item_id': detail.source_price_item_id,
                         'quantity': detail.quantity,
                         'unit_price': detail.unit_price
                     }
@@ -798,8 +802,9 @@ class SalesInvoices(Resource):
                     for detail in details:
                         # Get source invoice information
                         price_details.append({
-                            'source_invoice_id': detail.source_price_id,
-                            'source_price_id': detail.source_price_id,
+                            'source_invoice_id': detail.source_price_invoice_id,
+                            'source_price_invoice_id': detail.source_price_invoice_id,
+                            'source_price_item_id': detail.source_price_item_id,
                             'quantity': detail.quantity,
                             'unit_price': detail.unit_price,
                             'subtotal': detail.subtotal
@@ -887,11 +892,11 @@ class PriceTrackingReport(Resource):
             price_breakdowns = []
             for detail in price_details:
                 # Get source invoice information
-                source_invoice = Invoice.query.get(detail.source_price_id)
+                source_invoice = Invoice.query.get(detail.source_price_invoice_id)
                 
                 # Create detailed breakdown
                 breakdown = {
-                    'source_invoice_id': detail.source_price_id,
+                    'source_invoice_id': detail.source_price_invoice_id,
                     'source_invoice_type': source_invoice.type if source_invoice else 'Unknown',
                     'source_invoice_date': source_invoice.created_at.strftime('%Y-%m-%d %H:%M:%S') if source_invoice else None,
                     'source_client': source_invoice.client_name if source_invoice else None,
@@ -1113,7 +1118,8 @@ class UpdateInvoicePrice(Resource):
                 price_detail = InvoicePriceDetail(
                     invoice_id=invoice.id,
                     item_id=item.item_id,
-                    source_price_id=latest_price.invoice_id,
+                    source_price_invoice_id=latest_price.invoice_id,
+                    source_price_item_id=latest_price.item_id,
                     quantity=item.quantity,
                     unit_price=latest_price.unit_price,
                     subtotal=item.total_price

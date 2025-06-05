@@ -120,7 +120,7 @@ def Return_Operations(data, machine, mechanism, supplier, employee, machine_ns, 
                 for detail in original_invoice_details:
                     if detail.item_id == warehouse_item.id:
                         price = Prices.query.filter_by(
-                            invoice_id=detail.source_price_id,
+                            invoice_id=detail.source_price_invoice_id,
                             item_id=detail.item_id
                         ).first()
                         
