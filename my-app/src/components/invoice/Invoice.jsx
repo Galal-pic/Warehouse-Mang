@@ -266,18 +266,10 @@ export default function InvoiceModal({
           }
         } else if (selectedNowType?.type !== "اضافه") {
           // For non-return invoices, use warehouse quantities
-          const otherQuantity = selectedInvoice?.items?.find(
-            (i) => i.barcode === item.barcode && i.location === item.location
-          );
-
-          maxquantity = otherQuantity
-            ? otherQuantity?.quantity +
-              warehouseItem?.locations?.find(
-                (loc) => loc.location === item.location
-              )?.quantity
-            : warehouseItem?.locations?.find(
-                (loc) => loc.location === item.location
-              )?.quantity || 0;
+          maxquantity =
+            warehouseItem?.locations?.find(
+              (loc) => loc.location === item.location
+            )?.quantity || 0;
         }
 
         return {
