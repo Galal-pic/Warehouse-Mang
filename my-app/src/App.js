@@ -33,7 +33,7 @@ function App() {
                 <>
                   <Header />
                   <Routes>
-                    <Route path="/users" element={<Users />} />
+                    <Route path="/employee" element={<Users />} />
                     <Route path="/register" element={<Register />} />
                     <Route path="/createinvoice" element={<CreateInvoice />} />
                     <Route path="/invoices" element={<Invoices />} />

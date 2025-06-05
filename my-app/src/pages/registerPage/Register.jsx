@@ -219,7 +219,7 @@ export default function Register() {
         setSnackbarMessage("تم تسجيل الموظف بنجاح");
         setSnackBarType("success");
         setOpenSnackbar(true);
-        navigate("/users");
+        navigate("/employee");
       }
     } catch (error) {
       if (error?.data?.message === "Username already exists") {

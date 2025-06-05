@@ -3,7 +3,7 @@ import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 export const api = createApi({
   reducerPath: "api",
   baseQuery: fetchBaseQuery({
-    baseUrl: process.env.REACT_APP_API_BASE_URL,
+    baseUrl: process.env.REACT_APP_API_BASE_URL_DEVELOPMENT,
     prepareHeaders: (headers) => {
       const token = localStorage.getItem("access_token");
       if (token) headers.set("Authorization", `Bearer ${token}`);
@@ -224,7 +224,7 @@ export const api = createApi({
       },
       providesTags: ["Reports"],
       transformResponse: (response) => ({
-        results: response.results || [],
+          results: response.results || [],
         page: 1, // Default to page 1 since no pagination
         page_size: response.results?.length || 0, // Use results length as page_size
         total: response.results?.length || 0, // Total is the length of results

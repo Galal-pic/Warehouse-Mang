@@ -14,7 +14,7 @@ import { useGetUserQuery } from "../services/userApi";
 const Login = () => {
   const { isLoading: isLoadingUser, refetch } = useGetUserQuery();
 
-  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL_DEVELOPMENT;
 
   const [name, setName] = useState("");
   const [nameError, setNameError] = useState("");
@@ -77,7 +77,7 @@ const Login = () => {
       const { data: updatedUser } = await refetch();
 
       if (updatedUser?.username === "admin") {
-        navigate("/users");
+        navigate("/employee");
       } else if (
         updatedUser?.create_inventory_operations ||
         updatedUser?.create_additions

@@ -51,7 +51,7 @@ const resourceManagementLinks = [
 const links = [
   {
     text: "الموظفين",
-    href: "/users",
+    href: "/employee",
   },
   {
     text: "إنشاء عملية",
@@ -237,7 +237,7 @@ export default function Header() {
         style={{ justifyContent: "flex-start" }}
         className={styles.logoContainer}
       >
-        <Link to="/users">
+        <Link to="/employee">
           <img
             style={{ justifyContent: "flex-start" }}
             src={logoWhite}
