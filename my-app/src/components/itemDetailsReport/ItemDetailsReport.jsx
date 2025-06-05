@@ -208,7 +208,13 @@ const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
   ];
 
   // Pagination model for all tables
-  const paginationModel = { page: 0, pageSize: 100 };
+  const [paginationModel, setPaginationModel] = useState({
+    page: 0,
+    pageSize: 10,
+  });
+  const handlePageChange = (newModel) => {
+    setPaginationModel((prev) => ({ ...prev, ...newModel }));
+  };
 
   const primaryColor = getComputedStyle(
     document.documentElement
@@ -370,7 +376,8 @@ const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
             columns={locationColumns}
             getRowId={(row) => row.location}
             paginationModel={paginationModel}
-            pageCount={1}
+            onPageChange={handlePageChange}
+            pageCount={Math.ceil(item?.locations?.length)}
             checkBox={false}
           />
         )}
@@ -387,7 +394,8 @@ const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
             columns={priceColumns}
             getRowId={(row) => row.invoice_id + row.created_at}
             paginationModel={paginationModel}
-            pageCount={1}
+            onPageChange={handlePageChange}
+            pageCount={Math.ceil(item?.prices?.length / 10)}
             checkBox={false}
           />
         )}
@@ -404,7 +412,8 @@ const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
             columns={invoiceHistoryColumns}
             getRowId={(row) => row.invoice_id + row.invoice_date}
             paginationModel={paginationModel}
-            pageCount={1}
+            onPageChange={handlePageChange}
+            pageCount={Math.ceil(item?.invoice_history?.length / 10)}
             checkBox={false}
           />
         )}

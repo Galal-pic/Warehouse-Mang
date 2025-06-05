@@ -35,6 +35,11 @@ export default function Report() {
   const [selectedItem, setSelectedItem] = useState(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
+  const handlePageChange = (newModel) => {
+    setPaginationModel((prev) => ({ ...prev, ...newModel }));
+    setFetchReports(true);
+  };
+
   function CustomToolbar({
     columnVisibilityModel,
     searchResults,
@@ -315,6 +320,7 @@ export default function Report() {
       accreditation_manager: filters["المراجع"],
       warehouse_manager: filters["عامل المخزن"],
       machine: filters["الماكينه"],
+      type: filters["النوع"],
       mechanism: filters["الميكانيزم"],
       supplier: filters["اسم المورد"],
       status: statusToEnglishMap[filters["الحالة"]] || filters["الحالة"],
@@ -1312,10 +1318,7 @@ export default function Report() {
                   rows={searchResults[0]?.invoices?.results || []}
                   columns={invoiceColumns}
                   paginationModel={invoicesPaginationModel}
-                  onPageChange={(newModel) => {
-                    setInvoicesPaginationModel(newModel);
-                    setFetchReports(true);
-                  }}
+                  onPageChange={handlePageChange}
                   CustomToolbarFromComponent={(props) => (
                     <CustomToolbar
                       {...props}
@@ -1340,10 +1343,7 @@ export default function Report() {
                     }))}
                   columns={itemColumns}
                   paginationModel={itemsPaginationModel}
-                  onPageChange={(newModel) => {
-                    setItemsPaginationModel(newModel);
-                    setFetchReports(true);
-                  }}
+                  onPageChange={handlePageChange}
                   CustomToolbarFromComponent={(props) => (
                     <CustomToolbar
                       {...props}
@@ -1377,10 +1377,7 @@ export default function Report() {
                   rows={[]}
                   columns={itemColumns}
                   paginationModel={paginationModel}
-                  onPageChange={(newModel) => {
-                    setPaginationModel(newModel);
-                    setFetchReports(true);
-                  }}
+                  onPageChange={handlePageChange}
                   CustomToolbarFromComponent={(props) => (
                     <CustomToolbar
                       {...props}
@@ -1404,13 +1401,7 @@ export default function Report() {
                   rows={searchResults}
                   columns={invoiceColumns}
                   paginationModel={paginationModel}
-                  onPageChange={(newModel) => {
-                    setPaginationModel({
-                      ...newModel,
-                      page: newModel.page,
-                    });
-                    setFetchReports(true);
-                  }}
+                  onPageChange={handlePageChange}
                   CustomToolbarFromComponent={(props) => (
                     <CustomToolbar
                       {...props}
@@ -1418,7 +1409,7 @@ export default function Report() {
                       dataType="invoices"
                     />
                   )}
-                  pageCount={filteredReportsData?.total_pages || 1} // التأكد من تمرير total_pages
+                  pageCount={filteredReportsData?.total_pages || 1}
                   loader={isFilteredReportsLoading}
                   type="invoices"
                   checkBox={false}
@@ -1428,13 +1419,7 @@ export default function Report() {
                   rows={[]}
                   columns={invoiceColumns}
                   paginationModel={paginationModel}
-                  onPageChange={(newModel) => {
-                    setPaginationModel({
-                      ...newModel,
-                      page: newModel.page,
-                    });
-                    setFetchReports(true);
-                  }}
+                  onPageChange={handlePageChange}
                   CustomToolbarFromComponent={(props) => (
                     <CustomToolbar
                       {...props}
