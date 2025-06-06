@@ -13,6 +13,7 @@ import {
   Tab,
   Card,
   CardContent,
+  CircularProgress,
 } from "@mui/material";
 import CustomAutoCompleteField from "../../components/customAutoCompleteField/CustomAutoCompleteField";
 import SnackBar from "../../components/snackBar/SnackBar";
@@ -1189,7 +1190,11 @@ export default function Report() {
               onClick={handleSearch}
               disabled={isFilteredReportsFetching}
             >
-              {isFilteredReportsFetching ? "جاري البحث..." : "بحث"}
+              {isFilteredReportsFetching ? (
+                <CircularProgress size={20} />
+              ) : (
+                "بحث"
+              )}
             </Button>
           )}
 

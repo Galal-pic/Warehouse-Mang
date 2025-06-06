@@ -495,10 +495,10 @@ const CustomToolbar = ({
                   "aria-labelledby": "export-import-button",
                 }}
               >
-                <MenuItem>
-                  <label htmlFor="file-upload" style={{ cursor: "pointer" }}>
-                    Import
-                  </label>
+                <MenuItem
+                  onClick={() => document.getElementById("file-upload").click()}
+                >
+                  Import
                   <input
                     id="file-upload"
                     type="file"
