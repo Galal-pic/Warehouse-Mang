@@ -1,6 +1,12 @@
 import React, { useState } from "react";
 import { GridToolbarContainer, GridToolbarQuickFilter } from "@mui/x-data-grid";
-import { Box, IconButton, Menu, MenuItem } from "@mui/material";
+import {
+  Box,
+  CircularProgress,
+  IconButton,
+  Menu,
+  MenuItem,
+} from "@mui/material";
 import AddCircleIcon from "@mui/icons-material/AddCircle";
 import ImportExportIcon from "@mui/icons-material/ImportExport";
 import * as XLSX from "xlsx";
@@ -30,6 +36,7 @@ const CustomToolbar = ({
     document.documentElement
   ).getPropertyValue("--primary-color");
 
+  const [isImporting, setIsImporting] = useState(false);
   const [importMachines] = useImportMachinesMutation();
   const [importMechanisms] = useImportMechanismMutation();
   const [importSuppliers] = useImportSupplierMutation();
@@ -103,6 +110,7 @@ const CustomToolbar = ({
     }
   };
   const handleImport = (event) => {
+    setIsImporting(true);
     const uploadedFile = event.target.files[0];
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -112,7 +120,9 @@ const CustomToolbar = ({
       const sheet = workbook.Sheets[sheetName];
       const jsonData = XLSX.utils.sheet_to_json(sheet);
       console.log("Excel Data:", jsonData);
-      sendDataToEndpoint(jsonData);
+      sendDataToEndpoint(jsonData).finally(() => {
+        setIsImporting(false);
+      });
     };
     reader.readAsArrayBuffer(uploadedFile);
     handleClose();
@@ -455,68 +465,78 @@ const CustomToolbar = ({
 
         {/* Export/Import Menu */}
         <Box sx={{ alignItems: "center", display: "flex" }}>
-          <IconButton
-            onClick={handleExportImport}
-            sx={{
-              padding: "12px",
-              borderRadius: "50%",
-              cursor: "pointer",
-              color: "white",
-            }}
-          >
-            <ImportExportIcon
-              sx={{
-                fontSize: "40px",
-                backgroundColor: "#4caf50",
-                padding: "8px",
-                borderRadius: "50%",
-              }}
-            />
-          </IconButton>
-          <Menu
-            anchorEl={anchorEl}
-            open={open}
-            onClose={handleClose}
-            MenuListProps={{
-              "aria-labelledby": "export-import-button",
-            }}
-          >
-            <MenuItem>
-              <label htmlFor="file-upload" style={{ cursor: "pointer" }}>
-                Import
-              </label>
-              <input
-                id="file-upload"
-                type="file"
-                accept=".xlsx, .xls"
-                style={{ display: "none" }}
-                onChange={handleImport}
-              />
-            </MenuItem>
-            <MenuItem onClick={handleExportOnePage}>Export this page</MenuItem>
-            <MenuItem onClick={handleExportAllPages}>Export all pages</MenuItem>
-            {/* New export options only for items page */}
-            {type === "items" && [
-              <MenuItem
-                key="basic-item-data"
-                onClick={handleExportBasicItemData}
+          {isImporting ? (
+            <CircularProgress size={40} sx={{ marginRight: "10px" }} />
+          ) : (
+            <>
+              <IconButton
+                onClick={handleExportImport}
+                sx={{
+                  padding: "12px",
+                  borderRadius: "50%",
+                  cursor: "pointer",
+                  color: "white",
+                }}
               >
-                Export Basic Item Data
-              </MenuItem>,
-              <MenuItem
-                key="item-location-data"
-                onClick={handleExportItemLocationData}
+                <ImportExportIcon
+                  sx={{
+                    fontSize: "40px",
+                    backgroundColor: "#4caf50",
+                    padding: "8px",
+                    borderRadius: "50%",
+                  }}
+                />
+              </IconButton>
+              <Menu
+                anchorEl={anchorEl}
+                open={open}
+                onClose={handleClose}
+                MenuListProps={{
+                  "aria-labelledby": "export-import-button",
+                }}
               >
-                Export Item Location Data
-              </MenuItem>,
-              <MenuItem
-                key="item-price-data"
-                onClick={handleExportItemPriceData}
-              >
-                Export Item Price Data
-              </MenuItem>,
-            ]}
-          </Menu>
+                <MenuItem>
+                  <label htmlFor="file-upload" style={{ cursor: "pointer" }}>
+                    Import
+                  </label>
+                  <input
+                    id="file-upload"
+                    type="file"
+                    accept=".xlsx, .xls"
+                    style={{ display: "none" }}
+                    onChange={handleImport}
+                  />
+                </MenuItem>
+                <MenuItem onClick={handleExportOnePage}>
+                  Export this page
+                </MenuItem>
+                <MenuItem onClick={handleExportAllPages}>
+                  Export all pages
+                </MenuItem>
+                {/* New export options only for items page */}
+                {type === "items" && [
+                  <MenuItem
+                    key="basic-item-data"
+                    onClick={handleExportBasicItemData}
+                  >
+                    Export Basic Item Data
+                  </MenuItem>,
+                  <MenuItem
+                    key="item-location-data"
+                    onClick={handleExportItemLocationData}
+                  >
+                    Export Item Location Data
+                  </MenuItem>,
+                  <MenuItem
+                    key="item-price-data"
+                    onClick={handleExportItemPriceData}
+                  >
+                    Export Item Price Data
+                  </MenuItem>,
+                ]}
+              </Menu>
+            </>
+          )}
         </Box>
       </Box>
       <SnackBar
