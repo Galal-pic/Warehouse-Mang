@@ -3,7 +3,7 @@ import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 export const api = createApi({
   reducerPath: "api",
   baseQuery: fetchBaseQuery({
-    baseUrl:  import.meta.env.VITE_API_BASE_URL_DEVELOPMENT,
+    baseUrl: import.meta.env.VITE_API_BASE_URL_DEVELOPMENT,
     prepareHeaders: (headers) => {
       const token = localStorage.getItem("access_token");
       if (token) headers.set("Authorization", `Bearer ${token}`);
@@ -200,6 +200,7 @@ export const api = createApi({
         invoices_page_size,
         items_page,
         items_page_size,
+        invoice_id,
         all = false,
       }) => {
         const params = new URLSearchParams();
@@ -221,6 +222,7 @@ export const api = createApi({
         if (location) params.append("location", location);
         if (start_date) params.append("start_date", start_date);
         if (end_date) params.append("end_date", end_date);
+        if (invoice_id) params.append("invoice_id", invoice_id);
         if (!all) {
           params.append("page", page + 1);
           params.append("page_size", page_size);

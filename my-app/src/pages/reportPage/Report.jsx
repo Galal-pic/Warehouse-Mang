@@ -33,6 +33,7 @@ import InvoiceModal from "../../components/invoice/Invoice";
 import ItemDetailsDialog from "../../components/itemDetailsReport/ItemDetailsReport";
 import { GridToolbarContainer } from "@mui/x-data-grid";
 import logo from "../../components/header/logo.png";
+import NumberInput from "../../components/number/NumberInput";
 
 export default function Report() {
   const [selectedItem, setSelectedItem] = useState(null);
@@ -43,13 +44,7 @@ export default function Report() {
     setFetchReports(true);
   };
 
-  function CustomToolbar({
-    columnVisibilityModel,
-    searchResults,
-    dataType,
-    fullSearchResults,
-    ...props
-  }) {
+  function CustomToolbar({ searchResults, dataType, fullSearchResults }) {
     const handleExport = () => {
       const columnTranslations = {
         invoice_id: "#",
@@ -458,6 +453,7 @@ export default function Report() {
     "باركود العنصر": "",
     fromDate: "",
     toDate: "",
+    ...(reportType === "فواتير" ? { invoice_id: "" } : {}),
   });
   const [searchResults, setSearchResults] = useState([]);
   const [paginationModel, setPaginationModel] = useState({
@@ -570,6 +566,7 @@ export default function Report() {
       item_bar: filters["باركود العنصر"],
       start_date: filters.fromDate,
       end_date: filters.toDate,
+      ...(reportType === "فواتير" ? { invoice_id: filters["invoice_id"] } : {}), // إضافة invoice_id فقط لتقارير الفواتير
       searchKey,
     },
     { skip: !fetchReports || !reportType }
@@ -946,6 +943,7 @@ export default function Report() {
   const invoiceFields = [
     "اسم الموظف",
     "النوع",
+    ...(reportType === "فواتير" ? ["رقم الفاتورة"] : []), // إضافة رقم الفاتورة فقط لتقارير الفواتير
     "اسم العميل",
     "المراجع",
     "عامل المخزن",
@@ -954,8 +952,8 @@ export default function Report() {
     "اسم المورد",
     "الحالة",
   ];
-  const firstRowInvoiceFields = invoiceFields.slice(0, 4);
-  const secondRowInvoiceFields = invoiceFields.slice(4, 9);
+  const firstRowInvoiceFields = invoiceFields.slice(0, 5);
+  const secondRowInvoiceFields = invoiceFields.slice(5, 10);
 
   return (
     <Box
@@ -1088,26 +1086,47 @@ export default function Report() {
                   <Box
                     key={fieldName}
                     sx={{
-                      flex: { xs: "1 1 100%", sm: "1 1 48%", md: "1 1 24%" },
+                      flex: { xs: "1 1 100%", sm: "1 1 48%", md: "1 1 19%" },
                       backgroundColor: "#ddd",
                     }}
                   >
-                    {["المراجع", "اسم العميل"].includes(fieldName) ? (
-                      <input
-                        placeholder={fieldName}
-                        value={filters[fieldName]}
-                        onChange={(e) =>
-                          handleFilterChange(fieldName, e.target.value)
-                        }
-                        style={{
-                          border: "none",
-                          outline: "none",
-                          height: "50px",
-                          width: "100%",
-                          backgroundColor: "#ddd",
-                          textAlign: "center",
-                        }}
-                      />
+                    {["المراجع", "اسم العميل", "رقم الفاتورة"].includes(
+                      fieldName
+                    ) ? (
+                      fieldName === "رقم الفاتورة" ? (
+                        <Box sx={{ height: "50px" }}>
+                          <NumberInput
+                            placeholder={fieldName}
+                            value={filters[fieldName]}
+                            onChange={(e) =>
+                              handleFilterChange(fieldName, e.target.value)
+                            }
+                            style={{
+                              border: "none",
+                              outline: "none",
+                              width: "100%",
+                              backgroundColor: "#ddd",
+                              textAlign: "center",
+                            }}
+                          />
+                        </Box>
+                      ) : (
+                        <input
+                          placeholder={fieldName}
+                          value={filters[fieldName]}
+                          onChange={(e) =>
+                            handleFilterChange(fieldName, e.target.value)
+                          }
+                          style={{
+                            border: "none",
+                            outline: "none",
+                            height: "50px",
+                            width: "100%",
+                            backgroundColor: "#ddd",
+                            textAlign: "center",
+                          }}
+                        />
+                      )
                     ) : (
                       <CustomAutoCompleteField
                         isLoading={false}
