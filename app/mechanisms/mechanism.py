@@ -3,6 +3,7 @@ from flask_jwt_extended import jwt_required
 from .. import db
 from ..models import Mechanism
 from ..utils import parse_bool
+from datetime import datetime
 mechanism_ns = Namespace('mechanism', description='Mechanism operations')
 pagination_parser = mechanism_ns.parser()
 pagination_parser.add_argument('page',
@@ -35,56 +36,113 @@ pagination_model = mechanism_ns.model('MechanismPagination', {
     'all': fields.Boolean(required=True)
 })
 @mechanism_ns.route('/excel')
-class MachineExcel(Resource):
+class MechanismExcelUltra(Resource):
     @jwt_required()
     def post(self):
-        payload = mechanism_ns.payload
-        if not payload or 'data' not in payload:
-            mechanism_ns.abort(400, "Invalid payload format")
-        errors = []
-        success_count = 0
+        """Ultra-optimized mechanism import using bulk_insert_mappings"""
         try:
-            for item in payload['data']:
-                if 'name' not in item:
-                    mechanism_ns.abort(400, "Mechanism name is required")
-                if 'description' not in item:
-                    mechanism_ns.abort(400, "Mechanism description is required")
-                
-                # Check if mechanism already exists
-                existing_supplier = Mechanism.query.filter_by(name=item['name'], description=item['description']).first()
-                    
-                if existing_supplier:
-                    errors.append(f"Mechanism '{item['name']}' already exists")
+            payload = mechanism_ns.payload
+            if not payload or 'data' not in payload:
+                mechanism_ns.abort(400, "Invalid payload format")
+            
+            print(f"Processing {len(payload['data'])} mechanisms with ultra-optimized method")
+            
+            errors = []
+            success_count = 0
+            
+            # Data validation and preparation
+            valid_mechanisms = []
+            
+            for i, item in enumerate(payload['data']):
+                if not item.get('name') or not item.get('description'):
                     continue
-                    
-                # Create new supplier
-                try:
-                    new_supplier = Mechanism(
-                        name=item['name'],
-                        description=item['description']  
-                    )
-                    db.session.add(new_supplier)
-                    success_count += 1
-                except Exception as e:
-                    errors.append(f"Error adding supplier '{item['name']}': {str(e)}")
                 
-                # Commit if there are no errors, rollback otherwise
-            if not errors:
-                db.session.commit()
-                return {
-                    'status': 'success',
-                    'message': f'Successfully imported {success_count} mechanisms'
-                }, 200
-            else:
-                db.session.rollback()
+                mechanism_name = str(item['name']).strip()
+                mechanism_description = str(item['description']).strip()
+                
+                valid_mechanisms.append({
+                    'name': mechanism_name,
+                    'description': mechanism_description
+                })
+            
+            if not valid_mechanisms:
                 return {
                     'status': 'error',
-                    'message': 'Some mechanisms could not be imported',
-                    'errors': errors
+                    'message': 'No valid mechanisms to process'
                 }, 400
+            
+            # Comprehensive duplicate check
+            all_existing_mechanisms = db.session.query(
+                Mechanism.name, Mechanism.description
+            ).all()
+            
+            existing_combinations = set()
+            for name, description in all_existing_mechanisms:
+                existing_combinations.add((name, description))
+            
+            # Remove duplicates
+            unique_mechanisms = []
+            seen_combinations = set()
+            
+            for mechanism in valid_mechanisms:
+                combination_key = (mechanism['name'], mechanism['description'])
+                
+                # Check for any duplicates
+                if (combination_key not in existing_combinations and
+                    combination_key not in seen_combinations):
+                    
+                    seen_combinations.add(combination_key)
+                    unique_mechanisms.append(mechanism)
+                    success_count += 1
+            
+            # SUPER-FAST: Use bulk_insert_mappings
+            if unique_mechanisms:
+                try:
+                    # Prepare data for bulk insert
+                    current_time = datetime.now()
+                    mechanism_data = []
+                    
+                    for mechanism in unique_mechanisms:
+                        mechanism_record = {
+                            'name': mechanism['name'],
+                            'description': mechanism['description']
+                        }
+                        
+                        # Add timestamp if your model has it
+                        if hasattr(Mechanism, 'created_at'):
+                            mechanism_record['created_at'] = current_time
+                        
+                        mechanism_data.append(mechanism_record)
+                    
+                    # Ultra-fast bulk insert
+                    db.session.bulk_insert_mappings(Mechanism, mechanism_data)
+                    db.session.commit()
+                    
+                    return {
+                        'status': 'success',
+                        'message': f'Ultra-optimized import: {success_count} mechanisms imported',
+                        'total_submitted': len(payload['data']),
+                        'successful_mechanisms': success_count
+                    }, 200
+                    
+                except Exception as e:
+                    db.session.rollback()
+                    return {
+                        'status': 'error',
+                        'message': f'Ultra-optimized bulk operation failed: {str(e)}'
+                    }, 500
+            else:
+                return {
+                    'status': 'error',
+                    'message': 'No unique mechanisms to import'
+                }, 400
+                
         except Exception as e:
             db.session.rollback()
-            mechanism_ns.abort(400, f"Error processing import for mechanisms: {str(e)}")
+            return {
+                'status': 'error',
+                'message': f'Unexpected error: {str(e)}'
+            }, 500
             
 
 # Mechanism Endpoints

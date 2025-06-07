@@ -58,8 +58,8 @@ class Employee(db.Model):
 class Supplier(db.Model):
     __tablename__ = 'supplier'
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(255), unique=True, nullable=False, index=True)
-    description = db.Column(db.Text, unique=True, nullable=False)
+    name = db.Column(db.String(255), nullable=False, index=True)
+    description = db.Column(db.Text)
 
     # Relationship with Invoice
     invoices = db.relationship('Invoice', back_populates='supplier', lazy=True)
@@ -68,8 +68,8 @@ class Supplier(db.Model):
 class Machine(db.Model):
     __tablename__ = 'machine'
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(255), unique=True, nullable=False, index=True)
-    description = db.Column(db.Text, unique=True, nullable=False)
+    name = db.Column(db.String(255), nullable=False, index=True)
+    description = db.Column(db.Text)
 
     # Relationship with Invoice
     invoices = db.relationship('Invoice', back_populates='machine', lazy=True)
@@ -79,8 +79,8 @@ class Machine(db.Model):
 class Mechanism(db.Model):
     __tablename__ = 'mechanism'
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(255), unique=True, nullable=False, index=True)
-    description = db.Column(db.Text, unique=True, nullable=False)
+    name = db.Column(db.String(255), nullable=False, index=True)
+    description = db.Column(db.Text)
 
     # Relationship with Invoice
     invoices = db.relationship('Invoice', back_populates='mechanism', lazy=True)

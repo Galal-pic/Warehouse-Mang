@@ -4,6 +4,7 @@ from .. import db
 from sqlalchemy.exc import SQLAlchemyError
 from ..utils import operation_result
 
+
 def Purchase_Operations(data, machine, mechanism, supplier, employee, machine_ns, warehouse_ns, invoice_ns, mechanism_ns, item_location_n, supplier_ns):
     """
     Create a purchase invoice (اضافه type).
@@ -34,12 +35,15 @@ def Purchase_Operations(data, machine, mechanism, supplier, employee, machine_ns
         item_ids = []
         total_invoice_amount = 0
         
+        # FIXED: Group items by item_id to handle same item in multiple locations
+        item_price_aggregation = {}  # Track total quantity per item for price records
+        
         for item_data in data["items"]:
             # Look up the warehouse item by name
             warehouse_item = Warehouse.query.filter_by(item_name=item_data["item_name"]).first()
             if not warehouse_item:
                 db.session.rollback()
-                return operation_result(404, "error" ,f"Item '{item_data['item_name']}' not found in warehouse")
+                return operation_result(404, "error", f"Item '{item_data['item_name']}' not found in warehouse")
             
             # Verify the location exists
             item_location = ItemLocations.query.filter_by(
@@ -56,12 +60,13 @@ def Purchase_Operations(data, machine, mechanism, supplier, employee, machine_ns
                 )
                 db.session.add(item_location)
             
-            # Check for duplicate items
-            if (warehouse_item.id, item_data['location']) in item_ids:
+            # Check for duplicate items IN THE SAME LOCATION (this should still be prevented)
+            location_key = (warehouse_item.id, item_data['location'])
+            if location_key in item_ids:
                 db.session.rollback()
-                return operation_result(400, "error", f"Item '{item_data['item_name']}' already added to invoice")
+                return operation_result(400, "error", f"Item '{item_data['item_name']}' already added to location '{item_data['location']}' in this invoice")
             
-            item_ids.append((warehouse_item.id, item_data['location']))
+            item_ids.append(location_key)
             
             # Get quantity and price data
             quantity = item_data["quantity"]
@@ -71,7 +76,7 @@ def Purchase_Operations(data, machine, mechanism, supplier, employee, machine_ns
             # Update the quantity in the warehouse (increase for purchase)
             item_location.quantity += quantity
             
-            # Create the invoice item
+            # Create the invoice item (one per location)
             invoice_item = InvoiceItem(
                 invoice_id=new_invoice.id,
                 item_id=warehouse_item.id,
@@ -83,17 +88,38 @@ def Purchase_Operations(data, machine, mechanism, supplier, employee, machine_ns
             )
             db.session.add(invoice_item)
             
-            # Create a price record for FIFO inventory valuation
+            # FIXED: Aggregate quantities and prices for the same item across different locations
+            item_key = warehouse_item.id
+            if item_key not in item_price_aggregation:
+                item_price_aggregation[item_key] = {
+                    'total_quantity': 0,
+                    'weighted_unit_price': 0,
+                    'total_value': 0
+                }
+            
+            # Accumulate quantities and calculate weighted average price
+            item_price_aggregation[item_key]['total_quantity'] += quantity
+            item_price_aggregation[item_key]['total_value'] += total_price
+            
+            total_invoice_amount += total_price
+        
+        # FIXED: Create ONE price record per unique item (not per location)
+        for item_id, price_data in item_price_aggregation.items():
+            # Calculate weighted average unit price
+            if price_data['total_quantity'] > 0:
+                weighted_unit_price = price_data['total_value'] / price_data['total_quantity']
+            else:
+                weighted_unit_price = 0
+            
+            # Create a single price record for FIFO inventory valuation
             price = Prices(
                 invoice_id=new_invoice.id,
-                item_id=warehouse_item.id,
-                quantity=quantity,
-                unit_price=unit_price,
+                item_id=item_id,
+                quantity=price_data['total_quantity'],  # Total quantity across all locations
+                unit_price=weighted_unit_price,  # Weighted average price
                 created_at=datetime.now()  # Explicitly set creation time for FIFO ordering
             )
             db.session.add(price)
-            
-            total_invoice_amount += total_price
         
         # Update invoice totals
         new_invoice.total_amount = total_invoice_amount

@@ -315,6 +315,8 @@ class UserManagement(Resource):
 
         # Update basic user information
         if 'username' in data:
+            if Employee.query.filter_by(username=data['username']).first():
+                auth_ns.abort(400, "Username already exists")
             employee.username = data['username']
         if 'password' in data:
             employee.password_hash = generate_password_hash(data['password'])
@@ -404,6 +406,8 @@ class UserManagement(Resource):
                     employee.suppliers_can_delete = suppliers['suppliers_can_delete']
                 if 'suppliers_can_add' in suppliers:
                     employee.suppliers_can_add = suppliers['suppliers_can_add']
+            
+            
         
         db.session.commit()
         return employee, 200

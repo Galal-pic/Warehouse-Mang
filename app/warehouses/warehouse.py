@@ -4,6 +4,7 @@ from .. import db
 from ..models import Warehouse,ItemLocations, Invoice, Employee, InvoiceItem, Prices
 from ..utils import parse_bool
 from datetime import datetime
+
 warehouse_ns = Namespace('warehouse', description='Warehouse operations')
 item_location_ns = Namespace('item_location', description='Item Location operations')
 pagination_parser = warehouse_ns.parser()
@@ -44,117 +45,201 @@ pagination_model = warehouse_ns.model('WarehousePagination', {
     'total_items': fields.Integer(required=True),
     'all': fields.Boolean(required=True)
 })
+
 @warehouse_ns.route('/excel')
-class WarehouseExcel(Resource):
+class WarehouseExcelUltraFast(Resource):
     @jwt_required()
     def post(self):
-        """Import warehouse data from Excel"""
-        payload = warehouse_ns.payload
-        if not payload or 'data' not in payload:
-            warehouse_ns.abort(400, "Invalid payload format")
-        if 'warehouse_manager' not in payload:
-            warehouse_ns.abort(400, "warehouse_manager is required")
-        errors = []
-        success_count = 0
-        employee_id = get_jwt_identity()
-        employee = Employee.query.filter_by(id=employee_id).first()
-        new_invoice = Invoice(
-                type="اضافه",
-                client_name="",
-                warehouse_manager=payload.get("warehouse_manager"),
-                accreditation_manager=payload.get("warehouse_manager"),
-                total_amount=0,
-                paid=0,
-                residual=0,
-                comment="",
-                status="draft",  # Default to draft if not provided
-                supplier_id=None,
-                employee_name=employee.username,
-                employee_id=employee.id,
-                machine_id=None,
-                mechanism_id=None,
-            )
-        db.session.add(new_invoice)
+        """Ultra-fast import using bulk_save_objects"""
         try:
-            for item in payload['data']:
-                if 'item_name' not in item:
-                    warehouse_ns.abort(400, f"Item name is required for item {item['item_name']}")
-                if 'item_bar' not in item:
-                    warehouse_ns.abort(400, f"Item bar is required for item {item['item_name']}")
-                if 'quantity' not in item:
-                    warehouse_ns.abort(400, f"Quantity is required for item {item['item_name']}")
-                if 'location' not in item:
-                    item['location'] = 'raf1'
-
-                # Check if item already exists
-                existing_item = Warehouse.query.filter(
-                    (Warehouse.item_name == item['item_name']) | 
-                    (Warehouse.item_bar == item['item_bar'])
-                ).first()
-                
-                if existing_item:
-                    errors.append(f"Item '{item['item_name']}' or barcode '{item['item_bar']}' already exists")
+            payload = warehouse_ns.payload
+            if not payload or 'data' not in payload:
+                warehouse_ns.abort(400, "Invalid payload format")
+            if 'warehouse_manager' not in payload:
+                warehouse_ns.abort(400, "warehouse_manager is required")
+            
+            print(f"Processing {len(payload['data'])} items with ultra-fast method")
+            
+            errors = []
+            success_count = 0
+            employee_id = get_jwt_identity()
+            employee = Employee.query.filter_by(id=employee_id).first()
+            
+            if not employee:
+                warehouse_ns.abort(400, "Employee not found")
+            
+            # Data validation and deduplication (same as above)
+            valid_items = []
+            item_names = []
+            item_bars = []
+            
+            for i, item in enumerate(payload['data']):
+                if not item.get('item_name') or not item.get('item_bar') or 'quantity' not in item:
                     continue
                 
-                # Create new item
-                try:
-                    new_item = Warehouse(
-                        item_name=item['item_name'],
-                        item_bar=item['item_bar']
-                    )
-                    db.session.add(new_item)
-                    db.session.flush()  # Flush to get the new item's ID
+                item_name = str(item['item_name']).strip()
+                item_bar = str(item['item_bar']).strip()
+                quantity = int(item['quantity'])
+                location = item.get('location', 'raf1')
+                
+                valid_items.append({
+                    'item_name': item_name,
+                    'item_bar': item_bar,
+                    'quantity': quantity,
+                    'location': location
+                })
+                
+                item_names.append(item_name)
+                item_bars.append(item_bar)
+            
+            # Duplicate check (same as above)
+            existing_items_query = db.session.query(
+                Warehouse.item_name, Warehouse.item_bar
+            ).filter(
+                db.or_(
+                    Warehouse.item_name.in_(item_names),
+                    Warehouse.item_bar.in_(item_bars)
+                )
+            )
+            
+            existing_names = {name for name, _ in existing_items_query}
+            existing_bars = {bar for _, bar in existing_items_query}
+            
+            unique_items = []
+            seen_names = set()
+            seen_bars = set()
+            
+            for item in valid_items:
+                if (item['item_name'] not in existing_names and 
+                    item['item_bar'] not in existing_bars and
+                    item['item_name'] not in seen_names and
+                    item['item_bar'] not in seen_bars):
                     
-                    # Add the item location with quantity
-                    item_location = ItemLocations(
-                        item_id=new_item.id,
+                    seen_names.add(item['item_name'])
+                    seen_bars.add(item['item_bar'])
+                    unique_items.append(item)
+            
+            # ULTRA-FAST PROCESSING: Create all objects in memory first
+            ITEMS_PER_INVOICE = 10
+            current_time = datetime.now()
+            
+            all_warehouse_items = []
+            all_invoices = []
+            all_item_locations = []
+            all_invoice_items = []
+            all_prices = []
+            
+            # Create invoices and items in batches
+            for chunk_start in range(0, len(unique_items), ITEMS_PER_INVOICE):
+                chunk_end = min(chunk_start + ITEMS_PER_INVOICE, len(unique_items))
+                chunk_items = unique_items[chunk_start:chunk_end]
+                
+                # Create invoice
+                invoice = Invoice(
+                    type="اضافه",
+                    client_name="",
+                    warehouse_manager=payload.get("warehouse_manager"),
+                    accreditation_manager=payload.get("warehouse_manager"),
+                    total_amount=0,
+                    paid=0,
+                    residual=0,
+                    comment=f"Bulk import - Items {chunk_start+1} to {chunk_end}",
+                    status="draft",
+                    supplier_id=None,
+                    employee_name=employee.username,
+                    employee_id=employee.id,
+                    machine_id=None,
+                    mechanism_id=None,
+                    created_at=current_time
+                )
+                all_invoices.append(invoice)
+                
+                # Create warehouse items for this chunk
+                for item in chunk_items:
+                    warehouse_item = Warehouse(
+                        item_name=item['item_name'],
+                        item_bar=item['item_bar'],
+                        created_at=current_time
+                    )
+                    all_warehouse_items.append(warehouse_item)
+                    
+                    # We'll need to link these after getting IDs
+                    item['warehouse_item_obj'] = warehouse_item
+                    item['invoice_obj'] = invoice
+            
+            # BULK SAVE ALL OBJECTS
+            try:
+                # Save all invoices
+                db.session.bulk_save_objects(all_invoices, return_defaults=True)
+                db.session.flush()
+                
+                # Save all warehouse items
+                db.session.bulk_save_objects(all_warehouse_items, return_defaults=True)
+                db.session.flush()
+                
+                # Now create dependent objects with the generated IDs
+                for item in unique_items:
+                    warehouse_item = item['warehouse_item_obj']
+                    invoice = item['invoice_obj']
+                    
+                    all_item_locations.append(ItemLocations(
+                        item_id=warehouse_item.id,
                         location=item['location'],
                         quantity=item['quantity']
-                    )
-                    db.session.add(item_location)
+                    ))
                     
-                    invoice_item = InvoiceItem(
-                        invoice_id=new_invoice.id,
-                        item_id=new_item.id,
+                    all_invoice_items.append(InvoiceItem(
+                        invoice_id=invoice.id,
+                        item_id=warehouse_item.id,
                         quantity=item['quantity'],
-                        location="raf1",
+                        location=item['location'],
                         unit_price=0,
                         total_price=0,
                         description=""
-                    )
-                    db.session.add(invoice_item)
-                    price = Prices(
-                        invoice_id=new_invoice.id,
-                        item_id=new_item.id,
+                    ))
+                    
+                    all_prices.append(Prices(
+                        invoice_id=invoice.id,
+                        item_id=warehouse_item.id,
                         quantity=item['quantity'],
                         unit_price=0,
-                        created_at=datetime.now()  # Explicitly set creation time for FIFO ordering
-                    )
-                    db.session.add(price)
+                        created_at=current_time
+                    ))
                     
                     success_count += 1
                 
-                except Exception as e:
-                    errors.append(f"Error adding item '{item['item_name']}': {str(e)}")
-            
-            # Commit if there are no errors, rollback otherwise
-            if not errors:
+                # Bulk save dependent objects
+                db.session.bulk_save_objects(all_item_locations)
+                db.session.bulk_save_objects(all_invoice_items)
+                db.session.bulk_save_objects(all_prices)
+                
                 db.session.commit()
+                
+                invoice_ids = [invoice.id for invoice in all_invoices]
+                
                 return {
                     'status': 'success',
-                    'message': f'Successfully imported {success_count} items'
+                    'message': f'Ultra-fast import: {success_count} items across {len(invoice_ids)} invoices',
+                    'total_submitted': len(payload['data']),
+                    'successful_items': success_count,
+                    'invoices_created': len(invoice_ids),
+                    'invoice_ids': invoice_ids,
+                    'items_per_invoice': ITEMS_PER_INVOICE
                 }, 200
-            else:
+                
+            except Exception as e:
                 db.session.rollback()
                 return {
                     'status': 'error',
-                    'message': 'Some items could not be imported',
-                    'errors': errors
-                }, 400
+                    'message': f'Ultra-fast bulk operation failed: {str(e)}'
+                }, 500
                 
         except Exception as e:
             db.session.rollback()
-            warehouse_ns.abort(400, f"Error processing warehouse excel import: {str(e)}")     
+            return {
+                'status': 'error',
+                'message': f'Unexpected error: {str(e)}'
+            }, 500
 
 @warehouse_ns.route('/')
 class WarehouseList(Resource):
