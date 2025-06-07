@@ -402,13 +402,6 @@
     z-index: 99999999999999999999999999999999999999 !important;
 }
 
-@import url('../../colors.css');
-
-:root {
-    --main_color: black;
-    --blue_color: #1976d2;
-}
-
 /* General Container Styling */
 .container {
     width: 80%;

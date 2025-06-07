@@ -14,7 +14,8 @@ import { useGetUserQuery } from "../services/userApi";
 const Login = () => {
   const { isLoading: isLoadingUser, refetch } = useGetUserQuery();
 
-  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL_DEVELOPMENT;
+  const API_BASE_URL =  import.meta.env.VITE_API_BASE_URL_DEVELOPMENT;
+  console.log(API_BASE_URL)
 
   const [name, setName] = useState("");
   const [nameError, setNameError] = useState("");
