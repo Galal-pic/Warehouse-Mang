@@ -955,6 +955,41 @@ export default function Report() {
   const firstRowInvoiceFields = invoiceFields.slice(0, 5);
   const secondRowInvoiceFields = invoiceFields.slice(5, 10);
 
+    const handlePrint = () => {
+    const style = document.createElement("style");
+    style.innerHTML = `
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          .printable-box, .printable-box * {
+            visibility: visible;
+          }
+          .printable-box {
+            position: absolute;
+            left: 0;
+            top: 0;
+            padding: 10px !important;
+            margin: 0!important;
+            width: 100%;
+          }
+            .printable-box input,
+        .printable-box textarea,
+        .printable-box .MuiAutocomplete-root {
+          display: none !important;
+        }
+        @page {
+          size: auto;
+          margin: 5mm;
+        }
+            
+        }
+      `;
+    document.head.appendChild(style);
+    window.print();
+    document.head.removeChild(style);
+  };
+
   return (
     <Box
       sx={{
@@ -1714,19 +1749,66 @@ export default function Report() {
       <Dialog open={isModalOpen} onClose={closeModal} maxWidth="lg" fullWidth>
         <Box sx={{ padding: "20px", direction: "rtl" }}>
           {selectedInvoice ? (
-            <InvoiceModal
-              selectedInvoice={selectedInvoice}
-              isEditingInvoice={false}
-              editingInvoice={selectedInvoice}
-              setEditingInvoice={() => {}}
-              show={true}
-              selectedNowType={{ type: selectedInvoice.type }}
-              addRow={() => {}}
-              handleDeleteItemClick={() => {}}
-              isPurchasesType={selectedInvoice.type === "purchase"}
-              isCreate={false}
-              showCommentField={true}
-            />
+            <>
+              <InvoiceModal
+                selectedInvoice={selectedInvoice}
+                isEditingInvoice={false}
+                editingInvoice={selectedInvoice}
+                setEditingInvoice={() => {}}
+                show={true}
+                selectedNowType={{ type: selectedInvoice.type }}
+                addRow={() => {}}
+                handleDeleteItemClick={() => {}}
+                isPurchasesType={selectedInvoice.type === "purchase"}
+                isCreate={false}
+                showCommentField={true}
+              />
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  mt: 2,
+                  gap: 1,
+                }}
+              >
+                <Button
+                  variant="contained"
+                  onClick={handlePrint}
+                  sx={{
+                    py: 0.8,
+                    backgroundColor: "#4b6584",
+                    borderRadius: "6px",
+                    fontSize: "0.95rem",
+                    fontWeight: 600,
+                    boxShadow: "0 2px 6px rgba(0, 0, 0, 0.05)",
+                    "&:hover": {
+                      backgroundColor: "#3b5066",
+                      boxShadow: "0 3px 8px rgba(0, 0, 0, 0.08)",
+                    },
+                  }}
+                >
+                  طباعة
+                </Button>
+                <Button
+                  variant="contained"
+                  onClick={closeModal}
+                  sx={{
+                    py: 0.8,
+                    backgroundColor: "#4b6584",
+                    borderRadius: "6px",
+                    fontSize: "0.95rem",
+                    fontWeight: 600,
+                    boxShadow: "0 2px 6px rgba(0, 0, 0, 0.05)",
+                    "&:hover": {
+                      backgroundColor: "#3b5066",
+                      boxShadow: "0 3px 8px rgba(0, 0, 0, 0.08)",
+                    },
+                  }}
+                >
+                  إغلاق
+                </Button>
+              </Box>
+            </>
           ) : (
             <Box>لم يتم العثور على الفاتورة</Box>
           )}
