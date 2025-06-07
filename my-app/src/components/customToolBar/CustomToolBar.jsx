@@ -88,6 +88,7 @@ const CustomToolbar = ({
             item_bar: row.item_bar,
             location: row.location,
             quantity: row.quantity,
+            price_unit: row.price_unit,
           })),
         };
         console.log("Formatted Data for API:", formattedData);
