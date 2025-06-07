@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { GridToolbarContainer, GridToolbarQuickFilter } from "@mui/x-data-grid";
+import { GridToolbarContainer } from "@mui/x-data-grid";
 import {
   Box,
   CircularProgress,
@@ -435,33 +435,6 @@ const CustomToolbar = ({
             <AddCircleIcon sx={{ fontSize: "50px" }} fontSize="large" />
           </IconButton>
         </Box>
-
-        {/* Quick Filter */}
-        <GridToolbarQuickFilter
-          sx={{
-            direction: "rtl",
-            "& .MuiInputBase-root": {
-              padding: "8px",
-              backgroundColor: "white",
-              width: "500px",
-            },
-            "& .MuiSvgIcon-root": {
-              color: primaryColor,
-              fontSize: "2rem",
-            },
-            "& .MuiInputBase-input": {
-              color: "black",
-              fontSize: "1.2rem",
-              marginRight: "0.5rem",
-            },
-            "& .MuiInputBase-input::placeholder": {
-              fontSize: "1rem",
-              color: primaryColor,
-            },
-            overflow: "hidden",
-          }}
-          placeholder="ابحث هنا..."
-        />
 
         {/* Export/Import Menu */}
         <Box sx={{ alignItems: "center", display: "flex" }}>

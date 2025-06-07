@@ -1,6 +1,6 @@
 import styles from "./Users.module.css";
 import React, { useEffect, useState } from "react";
-import { GridToolbarContainer, GridToolbarQuickFilter } from "@mui/x-data-grid";
+import { GridToolbarContainer } from "@mui/x-data-grid";
 import { Snackbar, Alert, IconButton } from "@mui/material";
 import ClearOutlinedIcon from "@mui/icons-material/ClearOutlined";
 import { useNavigate } from "react-router-dom";
@@ -74,28 +74,6 @@ export default function Users() {
             }}
           />
         </IconButton>
-
-        <GridToolbarQuickFilter
-          sx={{
-            direction: "rtl",
-            width: "50%",
-            "& .MuiInputBase-root": {
-              padding: "8px 16px",
-              boxShadow: "none",
-              backgroundColor: "white",
-            },
-            "& .MuiInputBase-root:hover": {
-              outline: "none",
-            },
-            "& .MuiSvgIcon-root": {
-              color: "#1976d2",
-              fontSize: "1.5rem",
-              marginLeft: "8px",
-            },
-            overflow: "hidden",
-          }}
-          placeholder="ابحث هنا..."
-        />
       </GridToolbarContainer>
     );
   }

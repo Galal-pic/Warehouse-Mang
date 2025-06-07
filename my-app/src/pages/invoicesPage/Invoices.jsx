@@ -1,6 +1,6 @@
 import styles from "./Invoices.module.css";
 import React, { useEffect, useMemo, useState, useRef } from "react";
-import { GridToolbarContainer, GridToolbarQuickFilter } from "@mui/x-data-grid";
+import { GridToolbarContainer } from "@mui/x-data-grid";
 import {
   Box,
   Button,
@@ -544,35 +544,9 @@ export default function Invoices() {
       <GridToolbarContainer
         sx={{
           textAlign: "center",
+          direction: "rtl",
         }}
       >
-        <GridToolbarQuickFilter
-          sx={{
-            width: "500px",
-            direction: "rtl",
-            "& .MuiInputBase-root": {
-              padding: "8px",
-              borderBottom: `2px solid ${secondColor}`,
-              backgroundColor: "white",
-            },
-            "& .MuiSvgIcon-root": {
-              color: secondColor,
-              fontSize: "2rem",
-            },
-            "& .MuiInputBase-input": {
-              color: "black",
-              fontSize: "1.2rem",
-              marginRight: "0.5rem",
-            },
-            "& .MuiInputBase-input::placeholder": {
-              fontSize: "1rem",
-              color: secondColor,
-            },
-            overflow: "hidden",
-            margin: "auto",
-          }}
-          placeholder="ابحث هنا..."
-        />
         {selectedRows.length > 0 && (
           <>
             {(user?.can_delete || user?.username === "admin") && (
@@ -585,8 +559,9 @@ export default function Invoices() {
                   backgroundColor: "#d32f2f",
                   "&:hover": { backgroundColor: "#b71c1c" },
                   position: "absolute",
-                  top: "15px",
+                  top: "4px",
                   left: "0",
+                  direction: "ltr",
                 }}
               >
                 حذف المحدد ({selectedRows.length})
@@ -624,9 +599,7 @@ export default function Invoices() {
           color="info"
           sx={{
             backgroundColor: "#00bcd4",
-            position: "absolute",
-            top: "15px",
-            right: "0",
+            direction: "ltr",
           }}
         >
           طباعة التقرير
