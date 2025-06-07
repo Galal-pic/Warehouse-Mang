@@ -1076,7 +1076,7 @@ export default function Invoices() {
                         )}
                     </div>
                   )}
-                  {(user?.view_prices || user?.username === "admin") && (
+                  {(user?.view_prices || user?.username === "admin") && (selectedInvoice?.type !== "طلب شراء") && (
                     <button
                       onClick={() => setShow(!show)}
                       className={styles.iconBtn}

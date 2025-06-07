@@ -152,7 +152,7 @@ const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
       const iframeDocument = printWindowFrame.contentWindow.document;
       iframeDocument.open();
 
-      // Add item details before the table, centered
+      // Item details for print
       const itemDetails = `
         <div style="margin-bottom: 20px; text-align: center; direction: rtl;">
           <h2 style="font-size: 20px; font-weight: bold;">معلومات العنصر</h2>
@@ -173,6 +173,7 @@ const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
         </div>
       `;
 
+      // Table content with DataGrid-like styling
       let tableContent = `
     <table style="width: 100%; border-collapse: collapse; font-family: Arial, sans-serif;">
       <thead>
@@ -184,9 +185,15 @@ const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
           : dataType === "prices"
           ? priceColumns
           : invoiceHistoryColumns;
+
+      // Table headers with DataGrid header styling
       columns.forEach((column) => {
         tableContent += `
-      <th style="border: 1px solid #000; padding: 8px; background-color: #f0f0f0; font-weight: bold; text-align: right;">
+      <th style="border: 1px solid #ddd; padding: 8px; background-color: ${getComputedStyle(
+        document.documentElement
+      ).getPropertyValue(
+        "--primary-color"
+      )}; color: white; font-weight: bold; text-align: center; font-size: 14px;">
         ${column.headerName}
       </th>
     `;
@@ -197,23 +204,29 @@ const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
       <tbody>
   `;
 
+      // Table rows with DataGrid cell styling
       const rows = printAll
         ? searchResults
         : searchResults.slice(
             paginationModel.page * paginationModel.pageSize,
             (paginationModel.page + 1) * paginationModel.pageSize
           );
-      rows.forEach((row) => {
-        tableContent += `<tr>`;
+
+      rows.forEach((row, index) => {
+        tableContent += `
+      <tr style="background-color: ${index % 2 === 0 ? "#fff" : "#f9fafb"};">
+    `;
         columns.forEach((column) => {
           let cellValue = "-";
           if (column.renderCell) {
-            cellValue = column.renderCell({ value: row[column.field] }) || "-";
+            // Use renderCell to match displayed value
+            cellValue =
+              column.renderCell({ value: row[column.field], row }) || "-";
           } else {
             cellValue = row[column.field] || "-";
           }
           tableContent += `
-        <td style="border: 1px solid #000; padding: 8px; text-align: right;">
+        <td style="border: 1px solid #ddd; padding: 8px; text-align: center; font-size: 13px; color: #333;">
           ${cellValue}
         </td>
       `;
@@ -226,43 +239,67 @@ const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
     </table>
   `;
 
+      // Print document with enhanced styling
       iframeDocument.write(`
     <html>
       <head>
         <title>طباعة تقرير العنصر</title>
         <style>
           body {
-            margin: 0;
+            margin: 20px;
             font-family: Arial, sans-serif;
-            color: #000; /* لون موحد للنصوص */
+            color: #333;
           }
           .print-container {
             width: 100%;
-            text-align: center; /* توسيط محتوى الحاوية */
+            max-width: 1200px;
+            margin: 0 auto;
+            text-align: center;
           }
           .logo {
             max-width: 150px;
             margin-bottom: 20px;
-            display: inline-block; /* جعل الصورة في وسط الصفحة */
           }
           table {
             width: 100%;
             border-collapse: collapse;
             page-break-inside: auto;
+            border-radius: 10px;
+            overflow: hidden;
           }
           th, td {
-            border: 1px solid #000;
+            border: 1px solid #ddd;
             padding: 8px;
-            text-align: right;
-            font-size: 14px;
+            text-align: center;
+            font-size: 13px;
           }
           th {
-            background-color: #f0f0f0;
+            background-color: ${getComputedStyle(
+              document.documentElement
+            ).getPropertyValue("--primary-color")};
+            color: white;
             font-weight: bold;
           }
-          tr {
-            page-break-inside: avoid;
-            page-break-after: auto;
+          tr:nth-child(even) {
+            background-color: #f9fafb;
+          }
+          tr:hover {
+            background-color: #f0f0f0;
+          }
+          @media print {
+            body {
+              margin: 0;
+            }
+            .print-container {
+              width: 100%;
+            }
+            table {
+              page-break-inside: auto;
+            }
+            tr {
+              page-break-inside: avoid;
+              page-break-after: auto;
+            }
           }
           @media screen {
             body {
@@ -412,11 +449,28 @@ const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
     { field: "invoice_id", headerName: "#", flex: 1 },
   ];
 
+  const invoiceHistoryWithUniqueId =
+    item?.invoice_history?.map((row, index) => ({
+      ...row,
+      uniqueId: `${row.invoice_id}-${row.invoice_date}-${index}`,
+    })) || [];
   const invoiceHistoryColumns = [
-    { field: "unit_price", headerName: "سعر الوحدة", flex: 1 },
+    {
+      field: "unit_price",
+      headerName: "سعر الوحدة",
+      flex: 1,
+      renderCell: (params) =>
+        params.row.invoice_type === "طلب شراء" ? "-" : params.value || "0",
+    },
     { field: "quantity", headerName: "الكمية", flex: 1 },
     { field: "location", headerName: "الموقع", flex: 1 },
-    { field: "total_price", headerName: "السعر الإجمالي", flex: 1 },
+    {
+      field: "total_price",
+      headerName: "السعر الإجمالي",
+      flex: 1,
+      renderCell: (params) =>
+        params.row.invoice_type === "طلب شراء" ? "-" : params.value || "0",
+    },
     {
       field: "status",
       headerName: "الحالة",
@@ -640,17 +694,17 @@ const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
             CustomToolbarFromComponent={(props) => (
               <CustomToolbar
                 {...props}
-                searchResults={item.invoice_history || []}
+                searchResults={invoiceHistoryWithUniqueId}
                 dataType="invoice_history"
                 paginationModel={paginationModel}
               />
             )}
-            rows={item.invoice_history || []}
+            rows={invoiceHistoryWithUniqueId}
             columns={invoiceHistoryColumns}
-            getRowId={(row) => row.invoice_id + row.invoice_date}
+            getRowId={(row) => row.uniqueId} // استخدام uniqueId بدل invoice_id + invoice_date
             paginationModel={paginationModel}
             onPageChange={handlePageChange}
-            pageCount={Math.ceil(item?.invoice_history?.length / 10)}
+            pageCount={Math.ceil(invoiceHistoryWithUniqueId.length / 10)}
             checkBox={false}
           />
         )}

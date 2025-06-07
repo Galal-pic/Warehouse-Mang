@@ -955,7 +955,7 @@ export default function Report() {
   const firstRowInvoiceFields = invoiceFields.slice(0, 5);
   const secondRowInvoiceFields = invoiceFields.slice(5, 10);
 
-    const handlePrint = () => {
+  const handlePrint = () => {
     const style = document.createElement("style");
     style.innerHTML = `
         @media print {
@@ -1532,26 +1532,49 @@ export default function Report() {
             <>
               {searchResults?.[0] && (
                 <Card
-                  sx={{ mb: 3, boxShadow: "0 2px 8px rgba(0, 0, 0, 0.05)" }}
+                  sx={{
+                    mb: 3,
+                    borderRadius: "12px",
+                    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.08)",
+                    border: "1px solid #e2e8f0",
+                    backgroundColor: "#fff",
+                  }}
                 >
-                  <CardContent>
+                  <CardContent sx={{ padding: "24px", direction: "rtl" }}>
                     <Typography
-                      variant="h6"
-                      sx={{ fontWeight: 600, color: "#1e293b" }}
+                      variant="h5"
+                      sx={{ fontWeight: 700, color: "#1e293b", mb: 3 }}
                     >
                       تفاصيل
                       {reportType === "ماكينة" ? " الماكينة" : " الميكانيزم"}
                     </Typography>
-                    <Typography variant="body1">
-                      <strong>المعرف:</strong> {searchResults[0].id}
-                    </Typography>
-                    <Typography variant="body1">
-                      <strong>الاسم:</strong> {searchResults[0].name}
-                    </Typography>
-                    <Typography variant="body1">
-                      <strong>الوصف:</strong>{" "}
-                      {searchResults[0].description || "-"}
-                    </Typography>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 1.5,
+                      }}
+                    >
+                      <Typography
+                        variant="body1"
+                        sx={{ fontSize: "1rem", color: "#4b6584" }}
+                      >
+                        <strong>المعرف:</strong> {searchResults[0].id}
+                      </Typography>
+                      <Typography
+                        variant="body1"
+                        sx={{ fontSize: "1rem", color: "#4b6584" }}
+                      >
+                        <strong>الاسم:</strong> {searchResults[0].name}
+                      </Typography>
+                      <Typography
+                        variant="body1"
+                        sx={{ fontSize: "1rem", color: "#4b6584" }}
+                      >
+                        <strong>الوصف:</strong>{" "}
+                        {searchResults[0].description || "-"}
+                      </Typography>
+                    </Box>
                   </CardContent>
                 </Card>
               )}
