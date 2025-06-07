@@ -9,10 +9,13 @@ import {
   Box,
   Tabs,
   Tab,
+  MenuItem,
+  Menu,
 } from "@mui/material";
 import CustomDataGrid from "../dataGrid/CustomDataGrid";
 import { GridToolbarContainer } from "@mui/x-data-grid";
 import { useState } from "react";
+import logo from "../header/logo.png";
 
 const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
   // State for active tab
@@ -22,8 +25,20 @@ const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
     columnVisibilityModel,
     searchResults,
     dataType,
+    paginationModel,
     ...props
   }) {
+    const [anchorEl, setAnchorEl] = useState(null);
+    const open = Boolean(anchorEl);
+
+    const handlePrintMenuClick = (event) => {
+      setAnchorEl(event.currentTarget);
+    };
+
+    const handleMenuClose = () => {
+      setAnchorEl(null);
+    };
+
     const handleExport = () => {
       const columnTranslations = {
         quantity: "الكمية",
@@ -121,6 +136,165 @@ const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
       URL.revokeObjectURL(link.href);
     };
 
+    const handlePrint = (printAll = false) => {
+      if (!searchResults || searchResults.length === 0) {
+        alert("لا توجد بيانات للطباعة");
+        return;
+      }
+
+      const printWindowFrame = document.createElement("iframe");
+      printWindowFrame.style.position = "absolute";
+      printWindowFrame.style.width = "0px";
+      printWindowFrame.style.height = "0px";
+      printWindowFrame.style.border = "none";
+      document.body.appendChild(printWindowFrame);
+
+      const iframeDocument = printWindowFrame.contentWindow.document;
+      iframeDocument.open();
+
+      // Add item details before the table, centered
+      const itemDetails = `
+        <div style="margin-bottom: 20px; text-align: center; direction: rtl;">
+          <h2 style="font-size: 20px; font-weight: bold;">معلومات العنصر</h2>
+          <p style="font-size: 16px; display: flex; justify-content: center; align-items: center; gap: 10px;">
+            <div style="display: inline-block;"><strong>اسم العنصر:</strong></div>
+            <div style="display: inline-block;">${item?.item_name || "-"}</div>
+          </p>
+          <p style="font-size: 16px; display: flex; justify-content: center; align-items: center; gap: 10px;">
+            <div style="display: inline-block;"><strong>باركود العنصر:</strong></div>
+            <div style="display: inline-block;">${item?.item_bar || "-"}</div>
+          </p>
+          <p style="font-size: 16px; display: flex; justify-content: center; align-items: center; gap: 10px;">
+            <div style="display: inline-block;"><strong>تاريخ الإنشاء:</strong></div>
+            <div style="display: inline-block;">${
+              item?.created_at?.split(" ")[0] || "-"
+            }</div>
+          </p>
+        </div>
+      `;
+
+      let tableContent = `
+    <table style="width: 100%; border-collapse: collapse; font-family: Arial, sans-serif;">
+      <thead>
+        <tr>
+  `;
+      const columns =
+        dataType === "locations"
+          ? locationColumns
+          : dataType === "prices"
+          ? priceColumns
+          : invoiceHistoryColumns;
+      columns.forEach((column) => {
+        tableContent += `
+      <th style="border: 1px solid #000; padding: 8px; background-color: #f0f0f0; font-weight: bold; text-align: right;">
+        ${column.headerName}
+      </th>
+    `;
+      });
+      tableContent += `
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+      const rows = printAll
+        ? searchResults
+        : searchResults.slice(
+            paginationModel.page * paginationModel.pageSize,
+            (paginationModel.page + 1) * paginationModel.pageSize
+          );
+      rows.forEach((row) => {
+        tableContent += `<tr>`;
+        columns.forEach((column) => {
+          let cellValue = "-";
+          if (column.renderCell) {
+            cellValue = column.renderCell({ value: row[column.field] }) || "-";
+          } else {
+            cellValue = row[column.field] || "-";
+          }
+          tableContent += `
+        <td style="border: 1px solid #000; padding: 8px; text-align: right;">
+          ${cellValue}
+        </td>
+      `;
+        });
+        tableContent += `</tr>`;
+      });
+
+      tableContent += `
+      </tbody>
+    </table>
+  `;
+
+      iframeDocument.write(`
+    <html>
+      <head>
+        <title>طباعة تقرير العنصر</title>
+        <style>
+          body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            color: #000; /* لون موحد للنصوص */
+          }
+          .print-container {
+            width: 100%;
+            text-align: center; /* توسيط محتوى الحاوية */
+          }
+          .logo {
+            max-width: 150px;
+            margin-bottom: 20px;
+            display: inline-block; /* جعل الصورة في وسط الصفحة */
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            page-break-inside: auto;
+          }
+          th, td {
+            border: 1px solid #000;
+            padding: 8px;
+            text-align: right;
+            font-size: 14px;
+          }
+          th {
+            background-color: #f0f0f0;
+            font-weight: bold;
+          }
+          tr {
+            page-break-inside: avoid;
+            page-break-after: auto;
+          }
+          @media screen {
+            body {
+              display: none;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="print-container">
+          <img src="${logo}" alt="Logo" class="logo" />
+          ${itemDetails}
+          ${tableContent}
+        </div>
+      </body>
+    </html>
+  `);
+
+      iframeDocument.close();
+
+      const logoImg = new Image();
+      logoImg.src = logo;
+      logoImg.onload = () => {
+        setTimeout(() => {
+          printWindowFrame.contentWindow.focus();
+          printWindowFrame.contentWindow.print();
+          document.body.removeChild(printWindowFrame);
+        }, 500);
+      };
+      handleMenuClose();
+    };
+
     return (
       <GridToolbarContainer
         sx={{
@@ -132,6 +306,66 @@ const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
           borderRadius: "8px 8px 0 0",
         }}
       >
+        <Button
+          variant="contained"
+          onClick={handlePrintMenuClick}
+          sx={{
+            padding: "8px 24px",
+            backgroundColor: "#4b6584",
+            borderRadius: "6px",
+            fontSize: "0.95rem",
+            fontWeight: 600,
+            textTransform: "none",
+            boxShadow: "0 2px 6px rgba(0, 0, 0, 0.1)",
+            transition: "background-color 0.2s, box-shadow 0.2s",
+            marginRight: "8px",
+            "&:hover": {
+              backgroundColor: "#3b5066",
+              boxShadow: "0 4px 8px rgba(0, 0, 0, 0.15)",
+            },
+          }}
+        >
+          طباعة
+        </Button>
+        <Menu
+          anchorEl={anchorEl}
+          open={open}
+          onClose={handleMenuClose}
+          PaperProps={{
+            sx: {
+              borderRadius: "6px",
+              boxShadow: "0 2px 8px rgba(0, 0, 0, 0.15)",
+              direction: "rtl",
+            },
+          }}
+        >
+          <MenuItem
+            onClick={() => handlePrint(false)}
+            sx={{
+              fontSize: "0.95rem",
+              padding: "8px 16px",
+              "&:hover": {
+                backgroundColor: "#f1f5f9",
+                color: "#4b6584",
+              },
+            }}
+          >
+            طباعة الصفحة الحالية
+          </MenuItem>
+          <MenuItem
+            onClick={() => handlePrint(true)}
+            sx={{
+              fontSize: "0.95rem",
+              padding: "8px 16px",
+              "&:hover": {
+                backgroundColor: "#f1f5f9",
+                color: "#4b6584",
+              },
+            }}
+          >
+            طباعة جميع الصفحات
+          </MenuItem>
+        </Menu>
         <Button
           variant="contained"
           onClick={handleExport}
@@ -370,6 +604,7 @@ const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
                 {...props}
                 searchResults={item.locations || []}
                 dataType="locations"
+                paginationModel={paginationModel}
               />
             )}
             rows={item.locations || []}
@@ -388,6 +623,7 @@ const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
                 {...props}
                 searchResults={item.prices || []}
                 dataType="prices"
+                paginationModel={paginationModel}
               />
             )}
             rows={item.prices || []}
@@ -406,6 +642,7 @@ const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
                 {...props}
                 searchResults={item.invoice_history || []}
                 dataType="invoice_history"
+                paginationModel={paginationModel}
               />
             )}
             rows={item.invoice_history || []}

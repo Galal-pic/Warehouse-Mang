@@ -14,6 +14,7 @@ import {
   Card,
   CardContent,
   CircularProgress,
+  Menu,
 } from "@mui/material";
 import CustomAutoCompleteField from "../../components/customAutoCompleteField/CustomAutoCompleteField";
 import SnackBar from "../../components/snackBar/SnackBar";
@@ -31,6 +32,7 @@ import LaunchIcon from "@mui/icons-material/Launch";
 import InvoiceModal from "../../components/invoice/Invoice";
 import ItemDetailsDialog from "../../components/itemDetailsReport/ItemDetailsReport";
 import { GridToolbarContainer } from "@mui/x-data-grid";
+import logo from "../../components/header/logo.png";
 
 export default function Report() {
   const [selectedItem, setSelectedItem] = useState(null);
@@ -45,6 +47,7 @@ export default function Report() {
     columnVisibilityModel,
     searchResults,
     dataType,
+    fullSearchResults,
     ...props
   }) {
     const handleExport = () => {
@@ -168,6 +171,185 @@ export default function Report() {
       URL.revokeObjectURL(link.href);
     };
 
+    const handlePrint = (all) => {
+      const printWindowFrame = document.createElement("iframe");
+      printWindowFrame.style.position = "absolute";
+      printWindowFrame.style.width = "0px";
+      printWindowFrame.style.height = "0px";
+      printWindowFrame.style.border = "none";
+      document.body.appendChild(printWindowFrame);
+
+      const iframeDocument = printWindowFrame.contentWindow.document;
+      iframeDocument.open();
+
+      let machineDetails = "";
+      if (reportType === "ماكينة") {
+        machineDetails = `
+          <div class="machine-details" style="margin-bottom: 20px; text-align: center; direction: rtl;">
+            <h2 style="font-size: 18px; font-weight: bold;">تفاصيل الماكينة</h2>
+            <p style="font-size: 14px; display: flex; justify-content: center; align-items: center; gap: 10px;">
+              <div style="display: inline-block;"><strong>رقم الماكينة:</strong></div>
+              <div style="display: inline-block;">${
+                fullSearchResults[0].id || "-"
+              }</div>
+            </p>
+            <p style="font-size: 14px; display: flex; justify-content: center; align-items: center; gap: 10px;">
+              <div style="display: inline-block;"><strong>اسم الماكينة:</strong></div>
+              <div style="display: inline-block;">${
+                fullSearchResults[0].name || "-"
+              }</div>
+            </p>
+            <p style="font-size: 14px; display: flex; justify-content: center; align-items: center; gap: 10px;">
+              <div style="display: inline-block;"><strong>نوع الماكينة:</strong></div>
+              <div style="display: inline-block;">${
+                fullSearchResults[0].description || "-"
+              }</div>
+            </p>
+          </div>
+        `;
+      }
+
+      let tableContent = `
+    <table style="width: 100%; border-collapse: collapse; font-family: Arial, sans-serif;">
+      <thead>
+        <tr>
+  `;
+      const columns = dataType === "invoices" ? invoiceColumns : itemColumns;
+      columns.forEach((column) => {
+        if (column.field !== "refresh") {
+          tableContent += `
+        <th style="border: 1px solid #000; padding: 8px; background-color: #f0f0f0; font-weight: bold; text-align: right;">
+          ${column.headerName}
+        </th>
+      `;
+        }
+      });
+      tableContent += `
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+      const rows =
+        dataType === "invoices"
+          ? all
+            ? searchResults
+            : searchResults.slice(
+                paginationModel.page * 10,
+                paginationModel.page * 10 + 10
+              )
+          : searchResults
+              .flatMap((machine) => machine.items?.results || [])
+              .map((item) => ({ ...item, id: item.id }));
+      rows.forEach((row) => {
+        tableContent += `<tr>`;
+        columns.forEach((column) => {
+          if (column.field !== "refresh") {
+            let cellValue = "-";
+            if (column.renderCell) {
+              cellValue =
+                column.renderCell({ value: row[column.field], id: row.id }) ||
+                "-";
+            } else if (column.field === "items") {
+              cellValue =
+                row.items?.map((item) => item.item_name).join(", ") || "-";
+            } else {
+              cellValue = row[column.field] || "-";
+            }
+            tableContent += `
+          <td style="border: 1px solid #000; padding: 8px; text-align: right;">
+            ${cellValue}
+          </td>
+        `;
+          }
+        });
+        tableContent += `</tr>`;
+      });
+
+      tableContent += `
+      </tbody>
+    </table>
+  `;
+
+      iframeDocument.write(`
+    <html>
+      <head>
+        <title>طباعة التقرير</title>
+        <style>
+          body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+          }
+          .print-container {
+            width: 100%;
+            text-align: center; /* توسيط محتوى الحاوية */
+          }
+          .logo {
+            max-width: 150px;
+            margin-bottom: 20px;
+            display: inline-block; /* جعل الصورة في وسط الصفحة */
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            page-break-inside: auto;
+          }
+          th, td {
+            border: 1px solid #000;
+            padding: 8px;
+            text-align: right;
+            font-size: 14px;
+          }
+          th {
+            background-color: #f0f0f0;
+            font-weight: bold;
+          }
+          tr {
+            page-break-inside: avoid;
+            page-break-after: auto;
+          }
+          @media screen {
+            body {
+              display: none;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="print-container">
+          <img src="${logo}" alt="Logo" class="logo" />
+          ${machineDetails}
+          ${tableContent}
+        </div>
+      </body>
+    </html>
+  `);
+
+      iframeDocument.close();
+
+      const logoImg = new Image();
+      logoImg.src = logo;
+      logoImg.onload = () => {
+        setTimeout(() => {
+          printWindowFrame.contentWindow.focus();
+          printWindowFrame.contentWindow.print();
+          document.body.removeChild(printWindowFrame);
+        }, 500);
+      };
+
+      handleMenuClose();
+    };
+    const [anchorEl, setAnchorEl] = useState(null);
+    const open = Boolean(anchorEl);
+
+    const handlePrintMenuClick = (event) => {
+      setAnchorEl(event.currentTarget);
+    };
+
+    const handleMenuClose = () => {
+      setAnchorEl(null);
+    };
+
     return (
       <GridToolbarContainer
         sx={{
@@ -181,6 +363,64 @@ export default function Report() {
             textAlign: "right",
           }}
         >
+          <Button
+            variant="contained"
+            onClick={handlePrintMenuClick}
+            sx={{
+              py: 0.8,
+              backgroundColor: "#4b6584",
+              borderRadius: "6px",
+              fontSize: "0.95rem",
+              fontWeight: 600,
+              boxShadow: "0 2px 6px rgba(0, 0, 0, 0.05)",
+              marginRight: "10px",
+              "&:hover": {
+                backgroundColor: "#3b5066",
+                boxShadow: "0 3px 8px rgba(0, 0, 0, 0.08)",
+              },
+            }}
+          >
+            طباعة
+          </Button>
+          <Menu
+            anchorEl={anchorEl}
+            open={open}
+            onClose={handleMenuClose}
+            PaperProps={{
+              sx: {
+                borderRadius: "6px",
+                boxShadow: "0 2px 8px rgba(0, 0, 0, 0.15)",
+                direction: "rtl",
+              },
+            }}
+          >
+            <MenuItem
+              onClick={() => handlePrint(false)}
+              sx={{
+                fontSize: "0.95rem",
+                padding: "8px 16px",
+                "&:hover": {
+                  backgroundColor: "#f1f5f9",
+                  color: "#4b6584",
+                },
+              }}
+            >
+              طباعة الصفحة الحالية
+            </MenuItem>
+            <MenuItem
+              onClick={() => handlePrint(true)}
+              sx={{
+                fontSize: "0.95rem",
+                padding: "8px 16px",
+                "&:hover": {
+                  backgroundColor: "#f1f5f9",
+                  color: "#4b6584",
+                },
+              }}
+            >
+              طباعة جميع الصفحات
+            </MenuItem>
+          </Menu>
           <Button
             variant="contained"
             onClick={handleExport}
@@ -674,6 +914,8 @@ export default function Report() {
   const [searchExecuted, setSearchExecuted] = useState(false);
 
   const handleBackToFilters = () => {
+    setSearchResults([]);
+
     setShowFilters(true);
     setFetchReports(false);
     setSearchExecuted(false);
@@ -1334,6 +1576,7 @@ export default function Report() {
                       {...props}
                       searchResults={searchResults[0]?.invoices?.results || []}
                       dataType="invoices"
+                      fullSearchResults={searchResults}
                     />
                   )}
                   pageCount={searchResults[0]?.invoices?.pages || 1}
