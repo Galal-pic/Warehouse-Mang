@@ -1058,7 +1058,8 @@ export default function Invoices() {
                   ) : (
                     <div>
                       {(user?.can_edit || user?.username === "admin") &&
-                        selectedInvoice.rawStatus !== "confirmed" && (
+                        selectedInvoice?.rawStatus !== "confirmed" &&
+                        selectedInvoice?.type === "اضافه" && (
                           <button
                             onClick={() => {
                               handleEditInfo(selectedInvoice);

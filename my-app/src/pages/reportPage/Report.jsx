@@ -1943,7 +1943,13 @@ export default function Report() {
       )}
 
       {/* Modal for displaying the invoice */}
-      <Dialog open={isModalOpen} onClose={closeModal} maxWidth="lg" fullWidth>
+      <Dialog
+        open={isModalOpen}
+        onClose={closeModal}
+        maxWidth="lg"
+        fullWidth
+        sx={{ zIndex: "10000" }}
+      >
         <Box sx={{ padding: "20px", direction: "rtl" }}>
           {selectedInvoice ? (
             <>
