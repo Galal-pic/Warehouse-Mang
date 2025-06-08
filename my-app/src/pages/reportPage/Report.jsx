@@ -1125,9 +1125,12 @@ export default function Report() {
                       backgroundColor: "#ddd",
                     }}
                   >
-                    {["المراجع", "اسم العميل", "رقم الفاتورة"].includes(
-                      fieldName
-                    ) ? (
+                    {[
+                      "المراجع",
+                      "اسم العميل",
+                      "رقم الفاتورة",
+                      "عامل المخزن",
+                    ].includes(fieldName) ? (
                       fieldName === "رقم الفاتورة" ? (
                         <Box sx={{ height: "50px" }}>
                           <NumberInput
@@ -1230,6 +1233,11 @@ export default function Report() {
                       />
                     ) : (
                       <CustomAutoCompleteField
+                        isBig={[
+                          "الماكينه",
+                          "الميكانيزم",
+                          "اسم المورد",
+                        ].includes(fieldName)}
                         isLoading={
                           fieldName === "الماكينه"
                             ? isMachinesLoading
@@ -1290,6 +1298,7 @@ export default function Report() {
                 }}
               >
                 <CustomAutoCompleteField
+                  isBig={true}
                   isLoading={isItemsLoading}
                   values={filterOptions["عنصر"]}
                   editingItem={{ عنصر: filters["عنصر"] }}
@@ -1324,6 +1333,7 @@ export default function Report() {
                 }}
               >
                 <CustomAutoCompleteField
+                  isBig={true}
                   isLoading={isItemsLoading}
                   values={filterOptions["باركود العنصر"]}
                   editingItem={{ "باركود العنصر": filters["باركود العنصر"] }}

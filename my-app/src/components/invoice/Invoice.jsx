@@ -399,6 +399,7 @@ export default function InvoiceModal({
                         setEditingItem={setEditingInvoice}
                         fieldName="supplier_name"
                         placeholder="اسم المورد"
+                        isBig={true}
                       />
                     ) : (
                       selectedInvoice.supplier_name
@@ -472,6 +473,7 @@ export default function InvoiceModal({
                       setEditingItem={setEditingInvoice}
                       fieldName="machine_name"
                       placeholder="اسم الماكينة"
+                      isBig={true}
                     />
                   ) : (
                     selectedInvoice.machine_name
@@ -497,6 +499,7 @@ export default function InvoiceModal({
                       setEditingItem={setEditingInvoice}
                       fieldName="mechanism_name"
                       placeholder="اسم الميكانيزم"
+                      isBig={true}
                     />
                   ) : (
                     selectedInvoice.mechanism_name
@@ -567,51 +570,15 @@ export default function InvoiceModal({
                     }}
                   >
                     {isEditingInvoice && !justEditUnitPrice ? (
-                      <Autocomplete
+                      <CustomAutoCompleteField
+                        isBig={true}
                         loading={isWarehousesLoading}
-                        disableClearable
-                        slotProps={{
-                          input: {
-                            sx: {
-                              whiteSpace: "normal",
-                              wordBreak: "break-word",
-                            },
-                          },
-                          paper: {
-                            sx: {
-                              "& .MuiAutocomplete-listbox": {
-                                "& .MuiAutocomplete-option": {
-                                  direction: "rtl",
-                                },
-                              },
-                            },
-                          },
-                        }}
-                        value={row.item_name || ""}
-                        isOptionEqualToValue={(option, value) =>
-                          option?.toLowerCase() === value?.toLowerCase()
-                        }
-                        sx={{
-                          "& .MuiAutocomplete-clearIndicator": {
-                            display: "none",
-                          },
-                          "& .MuiAutocomplete-popupIndicator": {},
-                          "& .MuiOutlinedInput-root": {
-                            padding: "10px",
-                            paddingRight: "35px!important",
-                            fontSize: "14px",
-                          },
-                          "& .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline":
-                            {
-                              border: "none",
-                            },
-                          minWidth: "150px",
-                        }}
-                        options={itemNames || []}
-                        getOptionLabel={(option) => option || ""}
-                        onChange={(e, newValue) => {
-                          const normalizedValue = newValue.trim().toLowerCase();
-
+                        values={itemNames || []}
+                        editingItem={row}
+                        setEditingItem={(newItem) => {
+                          const normalizedValue = newItem.item_name
+                            .trim()
+                            .toLowerCase();
                           const selectedItem = Array.from(
                             warehouseMap.values()
                           ).find(
@@ -619,11 +586,11 @@ export default function InvoiceModal({
                               item.item_name.trim().toLowerCase() ===
                               normalizedValue
                           );
-
                           const updatedItems = [...editingInvoice.items];
                           updatedItems[index] = {
                             ...updatedItems[index],
-                            item_name: selectedItem?.item_name || newValue,
+                            item_name:
+                              selectedItem?.item_name || newItem.item_name,
                             barcode: selectedItem?.item_bar || "",
                             location: "",
                             quantity: 0,
@@ -632,15 +599,13 @@ export default function InvoiceModal({
                             availableLocations: selectedItem?.locations || [],
                             maxquantity: 0,
                           };
-
                           setEditingInvoice({
                             ...editingInvoice,
                             items: updatedItems,
                           });
                         }}
-                        renderInput={(params) => (
-                          <TextField {...params} placeholder="اسم العنصر" />
-                        )}
+                        fieldName="item_name"
+                        placeholder="اسم العنصر"
                       />
                     ) : (
                       row.item_name
@@ -661,69 +626,25 @@ export default function InvoiceModal({
                     }}
                   >
                     {isEditingInvoice && !justEditUnitPrice ? (
-                      <Autocomplete
+                      <CustomAutoCompleteField
                         loading={row.item_name === "" ? false : true}
-                        slotProps={{
-                          input: {
-                            sx: {
-                              whiteSpace: "normal",
-                              wordBreak: "break-word",
-                            },
-                          },
-                          paper: {
-                            sx: {
-                              "& .MuiAutocomplete-listbox": {
-                                "& .MuiAutocomplete-option": {
-                                  direction: "rtl",
-                                },
-                              },
-                            },
-                          },
-                        }}
-                        value={
-                          row?.availableLocations?.find(
-                            (location1) => location1.location === row.location
-                          ) || null
-                        }
-                        isOptionEqualToValue={(option, value) =>
-                          option.location === value?.location
-                        }
-                        sx={{
-                          "& .MuiAutocomplete-clearIndicator": {
-                            display: "none",
-                          },
-                          "& .MuiAutocomplete-popupIndicator": {},
-                          "& .MuiOutlinedInput-root": {
-                            padding: "10px",
-                            paddingRight: "35px!important",
-                            fontSize: "14px",
-                          },
-                          "& .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline":
-                            {
-                              border: "none",
-                            },
-                          minWidth: "150px",
-                        }}
-                        options={row?.availableLocations || []}
-                        getOptionLabel={(option) => option.location || ""}
-                        onChange={(e, newValue) => {
-                          if (!newValue) {
+                        values={row?.availableLocations || []}
+                        editingItem={row}
+                        setEditingItem={(newItem) => {
+                          if (!newItem.location) {
                             return;
                           }
-
                           const matchedItem = editingInvoice?.items?.find(
                             (row11) =>
                               row11.barcode === row.barcode &&
-                              row11.location === newValue.location
+                              row11.location === newItem.location
                           );
-
                           if (matchedItem) {
                             setSnackbarMessage("هذا العنصر موجود بالفعل");
                             setSnackBarType("info");
                             setOpenSnackbar(true);
                             return;
                           }
-
                           let maxquantity = row.maxquantity || 0;
                           if (
                             (selectedNowType?.type === "مرتجع" ||
@@ -735,24 +656,23 @@ export default function InvoiceModal({
                                 (oi) =>
                                   oi.item_name.trim().toLowerCase() ===
                                     row.item_name?.trim()?.toLowerCase() &&
-                                  oi.location === newValue.location
+                                  oi.location === newItem.location
                               );
                             maxquantity = originalLocationItem
                               ? originalLocationItem.quantity
                               : 0;
                           } else {
-                            maxquantity = newValue?.quantity || 0;
+                            maxquantity = newItem?.quantity || 0;
                           }
-
                           const updatedItems = [...editingInvoice.items];
                           updatedItems[index] = {
                             ...updatedItems[index],
-                            location: newValue?.location || "",
+                            location: newItem?.location || "",
                             quantity: 0,
                             unit_price:
-                              newValue?.unit_price &&
+                              newItem?.unit_price &&
                               selectedNowType?.type !== "اضافه"
-                                ? newValue.unit_price
+                                ? newItem.unit_price
                                 : row.unit_price,
                             total_price: 0,
                             maxquantity,
@@ -762,9 +682,8 @@ export default function InvoiceModal({
                             items: updatedItems,
                           });
                         }}
-                        renderInput={(params) => (
-                          <TextField {...params} placeholder="الموقع" />
-                        )}
+                        fieldName="location"
+                        placeholder="الموقع"
                       />
                     ) : (
                       row.location
