@@ -40,6 +40,7 @@ export default function InvoiceModal({
   isCreate = false,
   showCommentField = false,
   className = "",
+  justEditUnitPrice = false,
 }) {
   // Data from API
   const isAdditionType =
@@ -390,7 +391,7 @@ export default function InvoiceModal({
                       padding: "0px !important",
                     }}
                   >
-                    {isEditingInvoice ? (
+                    {isEditingInvoice && !justEditUnitPrice ? (
                       <CustomAutoCompleteField
                         loading={isSuppliersLoading}
                         values={suppliers}
@@ -419,7 +420,7 @@ export default function InvoiceModal({
                       padding: "0px !important",
                     }}
                   >
-                    {isEditingInvoice ? (
+                    {isEditingInvoice && !justEditUnitPrice ? (
                       <>
                         <CustomAutoCompleteField
                           loading={isInvoiceNumbersLoading}
@@ -463,7 +464,7 @@ export default function InvoiceModal({
                     padding: "0px !important",
                   }}
                 >
-                  {isEditingInvoice ? (
+                  {isEditingInvoice && !justEditUnitPrice ? (
                     <CustomAutoCompleteField
                       loading={isMachinesLoading}
                       values={machines}
@@ -488,7 +489,7 @@ export default function InvoiceModal({
                     padding: "0px !important",
                   }}
                 >
-                  {isEditingInvoice ? (
+                  {isEditingInvoice && !justEditUnitPrice ? (
                     <CustomAutoCompleteField
                       loading={isMechanismsLoading}
                       values={mechanisms}
@@ -505,10 +506,15 @@ export default function InvoiceModal({
               <TableRow>
                 <TableCell className={styles.tableCell}>
                   <AddIcon
-                    onClick={addRow}
+                    onClick={
+                      isEditingInvoice && !justEditUnitPrice ? addRow : null
+                    }
                     className={styles.addIcon}
                     sx={{
-                      cursor: isEditingInvoice ? "pointer" : "context-menu",
+                      cursor:
+                        isEditingInvoice && !justEditUnitPrice
+                          ? "pointer"
+                          : "not-allowed",
                     }}
                   />
                 </TableCell>
@@ -540,7 +546,7 @@ export default function InvoiceModal({
                     className={styles.tableCellRow}
                   >
                     {index + 1}
-                    {isEditingInvoice && (
+                    {isEditingInvoice && !justEditUnitPrice && (
                       <button
                         onClick={() => handleDeleteItemClick(index)}
                         className={styles.clearIcon}
@@ -560,7 +566,7 @@ export default function InvoiceModal({
                       },
                     }}
                   >
-                    {isEditingInvoice ? (
+                    {isEditingInvoice && !justEditUnitPrice ? (
                       <Autocomplete
                         loading={isWarehousesLoading}
                         disableClearable
@@ -654,7 +660,7 @@ export default function InvoiceModal({
                       },
                     }}
                   >
-                    {isEditingInvoice ? (
+                    {isEditingInvoice && !justEditUnitPrice ? (
                       <Autocomplete
                         loading={row.item_name === "" ? false : true}
                         slotProps={{
@@ -770,7 +776,7 @@ export default function InvoiceModal({
                       width: "100px",
                     }}
                   >
-                    {isEditingInvoice ? (
+                    {isEditingInvoice && !justEditUnitPrice ? (
                       <NumberInput
                         style={{
                           width: "100px",
@@ -875,7 +881,9 @@ export default function InvoiceModal({
                   {(show || isPurchasesType) && (
                     <>
                       <TableCell className={styles.tableCellRow}>
-                        {isEditingInvoice && editingInvoice.type === "اضافه" ? (
+                        {isEditingInvoice &&
+                        (editingInvoice.type === "اضافه" ||
+                          justEditUnitPrice) ? (
                           <NumberInput
                             style={{
                               width: "100px",
@@ -977,7 +985,7 @@ export default function InvoiceModal({
                       <TableCell className={styles.tableCellRow}>
                         {!isEditingInvoice
                           ? row?.total_price
-                          : editingInvoice.type === "اضافه"
+                          : editingInvoice.type === "اضافه" || justEditUnitPrice
                           ? row?.total_price
                           : "-"}
                       </TableCell>
@@ -991,7 +999,7 @@ export default function InvoiceModal({
                       wordWrap: "break-word",
                     }}
                   >
-                    {isEditingInvoice ? (
+                    {isEditingInvoice && !justEditUnitPrice ? (
                       <textarea
                         style={{
                           width: "100%",
@@ -1034,7 +1042,7 @@ export default function InvoiceModal({
                 <Box className={styles.MoneyValue}>
                   {!isEditingInvoice
                     ? selectedInvoice?.total_amount
-                    : editingInvoice.type === "اضافه"
+                    : editingInvoice.type === "اضافه" || justEditUnitPrice
                     ? editingInvoice?.total_amount
                     : "-"}
                 </Box>
@@ -1049,7 +1057,7 @@ export default function InvoiceModal({
                     gap: "10px",
                   }}
                 >
-                  {!isEditingInvoice ? (
+                  {!isEditingInvoice || justEditUnitPrice ? (
                     editingInvoice?.payment_method === "Custody" ? (
                       `عهدة مع ${editingInvoice.custody_person || "-"}`
                     ) : (
@@ -1141,7 +1149,7 @@ export default function InvoiceModal({
               <Box className={styles.MoneyBox}>
                 <Box className={styles.MoneyLabel}>المدفوع</Box>
                 <Box className={styles.MoneyValue}>
-                  {!isEditingInvoice ? (
+                  {!isEditingInvoice || justEditUnitPrice ? (
                     selectedInvoice?.paid || 0
                   ) : (
                     <NumberInput
@@ -1180,7 +1188,13 @@ export default function InvoiceModal({
         )}
         {/* Comment */}
         {(!isCreate || showCommentField) &&
-          (isEditingInvoice ? (
+          (!isEditingInvoice || justEditUnitPrice ? (
+            selectedInvoice.comment && (
+              <Box className={styles.commentFieldBox}>
+                {selectedInvoice.comment}
+              </Box>
+            )
+          ) : (
             <Box className={styles.commentFieldBox}>
               <input
                 style={{
@@ -1201,12 +1215,6 @@ export default function InvoiceModal({
                 }
               />
             </Box>
-          ) : (
-            selectedInvoice.comment && (
-              <Box className={styles.commentFieldBox}>
-                {selectedInvoice.comment}
-              </Box>
-            )
           ))}
         {/* Info */}
         <Box className={styles.infoSection}>
@@ -1218,7 +1226,7 @@ export default function InvoiceModal({
           </Box>
           <Box className={styles.infoItemBox}>
             <Box className={styles.infoLabel}>اسم المستلم</Box>
-            {isEditingInvoice ? (
+            {isEditingInvoice && !justEditUnitPrice ? (
               <input
                 style={{
                   width: "70%",

@@ -1076,20 +1076,21 @@ export default function Invoices() {
                         )}
                     </div>
                   )}
-                  {(user?.view_prices || user?.username === "admin") && (selectedInvoice?.type !== "طلب شراء") && (
-                    <button
-                      onClick={() => setShow(!show)}
-                      className={styles.iconBtn}
-                      style={{
-                        color: "#1976d2",
-                        position: "absolute",
-                        top: "0px",
-                        left: "0px",
-                      }}
-                    >
-                      {show ? <Visibility /> : <VisibilityOff />}
-                    </button>
-                  )}
+                  {(user?.view_prices || user?.username === "admin") &&
+                    selectedInvoice?.type !== "طلب شراء" && (
+                      <button
+                        onClick={() => setShow(!show)}
+                        className={styles.iconBtn}
+                        style={{
+                          color: "#1976d2",
+                          position: "absolute",
+                          top: "0px",
+                          left: "0px",
+                        }}
+                      >
+                        {show ? <Visibility /> : <VisibilityOff />}
+                      </button>
+                    )}
                 </Typography>
                 <InvoiceModal
                   selectedInvoice={selectedInvoice}
@@ -1100,6 +1101,7 @@ export default function Invoices() {
                   selectedNowType={selectedNowType}
                   addRow={addRow}
                   handleDeleteItemClick={handleDeleteItemClick}
+                  justEditUnitPrice={true}
                 />
                 <Divider sx={{ marginTop: 5 }} />
 
