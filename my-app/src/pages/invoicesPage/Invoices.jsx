@@ -43,7 +43,7 @@ export default function Invoices() {
   const [selectedNowType, setSelectedNowType] = useState(null);
 
   useEffect(() => {
-    setSelectedNowType((user ? filtersTypes(user) : [])[0]);
+    setSelectedNowType((user ? filtersTypes(user) : [])[10]);
   }, [user]);
 
   // Loaders - Only keep UI-specific loading states

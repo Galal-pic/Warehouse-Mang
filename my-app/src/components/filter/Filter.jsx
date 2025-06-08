@@ -4,6 +4,7 @@ import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
 import Box from "@mui/material/Box";
 import { useGetUserQuery } from "../../pages/services/userApi";
+import { ThemeProvider, createTheme } from "@mui/material/styles";
 
 function CustomTabPanel(props) {
   const { children, value, index, ...other } = props;
@@ -76,7 +77,29 @@ export const filtersTypes = (user) => {
       type: "operation",
       url: "/invoice/طلب شراء",
     },
-  ].filter(Boolean);
+    {
+      label: "لم تراجع",
+      type: "status",
+      url: "/invoice/لم-تراجع",
+    },
+    {
+      label: "لم تؤكد",
+      type: "status",
+      url: "/invoice/لم-تؤكد",
+    },
+    {
+      label: "تم",
+      type: "status",
+      url: "/invoice/تم",
+    },
+    {
+      label: "صفرية",
+      type: "status",
+      url: "/invoice/صفرية",
+    },
+  ]
+    .filter(Boolean)
+    .reverse();
 };
 
 export default function FilterTabs({
@@ -85,13 +108,18 @@ export default function FilterTabs({
   setPaginationModel,
 }) {
   const { data: user = {} } = useGetUserQuery();
-  const [value, setValue] = React.useState(0);
+  const [value, setValue] = React.useState(10);
   const filters = React.useMemo(() => filtersTypes(user), [user]);
+
+  // Create a theme with RTL support
+  const theme = createTheme({
+    // direction: "rtl",
+  });
 
   React.useEffect(() => {
     // Reset to first tab if current value is out of bounds
     if (value >= filters.length) {
-      setValue(0);
+      setValue(10);
     }
   }, [filters, value]);
 
@@ -106,50 +134,82 @@ export default function FilterTabs({
   if (filters.length === 0) return null;
 
   return (
-    <Box
-      sx={{
-        textAlign: "center",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-      }}
-    >
-      <Box>
-        <Tabs
+    <ThemeProvider theme={theme}>
+      <Box
+        className="flex justify-end items-center w-full px-4 sm:px-6 lg:px-8"
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+        }}
+      >
+        <Box
+          className="w-full max-w-7xl"
           sx={{
-            marginBottom: "20px",
-            direction: "rtl",
-            minHeight: "43px",
-            "& .MuiTabs-flexContainer": {
-              gap: "20px",
-            },
+            width: "97%",
+            bgcolor: "background.paper",
+            mb: 3,
+            display: "flex",
+            justifyContent: "center",
           }}
-          value={Math.min(value, filters.length - 1)}
-          onChange={handleChange}
-          aria-label="filter tabs"
         >
-          {filters.map((filter, index) => (
-            <Tab
-              key={filter.label}
-              label={filter.label}
-              {...a11yProps(index)}
-              sx={{
-                backgroundColor: "white",
-                padding: "0 !important",
-                borderRadius: "10px",
-                transition: "0.3s",
-                fontWeight: "bold",
-                fontSize: "1rem",
-                "&:hover": {
-                  backgroundColor: "#f5f5f5",
+          <Tabs
+            value={Math.min(value, filters.length - 1)}
+            onChange={handleChange}
+            variant="scrollable"
+            scrollButtons="auto"
+            aria-label="scrollable auto tabs example"
+            sx={{
+              backgroundColor: "#f8fafc",
+              borderRadius: "8px",
+              boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)",
+              "& .MuiTabs-indicator": {
+                backgroundColor: "#f39c12",
+                height: "3px",
+                borderRadius: "2px",
+                transition: "all 0.3s ease",
+                display: "block",
+                width: "100%",
+                left: "auto",
+                right: 0,
+              },
+              "& .MuiTabs-scrollButtons": {
+                color: "#f39c12",
+                "&.Mui-disabled": {
+                  opacity: 0.3,
                 },
-                minHeight: "40px",
-                minWidth: "70px",
-              }}
-            />
-          ))}
-        </Tabs>
+              },
+            }}
+          >
+            {filters.map((filter, index) => (
+              <Tab
+                key={filter.label}
+                label={filter.label}
+                {...a11yProps(index)}
+                sx={{
+                  fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" },
+                  fontWeight: 600,
+                  color: "#4b6584",
+                  padding: { xs: "8px 16px", sm: "10px 20px", md: "12px 24px" },
+                  borderRadius: "6px",
+                  transition: "all 0.2s ease",
+                  minHeight: "36px",
+                  minWidth: { xs: "60px", sm: "70px", md: "80px" },
+                  "&.Mui-selected": {
+                    color: "#f39c12",
+                    backgroundColor: "#fff",
+                    boxShadow: "0 2px 6px rgba(0, 0, 0, 0.15)",
+                  },
+                  "&:hover": {
+                    color: "#f39c12",
+                    backgroundColor: "#f1f5f9",
+                  },
+                  textAlign: "right",
+                }}
+              />
+            ))}
+          </Tabs>
+        </Box>
       </Box>
-    </Box>
+    </ThemeProvider>
   );
 }
