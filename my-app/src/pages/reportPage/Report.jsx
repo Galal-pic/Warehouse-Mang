@@ -15,6 +15,8 @@ import {
   CardContent,
   CircularProgress,
   Menu,
+  DialogTitle,
+  DialogContent,
 } from "@mui/material";
 import CustomAutoCompleteField from "../../components/customAutoCompleteField/CustomAutoCompleteField";
 import SnackBar from "../../components/snackBar/SnackBar";
@@ -165,8 +167,35 @@ export default function Report() {
       link.click();
       URL.revokeObjectURL(link.href);
     };
+    const [anchorEl, setAnchorEl] = useState(null);
+    const [openRangeDialog, setOpenRangeDialog] = useState(false);
+    const [pageRange, setPageRange] = useState({ start: "", end: "" });
+    const open = Boolean(anchorEl);
 
-    const handlePrint = (all) => {
+    const handlePrintMenuClick = (event) => {
+      setAnchorEl(event.currentTarget);
+    };
+
+    const handleMenuClose = () => {
+      setAnchorEl(null);
+    };
+
+    const handleRangeDialogOpen = () => {
+      setOpenRangeDialog(true);
+      handleMenuClose();
+    };
+
+    const handleRangeDialogClose = () => {
+      setOpenRangeDialog(false);
+      setPageRange({ start: "", end: "" });
+    };
+
+    const handlePrint = (all = false, customRange = null) => {
+      if (!searchResults || searchResults.length === 0) {
+        alert("لا توجد بيانات للطباعة");
+        return;
+      }
+
       const printWindowFrame = document.createElement("iframe");
       printWindowFrame.style.position = "absolute";
       printWindowFrame.style.width = "0px";
@@ -178,64 +207,91 @@ export default function Report() {
       iframeDocument.open();
 
       let machineDetails = "";
-      if (reportType === "ماكينة") {
+      if (reportType === "ماكينة" || reportType === "ميكانيزم") {
         machineDetails = `
-          <div class="machine-details" style="margin-bottom: 20px; text-align: center; direction: rtl;">
-            <h2 style="font-size: 18px; font-weight: bold;">تفاصيل الماكينة</h2>
-            <p style="font-size: 14px; display: flex; justify-content: center; align-items: center; gap: 10px;">
-              <div style="display: inline-block;"><strong>رقم الماكينة:</strong></div>
-              <div style="display: inline-block;">${
-                fullSearchResults[0].id || "-"
-              }</div>
-            </p>
-            <p style="font-size: 14px; display: flex; justify-content: center; align-items: center; gap: 10px;">
-              <div style="display: inline-block;"><strong>اسم الماكينة:</strong></div>
-              <div style="display: inline-block;">${
-                fullSearchResults[0].name || "-"
-              }</div>
-            </p>
-            <p style="font-size: 14px; display: flex; justify-content: center; align-items: center; gap: 10px;">
-              <div style="display: inline-block;"><strong>نوع الماكينة:</strong></div>
-              <div style="display: inline-block;">${
-                fullSearchResults[0].description || "-"
-              }</div>
-            </p>
-          </div>
-        `;
+        <div class="machine-details" style="margin-bottom: 20px; text-align: center; direction: rtl;">
+          <h2 style="font-size: 18px; font-weight: bold;">تفاصيل ${
+            reportType === "ماكينة" ? "الماكينة" : "الميكانيزم"
+          }</h2>
+          <p style="font-size: 14px; display: flex; justify-content: center; align-items: center; gap: 10px;">
+            <div style="display: inline-block;"><strong>رقم ${
+              reportType === "ماكينة" ? "الماكينة" : "الميكانيزم"
+            }:</strong></div>
+            <div style="display: inline-block;">${
+              fullSearchResults[0]?.id || "-"
+            }</div>
+          </p>
+          <p style="font-size: 14px; display: flex; justify-content: center; align-items: center; gap: 10px;">
+            <div style="display: inline-block;"><strong>اسم ${
+              reportType === "ماكينة" ? "الماكينة" : "الميكانيزم"
+            }:</strong></div>
+            <div style="display: inline-block;">${
+              fullSearchResults[0]?.name || "-"
+            }</div>
+          </p>
+          <p style="font-size: 14px; display: flex; justify-content: center; align-items: center; gap: 10px;">
+            <div style="display: inline-block;"><strong>الوصف:</strong></div>
+            <div style="display: inline-block;">${
+              fullSearchResults[0]?.description || "-"
+            }</div>
+          </p>
+        </div>
+      `;
       }
 
       let tableContent = `
-    <table style="width: 100%; border-collapse: collapse; font-family: Arial, sans-serif;">
-      <thead>
-        <tr>
-  `;
+      <table style="width: 100%; border-collapse: collapse; font-family: Arial, sans-serif;">
+        <thead>
+          <tr>
+    `;
       const columns = dataType === "invoices" ? invoiceColumns : itemColumns;
       columns.forEach((column) => {
         if (column.field !== "refresh") {
           tableContent += `
-        <th style="border: 1px solid #000; padding: 8px; background-color: #f0f0f0; font-weight: bold; text-align: right;">
-          ${column.headerName}
-        </th>
-      `;
+          <th style="border: 1px solid #000; padding: 8px; background-color: #f0f0f0; font-weight: bold; text-align: right;">
+            ${column.headerName}
+          </th>
+        `;
         }
       });
       tableContent += `
         </tr>
       </thead>
       <tbody>
-  `;
+    `;
 
-      const rows =
-        dataType === "invoices"
-          ? all
+      let rows = [];
+      const pageSize = 10;
+      if (all) {
+        rows =
+          dataType === "invoices"
             ? searchResults
-            : searchResults.slice(
-                paginationModel.page * 10,
-                paginationModel.page * 10 + 10
-              )
-          : searchResults
-              .flatMap((machine) => machine.items?.results || [])
-              .map((item) => ({ ...item, id: item.id }));
+            : searchResults
+                .flatMap((machine) => machine.items?.results || [])
+                .map((item) => ({ ...item, id: item.id }));
+      } else if (customRange) {
+        const startIndex = (customRange.start - 1) * pageSize;
+        const endIndex = customRange.end * pageSize;
+        rows = (
+          dataType === "invoices"
+            ? searchResults
+            : searchResults
+                .flatMap((machine) => machine.items?.results || [])
+                .map((item) => ({ ...item, id: item.id }))
+        ).slice(startIndex, endIndex);
+      } else {
+        rows = (
+          dataType === "invoices"
+            ? searchResults
+            : searchResults
+                .flatMap((machine) => machine.items?.results || [])
+                .map((item) => ({ ...item, id: item.id }))
+        ).slice(
+          paginationModel.page * pageSize,
+          (paginationModel.page + 1) * pageSize
+        );
+      }
+
       rows.forEach((row) => {
         tableContent += `<tr>`;
         columns.forEach((column) => {
@@ -243,8 +299,11 @@ export default function Report() {
             let cellValue = "-";
             if (column.renderCell) {
               cellValue =
-                column.renderCell({ value: row[column.field], id: row.id }) ||
-                "-";
+                column.renderCell({
+                  value: row[column.field],
+                  id: row.id,
+                  row,
+                }) || "-";
             } else if (column.field === "items") {
               cellValue =
                 row.items?.map((item) => item.item_name).join(", ") || "-";
@@ -252,10 +311,10 @@ export default function Report() {
               cellValue = row[column.field] || "-";
             }
             tableContent += `
-          <td style="border: 1px solid #000; padding: 8px; text-align: right;">
-            ${cellValue}
-          </td>
-        `;
+            <td style="border: 1px solid #000; padding: 8px; text-align: right;">
+              ${cellValue}
+            </td>
+          `;
           }
         });
         tableContent += `</tr>`;
@@ -264,61 +323,61 @@ export default function Report() {
       tableContent += `
       </tbody>
     </table>
-  `;
+    `;
 
       iframeDocument.write(`
-    <html>
-      <head>
-        <title>طباعة التقرير</title>
-        <style>
-          body {
-            margin: 0;
-            font-family: Arial, sans-serif;
-          }
-          .print-container {
-            width: 100%;
-            text-align: center; /* توسيط محتوى الحاوية */
-          }
-          .logo {
-            max-width: 150px;
-            margin-bottom: 20px;
-            display: inline-block; /* جعل الصورة في وسط الصفحة */
-          }
-          table {
-            width: 100%;
-            border-collapse: collapse;
-            page-break-inside: auto;
-          }
-          th, td {
-            border: 1px solid #000;
-            padding: 8px;
-            text-align: right;
-            font-size: 14px;
-          }
-          th {
-            background-color: #f0f0f0;
-            font-weight: bold;
-          }
-          tr {
-            page-break-inside: avoid;
-            page-break-after: auto;
-          }
-          @media screen {
+      <html>
+        <head>
+          <title>طباعة التقرير</title>
+          <style>
             body {
-              display: none;
+              margin: 0;
+              font-family: Arial, sans-serif;
             }
-          }
-        </style>
-      </head>
-      <body>
-        <div class="print-container">
-          <img src="${logo}" alt="Logo" class="logo" />
-          ${machineDetails}
-          ${tableContent}
-        </div>
-      </body>
-    </html>
-  `);
+            .print-container {
+              width: 100%;
+              text-align: center;
+            }
+            .logo {
+              max-width: 150px;
+              margin-bottom: 20px;
+              display: inline-block;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              page-break-inside: auto;
+            }
+            th, td {
+              border: 1px solid #000;
+              padding: 8px;
+              text-align: right;
+              font-size: 14px;
+            }
+            th {
+              background-color: #f0f0f0;
+              font-weight: bold;
+            }
+            tr {
+              page-break-inside: avoid;
+              page-break-after: auto;
+            }
+            @media screen {
+              body {
+                display: none;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="print-container">
+            <img src="${logo}" alt="Logo" class="logo" />
+            ${machineDetails}
+            ${tableContent}
+          </div>
+        </body>
+      </html>
+    `);
 
       iframeDocument.close();
 
@@ -334,108 +393,213 @@ export default function Report() {
 
       handleMenuClose();
     };
-    const [anchorEl, setAnchorEl] = useState(null);
-    const open = Boolean(anchorEl);
 
-    const handlePrintMenuClick = (event) => {
-      setAnchorEl(event.currentTarget);
-    };
+    const handlePrintRange = () => {
+      const start = parseInt(pageRange.start, 10);
+      const end = parseInt(pageRange.end, 10);
+      const totalPages = Math.ceil(
+        (dataType === "invoices"
+          ? searchResults.length
+          : searchResults.flatMap((machine) => machine.items?.results || [])
+              .length) / paginationModel.pageSize
+      );
 
-    const handleMenuClose = () => {
-      setAnchorEl(null);
+      if (
+        isNaN(start) ||
+        isNaN(end) ||
+        start < 1 ||
+        end < start ||
+        end > totalPages
+      ) {
+        alert("يرجى إدخال نطاق صفحات صحيح");
+        return;
+      }
+
+      handlePrint(false, { start, end });
+      handleRangeDialogClose();
     };
 
     return (
-      <GridToolbarContainer
-        sx={{
-          textAlign: "center",
-          margin: "20px 0",
-        }}
-      >
-        <Box
+      <>
+        <GridToolbarContainer
           sx={{
-            width: "100% !important",
-            textAlign: "right",
+            textAlign: "center",
+            margin: "20px 0",
           }}
         >
-          <Button
-            variant="contained"
-            onClick={handlePrintMenuClick}
+          <Box
             sx={{
-              py: 0.8,
-              backgroundColor: "#4b6584",
-              borderRadius: "6px",
-              fontSize: "0.95rem",
-              fontWeight: 600,
-              boxShadow: "0 2px 6px rgba(0, 0, 0, 0.05)",
-              marginRight: "10px",
-              "&:hover": {
-                backgroundColor: "#3b5066",
-                boxShadow: "0 3px 8px rgba(0, 0, 0, 0.08)",
-              },
+              width: "100% !important",
+              textAlign: "right",
             }}
           >
-            طباعة
-          </Button>
-          <Menu
-            anchorEl={anchorEl}
-            open={open}
-            onClose={handleMenuClose}
-            PaperProps={{
-              sx: {
+            <Button
+              variant="contained"
+              onClick={handlePrintMenuClick}
+              sx={{
+                py: 0.8,
+                backgroundColor: "#4b6584",
                 borderRadius: "6px",
-                boxShadow: "0 2px 8px rgba(0, 0, 0, 0.15)",
-                direction: "rtl",
-              },
-            }}
-          >
-            <MenuItem
-              onClick={() => handlePrint(false)}
-              sx={{
                 fontSize: "0.95rem",
-                padding: "8px 16px",
+                fontWeight: 600,
+                boxShadow: "0 2px 6px rgba(0, 0, 0, 0.05)",
+                marginRight: "10px",
                 "&:hover": {
-                  backgroundColor: "#f1f5f9",
-                  color: "#4b6584",
+                  backgroundColor: "#3b5066",
+                  boxShadow: "0 3px 8px rgba(0, 0, 0, 0.08)",
                 },
               }}
             >
-              طباعة الصفحة الحالية
-            </MenuItem>
-            <MenuItem
-              onClick={() => handlePrint(true)}
-              sx={{
-                fontSize: "0.95rem",
-                padding: "8px 16px",
-                "&:hover": {
-                  backgroundColor: "#f1f5f9",
-                  color: "#4b6584",
+              طباعة
+            </Button>
+            <Menu
+              anchorEl={anchorEl}
+              open={open}
+              onClose={handleMenuClose}
+              PaperProps={{
+                sx: {
+                  borderRadius: "6px",
+                  boxShadow: "0 2px 8px rgba(0, 0, 0, 0.15)",
+                  direction: "rtl",
                 },
               }}
             >
-              طباعة جميع الصفحات
-            </MenuItem>
-          </Menu>
-          <Button
-            variant="contained"
-            onClick={handleExport}
-            sx={{
-              py: 0.8,
-              backgroundColor: "#f39c12",
-              borderRadius: "6px",
-              fontSize: "0.95rem",
-              fontWeight: 600,
-              boxShadow: "0 2px 6px rgba(0, 0, 0, 0.05)",
-              "&:hover": {
-                backgroundColor: "#e68e0f",
-                boxShadow: "0 3px 8px rgba(0, 0, 0, 0.08)",
-              },
-            }}
+              <MenuItem
+                onClick={() => handlePrint(false)}
+                sx={{
+                  fontSize: "0.95rem",
+                  padding: "8px 16px",
+                  "&:hover": {
+                    backgroundColor: "#f1f5f9",
+                    color: "#4b6584",
+                  },
+                }}
+              >
+                طباعة الصفحة الحالية
+              </MenuItem>
+              <MenuItem
+                onClick={() => handlePrint(true)}
+                sx={{
+                  fontSize: "0.95rem",
+                  padding: "8px 16px",
+                  "&:hover": {
+                    backgroundColor: "#f1f5f9",
+                    color: "#4b6584",
+                  },
+                }}
+              >
+                طباعة جميع الصفحات
+              </MenuItem>
+              <MenuItem
+                onClick={handleRangeDialogOpen}
+                sx={{
+                  fontSize: "0.95rem",
+                  padding: "8px 16px",
+                  "&:hover": {
+                    backgroundColor: "#f1f5f9",
+                    color: "#4b6584",
+                  },
+                }}
+              >
+                طباعة نطاق الصفحات
+              </MenuItem>
+            </Menu>
+            <Button
+              variant="contained"
+              onClick={handleExport}
+              sx={{
+                py: 0.8,
+                backgroundColor: "#f39c12",
+                borderRadius: "6px",
+                fontSize: "0.95rem",
+                fontWeight: 600,
+                boxShadow: "0 2px 6px rgba(0, 0, 0, 0.05)",
+                "&:hover": {
+                  backgroundColor: "#e68e0f",
+                  boxShadow: "0 3px 8px rgba(0, 0, 0, 0.08)",
+                },
+              }}
+            >
+              تصدير
+            </Button>
+          </Box>
+        </GridToolbarContainer>
+
+        {/* حوار نطاق الصفحات */}
+        <Dialog
+          open={openRangeDialog}
+          onClose={handleRangeDialogClose}
+          maxWidth="xs"
+          fullWidth
+          sx={{
+            "& .MuiDialog-paper": {
+              borderRadius: "12px",
+              boxShadow: "0 8px 24px rgba(0, 0, 0, 0.12)",
+              backgroundColor: "#fff",
+            },
+          }}
+        >
+          <DialogTitle
+            sx={{ fontWeight: 700, fontSize: "1.2rem", direction: "rtl" }}
           >
-            تصدير
-          </Button>
-        </Box>
-      </GridToolbarContainer>
+            اختيار نطاق الصفحات
+          </DialogTitle>
+          <DialogContent sx={{ direction: "rtl" }}>
+            <Box
+              sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 2 }}
+            >
+              <TextField
+                label="من الصفحة"
+                type="number"
+                value={pageRange.start}
+                onChange={(e) =>
+                  setPageRange({ ...pageRange, start: e.target.value })
+                }
+                inputProps={{ min: 1 }}
+                fullWidth
+              />
+              <TextField
+                label="إلى الصفحة"
+                type="number"
+                value={pageRange.end}
+                onChange={(e) =>
+                  setPageRange({ ...pageRange, end: e.target.value })
+                }
+                inputProps={{ min: 1 }}
+                fullWidth
+              />
+            </Box>
+          </DialogContent>
+          <Box
+            sx={{ display: "flex", justifyContent: "flex-end", p: 2, gap: 1 }}
+          >
+            <Button
+              onClick={handleRangeDialogClose}
+              variant="outlined"
+              sx={{
+                borderColor: "#4b6584",
+                color: "#4b6584",
+                textTransform: "none",
+              }}
+            >
+              إلغاء
+            </Button>
+            <Button
+              onClick={handlePrintRange}
+              variant="contained"
+              sx={{
+                backgroundColor: "#f39c12",
+                textTransform: "none",
+                "&:hover": {
+                  backgroundColor: "#e68e0f",
+                },
+              }}
+            >
+              طباعة
+            </Button>
+          </Box>
+        </Dialog>
+      </>
     );
   }
   const [reportType, setReportType] = useState("");
