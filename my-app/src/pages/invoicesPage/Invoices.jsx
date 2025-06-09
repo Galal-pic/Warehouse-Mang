@@ -248,36 +248,37 @@ export default function Invoices() {
       return;
     }
 
-    // Step 2: Validate required fields
-    if (selectedNowType?.type === "purchase") {
-      if (
-        !editingInvoice.machine_name ||
-        !editingInvoice.mechanism_name ||
-        !editingInvoice.supplier_name
-      ) {
-        setSnackbarMessage("يجب ملئ اسم المورد واسم الماكينة واسم الميكانيزم");
-        setSnackBarType("info");
-        setOpenSnackbar(true);
-        return;
-      }
-    } else if (!editingInvoice.machine_name || !editingInvoice.mechanism_name) {
-      setSnackbarMessage("يجب ملئ اسم الماكينة واسم الميكانيزم");
-      setSnackBarType("info");
-      setOpenSnackbar(true);
-      return;
-    }
+    // // Step 2: Validate required fields
+    // if (selectedNowType?.type === "purchase") {
+    //   if (
+    //     !editingInvoice.machine_name ||
+    //     !editingInvoice.mechanism_name ||
+    //     !editingInvoice.supplier_name
+    //   ) {
+    //     setSnackbarMessage("يجب ملئ اسم المورد واسم الماكينة واسم الميكانيزم");
+    //     setSnackBarType("info");
+    //     setOpenSnackbar(true);
+    //     return;
+    //   }
+    // } else if (!editingInvoice.machine_name || !editingInvoice.mechanism_name) {
+    //   setSnackbarMessage("يجب ملئ اسم الماكينة واسم الميكانيزم");
+    //   setSnackBarType("info");
+    //   setOpenSnackbar(true);
+    //   return;
+    // }
 
     // Step 3: Filter and validate items
-    let newRows = editingInvoice.items.filter(
-      (row) => Number(row.quantity) !== 0 && row.quantity !== ""
-    );
+    let newRows = editingInvoice.items;
+    // newRows = editingInvoice.items.filter(
+    //   (row) => Number(row.quantity) !== 0 && row.quantity !== ""
+    // );
 
-    if (newRows.length === 0) {
-      setSnackbarMessage("يجب ملء عنصر واحد على الأقل");
-      setSnackBarType("warning");
-      setOpenSnackbar(true);
-      return;
-    }
+    // if (newRows.length === 0) {
+    //   setSnackbarMessage("يجب ملء عنصر واحد على الأقل");
+    //   setSnackBarType("warning");
+    //   setOpenSnackbar(true);
+    //   return;
+    // }
 
     // Step 4: Prepare newRows with counter
     newRows = newRows.map((row, index) => ({

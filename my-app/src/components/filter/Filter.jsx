@@ -158,6 +158,7 @@ export default function FilterTabs({
             variant="scrollable"
             scrollButtons="auto"
             aria-label="scrollable auto tabs example"
+            allowScrollButtonsMobile
             sx={{
               backgroundColor: "#f8fafc",
               borderRadius: "8px",
