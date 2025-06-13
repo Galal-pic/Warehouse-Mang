@@ -67,6 +67,7 @@ def Sales_Operations(data, machine, mechanism, supplier, employee, machine_ns, w
             # Now handle pricing using FIFO from the Prices table
             remaining_to_sell = requested_quantity
             total_item_price = 0
+            price_breakdown = []  # Track different price levels for this item
             
             # Get all price records for this item ordered by creation date (oldest first for FIFO)
             price_entries = Prices.query.filter_by(item_id=warehouse_item.id).order_by(Prices.invoice_id.asc()).all()
@@ -87,16 +88,24 @@ def Sales_Operations(data, machine, mechanism, supplier, employee, machine_ns, w
                 quantity_from_this_entry = min(remaining_to_sell, price_entry.quantity)
                 
                 # Calculate price for this portion
-                subtotal = quantity_from_this_entry * price_entry.unit_price
+                subtotal = round(quantity_from_this_entry * price_entry.unit_price, 3)
                 
-                # Create a price detail record - FIXED VERSION
+                # Track this price breakdown for reference
+                price_breakdown.append({
+                    'quantity': quantity_from_this_entry,
+                    'unit_price': round(price_entry.unit_price, 3),
+                    'subtotal': subtotal,
+                    'source_invoice_id': price_entry.invoice_id
+                })
+                
+                # Create a price detail record
                 price_detail = InvoicePriceDetail(
                     invoice_id=new_invoice.id,
                     item_id=warehouse_item.id,
-                    source_price_invoice_id=price_entry.invoice_id,  # Changed from source_price_id
-                    source_price_item_id=price_entry.item_id,        # Added this
+                    source_price_invoice_id=price_entry.invoice_id,
+                    source_price_item_id=price_entry.item_id,
                     quantity=quantity_from_this_entry,
-                    unit_price=price_entry.unit_price,
+                    unit_price=round(price_entry.unit_price, 3),
                     subtotal=subtotal
                 )
                 
@@ -122,26 +131,32 @@ def Sales_Operations(data, machine, mechanism, supplier, employee, machine_ns, w
             # for entry in entries_to_delete:
             #     db.session.delete(entry)
             
-            # Calculate the average unit price
-            average_unit_price = total_item_price / requested_quantity
+            # FIXED: Use the actual total price calculated from FIFO, not average
+            # The unit_price in the invoice item represents the effective/average unit price
+            # but the total_price is the actual total from FIFO calculation
+            effective_unit_price = round(total_item_price / requested_quantity, 3) if requested_quantity > 0 else 0
+            total_item_price = round(total_item_price, 3)
             
-            # Create the invoice item
+            # Create the invoice item with actual total price
             invoice_item = InvoiceItem(
                 invoice_id=new_invoice.id,
                 item_id=warehouse_item.id,
                 quantity=requested_quantity,
                 location=item_data['location'],
-                unit_price=average_unit_price,
-                total_price=total_item_price,
-                description=item_data.get('description', f"FIFO pricing used")
+                unit_price=effective_unit_price,  # This is for reference/display purposes
+                total_price=total_item_price,     # This is the actual FIFO total
+                description=item_data.get('description', f"FIFO pricing: {len(price_breakdown)} price levels")
             )
             
             db.session.add(invoice_item)
+            
+            # Add the actual FIFO total to invoice amount (not the average calculation)
             total_invoice_amount += total_item_price
         
-        # Update invoice totals
+        # Update invoice totals with the actual FIFO totals
+        total_invoice_amount = round(total_invoice_amount, 3)
         new_invoice.total_amount = total_invoice_amount
-        new_invoice.residual = total_invoice_amount - new_invoice.paid
+        new_invoice.residual = round(total_invoice_amount - new_invoice.paid, 3)
         
         db.session.commit()
         return operation_result(201, "success", invoice=new_invoice)

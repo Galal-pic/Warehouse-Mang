@@ -6,7 +6,6 @@ from ..models import (
     Employee,
     Supplier,
     Machine,
-    Mechanism,
     Invoice,
     InvoiceItem,
     Warehouse,
@@ -14,6 +13,7 @@ from ..models import (
     Prices,
     InvoicePriceDetail,
     PurchaseRequests,
+    ReturnSales,  # Added ReturnSales import
 )
 from datetime import datetime
 from ..utils import parse_bool
@@ -78,6 +78,7 @@ item_model = reports_ns.model('Item', {
     'purchase_requests': fields.List(fields.Nested(purchase_request_model), description='Purchase requests')
 })
 
+# Updated invoice model definition to include return sales info
 invoice_model = reports_ns.model('Invoice', {
     'id': fields.Integer(description='Invoice ID'),
     'type': fields.String(description='Invoice type'),
@@ -94,7 +95,8 @@ invoice_model = reports_ns.model('Invoice', {
     'machine': fields.String(description='Machine name'),
     'mechanism': fields.String(description='Mechanism name'),
     'supplier': fields.String(description='Supplier name'),
-    'items': fields.List(fields.Nested(invoice_item_model), description='Invoice items')
+    'items': fields.List(fields.Nested(invoice_item_model), description='Invoice items'),
+    'return_sales_info': fields.Raw(description='Return sales information (for مرتجع invoices)')
 })
 
 machine_report_model = reports_ns.model('MachineReport', {
@@ -137,6 +139,7 @@ pagination_parser.add_argument(
 
 filter_parser = pagination_parser.copy()
 filter_parser.add_argument("type", type=str, required=True, help="Report type (invoice, item, mechanism, machine)")
+filter_parser.add_argument("invoice_id", type=int, required=False, help="Filter by specific invoice ID")
 filter_parser.add_argument("warehouse_manager", type=str, required=False, help="Filter by warehouse manager")
 filter_parser.add_argument("machine", type=str, required=False, help="Filter by machine name")
 filter_parser.add_argument("mechanism", type=str, required=False, help="Filter by mechanism name")
@@ -167,9 +170,12 @@ class Reports(Resource):
         page = int(args["page"])
         page_size = int(args["page_size"])
         all_results = bool(args["all"])
+        
         if page < 1 or page_size < 1:
             reports_ns.abort(400, "Page and page_size must be positive integers")
+            
         offset = (page - 1) * page_size
+        
         models = [
             Employee,
             Supplier,
@@ -183,11 +189,14 @@ class Reports(Resource):
             InvoicePriceDetail,
             PurchaseRequests,
         ]
+        
         full_report = {}
         rows_data = []
+        
         for model in models:
             table_name = model.__tablename__
             columns = [col.name for col in model.__table__.columns if col.name not in ["password", "password_hash"]]
+            
             if not all_results:
                 row_data = [
                     {col: serialize_value(getattr(row, col)) for col in columns}
@@ -198,6 +207,7 @@ class Reports(Resource):
                     {col: serialize_value(getattr(row, col)) for col in columns}
                     for row in model.query.all()
                 ]
+                
             full_report[table_name] = row_data
             rows_data.append({table_name: row_data})
             
@@ -250,6 +260,8 @@ class FilterReports(Resource):
         else:
             reports_ns.abort(400, f"Unsupported report type: {report_type}")
     
+    
+            
     def _filter_machines(self, args, start_date, end_date, page_size, offset, all_results):
         """Filter machines and get related data with nested pagination"""
         # Start with base query
@@ -260,7 +272,6 @@ class FilterReports(Resource):
             query = query.filter(Machine.name == args["machine"])
         
         # Get total count for pagination info
-        
         total_count = query.count()
         
         # Apply pagination or get all
@@ -280,6 +291,10 @@ class FilterReports(Resource):
             # Get related invoices with pagination
             invoices_query = Invoice.query.filter(Invoice.machine_id == machine.id)
             
+            # Apply invoice_id filter if provided
+            if args["invoice_id"]:
+                invoices_query = invoices_query.filter(Invoice.id == args["invoice_id"])
+            
             # Apply date filters if provided
             if start_date:
                 invoices_query = invoices_query.filter(Invoice.created_at >= start_date)
@@ -287,11 +302,13 @@ class FilterReports(Resource):
                 invoices_query = invoices_query.filter(Invoice.created_at <= end_date)
             
             # Count total invoices for this machine
-            # total_invoices = invoices_query.count()
+            total_invoices = invoices_query.count()
             
             # Apply nested pagination to invoices
-            invoices = invoices_query.limit(nested_page_size).offset(nested_offset).all()
-            total_invoices = len(invoices)
+            if all_results:
+                invoices = invoices_query.all()
+            else:
+                invoices = invoices_query.limit(nested_page_size).offset(nested_offset).all()
             
             # Get related purchase requests with pagination
             purchase_requests_query = PurchaseRequests.query.filter(PurchaseRequests.machine_id == machine.id)
@@ -303,126 +320,31 @@ class FilterReports(Resource):
                 purchase_requests_query = purchase_requests_query.filter(PurchaseRequests.created_at <= end_date)
             
             # Count total purchase requests
-            # total_purchase_requests = purchase_requests_query.count()
+            total_purchase_requests = purchase_requests_query.count()
             
             # Apply nested pagination to purchase requests
-            purchase_requests = purchase_requests_query.limit(nested_page_size).offset(nested_offset).all()
-            total_purchase_requests = len(purchase_requests)
-            # Get items related to this machine through purchase requests with pagination
+            if all_results:
+                purchase_requests = purchase_requests_query.all()
+            else:
+                purchase_requests = purchase_requests_query.limit(nested_page_size).offset(nested_offset).all()
+            
+            # Get items related to this machine through purchase requests
             item_ids = [pr.item_id for pr in purchase_requests_query.all()]  # Get all IDs first
             related_items_query = Warehouse.query.filter(Warehouse.id.in_(item_ids)) if item_ids else Warehouse.query.filter(False)
             
             # Count total related items
-            # total_items = related_items_query.count() if item_ids else 0
+            total_items = related_items_query.count() if item_ids else 0
             
             # Apply nested pagination to items
-            related_items = related_items_query.limit(nested_page_size).offset(nested_offset).all() if item_ids else []
-            total_items = len(related_items)
+            if all_results:
+                related_items = related_items_query.all() if item_ids else []
+            else:
+                related_items = related_items_query.limit(nested_page_size).offset(nested_offset).all() if item_ids else []
             
-            # Serialize invoices (same as before)
-            serialized_invoices = []
-            for invoice in invoices:
-                invoice_data = {
-                    "id": invoice.id,
-                    "type": invoice.type,
-                    "created_at": serialize_value(invoice.created_at),
-                    "client_name": invoice.client_name,
-                    "warehouse_manager": invoice.warehouse_manager,
-                    "accreditation_manager": invoice.accreditation_manager,
-                    "total_amount": invoice.total_amount,
-                    "paid": invoice.paid,
-                    "residual": invoice.residual,
-                    "comment": invoice.comment,
-                    "status": invoice.status,
-                    "employee_name": invoice.employee_name,
-                    "machine": invoice.machine.name if invoice.machine else None,
-                    "mechanism": invoice.mechanism.name if invoice.mechanism else None,
-                    "supplier": invoice.supplier.name if invoice.supplier else None,
-                    "items": [{
-                        "item_name": item.warehouse.item_name,
-                        "item_bar": item.warehouse.item_bar,
-                        "location": item.location,
-                        "quantity": item.quantity,
-                        "unit_price": item.unit_price,
-                        "total_price": item.total_price,
-                        "description": item.description
-                    } for item in invoice.items]
-                }
-                serialized_invoices.append(invoice_data)
-            
-            # Serialize items (same logic as before, but only for paginated items)
-            serialized_items = []
-            for item in related_items:
-                # Get all locations for this item
-                locations = [{
-                    "location": loc.location,
-                    "quantity": loc.quantity
-                } for loc in item.item_locations]
-                
-                # Get this machine's purchase requests for this item
-                machine_prs = [pr for pr in purchase_requests if pr.item_id == item.id]
-                
-                # Get all invoices for this item related to this machine
-                invoice_items = InvoiceItem.query.join(Invoice).filter(
-                    and_(
-                        InvoiceItem.item_id == item.id,
-                        Invoice.machine_id == machine.id
-                    )
-                ).all()
-                
-                # Get pricing history
-                prices = [{
-                    "invoice_id": price.invoice_id,
-                    "quantity": price.quantity,
-                    "unit_price": price.unit_price,
-                    "created_at": serialize_value(price.created_at)
-                } for price in item.prices]
-                
-                # Build item data
-                item_data = {
-                    "id": item.id,
-                    "item_name": item.item_name,
-                    "item_bar": item.item_bar,
-                    "created_at": serialize_value(item.created_at),
-                    "updated_at": serialize_value(item.updated_at),
-                    "locations": locations,
-                    "prices": prices,
-                    "invoice_history": [{
-                        "invoice_id": inv_item.invoice_id,
-                        "invoice_type": inv_item.invoice.type,
-                        "invoice_date": serialize_value(inv_item.invoice.created_at),
-                        "location": inv_item.location,
-                        "quantity": inv_item.quantity,
-                        "unit_price": inv_item.unit_price,
-                        "total_price": inv_item.total_price,
-                        "status": inv_item.invoice.status
-                    } for inv_item in invoice_items],
-                    "purchase_requests": [{
-                        "id": pr.id,
-                        "status": pr.status,
-                        "requested_quantity": pr.requested_quantity,
-                        "created_at": serialize_value(pr.created_at),
-                        "updated_at": serialize_value(pr.updated_at),
-                        "subtotal": pr.subtotal,
-                        "machine": pr.machine.name if pr.machine else None,
-                        "mechanism": pr.mechanism.name if pr.mechanism else None,
-                        "employee": pr.employee.username if pr.employee else None
-                    } for pr in machine_prs]
-                }
-                serialized_items.append(item_data)
-            
-            # Serialize purchase requests
-            serialized_prs = [{
-                "id": pr.id,
-                "status": pr.status,
-                "requested_quantity": pr.requested_quantity,
-                "created_at": serialize_value(pr.created_at),
-                "updated_at": serialize_value(pr.updated_at),
-                "subtotal": pr.subtotal,
-                "machine": pr.machine.name if pr.machine else None,
-                "mechanism": pr.mechanism.name if pr.mechanism else None,
-                "employee": pr.employee.username if pr.employee else None
-            } for pr in purchase_requests]
+            # Serialize data
+            serialized_invoices = self._serialize_invoices(invoices)
+            serialized_items = self._serialize_items_for_machine(related_items, purchase_requests, machine, args)
+            serialized_prs = self._serialize_purchase_requests(purchase_requests)
             
             # Build machine data with pagination info for nested lists
             machine_data = {
@@ -485,11 +407,14 @@ class FilterReports(Resource):
         nested_offset = (nested_page - 1) * nested_page_size
         
         # Prepare results
-        # Prepare results
         result = []
         for mechanism in mechanisms:
             # Get related invoices with pagination
             invoices_query = Invoice.query.filter(Invoice.mechanism_id == mechanism.id)
+            
+            # Apply invoice_id filter if provided
+            if args["invoice_id"]:
+                invoices_query = invoices_query.filter(Invoice.id == args["invoice_id"])
             
             # Apply date filters if provided
             if start_date:
@@ -497,12 +422,14 @@ class FilterReports(Resource):
             if end_date:
                 invoices_query = invoices_query.filter(Invoice.created_at <= end_date)
             
-            # Count total invoices for this machine
-            # total_invoices = invoices_query.count()
+            # Count total invoices for this mechanism
+            total_invoices = invoices_query.count()
             
             # Apply nested pagination to invoices
-            invoices = invoices_query.limit(nested_page_size).offset(nested_offset).all()
-            total_invoices = len(invoices)
+            if all_results:
+                invoices = invoices_query.all()
+            else:
+                invoices = invoices_query.limit(nested_page_size).offset(nested_offset).all()
             
             # Get related purchase requests with pagination
             purchase_requests_query = PurchaseRequests.query.filter(PurchaseRequests.mechanism_id == mechanism.id)
@@ -514,130 +441,34 @@ class FilterReports(Resource):
                 purchase_requests_query = purchase_requests_query.filter(PurchaseRequests.created_at <= end_date)
             
             # Count total purchase requests
-            # total_purchase_requests = purchase_requests_query.count()
+            total_purchase_requests = purchase_requests_query.count()
             
             # Apply nested pagination to purchase requests
-            purchase_requests = purchase_requests_query.limit(nested_page_size).offset(nested_offset).all()
-            total_purchase_requests = len(purchase_requests)
+            if all_results:
+                purchase_requests = purchase_requests_query.all()
+            else:
+                purchase_requests = purchase_requests_query.limit(nested_page_size).offset(nested_offset).all()
             
-            # Get items related to this machine through purchase requests with pagination
+            # Get items related to this mechanism through purchase requests
             item_ids = [pr.item_id for pr in purchase_requests_query.all()]  # Get all IDs first
             related_items_query = Warehouse.query.filter(Warehouse.id.in_(item_ids)) if item_ids else Warehouse.query.filter(False)
             
             # Count total related items
-            # total_items = related_items_query.count() if item_ids else 0
+            total_items = related_items_query.count() if item_ids else 0
             
             # Apply nested pagination to items
-            related_items = related_items_query.limit(nested_page_size).offset(nested_offset).all() if item_ids else []
-            total_items = len(related_items)
+            if all_results:
+                related_items = related_items_query.all() if item_ids else []
+            else:
+                related_items = related_items_query.limit(nested_page_size).offset(nested_offset).all() if item_ids else []
             
-            # Serialize invoices (same as before)
-            serialized_invoices = []
-            for invoice in invoices:
-                invoice_data = {
-                    "id": invoice.id,
-                    "type": invoice.type,
-                    "created_at": serialize_value(invoice.created_at),
-                    "client_name": invoice.client_name,
-                    "warehouse_manager": invoice.warehouse_manager,
-                    "accreditation_manager": invoice.accreditation_manager,
-                    "total_amount": invoice.total_amount,
-                    "paid": invoice.paid,
-                    "residual": invoice.residual,
-                    "comment": invoice.comment,
-                    "status": invoice.status,
-                    "employee_name": invoice.employee_name,
-                    "machine": invoice.machine.name if invoice.machine else None,
-                    "mechanism": invoice.mechanism.name if invoice.mechanism else None,
-                    "supplier": invoice.supplier.name if invoice.supplier else None,
-                    "items": [{
-                        "item_name": item.warehouse.item_name,
-                        "item_bar": item.warehouse.item_bar,
-                        "location": item.location,
-                        "quantity": item.quantity,
-                        "unit_price": item.unit_price,
-                        "total_price": item.total_price,
-                        "description": item.description
-                    } for item in invoice.items]
-                }
-                serialized_invoices.append(invoice_data)
+            # Serialize data
+            serialized_invoices = self._serialize_invoices(invoices)
+            serialized_items = self._serialize_items_for_mechanism(related_items, purchase_requests, mechanism, args)
+            serialized_prs = self._serialize_purchase_requests(purchase_requests)
             
-            # Serialize items (same logic as before, but only for paginated items)
-            serialized_items = []
-            for item in related_items:
-                # Get all locations for this item
-                locations = [{
-                    "location": loc.location,
-                    "quantity": loc.quantity
-                } for loc in item.item_locations]
-                
-                # Get this machine's purchase requests for this item
-                machine_prs = [pr for pr in purchase_requests if pr.item_id == item.id]
-                
-                # Get all invoices for this item related to this machine
-                invoice_items = InvoiceItem.query.join(Invoice).filter(
-                    and_(
-                        InvoiceItem.item_id == item.id,
-                        Invoice.mechanism_id == mechanism.id
-                    )
-                ).all()
-                
-                # Get pricing history
-                prices = [{
-                    "invoice_id": price.invoice_id,
-                    "quantity": price.quantity,
-                    "unit_price": price.unit_price,
-                    "created_at": serialize_value(price.created_at)
-                } for price in item.prices]
-                
-                # Build item data
-                item_data = {
-                    "id": item.id,
-                    "item_name": item.item_name,
-                    "item_bar": item.item_bar,
-                    "created_at": serialize_value(item.created_at),
-                    "updated_at": serialize_value(item.updated_at),
-                    "locations": locations,
-                    "prices": prices,
-                    "invoice_history": [{
-                        "invoice_id": inv_item.invoice_id,
-                        "invoice_type": inv_item.invoice.type,
-                        "invoice_date": serialize_value(inv_item.invoice.created_at),
-                        "location": inv_item.location,
-                        "quantity": inv_item.quantity,
-                        "unit_price": inv_item.unit_price,
-                        "total_price": inv_item.total_price,
-                        "status": inv_item.invoice.status
-                    } for inv_item in invoice_items],
-                    "purchase_requests": [{
-                        "id": pr.id,
-                        "status": pr.status,
-                        "requested_quantity": pr.requested_quantity,
-                        "created_at": serialize_value(pr.created_at),
-                        "updated_at": serialize_value(pr.updated_at),
-                        "subtotal": pr.subtotal,
-                        "machine": pr.machine.name if pr.machine else None,
-                        "mechanism": pr.mechanism.name if pr.mechanism else None,
-                        "employee": pr.employee.username if pr.employee else None
-                    } for pr in machine_prs]
-                }
-                serialized_items.append(item_data)
-            
-            # Serialize purchase requests
-            serialized_prs = [{
-                "id": pr.id,
-                "status": pr.status,
-                "requested_quantity": pr.requested_quantity,
-                "created_at": serialize_value(pr.created_at),
-                "updated_at": serialize_value(pr.updated_at),
-                "subtotal": pr.subtotal,
-                "machine": pr.machine.name if pr.machine else None,
-                "mechanism": pr.mechanism.name if pr.mechanism else None,
-                "employee": pr.employee.username if pr.employee else None
-            } for pr in purchase_requests]
-            
-            # Build machine data with pagination info for nested lists
-            machine_data = {
+            # Build mechanism data with pagination info for nested lists
+            mechanism_data = {
                 "id": mechanism.id,
                 "name": mechanism.name,
                 "description": mechanism.description,
@@ -663,7 +494,7 @@ class FilterReports(Resource):
                     "results": serialized_prs
                 }
             }
-            result.append(machine_data)
+            result.append(mechanism_data)
         
         return {
             "total": total_count,
@@ -677,6 +508,10 @@ class FilterReports(Resource):
         """Filter invoices based on provided parameters"""
         # Start with base query
         query = Invoice.query
+        
+        # Apply invoice_id filter if provided (exact match)
+        if args["invoice_id"]:
+            query = query.filter(Invoice.id == args["invoice_id"])
         
         # Apply filters if they exist
         if args["warehouse_manager"]:
@@ -723,7 +558,7 @@ class FilterReports(Resource):
         else:
             invoices = query.limit(page_size).offset(offset).all()
         
-        # Serialize results
+        # Serialize results with ReturnSales information
         result = []
         for invoice in invoices:
             invoice_data = {
@@ -756,6 +591,25 @@ class FilterReports(Resource):
                     "description": item.description
                 } for item in invoice.items]
             }
+            
+            # Add ReturnSales information if invoice type is "مرتجع"
+            if invoice.type == "مرتجع":
+                return_sales_record = ReturnSales.query.filter_by(return_invoice_id=invoice.id).first()
+                if return_sales_record:
+                    # Get the original sales invoice
+                    original_invoice = return_sales_record.sales_invoice
+                    invoice_data['return_sales_info'] = {
+                        'original_invoice_id': return_sales_record.sales_invoice_id,
+                        'original_invoice_type': original_invoice.type if original_invoice else None,
+                        'original_invoice_date': serialize_value(original_invoice.created_at) if original_invoice else None,
+                        'original_client_name': original_invoice.client_name if original_invoice else None,
+                        'original_total_amount': original_invoice.total_amount if original_invoice else None,
+                        'original_employee_name': original_invoice.employee_name if original_invoice else None,
+                        'original_status': original_invoice.status if original_invoice else None
+                    }
+                else:
+                    invoice_data['return_sales_info'] = None
+            
             result.append(invoice_data)
         
         return {
@@ -799,6 +653,10 @@ class FilterReports(Resource):
             # Get all invoices for this item, applying filters if needed
             invoice_items_query = InvoiceItem.query.filter(InvoiceItem.item_id == item.id).join(Invoice)
             
+            # Apply invoice_id filter if provided
+            if args["invoice_id"]:
+                invoice_items_query = invoice_items_query.filter(Invoice.id == args["invoice_id"])
+            
             if args["invoice_type"]:
                 invoice_items_query = invoice_items_query.filter(Invoice.type == args["invoice_type"])
                 
@@ -813,13 +671,18 @@ class FilterReports(Resource):
             
             invoice_items = invoice_items_query.all()
             
-            # Get pricing history
-            prices = [{
+            # Get pricing history (filter by invoice_id if provided)
+            if args["invoice_id"]:
+                prices = [price for price in item.prices if price.invoice_id == args["invoice_id"]]
+            else:
+                prices = list(item.prices)
+            
+            prices_serialized = [{
                 "invoice_id": price.invoice_id,
                 "quantity": price.quantity,
                 "unit_price": price.unit_price,
                 "created_at": serialize_value(price.created_at)
-            } for price in item.prices]
+            } for price in prices]
             
             # Build item data with all relevant information
             item_data = {
@@ -829,7 +692,7 @@ class FilterReports(Resource):
                 "created_at": serialize_value(item.created_at),
                 "updated_at": serialize_value(item.updated_at),
                 "locations": locations,
-                "prices": prices,
+                "prices": prices_serialized,
                 "invoice_history": [{
                     "invoice_id": inv_item.invoice_id,
                     "invoice_type": inv_item.invoice.type,
@@ -862,3 +725,217 @@ class FilterReports(Resource):
             "pages": (total_count + page_size - 1) // page_size,
             "results": result
         }, 200
+    
+    def _serialize_invoices(self, invoices):
+        """Serialize invoices data with ReturnSales information"""
+        serialized_invoices = []
+        for invoice in invoices:
+            invoice_data = {
+                "id": invoice.id,
+                "type": invoice.type,
+                "created_at": serialize_value(invoice.created_at),
+                "client_name": invoice.client_name,
+                "warehouse_manager": invoice.warehouse_manager,
+                "accreditation_manager": invoice.accreditation_manager,
+                "total_amount": invoice.total_amount,
+                "paid": invoice.paid,
+                "residual": invoice.residual,
+                "comment": invoice.comment,
+                "status": invoice.status,
+                "employee_name": invoice.employee_name,
+                "machine": invoice.machine.name if invoice.machine else None,
+                "mechanism": invoice.mechanism.name if invoice.mechanism else None,
+                "supplier": invoice.supplier.name if invoice.supplier else None,
+                "items": [{
+                    "item_name": item.warehouse.item_name,
+                    "item_bar": item.warehouse.item_bar,
+                    "location": item.location,
+                    "quantity": item.quantity,
+                    "unit_price": item.unit_price,
+                    "total_price": item.total_price,
+                    "description": item.description
+                } for item in invoice.items]
+            }
+            
+            # Add ReturnSales information if invoice type is "مرتجع"
+            if invoice.type == "مرتجع":
+                return_sales_record = ReturnSales.query.filter_by(return_invoice_id=invoice.id).first()
+                if return_sales_record:
+                    # Get the original sales invoice
+                    original_invoice = return_sales_record.sales_invoice
+                    invoice_data['return_sales_info'] = {
+                        'original_invoice_id': return_sales_record.sales_invoice_id,
+                        'original_invoice_type': original_invoice.type if original_invoice else None,
+                        'original_invoice_date': serialize_value(original_invoice.created_at) if original_invoice else None,
+                        'original_client_name': original_invoice.client_name if original_invoice else None,
+                        'original_total_amount': original_invoice.total_amount if original_invoice else None
+                    }
+                else:
+                    invoice_data['return_sales_info'] = None
+            
+            serialized_invoices.append(invoice_data)
+        return serialized_invoices
+
+    def _serialize_purchase_requests(self, purchase_requests):
+        """Serialize purchase requests data"""
+        return [{
+            "id": pr.id,
+            "status": pr.status,
+            "requested_quantity": pr.requested_quantity,
+            "created_at": serialize_value(pr.created_at),
+            "updated_at": serialize_value(pr.updated_at),
+            "subtotal": pr.subtotal,
+            "machine": pr.machine.name if pr.machine else None,
+            "mechanism": pr.mechanism.name if pr.mechanism else None,
+            "employee": pr.employee.username if pr.employee else None
+        } for pr in purchase_requests]
+
+    def _serialize_items_for_machine(self, related_items, purchase_requests, machine, args):
+        """Serialize items data for machine reports with invoice_id filtering"""
+        serialized_items = []
+        for item in related_items:
+            # Get all locations for this item
+            locations = [{
+                "location": loc.location,
+                "quantity": loc.quantity
+            } for loc in item.item_locations]
+            
+            # Get this machine's purchase requests for this item
+            machine_prs = [pr for pr in purchase_requests if pr.item_id == item.id]
+            
+            # Get all invoices for this item related to this machine
+            invoice_items_query = InvoiceItem.query.join(Invoice).filter(
+                and_(
+                    InvoiceItem.item_id == item.id,
+                    Invoice.machine_id == machine.id
+                )
+            )
+            
+            # Apply invoice_id filter if provided
+            if args["invoice_id"]:
+                invoice_items_query = invoice_items_query.filter(Invoice.id == args["invoice_id"])
+            
+            invoice_items = invoice_items_query.all()
+            
+            # Get pricing history (filter by invoice_id if provided)
+            prices_query = item.prices
+            if args["invoice_id"]:
+                prices = [price for price in prices_query if price.invoice_id == args["invoice_id"]]
+            else:
+                prices = list(prices_query)
+            
+            prices_serialized = [{
+                "invoice_id": price.invoice_id,
+                "quantity": price.quantity,
+                "unit_price": price.unit_price,
+                "created_at": serialize_value(price.created_at)
+            } for price in prices]
+            
+            # Build item data
+            item_data = {
+                "id": item.id,
+                "item_name": item.item_name,
+                "item_bar": item.item_bar,
+                "created_at": serialize_value(item.created_at),
+                "updated_at": serialize_value(item.updated_at),
+                "locations": locations,
+                "prices": prices_serialized,
+                "invoice_history": [{
+                    "invoice_id": inv_item.invoice_id,
+                    "invoice_type": inv_item.invoice.type,
+                    "invoice_date": serialize_value(inv_item.invoice.created_at),
+                    "location": inv_item.location,
+                    "quantity": inv_item.quantity,
+                    "unit_price": inv_item.unit_price,
+                    "total_price": inv_item.total_price,
+                    "status": inv_item.invoice.status
+                } for inv_item in invoice_items],
+                "purchase_requests": [{
+                    "id": pr.id,
+                    "status": pr.status,
+                    "requested_quantity": pr.requested_quantity,
+                    "created_at": serialize_value(pr.created_at),
+                    "updated_at": serialize_value(pr.updated_at),
+                    "subtotal": pr.subtotal,
+                    "machine": pr.machine.name if pr.machine else None,
+                    "mechanism": pr.mechanism.name if pr.mechanism else None,
+                    "employee": pr.employee.username if pr.employee else None
+                } for pr in machine_prs]
+            }
+            serialized_items.append(item_data)
+        return serialized_items
+
+    def _serialize_items_for_mechanism(self, related_items, purchase_requests, mechanism, args):
+        """Serialize items data for mechanism reports with invoice_id filtering"""
+        serialized_items = []
+        for item in related_items:
+            # Get all locations for this item
+            locations = [{
+                "location": loc.location,
+                "quantity": loc.quantity
+            } for loc in item.item_locations]
+            
+            # Get this mechanism's purchase requests for this item
+            mechanism_prs = [pr for pr in purchase_requests if pr.item_id == item.id]
+            
+            # Get all invoices for this item related to this mechanism
+            invoice_items_query = InvoiceItem.query.join(Invoice).filter(
+                and_(
+                    InvoiceItem.item_id == item.id,
+                    Invoice.mechanism_id == mechanism.id
+                )
+            )
+            
+            # Apply invoice_id filter if provided
+            if args["invoice_id"]:
+                invoice_items_query = invoice_items_query.filter(Invoice.id == args["invoice_id"])
+            
+            invoice_items = invoice_items_query.all()
+            
+            # Get pricing history (filter by invoice_id if provided)
+            prices_query = item.prices
+            if args["invoice_id"]:
+                prices = [price for price in prices_query if price.invoice_id == args["invoice_id"]]
+            else:
+                prices = list(prices_query)
+            
+            prices_serialized = [{
+                "invoice_id": price.invoice_id,
+                "quantity": price.quantity,
+                "unit_price": price.unit_price,
+                "created_at": serialize_value(price.created_at)
+            } for price in prices]
+            
+            # Build item data
+            item_data = {
+                "id": item.id,
+                "item_name": item.item_name,
+                "item_bar": item.item_bar,
+                "created_at": serialize_value(item.created_at),
+                "updated_at": serialize_value(item.updated_at),
+                "locations": locations,
+                "prices": prices_serialized,
+                "invoice_history": [{
+                    "invoice_id": inv_item.invoice_id,
+                    "invoice_type": inv_item.invoice.type,
+                    "invoice_date": serialize_value(inv_item.invoice.created_at),
+                    "location": inv_item.location,
+                    "quantity": inv_item.quantity,
+                    "unit_price": inv_item.unit_price,
+                    "total_price": inv_item.total_price,
+                    "status": inv_item.invoice.status
+                } for inv_item in invoice_items],
+                "purchase_requests": [{
+                    "id": pr.id,
+                    "status": pr.status,
+                    "requested_quantity": pr.requested_quantity,
+                    "created_at": serialize_value(pr.created_at),
+                    "updated_at": serialize_value(pr.updated_at),
+                    "subtotal": pr.subtotal,
+                    "machine": pr.machine.name if pr.machine else None,
+                    "mechanism": pr.mechanism.name if pr.mechanism else None,
+                    "employee": pr.employee.username if pr.employee else None
+                } for pr in mechanism_prs]
+            }
+            serialized_items.append(item_data)
+        return serialized_items

@@ -51,7 +51,7 @@ def create_app():
         resources={
             r"/*": {
                 "origins": (
-                    "http://localhost:3000"
+                    "http://localhost:5173"
                     if flask_env == "development"
                     else "https://demo.thunder-project.xyz"
                 )

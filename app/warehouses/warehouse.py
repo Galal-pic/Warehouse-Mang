@@ -55,8 +55,6 @@ class WarehouseExcelUltraFast(Resource):
             payload = warehouse_ns.payload
             if not payload or 'data' not in payload:
                 warehouse_ns.abort(400, "Invalid payload format")
-            if 'warehouse_manager' not in payload:
-                warehouse_ns.abort(400, "warehouse_manager is required")
             
             print(f"Processing {len(payload['data'])} items with ultra-fast method")
             
@@ -68,7 +66,7 @@ class WarehouseExcelUltraFast(Resource):
             if not employee:
                 warehouse_ns.abort(400, "Employee not found")
             
-            # Data validation and deduplication (same as above)
+            # Data validation and deduplication
             valid_items = []
             item_names = []
             item_bars = []
@@ -82,17 +80,35 @@ class WarehouseExcelUltraFast(Resource):
                 quantity = int(item['quantity'])
                 location = item.get('location', 'raf1')
                 
+                # Handle price_unit to unit_price mapping
+                unit_price = 0
+                if 'price_unit' in item:
+                    try:
+                        unit_price = float(item['price_unit'])
+                    except (ValueError, TypeError):
+                        unit_price = 0
+                elif 'unit_price' in item:
+                    try:
+                        unit_price = float(item['unit_price'])
+                    except (ValueError, TypeError):
+                        unit_price = 0
+                
                 valid_items.append({
                     'item_name': item_name,
                     'item_bar': item_bar,
                     'quantity': quantity,
-                    'location': location
+                    'location': location,
+                    'unit_price': unit_price  # Always store as unit_price
                 })
                 
                 item_names.append(item_name)
                 item_bars.append(item_bar)
             
-            # Duplicate check (same as above)
+            # Check if no valid items were processed
+            if not valid_items:
+                warehouse_ns.abort(400, "No valid items found in the payload")
+            
+            # Duplicate check
             existing_items_query = db.session.query(
                 Warehouse.item_name, Warehouse.item_bar
             ).filter(
@@ -119,6 +135,10 @@ class WarehouseExcelUltraFast(Resource):
                     seen_bars.add(item['item_bar'])
                     unique_items.append(item)
             
+            # Check if no unique items remain after deduplication
+            if not unique_items:
+                warehouse_ns.abort(400, "No unique items to add - all items already exist or are duplicates")
+            
             # ULTRA-FAST PROCESSING: Create all objects in memory first
             ITEMS_PER_INVOICE = 10
             current_time = datetime.now()
@@ -138,12 +158,11 @@ class WarehouseExcelUltraFast(Resource):
                 invoice = Invoice(
                     type="اضافه",
                     client_name="",
-                    warehouse_manager=payload.get("warehouse_manager"),
-                    accreditation_manager=payload.get("warehouse_manager"),
+                    accreditation_manager=employee_id,
                     total_amount=0,
                     paid=0,
                     residual=0,
-                    comment=f"Bulk import - Items {chunk_start+1} to {chunk_end}",
+                    comment=f"Items {chunk_start+1} to {chunk_end}",
                     status="draft",
                     supplier_id=None,
                     employee_name=employee.username,
@@ -177,10 +196,21 @@ class WarehouseExcelUltraFast(Resource):
                 db.session.bulk_save_objects(all_warehouse_items, return_defaults=True)
                 db.session.flush()
                 
+                # Track invoice totals for updating total_amount
+                invoice_totals = {}
+                
                 # Now create dependent objects with the generated IDs
                 for item in unique_items:
                     warehouse_item = item['warehouse_item_obj']
                     invoice = item['invoice_obj']
+                    
+                    # Calculate total price for the item
+                    total_price = item['quantity'] * item['unit_price']
+                    
+                    # Track the total amount for each invoice
+                    if invoice.id not in invoice_totals:
+                        invoice_totals[invoice.id] = 0
+                    invoice_totals[invoice.id] += total_price
                     
                     all_item_locations.append(ItemLocations(
                         item_id=warehouse_item.id,
@@ -193,8 +223,8 @@ class WarehouseExcelUltraFast(Resource):
                         item_id=warehouse_item.id,
                         quantity=item['quantity'],
                         location=item['location'],
-                        unit_price=0,
-                        total_price=0,
+                        unit_price=item['unit_price'],  # Use mapped unit_price
+                        total_price=total_price,
                         description=""
                     ))
                     
@@ -202,16 +232,28 @@ class WarehouseExcelUltraFast(Resource):
                         invoice_id=invoice.id,
                         item_id=warehouse_item.id,
                         quantity=item['quantity'],
-                        unit_price=0,
+                        unit_price=item['unit_price'],  # Use mapped unit_price
                         created_at=current_time
                     ))
                     
                     success_count += 1
                 
+                # Final check: Ensure we have items to add
+                if success_count == 0:
+                    db.session.rollback()
+                    warehouse_ns.abort(400, "0 items were successfully processed - operation aborted")
+                
                 # Bulk save dependent objects
                 db.session.bulk_save_objects(all_item_locations)
                 db.session.bulk_save_objects(all_invoice_items)
                 db.session.bulk_save_objects(all_prices)
+                
+                # Update invoice total_amount and residual for each invoice
+                for invoice_id, total_amount in invoice_totals.items():
+                    db.session.query(Invoice).filter_by(id=invoice_id).update({
+                        'total_amount': total_amount,
+                        'residual': total_amount  # Assuming residual = total_amount for new invoices
+                    })
                 
                 db.session.commit()
                 
@@ -240,7 +282,7 @@ class WarehouseExcelUltraFast(Resource):
                 'status': 'error',
                 'message': f'Unexpected error: {str(e)}'
             }, 500
-
+            
 @warehouse_ns.route('/')
 class WarehouseList(Resource):
     @warehouse_ns.marshal_list_with(pagination_model)

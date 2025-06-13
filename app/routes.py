@@ -102,7 +102,7 @@ class invoices_get(Resource):
     @jwt_required()
     @invoice_ns.expect(pagination_parser)
     def get(self, type):
-        """Get invoices by type"""
+        """Get invoices by type or status"""
         args = pagination_parser.parse_args()
         page = int(args['page'])
         page_size = int(args['page_size'])
@@ -111,9 +111,26 @@ class invoices_get(Resource):
             invoice_ns.abort(400, "Page and page_size must be positive integers")
         
         offset = (page - 1) * page_size
-        # Building a query
         
-        query = Invoice.query.filter_by(type=type).order_by(desc(Invoice.created_at))
+        # Building a query based on type
+        query = Invoice.query.order_by(desc(Invoice.id))
+        
+        # Handle different types
+        if type == "لم تؤكد":
+            # Draft status invoices
+            query = query.filter_by(status="accreditation")
+        elif type == "لم تراجع":
+            # Accreditation status invoices
+            query = query.filter_by(status="draft")
+        elif type == "تم":
+            # Confirmed status invoices
+            query = query.filter_by(status="confirmed")
+        elif type == "صفرية":
+            # Zero amount invoices (total_amount = 0)
+            query = query.filter_by(total_amount=0)
+        else:
+            # Regular invoice type filtering
+            query = query.filter_by(type=type)
         
         # Applying pagination
         if not all_results:
@@ -137,7 +154,7 @@ class invoices_get(Resource):
             for item in items:
                 # Get price details if this is a sales or void or warranty type invoice (FIFO consumer)
                 price_details = []
-                if type in ['صرف', 'توالف', 'أمانات']:
+                if invoice.type in ['صرف', 'توالف', 'أمانات']:
                     details = InvoicePriceDetail.query.filter_by(
                         invoice_id=invoice.id,
                         item_id=item.item_id
@@ -154,6 +171,7 @@ class invoices_get(Resource):
                             'unit_price': detail.unit_price,
                             'subtotal': detail.subtotal
                         })
+                
                 item_data = {
                     "item_name": Warehouse.query.get(item.item_id).item_name,
                     "barcode": Warehouse.query.get(item.item_id).item_bar,
@@ -190,7 +208,7 @@ class invoices_get(Resource):
             }
             
             # Add original invoice ID for returned sales
-            if type == 'مرتجع':
+            if invoice.type == 'مرتجع':
                 return_sales_record = ReturnSales.query.filter_by(return_invoice_id=invoice.id).first()
                 if return_sales_record:
                     invoice_data['original_invoice_id'] = return_sales_record.sales_invoice_id
@@ -800,8 +818,8 @@ class PriceTrackingReport(Resource):
         supplier = Supplier.query.get(invoice.supplier_id) if invoice.supplier_id else None
         employee = Employee.query.get(invoice.employee_id)
         
-        # Get invoice items & Filter duplicates
-        items = InvoiceItem.query.filter_by(invoice_id=invoice.id).group_by(InvoiceItem.item_id).all()
+        # FIXED: Get unique items using proper deduplication
+        items = self.get_items_simple_dedup(invoice.id)
 
         # Prepare detailed item reports
         item_reports = []
@@ -877,6 +895,93 @@ class PriceTrackingReport(Resource):
         }
         
         return report, 200
+    
+    def get_items_simple_dedup(self, invoice_id):
+        """Simple Python-based deduplication (most reliable)"""
+        # Get all items for the invoice
+        all_items = InvoiceItem.query.filter_by(invoice_id=invoice_id).all()
+        
+        # Deduplicate in Python
+        seen_items = set()
+        unique_items = []
+        
+        for item in all_items:
+            if item.item_id not in seen_items:
+                seen_items.add(item.item_id)
+                unique_items.append(item)
+        
+        return unique_items
+
+def get_items_with_aggregation(invoice_id):
+    """Get items with proper SQL aggregation"""
+    from sqlalchemy import func
+    
+    items = db.session.query(
+        InvoiceItem.item_id,
+        func.sum(InvoiceItem.quantity).label('total_quantity'),
+        func.avg(InvoiceItem.unit_price).label('avg_unit_price'),
+        func.sum(InvoiceItem.total_price).label('total_price'),
+        func.string_agg(InvoiceItem.location, ', ').label('locations'),
+        func.max(InvoiceItem.description).label('description')
+    ).filter_by(
+        invoice_id=invoice_id
+    ).group_by(
+        InvoiceItem.item_id
+    ).all()
+    
+    return items
+
+# ALTERNATIVE SOLUTION 2: Using DISTINCT ON (PostgreSQL specific)
+def get_items_with_distinct_on(invoice_id):
+    """Get items using DISTINCT ON (PostgreSQL only)"""
+    from sqlalchemy import distinct
+    
+    items = db.session.query(InvoiceItem).filter_by(
+        invoice_id=invoice_id
+    ).distinct(InvoiceItem.item_id).all()
+    
+    return items
+
+# ALTERNATIVE SOLUTION 3: Using subquery to get first occurrence
+def get_items_with_subquery(invoice_id):
+    """Get items using subquery for first occurrence"""
+    from sqlalchemy import func
+    
+    # Subquery to get the minimum ID for each item_id
+    subquery = db.session.query(
+        func.min(InvoiceItem.id).label('min_id')
+    ).filter_by(
+        invoice_id=invoice_id
+    ).group_by(
+        InvoiceItem.item_id
+    ).subquery()
+    
+    # Main query to get the actual items
+    items = db.session.query(InvoiceItem).filter(
+        InvoiceItem.id.in_(
+            db.session.query(subquery.c.min_id)
+        )
+    ).all()
+    
+    return items
+
+# ALTERNATIVE SOLUTION 4: Simple Python deduplication (Recommended)
+def get_items_simple_dedup(invoice_id):
+    """Simple Python-based deduplication (most reliable)"""
+    # Get all items for the invoice
+    all_items = InvoiceItem.query.filter_by(invoice_id=invoice_id).all()
+    
+    # Deduplicate in Python
+    seen_items = set()
+    unique_items = []
+    
+    for item in all_items:
+        if item.item_id not in seen_items:
+            seen_items.add(item.item_id)
+            unique_items.append(item)
+    
+    return unique_items
+
 @invoice_ns.route('/fifo-report')
 class FifoInventoryReport(Resource):
     @invoice_ns.expect(pagination_parser)
