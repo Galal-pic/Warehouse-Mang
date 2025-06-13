@@ -730,7 +730,7 @@ export default function Report() {
       item_bar: filters["باركود العنصر"],
       start_date: filters.fromDate,
       end_date: filters.toDate,
-      ...(reportType === "فواتير" && filters["النوع"] === "مرتجع"
+      ...(reportType === "فواتير"
         ? { invoice_id: filters["رقم الفاتورة"] }
         : {}),
       searchKey,
@@ -742,7 +742,6 @@ export default function Report() {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const openInvoice = (id) => {
-    console.log("openInvoice");
     let invoice;
     if (reportType === "فواتير") {
       invoice = searchResults.find((item) => item.id === id);
