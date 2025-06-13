@@ -83,7 +83,7 @@ def Warranty_Operations(data, machine, mechanism, supplier, employee, machine_ns
                 calculated_total_price = 0
                 
                 # Get all price records for this item ordered by creation date (oldest first for FIFO)
-                price_entries = Prices.query.filter_by(item_id=warehouse_item.id).order_by(Prices.invoice_id.asc()).all()
+                price_entries = Prices.query.filter_by(item_id=warehouse_item.id).filter(Prices.quantity > 0).order_by(Prices.invoice_id.asc()).all()
                 
                 if not price_entries:
                     # If no price records, use zero (or a default price)
@@ -102,16 +102,16 @@ def Warranty_Operations(data, machine, mechanism, supplier, employee, machine_ns
                         quantity_from_this_entry = min(remaining_to_process, price_entry.quantity)
                         
                         # Calculate price for this portion
-                        subtotal = quantity_from_this_entry * price_entry.unit_price
+                        subtotal = round(quantity_from_this_entry * price_entry.unit_price, 3)
                         
-                        # Create a price detail record - FIXED VERSION
+                        # Create a price detail record
                         price_detail = InvoicePriceDetail(
                             invoice_id=new_invoice.id,
                             item_id=warehouse_item.id,
-                            source_price_invoice_id=price_entry.invoice_id,  # Changed from source_price_id
-                            source_price_item_id=price_entry.item_id,        # Added this
+                            source_price_invoice_id=price_entry.invoice_id,
+                            source_price_item_id=price_entry.item_id,
                             quantity=quantity_from_this_entry,
-                            unit_price=price_entry.unit_price,
+                            unit_price=round(price_entry.unit_price, 3),
                             subtotal=subtotal
                         )
                         
@@ -122,31 +122,30 @@ def Warranty_Operations(data, machine, mechanism, supplier, employee, machine_ns
                         calculated_total_price += subtotal
                         remaining_to_process -= quantity_from_this_entry
                         
-                        # Update the price entry quantity
+                        # Update the price entry quantity (but DON'T delete)
                         price_entry.quantity -= quantity_from_this_entry
                         entries_to_update.append(price_entry)
                         
-                        # If the price entry is now empty, delete it
-                        if price_entry.quantity <= 0:
-                            db.session.delete(price_entry)
+                        # FIXED: Don't delete empty price entries to avoid foreign key violations
+                        # Keep them with quantity = 0 for referential integrity
                     
                     # Check if we've accounted for the entire requested quantity
                     if remaining_to_process > 0:
                         # For warranty operations, we might want to use the most recent price for the remainder
                         if price_details:
                             # Use the most recent price for the remainder
-                            latest_price = price_entries[-1].unit_price
-                            remainder_price = remaining_to_process * latest_price
+                            latest_price = price_entries[-1].unit_price if price_entries else 0
+                            remainder_price = round(remaining_to_process * latest_price, 3)
                             calculated_total_price += remainder_price
                             
-                            # Create a price detail for the remainder - FIXED VERSION
+                            # Create a price detail for the remainder
                             remainder_detail = InvoicePriceDetail(
                                 invoice_id=new_invoice.id,
                                 item_id=warehouse_item.id,
-                                source_price_invoice_id=price_entries[-1].invoice_id,  # Changed from source_price_id
-                                source_price_item_id=price_entries[-1].item_id,        # Added this
+                                source_price_invoice_id=price_entries[-1].invoice_id,
+                                source_price_item_id=price_entries[-1].item_id,
                                 quantity=remaining_to_process,
-                                unit_price=latest_price,
+                                unit_price=round(latest_price, 3),
                                 subtotal=remainder_price
                             )
                             db.session.add(remainder_detail)
@@ -154,13 +153,13 @@ def Warranty_Operations(data, machine, mechanism, supplier, employee, machine_ns
                             # No price records with quantity, use default or zero
                             pass
                     
-                    # Calculate average unit price
+                    # Calculate effective unit price
                     if requested_quantity > 0:
-                        unit_price = calculated_total_price / requested_quantity
+                        unit_price = round(calculated_total_price / requested_quantity, 3)
                     else:
                         unit_price = 0
                     
-                    total_price = calculated_total_price
+                    total_price = round(calculated_total_price, 3)
             
             # Create the invoice item
             invoice_item = InvoiceItem(
@@ -168,17 +167,18 @@ def Warranty_Operations(data, machine, mechanism, supplier, employee, machine_ns
                 item_id=warehouse_item.id,
                 quantity=requested_quantity,
                 location=item_data["location"],
-                unit_price=unit_price,
-                total_price=total_price,
+                unit_price=round(unit_price, 3),
+                total_price=round(total_price, 3),
                 description=item_data.get("description", "")
             )
             
             db.session.add(invoice_item)
             total_invoice_amount += total_price
         
-        # Update invoice totals
+        # Update invoice totals with rounding
+        total_invoice_amount = round(total_invoice_amount, 3)
         new_invoice.total_amount = total_invoice_amount
-        new_invoice.residual = total_invoice_amount - new_invoice.paid
+        new_invoice.residual = round(total_invoice_amount - new_invoice.paid, 3)
         
         db.session.commit()
         return operation_result(201, "success", "Invoice created successfully", new_invoice)
