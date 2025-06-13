@@ -158,7 +158,7 @@ class WarehouseExcelUltraFast(Resource):
                 invoice = Invoice(
                     type="اضافه",
                     client_name="",
-                    accreditation_manager=employee_id,
+                    accreditation_manager=Employee.query.get(get_jwt_identity()).username,
                     total_amount=0,
                     paid=0,
                     residual=0,
