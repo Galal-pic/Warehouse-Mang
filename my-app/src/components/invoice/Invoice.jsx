@@ -563,7 +563,6 @@ export default function InvoiceModal({
                     sx={{
                       "&.MuiTableCell-root": {
                         padding: "0px",
-                        maxWidth: "200px",
                         whiteSpace: "normal",
                         wordBreak: "break-word",
                       },
