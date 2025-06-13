@@ -730,7 +730,7 @@ export default function Report() {
       item_bar: filters["باركود العنصر"],
       start_date: filters.fromDate,
       end_date: filters.toDate,
-      ...(reportType === "فواتير"
+      ...(reportType === "فواتير" && filters["النوع"] === "مرتجع"
         ? { invoice_id: filters["رقم الفاتورة"] }
         : {}),
       searchKey,
@@ -742,6 +742,7 @@ export default function Report() {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const openInvoice = (id) => {
+    console.log("openInvoice");
     let invoice;
     if (reportType === "فواتير") {
       invoice = searchResults.find((item) => item.id === id);
@@ -767,7 +768,7 @@ export default function Report() {
             minute: "2-digit",
           })
         : "-", // Format time
-      original_invoice_id: invoice.return_sales_info.original_invoice_id,
+      original_invoice_id: invoice?.return_sales_info?.original_invoice_id || 0,
       supplier_name: invoice.supplier || "-", // Rename supplier to supplier_name
       machine_name: invoice.machine || "-", // Rename machine to machine_name
       mechanism_name: invoice.mechanism || "-", // Rename mechanism to mechanism_name
