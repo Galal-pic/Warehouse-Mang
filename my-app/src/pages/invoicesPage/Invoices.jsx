@@ -657,7 +657,8 @@ export default function Invoices() {
             {(user?.view_prices || user?.username === "admin") &&
               selectedNowType?.label !== "اضافه" &&
               selectedNowType?.label !== "مرتجع" &&
-              selectedNowType?.label !== "طلب شراء" && (
+              selectedNowType?.label !== "طلب شراء" &&
+              params.row.type !== "اضافه" && (
                 <button
                   className={styles.iconBtn}
                   onClick={() => showInvoiceDetails(params.id)}
@@ -1060,7 +1061,8 @@ export default function Invoices() {
                     <div>
                       {(user?.can_edit || user?.username === "admin") &&
                         selectedInvoice?.rawStatus !== "confirmed" &&
-                        selectedInvoice?.type === "اضافه" && (
+                        selectedInvoice?.type === "اضافه" &&
+                        selectedInvoice?.status !== "تم" && (
                           <button
                             onClick={() => {
                               handleEditInfo(selectedInvoice);

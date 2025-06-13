@@ -572,7 +572,7 @@ export default function InvoiceModal({
                     {isEditingInvoice && !justEditUnitPrice ? (
                       <CustomAutoCompleteField
                         isBig={true}
-                        loading={isWarehousesLoading}
+                        isLoading={isWarehousesLoading}
                         values={itemNames || []}
                         editingItem={row}
                         setEditingItem={(newItem) => {
