@@ -295,6 +295,26 @@ class FilterReports(Resource):
             if args["invoice_id"]:
                 invoices_query = invoices_query.filter(Invoice.id == args["invoice_id"])
             
+            # Apply invoice_type filter if provided
+            if args["invoice_type"]:
+                invoices_query = invoices_query.filter(Invoice.type == args["invoice_type"])
+            
+            # Apply other invoice filters if provided
+            if args["status"]:
+                invoices_query = invoices_query.filter(Invoice.status == args["status"])
+                
+            if args["warehouse_manager"]:
+                invoices_query = invoices_query.filter(Invoice.warehouse_manager.ilike(f"%{args['warehouse_manager']}%"))
+                
+            if args["client_name"]:
+                invoices_query = invoices_query.filter(Invoice.client_name.ilike(f"%{args['client_name']}%"))
+                
+            if args["accreditation_manager"]:
+                invoices_query = invoices_query.filter(Invoice.accreditation_manager.ilike(f"%{args['accreditation_manager']}%"))
+                
+            if args["employee_name"]:
+                invoices_query = invoices_query.filter(Invoice.employee_name.ilike(f"%{args['employee_name']}%"))
+            
             # Apply date filters if provided
             if start_date:
                 invoices_query = invoices_query.filter(Invoice.created_at >= start_date)
@@ -328,18 +348,43 @@ class FilterReports(Resource):
             else:
                 purchase_requests = purchase_requests_query.limit(nested_page_size).offset(nested_offset).all()
             
-            # Get items related to this machine through purchase requests
-            item_ids = [pr.item_id for pr in purchase_requests_query.all()]  # Get all IDs first
-            related_items_query = Warehouse.query.filter(Warehouse.id.in_(item_ids)) if item_ids else Warehouse.query.filter(False)
+            # Get items related to this machine through BOTH purchase requests AND invoices
+            item_ids_from_prs = [pr.item_id for pr in purchase_requests_query.all()]  # Get all PR item IDs
+            
+            # Get item IDs from invoices for this machine (applying same filters)
+            invoice_items_query = InvoiceItem.query.join(Invoice).filter(Invoice.machine_id == machine.id)
+            
+            # Apply the same filters to get consistent item IDs
+            if args["invoice_id"]:
+                invoice_items_query = invoice_items_query.filter(Invoice.id == args["invoice_id"])
+            if args["invoice_type"]:
+                invoice_items_query = invoice_items_query.filter(Invoice.type == args["invoice_type"])
+            if args["status"]:
+                invoice_items_query = invoice_items_query.filter(Invoice.status == args["status"])
+            if start_date:
+                invoice_items_query = invoice_items_query.filter(Invoice.created_at >= start_date)
+            if end_date:
+                invoice_items_query = invoice_items_query.filter(Invoice.created_at <= end_date)
+                
+            item_ids_from_invoices = [ii.item_id for ii in invoice_items_query.all()]
+            
+            # Combine both sets of item IDs
+            all_item_ids = list(set(item_ids_from_prs + item_ids_from_invoices))
+            
+            # Get the actual items
+            if all_item_ids:
+                related_items_query = Warehouse.query.filter(Warehouse.id.in_(all_item_ids))
+            else:
+                related_items_query = Warehouse.query.filter(False)  # No items
             
             # Count total related items
-            total_items = related_items_query.count() if item_ids else 0
+            total_items = related_items_query.count() if all_item_ids else 0
             
             # Apply nested pagination to items
             if all_results:
-                related_items = related_items_query.all() if item_ids else []
+                related_items = related_items_query.all() if all_item_ids else []
             else:
-                related_items = related_items_query.limit(nested_page_size).offset(nested_offset).all() if item_ids else []
+                related_items = related_items_query.limit(nested_page_size).offset(nested_offset).all() if all_item_ids else []
             
             # Serialize data
             serialized_invoices = self._serialize_invoices(invoices)
@@ -416,6 +461,26 @@ class FilterReports(Resource):
             if args["invoice_id"]:
                 invoices_query = invoices_query.filter(Invoice.id == args["invoice_id"])
             
+            # Apply invoice_type filter if provided
+            if args["invoice_type"]:
+                invoices_query = invoices_query.filter(Invoice.type == args["invoice_type"])
+            
+            # Apply other invoice filters if provided
+            if args["status"]:
+                invoices_query = invoices_query.filter(Invoice.status == args["status"])
+                
+            if args["warehouse_manager"]:
+                invoices_query = invoices_query.filter(Invoice.warehouse_manager.ilike(f"%{args['warehouse_manager']}%"))
+                
+            if args["client_name"]:
+                invoices_query = invoices_query.filter(Invoice.client_name.ilike(f"%{args['client_name']}%"))
+                
+            if args["accreditation_manager"]:
+                invoices_query = invoices_query.filter(Invoice.accreditation_manager.ilike(f"%{args['accreditation_manager']}%"))
+                
+            if args["employee_name"]:
+                invoices_query = invoices_query.filter(Invoice.employee_name.ilike(f"%{args['employee_name']}%"))
+            
             # Apply date filters if provided
             if start_date:
                 invoices_query = invoices_query.filter(Invoice.created_at >= start_date)
@@ -449,18 +514,43 @@ class FilterReports(Resource):
             else:
                 purchase_requests = purchase_requests_query.limit(nested_page_size).offset(nested_offset).all()
             
-            # Get items related to this mechanism through purchase requests
-            item_ids = [pr.item_id for pr in purchase_requests_query.all()]  # Get all IDs first
-            related_items_query = Warehouse.query.filter(Warehouse.id.in_(item_ids)) if item_ids else Warehouse.query.filter(False)
+            # Get items related to this mechanism through BOTH purchase requests AND invoices
+            item_ids_from_prs = [pr.item_id for pr in purchase_requests_query.all()]  # Get all PR item IDs
+            
+            # Get item IDs from invoices for this mechanism (applying same filters)
+            invoice_items_query = InvoiceItem.query.join(Invoice).filter(Invoice.mechanism_id == mechanism.id)
+            
+            # Apply the same filters to get consistent item IDs
+            if args["invoice_id"]:
+                invoice_items_query = invoice_items_query.filter(Invoice.id == args["invoice_id"])
+            if args["invoice_type"]:
+                invoice_items_query = invoice_items_query.filter(Invoice.type == args["invoice_type"])
+            if args["status"]:
+                invoice_items_query = invoice_items_query.filter(Invoice.status == args["status"])
+            if start_date:
+                invoice_items_query = invoice_items_query.filter(Invoice.created_at >= start_date)
+            if end_date:
+                invoice_items_query = invoice_items_query.filter(Invoice.created_at <= end_date)
+                
+            item_ids_from_invoices = [ii.item_id for ii in invoice_items_query.all()]
+            
+            # Combine both sets of item IDs
+            all_item_ids = list(set(item_ids_from_prs + item_ids_from_invoices))
+            
+            # Get the actual items
+            if all_item_ids:
+                related_items_query = Warehouse.query.filter(Warehouse.id.in_(all_item_ids))
+            else:
+                related_items_query = Warehouse.query.filter(False)  # No items
             
             # Count total related items
-            total_items = related_items_query.count() if item_ids else 0
+            total_items = related_items_query.count() if all_item_ids else 0
             
             # Apply nested pagination to items
             if all_results:
-                related_items = related_items_query.all() if item_ids else []
+                related_items = related_items_query.all() if all_item_ids else []
             else:
-                related_items = related_items_query.limit(nested_page_size).offset(nested_offset).all() if item_ids else []
+                related_items = related_items_query.limit(nested_page_size).offset(nested_offset).all() if all_item_ids else []
             
             # Serialize data
             serialized_invoices = self._serialize_invoices(invoices)

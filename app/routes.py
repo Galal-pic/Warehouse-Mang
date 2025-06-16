@@ -473,8 +473,8 @@ class InvoiceDetail(Resource):
         if 'supplier_name' in data and data['supplier_name']:
             supplier = Supplier.query.filter_by(name=data['supplier_name']).first()
 
-        if not machine or not mechanism:
-            invoice_ns.abort(404, "Machine or Mechanism not found")
+        # if not machine or not mechanism:
+        #     invoice_ns.abort(404, "Machine or Mechanism not found")
             
         # Update supplier ID in the data if supplier is found
         if supplier:
