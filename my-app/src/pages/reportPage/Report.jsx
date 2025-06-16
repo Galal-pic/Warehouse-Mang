@@ -263,30 +263,13 @@ export default function Report() {
       let rows = [];
       const pageSize = 10;
       if (all) {
-        rows =
-          dataType === "invoices"
-            ? searchResults
-            : searchResults
-                .flatMap((machine) => machine.items?.results || [])
-                .map((item) => ({ ...item, id: item.id }));
+        rows = searchResults;
       } else if (customRange) {
         const startIndex = (customRange.start - 1) * pageSize;
         const endIndex = customRange.end * pageSize;
-        rows = (
-          dataType === "invoices"
-            ? searchResults
-            : searchResults
-                .flatMap((machine) => machine.items?.results || [])
-                .map((item) => ({ ...item, id: item.id }))
-        ).slice(startIndex, endIndex);
+        rows = searchResults.slice(startIndex, endIndex);
       } else {
-        rows = (
-          dataType === "invoices"
-            ? searchResults
-            : searchResults
-                .flatMap((machine) => machine.items?.results || [])
-                .map((item) => ({ ...item, id: item.id }))
-        ).slice(
+        rows = searchResults.slice(
           paginationModel.page * pageSize,
           (paginationModel.page + 1) * pageSize
         );
@@ -524,8 +507,6 @@ export default function Report() {
             </Button>
           </Box>
         </GridToolbarContainer>
-
-        {/* حوار نطاق الصفحات */}
         <Dialog
           open={openRangeDialog}
           onClose={handleRangeDialogClose}
@@ -1870,6 +1851,7 @@ export default function Report() {
                           id: item.id,
                         }))}
                       dataType="items"
+                      fullSearchResults={searchResults}
                     />
                   )}
                   pageCount={searchResults[0]?.items?.pages || 1}

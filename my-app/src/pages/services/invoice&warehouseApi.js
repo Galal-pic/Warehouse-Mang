@@ -92,7 +92,7 @@ export const api = createApi({
           page + 1
         }&page_size=${page_size}&all=false`;
       },
-      providesTags: ["Invoice"],
+      providesTags: ["Invoice", "Warehouse"],
       transformResponse: (response) => {
         if (response.all) {
           return {
@@ -217,7 +217,7 @@ export const api = createApi({
         if (accreditation_manager)
           params.append("accreditation_manager", accreditation_manager);
         if (employee_name) params.append("employee_name", employee_name);
-        if (type) params.append("invoice_type", type === "الكل" ? "all" : type);
+        if (type) params.append("invoice_type", type === "الكل" ? "" : type);
         if (supplier) params.append("supplier", supplier);
         if (status) params.append("status", status);
         if (invoice_type) params.append("invoice_type", invoice_type);

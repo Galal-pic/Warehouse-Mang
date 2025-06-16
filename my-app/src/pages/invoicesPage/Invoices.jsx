@@ -345,6 +345,7 @@ export default function Invoices() {
       setIsEditingInvoice(false);
       setIsModalOpen(true);
       openInvoice(updatedInvoice.id);
+      setSelectedInvoice(updatedInvoice);
     } catch (error) {
       if (error.response && error.response.status === "FETCH_ERROR") {
         setOpenSnackbar(true);

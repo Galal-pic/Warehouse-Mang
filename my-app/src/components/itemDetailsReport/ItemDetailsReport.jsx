@@ -700,7 +700,10 @@ const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
       <Box>
         <Tabs
           value={tabValue}
-          onChange={(e, newValue) => setTabValue(newValue)}
+          onChange={(e, newValue) => {
+            setTabValue(newValue);
+            setPaginationModel({ ...paginationModel, page: 0 });
+          }}
           sx={{
             mb: 3,
             backgroundColor: "#f8fafc",
@@ -797,7 +800,7 @@ const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
             getRowId={(row) => row.location}
             paginationModel={paginationModel}
             onPageChange={handlePageChange}
-            pageCount={Math.ceil(item?.locations?.length)}
+            pageCount={Math.ceil(item?.locations?.length / 10)}
             checkBox={false}
           />
         )}
