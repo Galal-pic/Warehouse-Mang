@@ -107,9 +107,9 @@ export default function Invoices() {
       }
 
       return {
-        refresh: invoice.items.some((item) => item.total_price === 0)
-          ? "تحديث اسعار"
-          : "",
+        // refresh: invoice.items.some((item) => item.total_price === 0)
+        //   ? "تحديث اسعار"
+        //   : "",
         ...invoice,
         status: displayStatus,
         rawStatus: invoice.status,

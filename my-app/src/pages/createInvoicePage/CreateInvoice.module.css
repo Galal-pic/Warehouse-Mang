@@ -322,3 +322,26 @@
     justify-content: center;
     margin-bottom: 10px;
 }
+
+@media (max-width: 768px) {
+    .typeSelectors {
+        flex-direction: column;
+        gap: 15px;
+        align-items: center;
+    }
+
+    .operationTypeFormControl {
+        width: 100%;
+        max-width: 300px;
+    }
+
+    .headerSection {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .customTable {
+        /* overflow-x: auto; */
+    }
+
+}

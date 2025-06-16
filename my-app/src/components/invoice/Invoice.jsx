@@ -24,7 +24,7 @@ import { useGetMechanismsQuery } from "../../pages/services/mechanismApi";
 import { useGetWarehousesQuery } from "../../pages/services/invoice&warehouseApi";
 import {
   useGetInvoiceQuery,
-  useGetInvoicesQuery,
+  useGetInvoicesNumbersQuery,
 } from "../../pages/services/invoice&warehouseApi";
 
 export default function InvoiceModal({
@@ -89,25 +89,27 @@ export default function InvoiceModal({
   const warehouse = warehouseData?.warehouses || [];
 
   // Fetch invoices with all=true
-  const isMortaga3Type =
-    selectedNowType?.type === "مرتجع" ||
-    selectedInvoice?.type === "مرتجع" ||
-    editingInvoice?.type === "مرتجع";
+  const isMortaga3Type = useMemo(
+    () =>
+      selectedNowType?.type === "مرتجع" ||
+      selectedInvoice?.type === "مرتجع" ||
+      editingInvoice?.type === "مرتجع",
+    [selectedNowType?.type, selectedInvoice?.type, editingInvoice?.type]
+  );
 
   const {
     data: invoicesData,
     isLoading: isInvoiceNumbersLoading,
     refetch: refetcInvoicesNumbers,
     isError: isInvoiceNumbersError,
-  } = useGetInvoicesQuery(
-    { all: true, type: "صرف" },
-    { pollingInterval: 300000, skip: !isEditingInvoice || !isMortaga3Type } // Only fetch when editing and isMortaga3Type
-  );
-  const invoices = invoicesData?.invoices || [];
+  } = useGetInvoicesNumbersQuery(undefined, {
+    pollingInterval: 300000,
+    skip: !isEditingInvoice || !isMortaga3Type || !editingInvoice?.type, // إضافة تحقق إضافي
+  });
 
-  const invoiceNumbers = invoices.map((inv) => ({
-    id: inv.id.toString(),
-  }));
+  const invoiceNumbers = invoicesData?.["sales-invoices"]?.map((number) =>
+    number.toString()
+  );
 
   useEffect(() => {
     if (isInvoiceNumbersError) {
@@ -379,7 +381,9 @@ export default function InvoiceModal({
           >
             <TableBody>
               {/* Inputs for Supplier, Machine, Mechanism Names, and Invoice Number */}
-              {(selectedNowType?.type === "purchase" || isPurchasesType) && (
+              {(selectedNowType?.type === "purchase" ||
+                isPurchasesType ||
+                selectedInvoice?.type === "اضافه") && (
                 <TableRow className={styles.tableRow}>
                   <TableCell className={styles.tableCell} colSpan={2}>
                     اسم المورد

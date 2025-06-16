@@ -1699,6 +1699,7 @@ export default function Report() {
             <IconButton
               onClick={handleBackToFilters}
               sx={{
+                position: "absolute",
                 color: "#4b6584",
                 "&:hover": { color: "#f39c12" },
                 padding: 0,
@@ -1706,6 +1707,8 @@ export default function Report() {
             >
               <ArrowBackIcon sx={{ fontSize: "50px" }} />
             </IconButton>
+            <Box></Box>
+
             <Typography variant="h4" sx={{ fontWeight: 600, color: "#1e293b" }}>
               نتائج البحث
             </Typography>

@@ -41,7 +41,7 @@ function renderRow(props) {
 
   const displayText =
     fieldName === "original_invoice_id"
-      ? option.id || ""
+      ? option || ""
       : fieldName === "item_name"
       ? option || ""
       : fieldName === "location"
@@ -218,7 +218,7 @@ function CustomAutoCompleteField({
                 (item) =>
                   item &&
                   (fieldName === "original_invoice_id"
-                    ? item.id === String(editingItem[fieldName])
+                    ? item === String(editingItem[fieldName])
                     : item.name === String(editingItem[fieldName]))
               ) || null
           : null
@@ -241,7 +241,7 @@ function CustomAutoCompleteField({
       options={sortedOptions}
       getOptionLabel={(option) =>
         fieldName === "original_invoice_id"
-          ? option.id || ""
+          ? option || ""
           : fieldName === "item_name"
           ? option || ""
           : fieldName === "location"
@@ -254,7 +254,7 @@ function CustomAutoCompleteField({
           : fieldName === "location"
           ? option.location === value?.location
           : fieldName === "original_invoice_id"
-          ? option.id === value?.id
+          ? option === value
           : option.name === value?.name
       }
       onChange={(event, newValue) => {
@@ -262,7 +262,7 @@ function CustomAutoCompleteField({
           ...editingItem,
           [fieldName]:
             newValue && fieldName === "original_invoice_id"
-              ? newValue.id
+              ? newValue
               : newValue && fieldName === "item_name"
               ? newValue
               : newValue && fieldName === "location"

@@ -193,8 +193,54 @@ const EditUser = ({ open, onClose, user: initialUser }) => {
       return;
     }
 
+    const formattedEdittingUser = {
+      id: edittingUser.id,
+      username: edittingUser.username,
+      phone_number: edittingUser.phone_number,
+      job_name: edittingUser.job_name,
+      create_inventory_operations:
+        edittingUser.permissions.createInvoice.create_inventory_operations,
+      create_additions: edittingUser.permissions.createInvoice.create_additions,
+      view_additions: edittingUser.permissions.manageOperations.view_additions,
+      view_withdrawals:
+        edittingUser.permissions.manageOperations.view_withdrawals,
+      view_deposits: edittingUser.permissions.manageOperations.view_deposits,
+      view_returns: edittingUser.permissions.manageOperations.view_returns,
+      view_damages: edittingUser.permissions.manageOperations.view_damages,
+      view_reservations:
+        edittingUser.permissions.manageOperations.view_reservations,
+      view_prices: edittingUser.permissions.manageOperations.view_prices,
+      view_purchase_requests: false,
+      can_edit: edittingUser.permissions.manageOperations.can_edit,
+      can_delete: edittingUser.permissions.manageOperations.can_delete,
+      can_confirm_withdrawal:
+        edittingUser.permissions.manageOperations.can_confirm_withdrawal,
+      can_withdraw: edittingUser.permissions.manageOperations.can_withdraw,
+      can_update_prices:
+        edittingUser.permissions.manageOperations.can_update_prices,
+      can_recover_deposits:
+        edittingUser.permissions.manageOperations.can_recover_deposits,
+      can_confirm_purchase_requests: false,
+      items_can_edit: edittingUser.permissions.items.items_can_edit,
+      items_can_delete: edittingUser.permissions.items.items_can_delete,
+      items_can_add: edittingUser.permissions.items.items_can_add,
+      machines_can_edit: edittingUser.permissions.machines.machines_can_edit,
+      machines_can_delete:
+        edittingUser.permissions.machines.machines_can_delete,
+      machines_can_add: edittingUser.permissions.machines.machines_can_add,
+      mechanism_can_edit: edittingUser.permissions.mechanism.mechanism_can_edit,
+      mechanism_can_delete:
+        edittingUser.permissions.mechanism.mechanism_can_delete,
+      mechanism_can_add: edittingUser.permissions.mechanism.mechanism_can_add,
+      suppliers_can_edit: edittingUser.permissions.suppliers.suppliers_can_edit,
+      suppliers_can_delete:
+        edittingUser.permissions.suppliers.suppliers_can_delete,
+      suppliers_can_add: edittingUser.permissions.suppliers.suppliers_can_add,
+    };
+    console.log(formattedEdittingUser);
+
     try {
-      await updateUser(edittingUser).unwrap();
+      await updateUser(formattedEdittingUser).unwrap();
       setIsEditting(false);
       setEdittingUser({});
       setSnackbarMessage("تم تحديث الموظف بنجاح");

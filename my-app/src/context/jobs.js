@@ -26,7 +26,7 @@ export const InvoicesPageOptions = {
   can_delete: "الحذف",
   can_confirm_withdrawal: "المراجعة",
   can_withdraw: "الصرف",
-  can_update_prices: "تحديث الأسعار",
+  // can_update_prices: "تحديث الأسعار",
   can_recover_deposits: "استرداد الأمانات",
 };
 
