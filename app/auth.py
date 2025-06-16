@@ -40,6 +40,7 @@ manage_operations_model = auth_ns.model('ManageOperationsPermissions', {
     'view_reservations': fields.Boolean(default=False, description='Permission to view reservations'),
     'view_prices': fields.Boolean(default=False, description='Permission to view prices'),
     'view_purchase_requests': fields.Boolean(default=False, description='Permission to view purchase requests'),
+    'view_reports': fields.Boolean(default=False, description='Permission to view reports'),
     'can_edit': fields.Boolean(default=False, description='Permission to edit operations'),
     'can_delete': fields.Boolean(default=False, description='Permission to delete operations'),
     'can_confirm_withdrawal': fields.Boolean(default=False, description='Permission to confirm withdrawals'),
@@ -119,6 +120,7 @@ user_model = auth_ns.model('User', {
     'view_reservations': fields.Boolean(description='Permission to view reservations'),
     'view_prices': fields.Boolean(description='Permission to view prices'),
     'view_purchase_requests': fields.Boolean(description='Permission to view purchase requests'),
+    'view_reports': fields.Boolean(description='Permission to view reports'),
     'can_edit': fields.Boolean(description='Permission to edit operations'),
     'can_delete': fields.Boolean(description='Permission to delete operations'),
     'can_confirm_withdrawal': fields.Boolean(description='Permission to confirm withdrawals'),
@@ -193,6 +195,7 @@ class Register(Resource):
         view_reservations = manage_operations.get('view_reservations', False)
         view_prices = manage_operations.get('view_prices', False)
         view_purchase_requests = manage_operations.get('view_purchase_requests', False)
+        view_reports = manage_operations.get('view_reports', False)
         can_edit = manage_operations.get('can_edit', False)
         can_delete = manage_operations.get('can_delete', False)
         can_confirm_withdrawal = manage_operations.get('can_confirm_withdrawal', False)
@@ -243,6 +246,7 @@ class Register(Resource):
             view_reservations=view_reservations,
             view_prices=view_prices,
             view_purchase_requests=view_purchase_requests,
+            view_reports=view_reports,
             can_edit=can_edit,
             can_delete=can_delete,
             can_confirm_withdrawal=can_confirm_withdrawal,
@@ -315,7 +319,7 @@ class UserManagement(Resource):
 
         # Update basic user information
         if 'username' in data:
-            if Employee.query.filter_by(username=data['username']).first():
+            if Employee.query.filter_by(username=data['username']).first() and Employee.query.filter_by(id=get_jwt_identity()).first().username != data['username']:
                 auth_ns.abort(400, "Username already exists")
             employee.username = data['username']
         if 'password' in data:
@@ -354,6 +358,10 @@ class UserManagement(Resource):
                     employee.view_reservations = manage_operations['view_reservations']
                 if 'view_prices' in manage_operations:
                     employee.view_prices = manage_operations['view_prices']
+                if 'view_purchase_requests' in manage_operations:
+                    employee.view_purchase_requests = manage_operations['view_purchase_requests']
+                if 'view_reports' in manage_operations:
+                    employee.view_reports = manage_operations['view_reports']
                 if 'can_edit' in manage_operations:
                     employee.can_edit = manage_operations['can_edit']
                 if 'can_delete' in manage_operations:
@@ -366,6 +374,8 @@ class UserManagement(Resource):
                     employee.can_update_prices = manage_operations['can_update_prices']
                 if 'can_recover_deposits' in manage_operations:
                     employee.can_recover_deposits = manage_operations['can_recover_deposits']
+                if 'can_confirm_purchase_requests' in manage_operations:
+                    employee.can_confirm_purchase_request = manage_operations['can_confirm_purchase_requests']
             
             # Items permissions
             if 'items' in permissions:

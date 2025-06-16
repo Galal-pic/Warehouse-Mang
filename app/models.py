@@ -22,6 +22,7 @@ class Employee(db.Model):
     view_reservations = db.Column(db.Boolean, default=False)
     view_prices = db.Column(db.Boolean, default=False)
     view_purchase_requests = db.Column(db.Boolean, default=False)
+    view_reports = db.Column(db.Boolean, default=False)
     
     can_edit = db.Column(db.Boolean, default=False)
     can_delete = db.Column(db.Boolean, default=False)

@@ -833,21 +833,40 @@ class PriceTrackingReport(Resource):
                 item_id=item.item_id
             ).all()
             
-            price_breakdowns = []
+            # GROUP price details by source invoice to consolidate duplicates
+            source_invoice_groups = {}
             for detail in price_details:
-                # Get source invoice information
-                source_invoice = Invoice.query.get(detail.source_price_invoice_id)
+                source_invoice_id = detail.source_price_invoice_id
                 
-                # Create detailed breakdown
+                if source_invoice_id not in source_invoice_groups:
+                    source_invoice_groups[source_invoice_id] = {
+                        'total_quantity': 0,
+                        'unit_price': detail.unit_price,  # Assuming same unit price from same source
+                        'total_subtotal': 0,
+                        'details': []
+                    }
+                
+                source_invoice_groups[source_invoice_id]['total_quantity'] += detail.quantity
+                source_invoice_groups[source_invoice_id]['total_subtotal'] += detail.subtotal
+                source_invoice_groups[source_invoice_id]['details'].append(detail)
+            
+            # Create consolidated price breakdowns
+            price_breakdowns = []
+            for source_invoice_id, group_data in source_invoice_groups.items():
+                # Get source invoice information (only once per group)
+                source_invoice = Invoice.query.get(source_invoice_id)
+                
+                # Create consolidated breakdown
                 breakdown = {
-                    'source_invoice_id': detail.source_price_invoice_id,
+                    'source_invoice_id': source_invoice_id,
                     'source_invoice_type': source_invoice.type if source_invoice else 'Unknown',
                     'source_invoice_date': source_invoice.created_at.strftime('%Y-%m-%d %H:%M:%S') if source_invoice else None,
                     'source_client': source_invoice.client_name if source_invoice else None,
-                    'quantity': detail.quantity,
-                    'unit_price': detail.unit_price,
-                    'subtotal': detail.subtotal,
-                    'percentage_of_total': round((detail.quantity / item.quantity) * 100, 2) if item.quantity > 0 else 0
+                    'quantity': group_data['total_quantity'],
+                    'unit_price': group_data['unit_price'],
+                    'subtotal': group_data['total_subtotal'],
+                    'percentage_of_total': round((group_data['total_quantity'] / item.quantity) * 100, 2) if item.quantity > 0 else 0,
+                    'entries_consolidated': len(group_data['details'])  # Show how many entries were combined
                 }
                 price_breakdowns.append(breakdown)
             
@@ -860,7 +879,7 @@ class PriceTrackingReport(Resource):
                 'quantity': item.quantity,
                 'unit_price': item.unit_price,
                 'total_price': item.total_price,
-                'price_sources': len(price_breakdowns),
+                'price_sources': len(price_breakdowns),  # Now shows unique source invoices
                 'price_breakdowns': price_breakdowns
             }
             item_reports.append(item_report)
