@@ -21,11 +21,15 @@ import SnackBar from "../snackBar/SnackBar";
 import { useGetSuppliersQuery } from "../../pages/services/supplierApi";
 import { useGetMachinesQuery } from "../../pages/services/machineApi";
 import { useGetMechanismsQuery } from "../../pages/services/mechanismApi";
-import { useGetWarehousesQuery } from "../../pages/services/invoice&warehouseApi";
+import {
+  useGetWarehousesQuery,
+  useReturnWarrantyInvoiceMutation,
+} from "../../pages/services/invoice&warehouseApi";
 import {
   useGetInvoiceQuery,
   useGetInvoicesNumbersQuery,
 } from "../../pages/services/invoice&warehouseApi";
+import KeyboardReturnIcon from "@mui/icons-material/KeyboardReturn";
 
 export default function InvoiceModal({
   selectedInvoice,
@@ -41,6 +45,8 @@ export default function InvoiceModal({
   showCommentField = false,
   className = "",
   justEditUnitPrice = false,
+  canEsterdad = false,
+  setSelectedInvoice = null,
 }) {
   // Data from API
   const isAdditionType =
@@ -94,6 +100,14 @@ export default function InvoiceModal({
       selectedNowType?.type === "مرتجع" ||
       selectedInvoice?.type === "مرتجع" ||
       editingInvoice?.type === "مرتجع",
+    [selectedNowType?.type, selectedInvoice?.type, editingInvoice?.type]
+  );
+
+  const isAmanatType = useMemo(
+    () =>
+      selectedNowType?.type === "أمانات" ||
+      selectedInvoice?.type === "أمانات" ||
+      editingInvoice?.type === "أمانات",
     [selectedNowType?.type, selectedInvoice?.type, editingInvoice?.type]
   );
 
@@ -162,6 +176,43 @@ export default function InvoiceModal({
     } else {
       setSnackBarType("error");
       setSnackbarMessage("يرجى تحديد رقم الفاتورة أولاً");
+      setOpenSnackbar(true);
+    }
+  };
+
+  // Recovery
+  const [ReturnWarrantyInvoice] = useReturnWarrantyInvoiceMutation();
+
+  const handleReturnItemClick = async (index) => {
+    const data = {
+      id: selectedInvoice?.id,
+      itemName: selectedInvoice?.items[index]?.item_name,
+      itemBar: selectedInvoice?.items[index]?.barcode,
+    };
+
+    try {
+      await ReturnWarrantyInvoice(data).unwrap();
+      // const updatedItems = [...selectedInvoice.items];
+      // updatedItems[index] = {
+      //   ...updatedItems[index],
+      //   ,
+      // };
+
+      setSelectedInvoice({
+        ...selectedInvoice,
+        status: "returned",
+      });
+
+      setSnackBarType("success");
+      setSnackbarMessage("تم التحديث بنجاح");
+      setOpenSnackbar(true);
+    } catch (error) {
+      setSnackBarType("error");
+      setSnackbarMessage(
+        error.response && error.response.status === "FETCH_ERROR"
+          ? "خطأ في الوصول إلى قاعدة البيانات"
+          : "خطأ في التحديث، إذا استمرت المشكلة حاول إعادة تحميل الصفحة"
+      );
       setOpenSnackbar(true);
     }
   };
@@ -561,6 +612,17 @@ export default function InvoiceModal({
                         <ClearOutlinedIcon fontSize="small" />
                       </button>
                     )}
+                    {canEsterdad &&
+                      isAmanatType &&
+                      selectedInvoice?.status !== "returned" &&
+                      selectedInvoice?.status !== "تم الاسترداد" && (
+                        <button
+                          onClick={() => handleReturnItemClick(index)}
+                          className={styles.clearIcon}
+                        >
+                          <KeyboardReturnIcon fontSize="small" />
+                        </button>
+                      )}
                   </TableCell>
                   <TableCell
                     className={styles.tableCellRow}
@@ -1202,6 +1264,7 @@ export default function InvoiceModal({
               isPurchasesType={transformedInvoice.type === "purchase"}
               isCreate={false}
               showCommentField={true}
+              canEsterdad={canEsterdad}
             />
           ) : (
             <Box>لم يتم العثور على الفاتورة</Box>

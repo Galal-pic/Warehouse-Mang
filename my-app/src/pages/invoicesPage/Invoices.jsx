@@ -1107,6 +1107,8 @@ export default function Invoices() {
                   addRow={addRow}
                   handleDeleteItemClick={handleDeleteItemClick}
                   justEditUnitPrice={true}
+                  canEsterdad={true}
+                  setSelectedInvoice={setSelectedInvoice}
                 />
                 <Divider sx={{ marginTop: 5 }} />
 

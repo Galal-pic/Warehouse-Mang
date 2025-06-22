@@ -149,9 +149,10 @@ export const api = createApi({
       invalidatesTags: ["Invoice"],
     }),
     returnWarrantyInvoice: builder.mutation({
-      query: (id) => ({
+      query: ({ id, ...body }) => ({
         url: `/invoice/${id}/ReturnWarranty`,
         method: "POST",
+        body,
       }),
       invalidatesTags: ["Invoice"],
     }),
