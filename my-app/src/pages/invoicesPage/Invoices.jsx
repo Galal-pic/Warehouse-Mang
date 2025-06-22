@@ -372,7 +372,7 @@ export default function Invoices() {
   const handleRecovery = async (id) => {
     setLoadingRowsReturn((prev) => ({ ...prev, [id]: true }));
     try {
-      await ReturnWarrantyInvoice(id).unwrap();
+      await ReturnWarrantyInvoice({ id }).unwrap();
       setSnackbarMessage("تم التحديث بنجاح");
       setSnackBarType("success");
     } catch (error) {

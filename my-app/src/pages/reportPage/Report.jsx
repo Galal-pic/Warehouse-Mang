@@ -36,8 +36,11 @@ import ItemDetailsDialog from "../../components/itemDetailsReport/ItemDetailsRep
 import { GridToolbarContainer } from "@mui/x-data-grid";
 import logo from "../../components/header/logo.png";
 import NumberInput from "../../components/number/NumberInput";
+import { useGetUserQuery } from "../services/userApi";
 
 export default function Report() {
+  const { data: user, isLoading: isLoadingUser } = useGetUserQuery();
+
   const [selectedItem, setSelectedItem] = useState(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
@@ -1138,150 +1141,263 @@ export default function Report() {
     document.head.removeChild(style);
   };
 
-  return (
-    <Box
-      sx={{
-        display: "flex",
-        flexDirection: "column",
-        minHeight:
-          !showFilters && searchResults?.length > 0 ? undefined : "100vh",
-        justifyContent: "center",
-        alignItems: "center",
-        marginTop: searchResults?.length > 0 ? "70px" : undefined,
-      }}
-    >
-      {showFilters && (
+  if (isLoadingUser) {
+    return (
+      <div
+        style={{
+          height: "100vh",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        <h1>
+          <CircularProgress />
+        </h1>
+      </div>
+    );
+  } else {
+    if (
+      user?.username === "admin" ||
+      user?.machines_can_edit ||
+      user?.machines_can_add ||
+      user?.machines_can_delete
+    ) {
+      return (
         <Box
           sx={{
-            maxWidth: 900,
-            width: "100%",
-            p: 2.5,
-            boxShadow: "0 2px 8px rgba(0, 0, 0, 0.05)",
-            borderRadius: "8px",
-            backgroundColor: "#ffffff",
-            direction: "rtl",
+            display: "flex",
+            flexDirection: "column",
+            minHeight:
+              !showFilters && searchResults?.length > 0 ? undefined : "100vh",
+            justifyContent: "center",
+            alignItems: "center",
+            marginTop: searchResults?.length > 0 ? "70px" : undefined,
           }}
         >
-          <Typography
-            variant="h6"
-            align="center"
-            sx={{
-              fontWeight: 600,
-              color: "#1e293b",
-              mb: 2,
-            }}
-          >
-            تقارير
-          </Typography>
-
-          {/* Report Type Selection */}
-          <Box sx={{ display: "flex", justifyContent: "center", mb: 2 }}>
-            <FormControl sx={{ maxWidth: 240, width: "100%" }}>
-              <Select
-                value={reportType}
-                onChange={(e) => {
-                  setReportType(e.target.value);
-                  setFilters({
-                    "اسم الموظف": "",
-                    النوع: "",
-                    "اسم العميل": "",
-                    المراجع: "",
-                    "عامل المخزن": "",
-                    الماكينه: "",
-                    الميكانيزم: "",
-                    "اسم المورد": "",
-                    الحالة: "",
-                    عنصر: "",
-                    "باركود العنصر": "",
-                    fromDate: "",
-                    toDate: "",
-                  });
-                  setSearchResults([]);
-                  setFetchReports(false);
-                  setPaginationModel({ page: 0, pageSize: 10 });
-                }}
-                displayEmpty
-                inputProps={{ "aria-label": "نوع التقرير" }}
+          {showFilters && (
+            <Box
+              sx={{
+                maxWidth: 900,
+                width: "100%",
+                p: 2.5,
+                boxShadow: "0 2px 8px rgba(0, 0, 0, 0.05)",
+                borderRadius: "8px",
+                backgroundColor: "#ffffff",
+                direction: "rtl",
+              }}
+            >
+              <Typography
+                variant="h6"
+                align="center"
                 sx={{
-                  direction: "rtl",
-                  "& .MuiSelect-select": {
-                    padding: "8px 28px 8px 8px",
-                    fontSize: "0.95rem",
-                    color: "#1e293b",
-                  },
-                  "& .MuiOutlinedInput-notchedOutline": {
-                    borderColor: "#e2e8f0",
-                  },
-                  "&:hover .MuiOutlinedInput-notchedOutline": {
-                    borderColor: "#4b6584",
-                  },
-                  "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                    borderColor: "#4b6584",
-                  },
-                  backgroundColor: "#f8fafc",
-                  borderRadius: "6px",
-                  "&:hover": {
-                    backgroundColor: "#f1f5f9",
-                  },
+                  fontWeight: 600,
+                  color: "#1e293b",
+                  mb: 2,
                 }}
-                MenuProps={{
-                  PaperProps: {
-                    sx: {
-                      borderRadius: "6px",
-                      "& .MuiMenuItem-root": {
+              >
+                تقارير
+              </Typography>
+
+              {/* Report Type Selection */}
+              <Box sx={{ display: "flex", justifyContent: "center", mb: 2 }}>
+                <FormControl sx={{ maxWidth: 240, width: "100%" }}>
+                  <Select
+                    value={reportType}
+                    onChange={(e) => {
+                      setReportType(e.target.value);
+                      setFilters({
+                        "اسم الموظف": "",
+                        النوع: "",
+                        "اسم العميل": "",
+                        المراجع: "",
+                        "عامل المخزن": "",
+                        الماكينه: "",
+                        الميكانيزم: "",
+                        "اسم المورد": "",
+                        الحالة: "",
+                        عنصر: "",
+                        "باركود العنصر": "",
+                        fromDate: "",
+                        toDate: "",
+                      });
+                      setSearchResults([]);
+                      setFetchReports(false);
+                      setPaginationModel({ page: 0, pageSize: 10 });
+                    }}
+                    displayEmpty
+                    inputProps={{ "aria-label": "نوع التقرير" }}
+                    sx={{
+                      direction: "rtl",
+                      "& .MuiSelect-select": {
+                        padding: "8px 28px 8px 8px",
                         fontSize: "0.95rem",
-                        direction: "rtl",
-                        padding: "8px 16px",
-                        "&:hover": {
-                          backgroundColor: "#f1f5f9",
-                          color: "#4b6584",
+                        color: "#1e293b",
+                      },
+                      "& .MuiOutlinedInput-notchedOutline": {
+                        borderColor: "#e2e8f0",
+                      },
+                      "&:hover .MuiOutlinedInput-notchedOutline": {
+                        borderColor: "#4b6584",
+                      },
+                      "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                        borderColor: "#4b6584",
+                      },
+                      backgroundColor: "#f8fafc",
+                      borderRadius: "6px",
+                      "&:hover": {
+                        backgroundColor: "#f1f5f9",
+                      },
+                    }}
+                    MenuProps={{
+                      PaperProps: {
+                        sx: {
+                          borderRadius: "6px",
+                          "& .MuiMenuItem-root": {
+                            fontSize: "0.95rem",
+                            direction: "rtl",
+                            padding: "8px 16px",
+                            "&:hover": {
+                              backgroundColor: "#f1f5f9",
+                              color: "#4b6584",
+                            },
+                          },
                         },
                       },
-                    },
-                  },
-                }}
-              >
-                <MenuItem value="" disabled>
-                  اختر نوع التقرير
-                </MenuItem>
-                <MenuItem value="فواتير">فواتير</MenuItem>
-                <MenuItem value="ماكينة">ماكينة</MenuItem>
-                <MenuItem value="ميكانيزم">ميكانيزم</MenuItem>
-                <MenuItem value="مخازن">مخازن</MenuItem>
-              </Select>
-            </FormControl>
-          </Box>
-
-          {(reportType === "فواتير" ||
-            reportType === "ماكينة" ||
-            reportType === "ميكانيزم") && (
-            <>
-              <Box
-                sx={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: 1.5,
-                  mb: 1.5,
-                  justifyContent: "space-between",
-                }}
-              >
-                {firstRowInvoiceFields.map((fieldName) => (
-                  <Box
-                    key={fieldName}
-                    sx={{
-                      flex: { xs: "1 1 100%", sm: "1 1 48%", md: "1 1 19%" },
-                      backgroundColor: "#ddd",
                     }}
                   >
-                    {[
-                      "المراجع",
-                      "اسم العميل",
-                      "رقم الفاتورة",
-                      "عامل المخزن",
-                    ].includes(fieldName) ? (
-                      fieldName === "رقم الفاتورة" ? (
-                        <Box sx={{ height: "50px" }}>
-                          <NumberInput
+                    <MenuItem value="" disabled>
+                      اختر نوع التقرير
+                    </MenuItem>
+                    <MenuItem value="فواتير">فواتير</MenuItem>
+                    <MenuItem value="ماكينة">ماكينة</MenuItem>
+                    <MenuItem value="ميكانيزم">ميكانيزم</MenuItem>
+                    <MenuItem value="مخازن">مخازن</MenuItem>
+                  </Select>
+                </FormControl>
+              </Box>
+
+              {(reportType === "فواتير" ||
+                reportType === "ماكينة" ||
+                reportType === "ميكانيزم") && (
+                <>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: 1.5,
+                      mb: 1.5,
+                      justifyContent: "space-between",
+                    }}
+                  >
+                    {firstRowInvoiceFields.map((fieldName) => (
+                      <Box
+                        key={fieldName}
+                        sx={{
+                          flex: {
+                            xs: "1 1 100%",
+                            sm: "1 1 48%",
+                            md: "1 1 19%",
+                          },
+                          backgroundColor: "#ddd",
+                        }}
+                      >
+                        {[
+                          "المراجع",
+                          "اسم العميل",
+                          "رقم الفاتورة",
+                          "عامل المخزن",
+                        ].includes(fieldName) ? (
+                          fieldName === "رقم الفاتورة" ? (
+                            <Box sx={{ height: "50px" }}>
+                              <NumberInput
+                                placeholder={fieldName}
+                                value={filters[fieldName]}
+                                onChange={(e) =>
+                                  handleFilterChange(fieldName, e.target.value)
+                                }
+                                style={{
+                                  border: "none",
+                                  outline: "none",
+                                  width: "100%",
+                                  backgroundColor: "#ddd",
+                                  textAlign: "center",
+                                }}
+                              />
+                            </Box>
+                          ) : (
+                            <input
+                              placeholder={fieldName}
+                              value={filters[fieldName]}
+                              onChange={(e) =>
+                                handleFilterChange(fieldName, e.target.value)
+                              }
+                              style={{
+                                border: "none",
+                                outline: "none",
+                                height: "50px",
+                                width: "100%",
+                                backgroundColor: "#ddd",
+                                textAlign: "center",
+                              }}
+                            />
+                          )
+                        ) : (
+                          <CustomAutoCompleteField
+                            isLoading={false}
+                            values={filterOptions[fieldName]}
+                            editingItem={{ [fieldName]: filters[fieldName] }}
+                            setEditingItem={(newItem) =>
+                              handleFilterChange(fieldName, newItem[fieldName])
+                            }
+                            fieldName={fieldName}
+                            placeholder={`اختر ${fieldName}`}
+                            sx={{
+                              "& .MuiInputBase-root": {
+                                fontSize: "0.95rem",
+                                backgroundColor: "#f8fafc",
+                                borderRadius: "6px",
+                                "&:hover": {
+                                  backgroundColor: "#f1f5f9",
+                                },
+                              },
+                              "& .MuiInputLabel-root": {
+                                fontSize: "0.95rem",
+                                color: "#4b6584",
+                                "&.Mui-focused": {
+                                  color: "#4b6584",
+                                },
+                              },
+                            }}
+                          />
+                        )}
+                      </Box>
+                    ))}
+                  </Box>
+
+                  <Box
+                    sx={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: 1.5,
+                      mb: 1.5,
+                      justifyContent: "space-between",
+                    }}
+                  >
+                    {secondRowInvoiceFields.map((fieldName) => (
+                      <Box
+                        key={fieldName}
+                        sx={{
+                          flex: {
+                            xs: "1 1 100%",
+                            sm: "1 1 48%",
+                            md: "1 1 24%",
+                          },
+                          backgroundColor: "#ddd",
+                        }}
+                      >
+                        {fieldName === "عامل المخزن" ? (
+                          <input
                             placeholder={fieldName}
                             value={filters[fieldName]}
                             onChange={(e) =>
@@ -1290,736 +1406,679 @@ export default function Report() {
                             style={{
                               border: "none",
                               outline: "none",
+                              height: "50px",
                               width: "100%",
                               backgroundColor: "#ddd",
                               textAlign: "center",
                             }}
                           />
-                        </Box>
-                      ) : (
-                        <input
-                          placeholder={fieldName}
-                          value={filters[fieldName]}
-                          onChange={(e) =>
-                            handleFilterChange(fieldName, e.target.value)
-                          }
-                          style={{
-                            border: "none",
-                            outline: "none",
-                            height: "50px",
-                            width: "100%",
-                            backgroundColor: "#ddd",
-                            textAlign: "center",
-                          }}
-                        />
-                      )
-                    ) : (
-                      <CustomAutoCompleteField
-                        isLoading={false}
-                        values={filterOptions[fieldName]}
-                        editingItem={{ [fieldName]: filters[fieldName] }}
-                        setEditingItem={(newItem) =>
-                          handleFilterChange(fieldName, newItem[fieldName])
-                        }
-                        fieldName={fieldName}
-                        placeholder={`اختر ${fieldName}`}
-                        sx={{
-                          "& .MuiInputBase-root": {
-                            fontSize: "0.95rem",
-                            backgroundColor: "#f8fafc",
-                            borderRadius: "6px",
-                            "&:hover": {
-                              backgroundColor: "#f1f5f9",
-                            },
-                          },
-                          "& .MuiInputLabel-root": {
-                            fontSize: "0.95rem",
-                            color: "#4b6584",
-                            "&.Mui-focused": {
-                              color: "#4b6584",
-                            },
-                          },
-                        }}
-                      />
-                    )}
+                        ) : (
+                          <CustomAutoCompleteField
+                            isBig={[
+                              "الماكينه",
+                              "الميكانيزم",
+                              "اسم المورد",
+                            ].includes(fieldName)}
+                            isLoading={
+                              fieldName === "الماكينه"
+                                ? isMachinesLoading
+                                : fieldName === "الميكانيزم"
+                                ? isMechanismsLoading
+                                : fieldName === "اسم المورد"
+                                ? isSuppliersLoading
+                                : fieldName === "اسم الموظف"
+                                ? isUsersLoading
+                                : false
+                            }
+                            values={filterOptions[fieldName]}
+                            editingItem={{ [fieldName]: filters[fieldName] }}
+                            setEditingItem={(newItem) =>
+                              handleFilterChange(fieldName, newItem[fieldName])
+                            }
+                            fieldName={fieldName}
+                            placeholder={`اختر ${fieldName}`}
+                            sx={{
+                              "& .MuiInputBase-root": {
+                                fontSize: "0.95rem",
+                                backgroundColor: "#f8fafc",
+                                borderRadius: "6px",
+                                "&:hover": {
+                                  backgroundColor: "#f1f5f9",
+                                },
+                              },
+                              "& .MuiInputLabel-root": {
+                                fontSize: "0.95rem",
+                                color: "#4b6584",
+                                "&.Mui-focused": {
+                                  color: "#4b6584",
+                                },
+                              },
+                            }}
+                          />
+                        )}
+                      </Box>
+                    ))}
                   </Box>
-                ))}
-              </Box>
+                </>
+              )}
 
-              <Box
-                sx={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: 1.5,
-                  mb: 1.5,
-                  justifyContent: "space-between",
-                }}
-              >
-                {secondRowInvoiceFields.map((fieldName) => (
+              {reportType === "مخازن" && (
+                <Box
+                  sx={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: 1.5,
+                    mb: 1.5,
+                    justifyContent: "space-between",
+                  }}
+                >
                   <Box
-                    key={fieldName}
                     sx={{
-                      flex: { xs: "1 1 100%", sm: "1 1 48%", md: "1 1 24%" },
+                      flex: { xs: "1 1 100%", sm: "1 1 48%" },
                       backgroundColor: "#ddd",
                     }}
                   >
-                    {fieldName === "عامل المخزن" ? (
-                      <input
-                        placeholder={fieldName}
-                        value={filters[fieldName]}
-                        onChange={(e) =>
-                          handleFilterChange(fieldName, e.target.value)
-                        }
-                        style={{
-                          border: "none",
-                          outline: "none",
-                          height: "50px",
-                          width: "100%",
-                          backgroundColor: "#ddd",
-                          textAlign: "center",
-                        }}
-                      />
-                    ) : (
-                      <CustomAutoCompleteField
-                        isBig={[
-                          "الماكينه",
-                          "الميكانيزم",
-                          "اسم المورد",
-                        ].includes(fieldName)}
-                        isLoading={
-                          fieldName === "الماكينه"
-                            ? isMachinesLoading
-                            : fieldName === "الميكانيزم"
-                            ? isMechanismsLoading
-                            : fieldName === "اسم المورد"
-                            ? isSuppliersLoading
-                            : fieldName === "اسم الموظف"
-                            ? isUsersLoading
-                            : false
-                        }
-                        values={filterOptions[fieldName]}
-                        editingItem={{ [fieldName]: filters[fieldName] }}
-                        setEditingItem={(newItem) =>
-                          handleFilterChange(fieldName, newItem[fieldName])
-                        }
-                        fieldName={fieldName}
-                        placeholder={`اختر ${fieldName}`}
-                        sx={{
-                          "& .MuiInputBase-root": {
-                            fontSize: "0.95rem",
-                            backgroundColor: "#f8fafc",
-                            borderRadius: "6px",
-                            "&:hover": {
-                              backgroundColor: "#f1f5f9",
-                            },
+                    <CustomAutoCompleteField
+                      isBig={true}
+                      isLoading={isItemsLoading}
+                      values={filterOptions["عنصر"]}
+                      editingItem={{ عنصر: filters["عنصر"] }}
+                      setEditingItem={(newItem) =>
+                        handleFilterChange("عنصر", newItem["عنصر"])
+                      }
+                      fieldName="عنصر"
+                      placeholder="اختر عنصر"
+                      sx={{
+                        "& .MuiInputBase-root": {
+                          fontSize: "0.95rem",
+                          backgroundColor: "#f8fafc",
+                          borderRadius: "6px",
+                          "&:hover": {
+                            backgroundColor: "#f1f5f9",
                           },
-                          "& .MuiInputLabel-root": {
-                            fontSize: "0.95rem",
+                        },
+                        "& .MuiInputLabel-root": {
+                          fontSize: "0.95rem",
+                          color: "#4b6584",
+                          "&.Mui-focused": {
                             color: "#4b6584",
-                            "&.Mui-focused": {
-                              color: "#4b6584",
-                            },
                           },
-                        }}
-                      />
-                    )}
+                        },
+                      }}
+                    />
                   </Box>
-                ))}
-              </Box>
-            </>
-          )}
-
-          {reportType === "مخازن" && (
-            <Box
-              sx={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: 1.5,
-                mb: 1.5,
-                justifyContent: "space-between",
-              }}
-            >
-              <Box
-                sx={{
-                  flex: { xs: "1 1 100%", sm: "1 1 48%" },
-                  backgroundColor: "#ddd",
-                }}
-              >
-                <CustomAutoCompleteField
-                  isBig={true}
-                  isLoading={isItemsLoading}
-                  values={filterOptions["عنصر"]}
-                  editingItem={{ عنصر: filters["عنصر"] }}
-                  setEditingItem={(newItem) =>
-                    handleFilterChange("عنصر", newItem["عنصر"])
-                  }
-                  fieldName="عنصر"
-                  placeholder="اختر عنصر"
-                  sx={{
-                    "& .MuiInputBase-root": {
-                      fontSize: "0.95rem",
-                      backgroundColor: "#f8fafc",
-                      borderRadius: "6px",
-                      "&:hover": {
-                        backgroundColor: "#f1f5f9",
-                      },
-                    },
-                    "& .MuiInputLabel-root": {
-                      fontSize: "0.95rem",
-                      color: "#4b6584",
-                      "&.Mui-focused": {
-                        color: "#4b6584",
-                      },
-                    },
-                  }}
-                />
-              </Box>
-              <Box
-                sx={{
-                  flex: { xs: "1 1 100%", sm: "1 1 48%" },
-                  backgroundColor: "#ddd",
-                }}
-              >
-                <CustomAutoCompleteField
-                  isBig={true}
-                  isLoading={isItemsLoading}
-                  values={filterOptions["باركود العنصر"]}
-                  editingItem={{ "باركود العنصر": filters["باركود العنصر"] }}
-                  setEditingItem={(newItem) =>
-                    handleFilterChange(
-                      "باركود العنصر",
-                      newItem["باركود العنصر"]
-                    )
-                  }
-                  fieldName="باركود العنصر"
-                  placeholder="اختر باركود العنصر"
-                  sx={{
-                    "& .MuiInputBase-root": {
-                      fontSize: "0.95rem",
-                      backgroundColor: "#f8fafc",
-                      borderRadius: "6px",
-                      "&:hover": {
-                        backgroundColor: "#f1f5f9",
-                      },
-                    },
-                    "& .MuiInputLabel-root": {
-                      fontSize: "0.95rem",
-                      color: "#4b6584",
-                      "&.Mui-focused": {
-                        color: "#4b6584",
-                      },
-                    },
-                  }}
-                />
-              </Box>
-            </Box>
-          )}
-
-          {(reportType === "فواتير" ||
-            reportType === "ماكينة" ||
-            reportType === "ميكانيزم" ||
-            reportType === "مخازن") && (
-            <Box
-              sx={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: 1.5,
-                mb: 1.5,
-                justifyContent: "space-between",
-              }}
-            >
-              <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 48%" } }}>
-                <TextField
-                  fullWidth
-                  required
-                  label="من تاريخ"
-                  type="date"
-                  InputLabelProps={{ shrink: true }}
-                  value={filters.fromDate}
-                  onChange={(e) =>
-                    handleFilterChange("fromDate", e.target.value)
-                  }
-                  error={errors.fromDate}
-                  helperText={errors.fromDate ? "هذا الحقل مطلوب" : ""}
-                  inputProps={{
-                    max: filters.toDate || undefined,
-                  }}
-                  sx={{
-                    direction: "rtl",
-                    "& .MuiInputBase-root": {
-                      fontSize: "0.95rem",
-                      backgroundColor: "#f8fafc",
-                      borderRadius: "6px",
-                      "&:hover": {
-                        backgroundColor: "#f1f5f9",
-                      },
-                    },
-                    "& .MuiInputLabel-root": {
-                      fontSize: "0.95rem",
-                      color: "#4b6584",
-                      "&.Mui-focused": {
-                        color: "#4b6584",
-                      },
-                    },
-                    "& .MuiOutlinedInput-notchedOutline": {
-                      borderColor: "#e2e8f0",
-                    },
-                    "&:hover .MuiOutlinedInput-notchedOutline": {
-                      borderColor: "#4b6584",
-                    },
-                    "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                      borderColor: "#4b6584",
-                    },
-                    "& .MuiFormHelperText-root": {
-                      fontSize: "0.75rem",
-                      color: "#d32f2f",
-                    },
-                  }}
-                />
-              </Box>
-              <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 48%" } }}>
-                <TextField
-                  fullWidth
-                  required
-                  label="إلى تاريخ"
-                  type="date"
-                  InputLabelProps={{ shrink: true }}
-                  value={filters.toDate}
-                  onChange={(e) => handleFilterChange("toDate", e.target.value)}
-                  error={errors.toDate}
-                  helperText={errors.toDate ? "هذا الحقل مطلوب" : ""}
-                  inputProps={{
-                    min: filters.fromDate || undefined,
-                  }}
-                  sx={{
-                    direction: "rtl",
-                    "& .MuiInputBase-root": {
-                      fontSize: "0.95rem",
-                      backgroundColor: "#f8fafc",
-                      borderRadius: "6px",
-                      "&:hover": {
-                        backgroundColor: "#f1f5f9",
-                      },
-                    },
-                    "& .MuiInputLabel-root": {
-                      fontSize: "0.95rem",
-                      color: "#4b6584",
-                      "&.Mui-focused": {
-                        color: "#4b6584",
-                      },
-                    },
-                    "& .MuiOutlinedInput-notchedOutline": {
-                      borderColor: "#e2e8f0",
-                    },
-                    "&:hover .MuiOutlinedInput-notchedOutline": {
-                      borderColor: "#4b6584",
-                    },
-                    "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                      borderColor: "#4b6584",
-                    },
-                    "& .MuiFormHelperText-root": {
-                      fontSize: "0.75rem",
-                      color: "#d32f2f",
-                    },
-                  }}
-                />
-              </Box>
-            </Box>
-          )}
-
-          {(reportType === "فواتير" ||
-            reportType === "ماكينة" ||
-            reportType === "ميكانيزم" ||
-            reportType === "مخازن") && (
-            <Button
-              variant="contained"
-              fullWidth
-              sx={{
-                mt: 2,
-                py: 0.8,
-                backgroundColor: "#f39c12",
-                borderRadius: "6px",
-                fontSize: "0.95rem",
-                fontWeight: 600,
-                boxShadow: "0 2px 6px rgba(0, 0, 0, 0.05)",
-                "&:hover": {
-                  backgroundColor: "#e68e0f",
-                  boxShadow: "0 3px 8px rgba(0, 0, 0, 0.08)",
-                },
-              }}
-              onClick={handleSearch}
-              disabled={isFilteredReportsFetching}
-            >
-              {isFilteredReportsFetching ? (
-                <CircularProgress size={20} />
-              ) : (
-                "بحث"
+                  <Box
+                    sx={{
+                      flex: { xs: "1 1 100%", sm: "1 1 48%" },
+                      backgroundColor: "#ddd",
+                    }}
+                  >
+                    <CustomAutoCompleteField
+                      isBig={true}
+                      isLoading={isItemsLoading}
+                      values={filterOptions["باركود العنصر"]}
+                      editingItem={{
+                        "باركود العنصر": filters["باركود العنصر"],
+                      }}
+                      setEditingItem={(newItem) =>
+                        handleFilterChange(
+                          "باركود العنصر",
+                          newItem["باركود العنصر"]
+                        )
+                      }
+                      fieldName="باركود العنصر"
+                      placeholder="اختر باركود العنصر"
+                      sx={{
+                        "& .MuiInputBase-root": {
+                          fontSize: "0.95rem",
+                          backgroundColor: "#f8fafc",
+                          borderRadius: "6px",
+                          "&:hover": {
+                            backgroundColor: "#f1f5f9",
+                          },
+                        },
+                        "& .MuiInputLabel-root": {
+                          fontSize: "0.95rem",
+                          color: "#4b6584",
+                          "&.Mui-focused": {
+                            color: "#4b6584",
+                          },
+                        },
+                      }}
+                    />
+                  </Box>
+                </Box>
               )}
-            </Button>
-          )}
 
-          <SnackBar
-            open={openSnackbar}
-            message={snackbarMessage}
-            type={snackBarType}
-            onClose={handleCloseSnackbar}
-          />
-        </Box>
-      )}
-
-      {/* Display search results */}
-      {!showFilters && (searchExecuted || searchResults.length > 0) && (
-        <Box sx={{ width: "100%", maxWidth: 1200, mt: 2 }}>
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginBottom: "20px",
-            }}
-          >
-            <IconButton
-              onClick={handleBackToFilters}
-              sx={{
-                position: "absolute",
-                color: "#4b6584",
-                "&:hover": { color: "#f39c12" },
-                padding: 0,
-              }}
-            >
-              <ArrowBackIcon sx={{ fontSize: "50px" }} />
-            </IconButton>
-            <Box></Box>
-
-            <Typography variant="h4" sx={{ fontWeight: 600, color: "#1e293b" }}>
-              نتائج البحث
-            </Typography>
-            <Box></Box>
-          </Box>
-          {(reportType === "ماكينة" || reportType === "ميكانيزم") && (
-            <>
-              {searchResults?.[0] && (
-                <Card
+              {(reportType === "فواتير" ||
+                reportType === "ماكينة" ||
+                reportType === "ميكانيزم" ||
+                reportType === "مخازن") && (
+                <Box
                   sx={{
-                    mb: 3,
-                    borderRadius: "12px",
-                    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.08)",
-                    border: "1px solid #e2e8f0",
-                    backgroundColor: "#fff",
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: 1.5,
+                    mb: 1.5,
+                    justifyContent: "space-between",
                   }}
                 >
-                  <CardContent sx={{ padding: "24px", direction: "rtl" }}>
-                    <Typography
-                      variant="h5"
-                      sx={{ fontWeight: 700, color: "#1e293b", mb: 3 }}
-                    >
-                      تفاصيل
-                      {reportType === "ماكينة" ? " الماكينة" : " الميكانيزم"}
-                    </Typography>
-                    <Box
-                      sx={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 1.5,
+                  <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 48%" } }}>
+                    <TextField
+                      fullWidth
+                      required
+                      label="من تاريخ"
+                      type="date"
+                      InputLabelProps={{ shrink: true }}
+                      value={filters.fromDate}
+                      onChange={(e) =>
+                        handleFilterChange("fromDate", e.target.value)
+                      }
+                      error={errors.fromDate}
+                      helperText={errors.fromDate ? "هذا الحقل مطلوب" : ""}
+                      inputProps={{
+                        max: filters.toDate || undefined,
                       }}
-                    >
-                      <Typography
-                        variant="body1"
-                        sx={{ fontSize: "1rem", color: "#4b6584" }}
-                      >
-                        <strong>المعرف:</strong> {searchResults[0].id}
-                      </Typography>
-                      <Typography
-                        variant="body1"
-                        sx={{ fontSize: "1rem", color: "#4b6584" }}
-                      >
-                        <strong>الاسم:</strong> {searchResults[0].name}
-                      </Typography>
-                      <Typography
-                        variant="body1"
-                        sx={{ fontSize: "1rem", color: "#4b6584" }}
-                      >
-                        <strong>الوصف:</strong>{" "}
-                        {searchResults[0].description || "-"}
-                      </Typography>
-                    </Box>
-                  </CardContent>
-                </Card>
+                      sx={{
+                        direction: "rtl",
+                        "& .MuiInputBase-root": {
+                          fontSize: "0.95rem",
+                          backgroundColor: "#f8fafc",
+                          borderRadius: "6px",
+                          "&:hover": {
+                            backgroundColor: "#f1f5f9",
+                          },
+                        },
+                        "& .MuiInputLabel-root": {
+                          fontSize: "0.95rem",
+                          color: "#4b6584",
+                          "&.Mui-focused": {
+                            color: "#4b6584",
+                          },
+                        },
+                        "& .MuiOutlinedInput-notchedOutline": {
+                          borderColor: "#e2e8f0",
+                        },
+                        "&:hover .MuiOutlinedInput-notchedOutline": {
+                          borderColor: "#4b6584",
+                        },
+                        "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                          borderColor: "#4b6584",
+                        },
+                        "& .MuiFormHelperText-root": {
+                          fontSize: "0.75rem",
+                          color: "#d32f2f",
+                        },
+                      }}
+                    />
+                  </Box>
+                  <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 48%" } }}>
+                    <TextField
+                      fullWidth
+                      required
+                      label="إلى تاريخ"
+                      type="date"
+                      InputLabelProps={{ shrink: true }}
+                      value={filters.toDate}
+                      onChange={(e) =>
+                        handleFilterChange("toDate", e.target.value)
+                      }
+                      error={errors.toDate}
+                      helperText={errors.toDate ? "هذا الحقل مطلوب" : ""}
+                      inputProps={{
+                        min: filters.fromDate || undefined,
+                      }}
+                      sx={{
+                        direction: "rtl",
+                        "& .MuiInputBase-root": {
+                          fontSize: "0.95rem",
+                          backgroundColor: "#f8fafc",
+                          borderRadius: "6px",
+                          "&:hover": {
+                            backgroundColor: "#f1f5f9",
+                          },
+                        },
+                        "& .MuiInputLabel-root": {
+                          fontSize: "0.95rem",
+                          color: "#4b6584",
+                          "&.Mui-focused": {
+                            color: "#4b6584",
+                          },
+                        },
+                        "& .MuiOutlinedInput-notchedOutline": {
+                          borderColor: "#e2e8f0",
+                        },
+                        "&:hover .MuiOutlinedInput-notchedOutline": {
+                          borderColor: "#4b6584",
+                        },
+                        "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                          borderColor: "#4b6584",
+                        },
+                        "& .MuiFormHelperText-root": {
+                          fontSize: "0.75rem",
+                          color: "#d32f2f",
+                        },
+                      }}
+                    />
+                  </Box>
+                </Box>
               )}
 
-              <Tabs
-                value={tabValue}
-                onChange={(e, newValue) => setTabValue(newValue)}
-                sx={{
-                  mb: 3,
-                  backgroundColor: "#f8fafc",
-                  borderRadius: "8px",
-                  boxShadow: "0 2px 4px rgba(0, 0, 0, 0.05)",
-                  padding: "4px",
-                  direction: "rtl",
-                  "& .MuiTabs-indicator": {
+              {(reportType === "فواتير" ||
+                reportType === "ماكينة" ||
+                reportType === "ميكانيزم" ||
+                reportType === "مخازن") && (
+                <Button
+                  variant="contained"
+                  fullWidth
+                  sx={{
+                    mt: 2,
+                    py: 0.8,
                     backgroundColor: "#f39c12",
-                    height: "3px",
-                    borderRadius: "2px",
-                    transition: "all 0.3s ease",
-                  },
-                  "& .MuiTabs-flexContainer": {
-                    justifyContent: "flex-start",
-                  },
+                    borderRadius: "6px",
+                    fontSize: "0.95rem",
+                    fontWeight: 600,
+                    boxShadow: "0 2px 6px rgba(0, 0, 0, 0.05)",
+                    "&:hover": {
+                      backgroundColor: "#e68e0f",
+                      boxShadow: "0 3px 8px rgba(0, 0, 0, 0.08)",
+                    },
+                  }}
+                  onClick={handleSearch}
+                  disabled={isFilteredReportsFetching}
+                >
+                  {isFilteredReportsFetching ? (
+                    <CircularProgress size={20} />
+                  ) : (
+                    "بحث"
+                  )}
+                </Button>
+              )}
+
+              <SnackBar
+                open={openSnackbar}
+                message={snackbarMessage}
+                type={snackBarType}
+                onClose={handleCloseSnackbar}
+              />
+            </Box>
+          )}
+
+          {/* Display search results */}
+          {!showFilters && (searchExecuted || searchResults.length > 0) && (
+            <Box sx={{ width: "100%", maxWidth: 1200, mt: 2 }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  marginBottom: "20px",
                 }}
               >
-                <Tab
-                  label="الفواتير"
+                <IconButton
+                  onClick={handleBackToFilters}
                   sx={{
-                    fontSize: "1.1rem",
-                    fontWeight: 600,
+                    position: "absolute",
                     color: "#4b6584",
-                    padding: "12px 24px",
-                    borderRadius: "6px",
-                    transition: "all 0.2s ease",
-                    "&.Mui-selected": {
-                      color: "#f39c12",
-                      backgroundColor: "#fff",
-                      boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
-                    },
-                    "&:hover": {
-                      color: "#f39c12",
-                      backgroundColor: "#f1f5f9",
-                    },
+                    "&:hover": { color: "#f39c12" },
+                    padding: 0,
                   }}
-                />
-                <Tab
-                  label="العناصر"
-                  sx={{
-                    fontSize: "1.1rem",
-                    fontWeight: 600,
-                    color: "#4b6584",
-                    padding: "12px 24px",
-                    borderRadius: "6px",
-                    transition: "all 0.2s ease",
-                    "&.Mui-selected": {
-                      color: "#f39c12",
-                      backgroundColor: "#fff",
-                      boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
-                    },
-                    "&:hover": {
-                      color: "#f39c12",
-                      backgroundColor: "#f1f5f9",
-                    },
-                  }}
-                />
-              </Tabs>
+                >
+                  <ArrowBackIcon sx={{ fontSize: "50px" }} />
+                </IconButton>
+                <Box></Box>
 
-              {tabValue === 0 && (
-                <CustomDataGrid
-                  rows={searchResults[0]?.invoices?.results || []}
-                  columns={invoiceColumns}
-                  paginationModel={invoicesPaginationModel}
-                  onPageChange={handlePageChange}
-                  CustomToolbarFromComponent={(props) => (
-                    <CustomToolbar
-                      {...props}
-                      searchResults={searchResults[0]?.invoices?.results || []}
-                      dataType="invoices"
-                      fullSearchResults={searchResults}
+                <Typography
+                  variant="h4"
+                  sx={{ fontWeight: 600, color: "#1e293b" }}
+                >
+                  نتائج البحث
+                </Typography>
+                <Box></Box>
+              </Box>
+              {(reportType === "ماكينة" || reportType === "ميكانيزم") && (
+                <>
+                  {searchResults?.[0] && (
+                    <Card
+                      sx={{
+                        mb: 3,
+                        borderRadius: "12px",
+                        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.08)",
+                        border: "1px solid #e2e8f0",
+                        backgroundColor: "#fff",
+                      }}
+                    >
+                      <CardContent sx={{ padding: "24px", direction: "rtl" }}>
+                        <Typography
+                          variant="h5"
+                          sx={{ fontWeight: 700, color: "#1e293b", mb: 3 }}
+                        >
+                          تفاصيل
+                          {reportType === "ماكينة"
+                            ? " الماكينة"
+                            : " الميكانيزم"}
+                        </Typography>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 1.5,
+                          }}
+                        >
+                          <Typography
+                            variant="body1"
+                            sx={{ fontSize: "1rem", color: "#4b6584" }}
+                          >
+                            <strong>المعرف:</strong> {searchResults[0].id}
+                          </Typography>
+                          <Typography
+                            variant="body1"
+                            sx={{ fontSize: "1rem", color: "#4b6584" }}
+                          >
+                            <strong>الاسم:</strong> {searchResults[0].name}
+                          </Typography>
+                          <Typography
+                            variant="body1"
+                            sx={{ fontSize: "1rem", color: "#4b6584" }}
+                          >
+                            <strong>الوصف:</strong>{" "}
+                            {searchResults[0].description || "-"}
+                          </Typography>
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  <Tabs
+                    value={tabValue}
+                    onChange={(e, newValue) => setTabValue(newValue)}
+                    sx={{
+                      mb: 3,
+                      backgroundColor: "#f8fafc",
+                      borderRadius: "8px",
+                      boxShadow: "0 2px 4px rgba(0, 0, 0, 0.05)",
+                      padding: "4px",
+                      direction: "rtl",
+                      "& .MuiTabs-indicator": {
+                        backgroundColor: "#f39c12",
+                        height: "3px",
+                        borderRadius: "2px",
+                        transition: "all 0.3s ease",
+                      },
+                      "& .MuiTabs-flexContainer": {
+                        justifyContent: "flex-start",
+                      },
+                    }}
+                  >
+                    <Tab
+                      label="الفواتير"
+                      sx={{
+                        fontSize: "1.1rem",
+                        fontWeight: 600,
+                        color: "#4b6584",
+                        padding: "12px 24px",
+                        borderRadius: "6px",
+                        transition: "all 0.2s ease",
+                        "&.Mui-selected": {
+                          color: "#f39c12",
+                          backgroundColor: "#fff",
+                          boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+                        },
+                        "&:hover": {
+                          color: "#f39c12",
+                          backgroundColor: "#f1f5f9",
+                        },
+                      }}
+                    />
+                    <Tab
+                      label="العناصر"
+                      sx={{
+                        fontSize: "1.1rem",
+                        fontWeight: 600,
+                        color: "#4b6584",
+                        padding: "12px 24px",
+                        borderRadius: "6px",
+                        transition: "all 0.2s ease",
+                        "&.Mui-selected": {
+                          color: "#f39c12",
+                          backgroundColor: "#fff",
+                          boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+                        },
+                        "&:hover": {
+                          color: "#f39c12",
+                          backgroundColor: "#f1f5f9",
+                        },
+                      }}
+                    />
+                  </Tabs>
+
+                  {tabValue === 0 && (
+                    <CustomDataGrid
+                      rows={searchResults[0]?.invoices?.results || []}
+                      columns={invoiceColumns}
+                      paginationModel={invoicesPaginationModel}
+                      onPageChange={handlePageChange}
+                      CustomToolbarFromComponent={(props) => (
+                        <CustomToolbar
+                          {...props}
+                          searchResults={
+                            searchResults[0]?.invoices?.results || []
+                          }
+                          dataType="invoices"
+                          fullSearchResults={searchResults}
+                        />
+                      )}
+                      pageCount={searchResults[0]?.invoices?.pages || 1}
+                      loader={isFilteredReportsLoading}
+                      type="invoices"
+                      checkBox={false}
                     />
                   )}
-                  pageCount={searchResults[0]?.invoices?.pages || 1}
-                  loader={isFilteredReportsLoading}
-                  type="invoices"
-                  checkBox={false}
-                />
-              )}
 
-              {tabValue === 1 && (
-                <CustomDataGrid
-                  rows={searchResults
-                    .flatMap((machine) => machine.items?.results || [])
-                    .map((item) => ({
-                      ...item,
-                      id: item.id,
-                    }))}
-                  columns={itemColumns}
-                  paginationModel={itemsPaginationModel}
-                  onPageChange={handlePageChange}
-                  CustomToolbarFromComponent={(props) => (
-                    <CustomToolbar
-                      {...props}
-                      searchResults={searchResults
+                  {tabValue === 1 && (
+                    <CustomDataGrid
+                      rows={searchResults
                         .flatMap((machine) => machine.items?.results || [])
                         .map((item) => ({
                           ...item,
                           id: item.id,
                         }))}
-                      dataType="items"
-                      fullSearchResults={searchResults}
+                      columns={itemColumns}
+                      paginationModel={itemsPaginationModel}
+                      onPageChange={handlePageChange}
+                      CustomToolbarFromComponent={(props) => (
+                        <CustomToolbar
+                          {...props}
+                          searchResults={searchResults
+                            .flatMap((machine) => machine.items?.results || [])
+                            .map((item) => ({
+                              ...item,
+                              id: item.id,
+                            }))}
+                          dataType="items"
+                          fullSearchResults={searchResults}
+                        />
+                      )}
+                      pageCount={searchResults[0]?.items?.pages || 1}
+                      loader={isFilteredReportsLoading}
+                      type="items"
+                      checkBox={false}
                     />
                   )}
-                  pageCount={searchResults[0]?.items?.pages || 1}
-                  loader={isFilteredReportsLoading}
-                  type="items"
-                  checkBox={false}
-                />
+                </>
               )}
-            </>
+
+              {reportType === "مخازن" && (
+                <>
+                  {searchResults.length > 0 ? (
+                    <ItemDetailsDialog
+                      item={searchResults[0]}
+                      renderAsDialog={false}
+                    />
+                  ) : (
+                    <CustomDataGrid
+                      rows={[]}
+                      columns={itemColumns}
+                      paginationModel={paginationModel}
+                      onPageChange={handlePageChange}
+                      CustomToolbarFromComponent={(props) => (
+                        <CustomToolbar
+                          {...props}
+                          searchResults={[]}
+                          dataType="items"
+                        />
+                      )}
+                      pageCount={1}
+                      loader={isFilteredReportsLoading}
+                      type="items"
+                      checkBox={false}
+                    />
+                  )}
+                </>
+              )}
+
+              {reportType === "فواتير" && (
+                <>
+                  {searchResults?.length > 0 ? (
+                    <CustomDataGrid
+                      rows={searchResults}
+                      columns={invoiceColumns}
+                      paginationModel={paginationModel}
+                      onPageChange={handlePageChange}
+                      CustomToolbarFromComponent={(props) => (
+                        <CustomToolbar
+                          {...props}
+                          searchResults={searchResults}
+                          dataType="invoices"
+                        />
+                      )}
+                      pageCount={filteredReportsData?.total_pages || 1}
+                      loader={isFilteredReportsLoading}
+                      type="invoices"
+                      checkBox={false}
+                    />
+                  ) : (
+                    <CustomDataGrid
+                      rows={[]}
+                      columns={invoiceColumns}
+                      paginationModel={paginationModel}
+                      onPageChange={handlePageChange}
+                      CustomToolbarFromComponent={(props) => (
+                        <CustomToolbar
+                          {...props}
+                          searchResults={[]}
+                          dataType="invoices"
+                        />
+                      )}
+                      pageCount={filteredReportsData?.total_pages || 1}
+                      loader={isFilteredReportsLoading}
+                      type="invoices"
+                      checkBox={false}
+                    />
+                  )}
+                </>
+              )}
+            </Box>
           )}
 
-          {reportType === "مخازن" && (
-            <>
-              {searchResults.length > 0 ? (
-                <ItemDetailsDialog
-                  item={searchResults[0]}
-                  renderAsDialog={false}
-                />
+          {/* Modal for displaying the invoice */}
+          <Dialog
+            open={isModalOpen}
+            onClose={closeModal}
+            maxWidth="lg"
+            fullWidth
+            sx={{ zIndex: "10000" }}
+          >
+            <Box sx={{ padding: "20px", direction: "rtl" }}>
+              {selectedInvoice ? (
+                <>
+                  <InvoiceModal
+                    selectedInvoice={selectedInvoice}
+                    isEditingInvoice={false}
+                    editingInvoice={selectedInvoice}
+                    setEditingInvoice={() => {}}
+                    show={true}
+                    selectedNowType={{ type: selectedInvoice.type }}
+                    addRow={() => {}}
+                    handleDeleteItemClick={() => {}}
+                    isPurchasesType={selectedInvoice.type === "purchase"}
+                    isCreate={false}
+                    showCommentField={true}
+                  />
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "flex-end",
+                      mt: 2,
+                      gap: 1,
+                    }}
+                  >
+                    <Button
+                      variant="contained"
+                      onClick={handlePrint}
+                      sx={{
+                        py: 0.8,
+                        backgroundColor: "#4b6584",
+                        borderRadius: "6px",
+                        fontSize: "0.95rem",
+                        fontWeight: 600,
+                        boxShadow: "0 2px 6px rgba(0, 0, 0, 0.05)",
+                        "&:hover": {
+                          backgroundColor: "#3b5066",
+                          boxShadow: "0 3px 8px rgba(0, 0, 0, 0.08)",
+                        },
+                      }}
+                    >
+                      طباعة
+                    </Button>
+                    <Button
+                      variant="contained"
+                      onClick={closeModal}
+                      sx={{
+                        py: 0.8,
+                        backgroundColor: "#4b6584",
+                        borderRadius: "6px",
+                        fontSize: "0.95rem",
+                        fontWeight: 600,
+                        boxShadow: "0 2px 6px rgba(0, 0, 0, 0.05)",
+                        "&:hover": {
+                          backgroundColor: "#3b5066",
+                          boxShadow: "0 3px 8px rgba(0, 0, 0, 0.08)",
+                        },
+                      }}
+                    >
+                      إغلاق
+                    </Button>
+                  </Box>
+                </>
               ) : (
-                <CustomDataGrid
-                  rows={[]}
-                  columns={itemColumns}
-                  paginationModel={paginationModel}
-                  onPageChange={handlePageChange}
-                  CustomToolbarFromComponent={(props) => (
-                    <CustomToolbar
-                      {...props}
-                      searchResults={[]}
-                      dataType="items"
-                    />
-                  )}
-                  pageCount={1}
-                  loader={isFilteredReportsLoading}
-                  type="items"
-                  checkBox={false}
-                />
+                <Box>لم يتم العثور على الفاتورة</Box>
               )}
-            </>
-          )}
+            </Box>
+          </Dialog>
 
-          {reportType === "فواتير" && (
-            <>
-              {searchResults?.length > 0 ? (
-                <CustomDataGrid
-                  rows={searchResults}
-                  columns={invoiceColumns}
-                  paginationModel={paginationModel}
-                  onPageChange={handlePageChange}
-                  CustomToolbarFromComponent={(props) => (
-                    <CustomToolbar
-                      {...props}
-                      searchResults={searchResults}
-                      dataType="invoices"
-                    />
-                  )}
-                  pageCount={filteredReportsData?.total_pages || 1}
-                  loader={isFilteredReportsLoading}
-                  type="invoices"
-                  checkBox={false}
-                />
-              ) : (
-                <CustomDataGrid
-                  rows={[]}
-                  columns={invoiceColumns}
-                  paginationModel={paginationModel}
-                  onPageChange={handlePageChange}
-                  CustomToolbarFromComponent={(props) => (
-                    <CustomToolbar
-                      {...props}
-                      searchResults={[]}
-                      dataType="invoices"
-                    />
-                  )}
-                  pageCount={filteredReportsData?.total_pages || 1}
-                  loader={isFilteredReportsLoading}
-                  type="invoices"
-                  checkBox={false}
-                />
-              )}
-            </>
-          )}
+          <ItemDetailsDialog
+            item={selectedItem}
+            open={dialogOpen}
+            onClose={() => {
+              setSelectedItem(null);
+              setDialogOpen(false);
+            }}
+          />
         </Box>
-      )}
-
-      {/* Modal for displaying the invoice */}
-      <Dialog
-        open={isModalOpen}
-        onClose={closeModal}
-        maxWidth="lg"
-        fullWidth
-        sx={{ zIndex: "10000" }}
-      >
-        <Box sx={{ padding: "20px", direction: "rtl" }}>
-          {selectedInvoice ? (
-            <>
-              <InvoiceModal
-                selectedInvoice={selectedInvoice}
-                isEditingInvoice={false}
-                editingInvoice={selectedInvoice}
-                setEditingInvoice={() => {}}
-                show={true}
-                selectedNowType={{ type: selectedInvoice.type }}
-                addRow={() => {}}
-                handleDeleteItemClick={() => {}}
-                isPurchasesType={selectedInvoice.type === "purchase"}
-                isCreate={false}
-                showCommentField={true}
-              />
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "flex-end",
-                  mt: 2,
-                  gap: 1,
-                }}
-              >
-                <Button
-                  variant="contained"
-                  onClick={handlePrint}
-                  sx={{
-                    py: 0.8,
-                    backgroundColor: "#4b6584",
-                    borderRadius: "6px",
-                    fontSize: "0.95rem",
-                    fontWeight: 600,
-                    boxShadow: "0 2px 6px rgba(0, 0, 0, 0.05)",
-                    "&:hover": {
-                      backgroundColor: "#3b5066",
-                      boxShadow: "0 3px 8px rgba(0, 0, 0, 0.08)",
-                    },
-                  }}
-                >
-                  طباعة
-                </Button>
-                <Button
-                  variant="contained"
-                  onClick={closeModal}
-                  sx={{
-                    py: 0.8,
-                    backgroundColor: "#4b6584",
-                    borderRadius: "6px",
-                    fontSize: "0.95rem",
-                    fontWeight: 600,
-                    boxShadow: "0 2px 6px rgba(0, 0, 0, 0.05)",
-                    "&:hover": {
-                      backgroundColor: "#3b5066",
-                      boxShadow: "0 3px 8px rgba(0, 0, 0, 0.08)",
-                    },
-                  }}
-                >
-                  إغلاق
-                </Button>
-              </Box>
-            </>
-          ) : (
-            <Box>لم يتم العثور على الفاتورة</Box>
-          )}
-        </Box>
-      </Dialog>
-
-      <ItemDetailsDialog
-        item={selectedItem}
-        open={dialogOpen}
-        onClose={() => {
-          setSelectedItem(null);
-          setDialogOpen(false);
-        }}
-      />
-    </Box>
-  );
+      );
+    } else {
+      return (
+        <div
+          style={{
+            height: "100vh",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          <h1>هذه الصفحة غير متوفره</h1>
+        </div>
+      );
+    }
+  }
 }
