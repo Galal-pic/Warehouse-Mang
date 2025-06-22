@@ -22,6 +22,8 @@ export const InvoicesPageOptions = {
   view_damages: "عرض التوالفات",
   view_reservations: "عرض الحجوزات",
   view_prices: "عرض الأسعار",
+  view_purchase_requests: "عرض طلبات الشراء",
+  view_reports: "إمكانية عمل تقرير",
   can_edit: "التعديل",
   can_delete: "الحذف",
   can_confirm_withdrawal: "المراجعة",

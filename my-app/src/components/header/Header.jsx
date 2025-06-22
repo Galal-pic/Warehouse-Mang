@@ -61,7 +61,7 @@ const links = [
     text: "إدارة العمليات",
     href: "/invoices",
   },
-    {
+  {
     text: "تقارير",
     href: "/reports",
   },
@@ -168,8 +168,11 @@ export default function Header() {
         user?.view_deposits ||
         user?.view_returns ||
         user?.view_damages ||
-        user?.view_reservations
+        user?.view_reservations ||
+        user?.view_purchase_requests
       );
+    if (link.text === "تقارير")
+      return user?.username === "admin" || user?.view_reports;
     if (link.text === "إدارة الموارد")
       return (
         user?.username === "admin" ||

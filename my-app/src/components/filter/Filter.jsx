@@ -69,10 +69,7 @@ export const filtersTypes = (user) => {
       type: "operation",
       url: "/invoice/حجز",
     },
-    (hasPermission("view_withdrawals") ||
-      hasPermission("view_deposits") ||
-      hasPermission("view_reservations") ||
-      user?.username === "admin") && {
+    (hasPermission("view_purchase_requests") || user?.username === "admin") && {
       label: "طلب شراء",
       type: "operation",
       url: "/invoice/طلب شراء",
