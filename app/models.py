@@ -137,7 +137,7 @@ class InvoiceItem(db.Model):
 class Warehouse(db.Model):
     __tablename__ = 'warehouse'
     id = db.Column(db.Integer, primary_key=True)
-    item_name = db.Column(db.String(120), nullable=False, index=True, unique=True)
+    item_name = db.Column(db.String(120), nullable=False, index=True)
     item_bar = db.Column(db.String(100), nullable=False, unique=True)
     created_at = db.Column(db.DateTime, default=datetime.now)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)

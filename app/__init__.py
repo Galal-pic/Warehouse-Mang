@@ -17,6 +17,8 @@ migrate = Migrate()
 cors = CORS()
 jwt = JWTManager()
 
+# Import Redis Manager
+from .redis_config import redis_manager
 
 def create_app():
     app = Flask(__name__)
@@ -59,13 +61,16 @@ def create_app():
         },
     )
     jwt.init_app(app)
+    
+    # Initialize Redis
+    redis_manager.init_app(app)
 
     # Initialize Flask-RestX API
     api = Api(
         app,
         doc="/docs",
         title="Warehouse Management API",
-        description="API for managing warehouse operations",
+        description="API for managing warehouse operations with Redis caching",
         validate=True,  # Enable request validation
     )
 
@@ -84,6 +89,9 @@ def create_app():
     class MainEndpoint(Resource):
         def get(self):
             """Get API information"""
+            # Check Redis status
+            redis_status = "connected" if redis_manager.redis_client else "disconnected"
+            
             return {
                 "message": "Warehouse Management API",
                 "version": "1.0",
@@ -91,6 +99,8 @@ def create_app():
                 "environment": (
                     "development" if flask_env == "development" else "production"
                 ),
+                "redis_status": redis_status,
+                "caching": "enabled" if redis_manager.cache else "disabled",
                 "endpoints": {
                     "auth": "/auth/",
                     "warehouses": "/warehouses/",
@@ -99,17 +109,46 @@ def create_app():
                     "mechanisms": "/mechanisms/",
                     "suppliers": "/suppliers/",
                     "reports": "/reports/",
+                    "cache": "/cache/",
                 },
             }
+
+    # Add cache management endpoint
+    @main_ns.route("/cache/clear")
+    class ClearCache(Resource):
+        def post(self):
+            """Clear all cache"""
+            from .redis_config import clear_all_cache
+            clear_all_cache()
+            return {"message": "Cache cleared successfully"}, 200
+
+    @main_ns.route("/cache/status")
+    class CacheStatus(Resource):
+        def get(self):
+            """Get cache status"""
+            if redis_manager.redis_client:
+                try:
+                    info = redis_manager.redis_client.info()
+                    return {
+                        "status": "connected",
+                        "redis_version": info.get('redis_version'),
+                        "used_memory": info.get('used_memory_human'),
+                        "connected_clients": info.get('connected_clients'),
+                        "total_commands_processed": info.get('total_commands_processed')
+                    }, 200
+                except Exception as e:
+                    return {"status": "error", "message": str(e)}, 500
+            else:
+                return {"status": "disconnected", "message": "Redis not available"}, 200
 
     api.add_namespace(warehouse_ns)
     api.add_namespace(invoice_ns)
     api.add_namespace(auth_ns)
     api.add_namespace(machine_ns)
     api.add_namespace(mechanism_ns)
-    api.add_namespace(item_location_ns)  # Register the missing namespace
-    api.add_namespace(supplier_ns)  # Register the missing namespace
-    api.add_namespace(reports_ns)  # Register the missing namespace
+    api.add_namespace(item_location_ns)
+    api.add_namespace(supplier_ns)
+    api.add_namespace(reports_ns)
     api.add_namespace(main_ns)
 
     return app

@@ -4,6 +4,7 @@ from .. import db
 from ..models import Machine
 from ..utils import parse_bool
 from datetime import datetime
+from ..redis_config import cache_result
 
 machine_ns = Namespace('machine', description='Machine operations')
 pagination_parser = machine_ns.parser()
@@ -36,6 +37,7 @@ pagination_model = machine_ns.model('MachinePagination', {
     'total_items': fields.Integer(required=True),
     'all': fields.Boolean(required=True)
 })
+
 @machine_ns.route('/excel')
 class MachineExcelUltra(Resource):
     @jwt_required()
@@ -45,8 +47,6 @@ class MachineExcelUltra(Resource):
             payload = machine_ns.payload
             if not payload or 'data' not in payload:
                 machine_ns.abort(400, "Invalid payload format")
-            
-            print(f"Processing {len(payload['data'])} machines with ultra-optimized method")
             
             errors = []
             success_count = 0
@@ -72,7 +72,6 @@ class MachineExcelUltra(Resource):
                 
                 machine_names.append(machine_name)
 
-            
             # Duplicate check
             filter_conditions = [Machine.name.in_(machine_names)]
             
@@ -86,8 +85,7 @@ class MachineExcelUltra(Resource):
             
             for name, description in existing_machines_query:
                 existing_names.add(name)
-    
-                existing_combinations.add((name,  description))
+                existing_combinations.add((name, description))
             
             # Remove duplicates
             unique_machines = []
@@ -129,6 +127,7 @@ class MachineExcelUltra(Resource):
                     # Ultra-fast bulk insert
                     db.session.bulk_insert_mappings(Machine, machine_data)
                     db.session.commit()
+
                     
                     return {
                         'status': 'success',
@@ -156,37 +155,43 @@ class MachineExcelUltra(Resource):
                 'message': f'Unexpected error: {str(e)}'
             }, 500
 
-
-# Machine Endpoints
 @machine_ns.route('/')
 class MachineList(Resource):
     @machine_ns.marshal_list_with(pagination_model)
     @machine_ns.expect(pagination_parser)
     @jwt_required()
+    @cache_result(timeout=300, key_prefix="machine_list")
     def get(self):
-        """Get all machines"""
+        """Get all machines (cached)"""
         args = pagination_parser.parse_args()
         page = int(args['page'])
         page_size = int(args['page_size'])
         all_results = bool(args['all'])
         if page < 1 or page_size < 1:
             machine_ns.abort(400, "Page and page_size must be positive integers")
-        offset = (page - 1) * page_size
-        query = Machine.query
-        if not all_results:
-            machines = query.limit(page_size).offset(offset).all()
-        else: 
+        query = Machine.query.with_entities(Machine.id, Machine.name, Machine.description)
+        if all_results:
             machines = query.all()
+            total_count = len(machines)
+            total_pages = 1
+        else:
+            machines = query.limit(page_size).offset((page-1)*page_size).all()
+            total_count = query.count()
+            total_pages = (total_count + page_size - 1) // page_size
+
+        result = [
+            {"id": m.id, "name": m.name, "description": m.description}
+            for m in machines
+        ]
         return {
-            'machines': machines,
-            'page': page,
-            'page_size': page_size,
-            'total_pages': (query.count() + page_size - 1) // page_size,
-            'total_items': query.count(),
+            'machines': result,
+            'page': page if not all_results else None,
+            'page_size': page_size if not all_results else None,
+            'total_pages': total_pages if not all_results else None,
+            'total_items': total_count,
             'all': all_results
         }, 200
 
-    # @machine_ns.expect(machine_model)
     @machine_ns.marshal_with(machine_model)
     @jwt_required()
     def post(self):
@@ -201,18 +206,21 @@ class MachineList(Resource):
         )
         db.session.add(new_machine)
         db.session.commit()
+        
+        
+        
         return new_machine, 201
 
 @machine_ns.route('/<int:machine_id>')
 class MachineDetail(Resource):
     @machine_ns.marshal_with(machine_model)
     @jwt_required()
+    @cache_result(timeout=300, key_prefix="machine_detail")
     def get(self, machine_id):
-        """Get a machine by ID"""
+        """Get a machine by ID (cached)"""
         machine = Machine.query.get_or_404(machine_id)
         return machine
 
-    # @machine_ns.expect(machine_model)
     @machine_ns.marshal_with(machine_model)
     @jwt_required()
     def put(self, machine_id):
@@ -224,6 +232,10 @@ class MachineDetail(Resource):
         machine.description = data.get("description")
 
         db.session.commit()
+        
+        # Invalidate cache after update
+        
+        
         return machine
 
     @jwt_required()
@@ -232,4 +244,5 @@ class MachineDetail(Resource):
         machine = Machine.query.get_or_404(machine_id)
         db.session.delete(machine)
         db.session.commit()
+
         return {"message": "Machine deleted successfully"}, 200

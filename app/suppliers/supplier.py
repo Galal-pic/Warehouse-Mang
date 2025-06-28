@@ -4,6 +4,7 @@ from .. import db
 from ..models import Supplier
 from ..utils import parse_bool
 from datetime import datetime
+from ..redis_config import cache_result
 
 supplier_ns = Namespace('supplier', description='supplier operations')
 
@@ -51,12 +52,10 @@ class SupplierExcelUltra(Resource):
             if not payload or 'data' not in payload:
                 supplier_ns.abort(400, "Invalid payload format")
             
-            print(f"Processing {len(payload['data'])} suppliers with ultra-optimized method")
-            
             errors = []
             success_count = 0
             
-            # Data validation and deduplication (same as above)
+            # Data validation and deduplication
             valid_suppliers = []
             supplier_names = []
             supplier_ids = []
@@ -80,7 +79,7 @@ class SupplierExcelUltra(Resource):
                 supplier_names.append(supplier_name)
                 supplier_ids.append(supplier_id)
             
-            # Duplicate check (same logic as above)
+            # Duplicate check
             existing_suppliers_query = db.session.query(
                 Supplier.name, Supplier.id, Supplier.description
             ).filter(
@@ -137,6 +136,7 @@ class SupplierExcelUltra(Resource):
                     # Ultra-fast bulk insert
                     db.session.bulk_insert_mappings(Supplier, supplier_data)
                     db.session.commit()
+
                     
                     return {
                         'status': 'success',
@@ -164,41 +164,44 @@ class SupplierExcelUltra(Resource):
                 'message': f'Unexpected error: {str(e)}'
             }, 500
 
-
-    
-# Machine Endpoints
 @supplier_ns.route('/')
 class SupplierList(Resource):
     @supplier_ns.marshal_list_with(pagination_model)
     @supplier_ns.expect(pagination_parser)
     @jwt_required()
+    @cache_result(timeout=300, key_prefix="supplier_list")
     def get(self):
-        """Get all suppliers"""
+        """Get all suppliers (cached)"""
         args = pagination_parser.parse_args()
         page = int(args['page'])
         page_size = int(args['page_size'])
         all_results = bool(args['all'])
         if page < 1 or page_size < 1:
             supplier_ns.abort(400, "Page and page_size must be positive integers")
-        offset = (page - 1) * page_size
         
-        query = Supplier.query
-        if not all_results:
-            suppliers = query.limit(page_size).offset(offset).all()
-        else: 
+        query = Supplier.query.with_entities(Supplier.id, Supplier.name, Supplier.description)
+        if all_results:
             suppliers = query.all()
-        total_count = query.count()
+            total_count = len(suppliers)
+            total_pages = 1
+        else:
+            suppliers = query.limit(page_size).offset((page-1)*page_size).all()
+            total_count = query.count()
+            total_pages = (total_count + page_size - 1) // page_size
+
+        result = [
+            {"id": s.id, "name": s.name, "description": s.description}
+            for s in suppliers
+        ]
         return {
-            'suppliers': suppliers,
-            'page': page,
-            'page_size': page_size,
-            'total_pages': (total_count + page_size - 1) // page_size,
+            'suppliers': result,
+            'page': page if not all_results else None,
+            'page_size': page_size if not all_results else None,
+            'total_pages': total_pages if not all_results else None,
             'total_items': total_count,
             'all': all_results
-            
-        }
+        }, 200
 
-    # @machine_ns.expect(machine_model)
     @supplier_ns.marshal_with(supplier_model)
     @jwt_required()
     def post(self):
@@ -213,16 +216,19 @@ class SupplierList(Resource):
         )
         db.session.add(new_supplier)
         db.session.commit()
+        
+        # Invalidate cache after creation
+        
+        
         return new_supplier, 201
 
 @supplier_ns.route('/<int:supplier_id>')
 class SupplierDetail(Resource):
     @supplier_ns.marshal_with(supplier_model)
     @jwt_required()
+    @cache_result(timeout=300, key_prefix="supplier_detail")
     def get(self, supplier_id):
-        """Get a supplier by ID"""
-        
-        # Fixed, it was Machine instead of Supplier.
+        """Get a supplier by ID (cached)"""
         supplier = Supplier.query.get_or_404(supplier_id)
         return supplier
 
@@ -237,6 +243,10 @@ class SupplierDetail(Resource):
         supplier.description = data.get("description")
 
         db.session.commit()
+        
+        # Invalidate cache after update
+        
+        
         return supplier
 
     @jwt_required()
@@ -245,4 +255,8 @@ class SupplierDetail(Resource):
         supplier = Supplier.query.get_or_404(supplier_id)
         db.session.delete(supplier)
         db.session.commit()
+        
+        # Invalidate cache after deletion
+        
+        
         return {"message": "supplier deleted successfully"}, 200

@@ -4,6 +4,8 @@ from .. import db
 from ..models import Mechanism
 from ..utils import parse_bool
 from datetime import datetime
+from ..redis_config import cache_result
+
 mechanism_ns = Namespace('mechanism', description='Mechanism operations')
 pagination_parser = mechanism_ns.parser()
 pagination_parser.add_argument('page',
@@ -21,6 +23,7 @@ pagination_parser.add_argument('all',
                                required=False, 
                                default=True,
                                help='Get all mechanisms (default: True) \naccepts values [\'true\', \'false\', \'1\', \'0\', \'t\', \'f\', \'y\', \'n\', \'yes\', \'no\']')
+
 mechanism_model = mechanism_ns.model('Mechanism', {
     "id": fields.Integer(required=True),
     'name': fields.String(required=True),
@@ -35,6 +38,7 @@ pagination_model = mechanism_ns.model('MechanismPagination', {
     'total_items': fields.Integer(required=True),
     'all': fields.Boolean(required=True)
 })
+
 @mechanism_ns.route('/excel')
 class MechanismExcelUltra(Resource):
     @jwt_required()
@@ -44,8 +48,6 @@ class MechanismExcelUltra(Resource):
             payload = mechanism_ns.payload
             if not payload or 'data' not in payload:
                 mechanism_ns.abort(400, "Invalid payload format")
-            
-            print(f"Processing {len(payload['data'])} mechanisms with ultra-optimized method")
             
             errors = []
             success_count = 0
@@ -143,7 +145,6 @@ class MechanismExcelUltra(Resource):
                 'status': 'error',
                 'message': f'Unexpected error: {str(e)}'
             }, 500
-            
 
 # Mechanism Endpoints
 @mechanism_ns.route('/')
@@ -151,38 +152,43 @@ class MechanismList(Resource):
     @mechanism_ns.marshal_list_with(pagination_model)
     @mechanism_ns.expect(pagination_parser)
     @jwt_required()
+    @cache_result(timeout=300, key_prefix="mechanism_list")
     def get(self):
-        """Get all mechanisms"""
+        """Get all mechanisms (cached)"""
         args = pagination_parser.parse_args()
         page = int(args['page'])
         page_size = int(args['page_size'])
         all_results = bool(args['all'])
         if page < 1 or page_size < 1:
             mechanism_ns.abort(400, "Page and page_size must be positive integers")
-        offset = (page - 1) * page_size
-        query = Mechanism.query
-        if not all_results:
-            mechanisms = query.limit(page_size).offset(offset).all()
-        else: 
+        query = Mechanism.query.with_entities(Mechanism.id, Mechanism.name, Mechanism.description)
+        if all_results:
             mechanisms = query.all()
-        total_count = query.count()
-        
+            total_count = len(mechanisms)
+            total_pages = 1
+        else:
+            mechanisms = query.limit(page_size).offset((page-1)*page_size).all()
+            total_count = query.count()
+            total_pages = (total_count + page_size - 1) // page_size
+
+        result = [
+            {"id": m.id, "name": m.name, "description": m.description}
+            for m in mechanisms
+        ]
         return {
-            'mechanisms': mechanisms,
-            'page': page,
-            'page_size': page_size,
-            'total_pages': (total_count + page_size - 1) // page_size,
+            'mechanisms': result,
+            'page': page if not all_results else None,
+            'page_size': page_size if not all_results else None,
+            'total_pages': total_pages if not all_results else None,
             'total_items': total_count,
             'all': all_results
-        }
+        }, 200
 
-    # @mechanism_ns.expect(mechanism_model)
     @mechanism_ns.marshal_with(mechanism_model)
     @jwt_required()
     def post(self):
         """Create a new mechanism"""
         data = mechanism_ns.payload
-        print(data)
         if Mechanism.query.filter_by(name=data['name']).first() or Mechanism.query.filter_by(description=data["description"]).first():
             return mechanism_ns.abort(400, "Mechanism already exists")
 
@@ -198,12 +204,12 @@ class MechanismList(Resource):
 class MechanismDetail(Resource):
     @mechanism_ns.marshal_with(mechanism_model)
     @jwt_required()
+    @cache_result(timeout=300, key_prefix="mechanism_detail")
     def get(self, mechanism_id):
-        """Get a mechanism by ID"""
+        """Get a mechanism by ID (cached)"""
         mechanism = Mechanism.query.get_or_404(mechanism_id)
         return mechanism
 
-    # @mechanism_ns.expect(mechanism_model)
     @mechanism_ns.marshal_with(mechanism_model)
     @jwt_required()
     def put(self, mechanism_id):
@@ -215,6 +221,7 @@ class MechanismDetail(Resource):
         mechanism.description = data.get("description")
 
         db.session.commit()
+
         return mechanism
 
     @jwt_required()
@@ -224,4 +231,3 @@ class MechanismDetail(Resource):
         db.session.delete(mechanism)
         db.session.commit()
         return {"message": "Mechanism deleted successfully"}, 200
-
