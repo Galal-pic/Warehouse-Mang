@@ -512,9 +512,12 @@ class WarehouseDetail(Resource):
 
         for existing_loc in existing_locations:
             if existing_loc.location not in incoming_locations:
+                print(f"Deleting location {existing_loc.location}")
+                if InvoiceItem.query.filter_by(location=existing_loc.location).first():  # Check if there are any sales for this location ).first():
+                    warehouse_ns.abort(400, f"Cannot delete location '{existing_loc.location}'. It has been used in other invoices.")
                 db.session.delete(existing_loc)
 
-        for loc_data in data["locations"]:
+        for loc_data in data["locations"]:  
             location = ItemLocations.query.filter_by(
                 item_id=item.id,
                 location=loc_data["location"]

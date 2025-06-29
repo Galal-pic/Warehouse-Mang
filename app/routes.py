@@ -81,6 +81,8 @@ invoice_model = invoice_ns.model('Invoice', {
     'mechanism_name': fields.String(required=True),
     'supplier_name': fields.String(required=False),
     "created_at": fields.String(required=False),
+    "payment_method": fields.String(required=False),
+    "custody_person": fields.String(required=False),
     'items': fields.List(fields.Nested(invoice_item_model)),
     
 })
@@ -204,6 +206,8 @@ class invoices_get(Resource):
                 "mechanism_name": mechanism.name if mechanism else None,
                 "supplier_name": supplier.name if supplier else None,
                 "created_at": invoice.created_at,
+                "payment_method": invoice.payment_method,
+                "custody_person": invoice.custody_person,
                 "items": item_list
             }
             
@@ -316,6 +320,8 @@ class InvoiceList(Resource):
                 "mechanism_name": mechanism.name if mechanism else None,
                 "supplier_name": supplier.name if supplier else None,
                 "created_at": invoice.created_at,
+                "custody_person": invoice.custody_person,
+                "payment_method": invoice.payment_method,
                 "items": item_list
             }
             result.append(invoice_data)
@@ -453,6 +459,8 @@ class InvoiceDetail(Resource):
             "mechanism_name": mechanism.name if mechanism else None,
             "supplier_name": supplier.name if supplier else None,
             "created_at": invoice.created_at,
+            "payment_method": invoice.payment_method,
+            "custody_person": invoice.custody_person,
             "items": item_list
         }
         return invoice_data

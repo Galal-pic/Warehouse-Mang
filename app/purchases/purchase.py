@@ -27,6 +27,8 @@ def Purchase_Operations(data, machine, mechanism, supplier, employee, machine_ns
             employee_id=employee.id,
             machine_id=machine.id if machine else None,
             mechanism_id=mechanism.id if mechanism else None,
+            payment_method=data.get("payment_method", None),
+            custody_person=data.get("custody_person", None),
         )
         
         db.session.add(new_invoice)

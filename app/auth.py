@@ -318,8 +318,8 @@ class UserManagement(Resource):
         employee = Employee.query.get_or_404(user_id)
 
         # Update basic user information
-        if 'username' in data:
-            if Employee.query.filter_by(username=data['username']).first() and Employee.query.filter_by(id=get_jwt_identity()).first().username != data['username']:
+        if 'username' in data and data['username'] != employee.username:
+            if Employee.query.filter_by(username=data['username']).first():
                 auth_ns.abort(400, "Username already exists")
             employee.username = data['username']
         if 'password' in data:

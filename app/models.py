@@ -100,6 +100,8 @@ class Invoice(db.Model):
     paid = db.Column(db.Float)
     residual = db.Column(db.Float)
     comment = db.Column(db.String(255))
+    payment_method = db.Column(db.String(255))
+    custody_person = db.Column(db.String(255))
     status = db.Column(db.String(50), default="draft")
     employee_name = db.Column(db.String(50), nullable=False)
     employee_id = db.Column(db.Integer, db.ForeignKey('employee.id'), nullable=False)
