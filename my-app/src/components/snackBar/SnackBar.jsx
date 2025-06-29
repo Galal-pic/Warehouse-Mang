@@ -10,7 +10,7 @@ export default function SnackBar({ open, message, type, onClose }) {
       autoHideDuration={2000}
       anchorOrigin={{ vertical: "top", horizontal: "center" }}
       sx={{
-        zIndex: 9999,
+        zIndex: 999999999999999,
       }}
     >
       <Alert severity={type}>{message}</Alert>

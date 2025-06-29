@@ -212,7 +212,7 @@ export default function Suppliers() {
                   setSelectedItem(params.row);
                 } else {
                   setOpenSnackbar(true);
-                  setSnackbarMessage("ليس لديك صلاحيات لإضافة عنصر");
+                  setSnackbarMessage("ليس لديك صلاحيات لتعديل عنصر");
                   setSnackBarType("info");
                 }
               }}

@@ -254,11 +254,10 @@ export default function CreateInvoice() {
     const missingFields = requiredFields.filter((field) => !invoice[field]);
 
     if (missingFields.length > 0) {
-      return isPurchaseOrder
-        ? "يجب ملء اسم الماكينة واسم الميكانيزم"
-        : purchasesType
-        ? "يجب ملء اسم المورد واسم الماكينة واسم الميكانيزم"
-        : "يجب ملء اسم الماكينة واسم الميكانيزم";
+      return (
+        isPurchaseOrder ||
+        (!purchasesType && "يجب ملء اسم الماكينة واسم الميكانيزم")
+      );
     }
     return null;
   };

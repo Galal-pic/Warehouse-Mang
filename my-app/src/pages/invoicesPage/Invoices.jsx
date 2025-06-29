@@ -43,8 +43,10 @@ export default function Invoices() {
   const [selectedNowType, setSelectedNowType] = useState(null);
 
   useEffect(() => {
-    setSelectedNowType((user ? filtersTypes(user) : [])[10]);
-  }, [user]);
+    if (!isLoadingUser && user) {
+      setSelectedNowType(filtersTypes(user)[filtersTypes(user).length - 1]);
+    }
+  }, [user, isLoadingUser]);
 
   // Loaders - Only keep UI-specific loading states
   const [isConfirmDone, setIsConfirmDone] = useState({});
@@ -659,10 +661,11 @@ export default function Invoices() {
               selectedNowType?.label !== "اضافه" &&
               selectedNowType?.label !== "مرتجع" &&
               selectedNowType?.label !== "طلب شراء" &&
-              params.row.type !== "اضافه" && (
+              params.row.type !== "اضافه" &&
+              params.row.type !== "طلب شراء" && (
                 <button
                   className={styles.iconBtn}
-                  onClick={() => showInvoiceDetails(params.id)}
+                  onClick={() => showInvoiceDetails(params.row)}
                   style={{ color: "#d32f2f" }}
                 >
                   <ArticleIcon sx={{ color: secondColor }} />
@@ -977,7 +980,7 @@ export default function Invoices() {
             <InvoiceDetails
               open={isInvoiceDetailsOpen}
               onClose={() => setIsInvoiceDetailsOpen(false)}
-              id={invoiceId}
+              invoice={invoiceId}
             />
           )}
           {/* invoice data */}

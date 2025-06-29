@@ -33,8 +33,8 @@ const DetailItem = ({ label, value, valueStyle }) => (
   </div>
 );
 
-const InvoiceDetails = ({ open, onClose, id }) => {
-  const { data: invoiceData, refetch } = usePriceReportQuery(id);
+const InvoiceDetails = ({ open, onClose, invoice }) => {
+  const { data: invoiceData, refetch } = usePriceReportQuery(invoice?.id);
 
   useEffect(() => {
     refetch();
@@ -112,7 +112,7 @@ const InvoiceDetails = ({ open, onClose, id }) => {
             </Button>
           </div>
 
-          {invoiceData?.items?.map((item, index) => (
+          {invoiceData?.items?.map((item) => (
             <div
               key={item.item_id}
               style={{
@@ -141,7 +141,22 @@ const InvoiceDetails = ({ open, onClose, id }) => {
                   }}
                 >
                   <DetailItem label="الباركود" value={item.barcode} />
-                  <DetailItem label="الموقع" value={item.location} />
+                  <DetailItem
+                    label="الموقع"
+                    value={
+                      invoice?.items
+                        ?.filter(
+                          (invItem) =>
+                            invItem.item_name === item.item_name &&
+                            invItem.barcode === item.barcode
+                        )
+                        .map((invItem, idx) => (
+                          <div key={idx} style={{ marginBottom: "4px" }}>
+                            {invItem.location || "غير متوفر"}
+                          </div>
+                        )) || "غير متوفر"
+                    }
+                  />
                   <DetailItem label="الكمية" value={item.quantity} />
                   <DetailItem
                     label="سعر الوحدة"
@@ -151,66 +166,71 @@ const InvoiceDetails = ({ open, onClose, id }) => {
                     label="السعر الكلي"
                     value={`${item.total_price} جنيه`}
                   />
-                  <DetailItem label="عدد المصادر" value={item.price_sources} />
+                  <DetailItem
+                    label="عدد المصادر"
+                    value={
+                      item.price_breakdowns?.filter(
+                        (breakdown) => breakdown.quantity !== 0
+                      ).length
+                    }
+                  />
                 </div>
               </div>
 
-              {item.price_breakdowns?.map((breakdown, idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    backgroundColor: "#f8f9fa",
-                    borderRadius: "6px",
-                    padding: "16px",
-                    margin: "12px 0",
-                    borderLeft: `4px solid #1976d2`,
-                  }}
-                >
-                  <h4
-                    style={{
-                      color: "#2c3e50",
-                      margin: "0 0 12px 0",
-                      fontSize: "1.1rem",
-                    }}
-                  >
-                    المصدر رقم {idx + 1}
-                  </h4>
+              {item.price_breakdowns
+                ?.filter((breakdown) => breakdown.quantity !== 0)
+                .map((breakdown, idx) => (
                   <div
+                    key={idx}
                     style={{
-                      display: "flex",
-                      flexWrap: "wrap",
-                      gap: "10px",
+                      backgroundColor: "#f8f9fa",
+                      borderRadius: "6px",
+                      padding: "16px",
+                      margin: "12px 0",
+                      borderLeft: `4px solid #1976d2`,
                     }}
                   >
-                    <DetailItem
-                      label="رقم الفاتورة"
-                      value={breakdown.source_invoice_id}
-                    />
-                    <DetailItem
-                      label="تاريخ الفاتورة"
-                      value={breakdown.source_invoice_date}
-                    />
-                    <DetailItem
-                      label="المورد"
-                      value={breakdown.source_client}
-                    />
-                    <DetailItem label="الكمية" value={breakdown.quantity} />
-                    <DetailItem
-                      label="سعر الوحدة"
-                      value={`${breakdown.unit_price} جنيه`}
-                    />
-                    <DetailItem
-                      label="الإجمالي الفرعي"
-                      value={`${breakdown.subtotal} جنيه`}
-                    />
-                    <DetailItem
-                      label="النسبة من الإجمالي"
-                      value={`${breakdown.percentage_of_total}%`}
-                      valueStyle={{ color: "#27ae60" }}
-                    />
+                    <h4
+                      style={{
+                        color: "#2c3e50",
+                        margin: "0 0 12px 0",
+                        fontSize: "1.1rem",
+                      }}
+                    >
+                      المصدر رقم {idx + 1}
+                    </h4>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: "10px",
+                      }}
+                    >
+                      <DetailItem
+                        label="رقم الفاتورة"
+                        value={breakdown.source_invoice_id}
+                      />
+                      <DetailItem
+                        label="تاريخ الفاتورة"
+                        value={breakdown.source_invoice_date}
+                      />
+                      <DetailItem label="الكمية" value={breakdown.quantity} />
+                      <DetailItem
+                        label="سعر الوحدة"
+                        value={`${breakdown.unit_price} جنيه`}
+                      />
+                      <DetailItem
+                        label="الإجمالي"
+                        value={`${breakdown.subtotal} جنيه`}
+                      />
+                      <DetailItem
+                        label="النسبة من الإجمالي"
+                        value={`${breakdown.percentage_of_total}%`}
+                        valueStyle={{ color: "#27ae60" }}
+                      />
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
             </div>
           ))}
         </div>

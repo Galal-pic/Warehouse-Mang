@@ -759,7 +759,7 @@ export default function Items() {
                         setEditingItem(selectedItem);
                       } else {
                         setOpenSnackbar(true);
-                        setSnackbarMessage("ليس لديك صلاحيات لإضافة عنصر");
+                        setSnackbarMessage("ليس لديك صلاحيات لتعديل عنصر");
                         setSnackBarType("info");
                       }
                     }}
@@ -877,9 +877,9 @@ export default function Items() {
                           position: "relative",
                         }}
                       >
-                        {isEditingItem ? (
+                        {/* {isEditingItem ? (
                           <button
-                            onClick={(e) =>
+                            onClick={() =>
                               handleDeleteLocationClick(item.location, index)
                             }
                             className={styles.iconBtn}
@@ -898,7 +898,7 @@ export default function Items() {
                           </button>
                         ) : (
                           ""
-                        )}
+                        )} */}
                         <Box
                           sx={{
                             display: "flex",
