@@ -247,6 +247,8 @@ export default function CreateInvoice() {
 
     const requiredFields = isPurchaseOrder
       ? ["machine_name", "mechanism_name"]
+      : invoice.type === "مرتجع"
+      ? ["machine_name", "mechanism_name", "original_invoice_id"]
       : purchasesType
       ? ["machine_name", "mechanism_name", "supplier_name"]
       : ["machine_name", "mechanism_name"];
@@ -254,6 +256,9 @@ export default function CreateInvoice() {
     const missingFields = requiredFields.filter((field) => !invoice[field]);
 
     if (missingFields.length > 0) {
+      if (missingFields.includes("original_invoice_id")) {
+        return "يجب ملء رقم الفاتورة";
+      }
       return (
         isPurchaseOrder ||
         (!purchasesType && "يجب ملء اسم الماكينة واسم الميكانيزم")

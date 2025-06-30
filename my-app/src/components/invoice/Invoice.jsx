@@ -60,7 +60,10 @@ export default function InvoiceModal({
     refetch: refetchSuppliers,
   } = useGetSuppliersQuery(
     { all: true },
-    { pollingInterval: 300000, skip: !isEditingInvoice || !isAdditionType } // Only fetch when editing and isAdditionType
+    {
+      pollingInterval: 300000,
+      skip: !isEditingInvoice || !isAdditionType || justEditUnitPrice,
+    } // Only fetch when editing and isAdditionType
   );
   const suppliers = suppliersData?.suppliers || [];
 
@@ -70,7 +73,7 @@ export default function InvoiceModal({
     refetch: refetchMachines,
   } = useGetMachinesQuery(
     { all: true },
-    { pollingInterval: 300000, skip: !isEditingInvoice } // Only fetch when editing
+    { pollingInterval: 300000, skip: !isEditingInvoice || justEditUnitPrice } // Only fetch when editing
   );
   const machines = machinesData?.machines || [];
 
@@ -80,7 +83,7 @@ export default function InvoiceModal({
     refetch: refetchMechanisms,
   } = useGetMechanismsQuery(
     { all: true },
-    { pollingInterval: 300000, skip: !isEditingInvoice } // Only fetch when editing
+    { pollingInterval: 300000, skip: !isEditingInvoice || justEditUnitPrice } // Only fetch when editing
   );
   const mechanisms = mechanismsData?.mechanisms || [];
 
@@ -90,7 +93,7 @@ export default function InvoiceModal({
     refetch: refetchWarehouses,
   } = useGetWarehousesQuery(
     { all: true },
-    { pollingInterval: 300000, skip: !isEditingInvoice } // Only fetch when editing
+    { pollingInterval: 300000, skip: !isEditingInvoice || justEditUnitPrice } // Only fetch when editing
   );
   const warehouse = warehouseData?.warehouses || [];
 
@@ -118,7 +121,11 @@ export default function InvoiceModal({
     isError: isInvoiceNumbersError,
   } = useGetInvoicesNumbersQuery(undefined, {
     pollingInterval: 300000,
-    skip: !isEditingInvoice || !isMortaga3Type || !editingInvoice?.type, // إضافة تحقق إضافي
+    skip:
+      !isEditingInvoice ||
+      !isMortaga3Type ||
+      !editingInvoice?.type ||
+      justEditUnitPrice, // إضافة تحقق إضافي
   });
 
   const invoiceNumbers = invoicesData?.["sales-invoices"]?.map((number) =>
@@ -146,7 +153,9 @@ export default function InvoiceModal({
   } = useGetInvoiceQuery(
     selectedInvoiceId || editingInvoice?.original_invoice_id,
     {
-      skip: !selectedInvoiceId && !editingInvoice?.original_invoice_id,
+      skip:
+        (!selectedInvoiceId && !editingInvoice?.original_invoice_id) ||
+        justEditUnitPrice,
     }
   );
 
@@ -509,64 +518,64 @@ export default function InvoiceModal({
                   </TableCell>
                 </TableRow>
               )}
-              {selectedNowType?.type !== "اضافه" &&
+              {/* {selectedNowType?.type !== "اضافه" &&
                 selectedInvoice?.type !== "اضافه" &&
                 editingInvoice?.type !== "اضافه" && (
-                  <>
-                    <TableRow className={styles.tableRow}>
-                      <TableCell className={styles.tableCell} colSpan={2}>
-                        اسم الماكينة
-                      </TableCell>
-                      <TableCell
-                        className={styles.tableInputCell}
-                        colSpan={6}
-                        sx={{
-                          padding: "0px !important",
-                        }}
-                      >
-                        {isEditingInvoice && !justEditUnitPrice ? (
-                          <CustomAutoCompleteField
-                            loading={isMachinesLoading}
-                            values={machines}
-                            editingItem={editingInvoice}
-                            setEditingItem={setEditingInvoice}
-                            fieldName="machine_name"
-                            placeholder="اسم الماكينة"
-                            isBig={true}
-                          />
-                        ) : (
-                          selectedInvoice.machine_name
-                        )}
-                      </TableCell>
-                    </TableRow>
-                    <TableRow className={styles.tableRow}>
-                      <TableCell className={styles.tableCell} colSpan={2}>
-                        اسم الميكانيزم
-                      </TableCell>
-                      <TableCell
-                        className={styles.tableInputCell}
-                        colSpan={6}
-                        sx={{
-                          padding: "0px !important",
-                        }}
-                      >
-                        {isEditingInvoice && !justEditUnitPrice ? (
-                          <CustomAutoCompleteField
-                            loading={isMechanismsLoading}
-                            values={mechanisms}
-                            editingItem={editingInvoice}
-                            setEditingItem={setEditingInvoice}
-                            fieldName="mechanism_name"
-                            placeholder="اسم الميكانيزم"
-                            isBig={true}
-                          />
-                        ) : (
-                          selectedInvoice.mechanism_name
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  </>
-                )}
+                  <> */}
+              <TableRow className={styles.tableRow}>
+                <TableCell className={styles.tableCell} colSpan={2}>
+                  اسم الماكينة
+                </TableCell>
+                <TableCell
+                  className={styles.tableInputCell}
+                  colSpan={6}
+                  sx={{
+                    padding: "0px !important",
+                  }}
+                >
+                  {isEditingInvoice && !justEditUnitPrice ? (
+                    <CustomAutoCompleteField
+                      loading={isMachinesLoading}
+                      values={machines}
+                      editingItem={editingInvoice}
+                      setEditingItem={setEditingInvoice}
+                      fieldName="machine_name"
+                      placeholder="اسم الماكينة"
+                      isBig={true}
+                    />
+                  ) : (
+                    selectedInvoice.machine_name
+                  )}
+                </TableCell>
+              </TableRow>
+              <TableRow className={styles.tableRow}>
+                <TableCell className={styles.tableCell} colSpan={2}>
+                  اسم الميكانيزم
+                </TableCell>
+                <TableCell
+                  className={styles.tableInputCell}
+                  colSpan={6}
+                  sx={{
+                    padding: "0px !important",
+                  }}
+                >
+                  {isEditingInvoice && !justEditUnitPrice ? (
+                    <CustomAutoCompleteField
+                      loading={isMechanismsLoading}
+                      values={mechanisms}
+                      editingItem={editingInvoice}
+                      setEditingItem={setEditingInvoice}
+                      fieldName="mechanism_name"
+                      placeholder="اسم الميكانيزم"
+                      isBig={true}
+                    />
+                  ) : (
+                    selectedInvoice.mechanism_name
+                  )}
+                </TableCell>
+              </TableRow>
+              {/* </>
+                )} */}
               <TableRow>
                 <TableCell className={styles.tableCell}>
                   <AddIcon
