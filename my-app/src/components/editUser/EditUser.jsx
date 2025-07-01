@@ -39,8 +39,10 @@ const EditUser = ({ open, onClose, user: initialUser }) => {
           can_delete: user.can_delete,
           can_confirm_withdrawal: user.can_confirm_withdrawal,
           can_withdraw: user.can_withdraw,
-          can_update_prices: user.can_update_prices,
+          // can_update_prices: user.can_update_prices,
+          view_reports: user.view_reports,
           can_recover_deposits: user.can_recover_deposits,
+          view_purchase_requests: user.view_purchase_requests,
         },
         items: {
           items_can_edit: user.items_can_edit,
@@ -210,14 +212,16 @@ const EditUser = ({ open, onClose, user: initialUser }) => {
       view_reservations:
         edittingUser.permissions.manageOperations.view_reservations,
       view_prices: edittingUser.permissions.manageOperations.view_prices,
-      view_purchase_requests: false,
+      view_purchase_requests:
+        edittingUser.permissions.manageOperations.view_purchase_requests,
       can_edit: edittingUser.permissions.manageOperations.can_edit,
       can_delete: edittingUser.permissions.manageOperations.can_delete,
       can_confirm_withdrawal:
         edittingUser.permissions.manageOperations.can_confirm_withdrawal,
       can_withdraw: edittingUser.permissions.manageOperations.can_withdraw,
-      can_update_prices:
-        edittingUser.permissions.manageOperations.can_update_prices,
+      // can_update_prices:
+      //   edittingUser.permissions.manageOperations.can_update_prices,
+      view_reports: edittingUser.permissions.manageOperations.view_reports,
       can_recover_deposits:
         edittingUser.permissions.manageOperations.can_recover_deposits,
       can_confirm_purchase_requests: false,
@@ -271,8 +275,11 @@ const EditUser = ({ open, onClose, user: initialUser }) => {
         can_confirm_withdrawal:
           edittingUser.permissions.manageOperations.can_confirm_withdrawal,
         can_withdraw: edittingUser.permissions.manageOperations.can_withdraw,
-        can_update_prices:
-          edittingUser.permissions.manageOperations.can_update_prices,
+        // can_update_prices:
+        //   edittingUser.permissions.manageOperations.can_update_prices,
+        view_reports: edittingUser.permissions.manageOperations.view_reports,
+        view_purchase_requests:
+          edittingUser.permissions.manageOperations.view_purchase_requests,
         can_recover_deposits:
           edittingUser.permissions.manageOperations.can_recover_deposits,
         items_can_edit: edittingUser.permissions.items.items_can_edit,
