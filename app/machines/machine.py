@@ -1,7 +1,7 @@
 from flask_restx import Namespace, Resource, fields
 from flask_jwt_extended import jwt_required
 from .. import db
-from ..models import Machine
+from ..models import Machine, Invoice
 from ..utils import parse_bool
 from datetime import datetime
 from ..redis_config import cache_result
@@ -242,6 +242,8 @@ class MachineDetail(Resource):
     def delete(self, machine_id):
         """Delete a machine"""
         machine = Machine.query.get_or_404(machine_id)
+        if Invoice.query.filter_by(machine_id=machine.id).first():
+            machine_ns.abort(400, "Cannot delete machine with associated invoices")
         db.session.delete(machine)
         db.session.commit()
 

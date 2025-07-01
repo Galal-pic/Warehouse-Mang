@@ -1,7 +1,7 @@
 from flask_restx import Namespace, Resource, fields
 from flask_jwt_extended import jwt_required
 from .. import db
-from ..models import Supplier
+from ..models import Supplier, Invoice
 from ..utils import parse_bool
 from datetime import datetime
 from ..redis_config import cache_result
@@ -253,6 +253,8 @@ class SupplierDetail(Resource):
     def delete(self, supplier_id):
         """Delete a supplier"""
         supplier = Supplier.query.get_or_404(supplier_id)
+        if Invoice.query.filter_by(supplier_id=supplier.id).first():
+            supplier_ns.abort(400, "Cannot delete supplier with associated invoices")
         db.session.delete(supplier)
         db.session.commit()
         

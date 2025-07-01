@@ -242,3 +242,25 @@ class ReturnSales(db.Model):
     #Relationships
     sales_invoice = db.relationship('Invoice', foreign_keys=[sales_invoice_id], backref='sales_returns')
     return_invoice = db.relationship('Invoice', foreign_keys=[return_invoice_id], backref='return_invoices')
+    
+    
+class WarrantyReturn(db.Model):
+    __tablename__ = 'warranty_return'
+    id = db.Column(db.Integer, primary_key=True)
+    warranty_invoice_id = db.Column(db.Integer, db.ForeignKey('invoice.id'), nullable=False)
+    item_id = db.Column(db.Integer, db.ForeignKey('warehouse.id'), nullable=False)
+    location = db.Column(db.String(255), nullable=False)
+    returned_quantity = db.Column(db.Integer, nullable=False)
+    return_date = db.Column(db.DateTime, default=datetime.now)
+    returned_by_employee_id = db.Column(db.Integer, db.ForeignKey('employee.id'), nullable=False)
+    notes = db.Column(db.Text)
+    
+    # Relationships
+    warranty_invoice = db.relationship('Invoice', backref='warranty_returns')
+    item = db.relationship('Warehouse', backref='warranty_returns')
+    returned_by = db.relationship('Employee', backref='warranty_returns')
+    
+    # Composite index for faster queries
+    __table_args__ = (
+        db.Index('idx_warranty_return_invoice_item', 'warranty_invoice_id', 'item_id', 'location'),
+    )

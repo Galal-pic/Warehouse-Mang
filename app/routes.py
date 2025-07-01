@@ -15,7 +15,7 @@ from .mechanisms.mechanism import mechanism_ns
 from .suppliers.supplier import supplier_ns
 from .models import (
     Employee, Machine, Mechanism, Warehouse, ItemLocations, Invoice, InvoiceItem,
-    Supplier, Prices, InvoicePriceDetail, PurchaseRequests, ReturnSales
+    Supplier, Prices, InvoicePriceDetail, PurchaseRequests, ReturnSales, WarrantyReturn
 )
 from sqlalchemy import desc
 from sqlalchemy.exc import SQLAlchemyError
@@ -344,21 +344,26 @@ class InvoiceList(Resource):
         # Get the employee ID from the JWT token
         employee_id = get_jwt_identity()
         employee = Employee.query.filter_by(id=employee_id).first()  # Get the Employee object
-
+        if data['type'] != 'اضافه':
         # Get the machine and mechanism by name
-        machine = Machine.query.filter_by(name=data['machine_name']).first()  # Get the Machine object
-        mechanism = Mechanism.query.filter_by(name=data['mechanism_name']).first()  # Get the Mechanism object
+            machine = Machine.query.filter_by(name=data['machine_name']).first()  # Get the Machine object
+            mechanism = Mechanism.query.filter_by(name=data['mechanism_name']).first()  # Get the Mechanism object
+            if not machine or not mechanism:
+                invoice_ns.abort(404, "Machine or Mechanism not found")
+        else:
+            machine = None
+            mechanism = None
         supplier = None
         
         # Get supplier if name provided
         if 'supplier_name' in data and data['supplier_name']:
             supplier = Supplier.query.filter_by(name=data['supplier_name']).first()
 
-        if not machine or not mechanism and data['type'] != 'طلب شراء':
-            invoice_ns.abort(404, "Machine or Mechanism not found")
+        # if not machine or not mechanism and data['type'] != 'اضافه':
+        #     invoice_ns.abort(404, "Machine or Mechanism not found")
             
         # If supplier is required for certain types but not provided
-        if data['type'] == 'اضافه' and not supplier and data['type'] != 'طلب شراء':
+        if data['type'] == 'اضافه' and not supplier:
             invoice_ns.abort(404, "Supplier is required for purchase invoices")
 
         # Create the invoice based on its type
@@ -607,84 +612,318 @@ class FifoPriceList(Resource):
     
 @invoice_ns.route('/<int:invoice_id>/ReturnWarranty')
 class ReturnWarranty(Resource):
-    @invoice_ns.doc('return_warranty')
     @jwt_required()
     def post(self, invoice_id):
-        """Return items from a warranty invoice and restore stock"""
-        invoice = Invoice.query.get_or_404(invoice_id)
-
-        # Check if it's a warranty invoice
-        if invoice.type != 'أمانات':
-            invoice_ns.abort(400, "Can only return warranty invoices with this method")
-        
-        # Check if the invoice is already returned
-        if invoice.status == 'returned':
-            invoice_ns.abort(400, "This warranty invoice has already been returned")
-
+        """Return items from a warranty invoice (supports partial returns)"""
         try:
-            # 1. Restore prices based on price details
-            price_details = InvoicePriceDetail.query.filter_by(invoice_id=invoice.id).all()
-            price_restorations = {}
+            invoice = Invoice.query.get_or_404(invoice_id)
+            employee_id = get_jwt_identity()
+
+            # Check if it's a warranty invoice
+            if invoice.type != 'أمانات':
+                invoice_ns.abort(400, "Can only return warranty invoices with this method")
+
+            # Get the request payload
+            data = invoice_ns.payload
             
-            for detail in price_details:
-                key = (detail.source_price_invoice_id, detail.source_price_item_id)
-                if key in price_restorations:
-                    price_restorations[key]['quantity'] += detail.quantity
-                else:
-                    price_restorations[key] = {
-                        'invoice_id': detail.source_price_invoice_id,
-                        'item_id': detail.source_price_item_id,
-                        'quantity': detail.quantity,
-                        'unit_price': detail.unit_price
-                    }
-            
-            for key, restoration in price_restorations.items():
-                price_entry = Prices.query.filter_by(
-                    invoice_id=restoration['invoice_id'],
-                    item_id=restoration['item_id']
-                ).first()
-                
-                if price_entry:
-                    price_entry.quantity += restoration['quantity']
-                else:
-                    new_price = Prices(
-                        invoice_id=restoration['invoice_id'],
-                        item_id=restoration['item_id'],
-                        quantity=restoration['quantity'],
-                        unit_price=restoration['unit_price'],
-                        created_at=datetime.now()
-                    )
-                    db.session.add(new_price)
-
-            # 2. Restore quantities for each item
-            for invoice_item in invoice.items:
-                # Find the item location
-                item_location = ItemLocations.query.filter_by(
-                    item_id=invoice_item.item_id,
-                    location=invoice_item.location
-                ).first()
-
-                if not item_location:
-                    # Create the location if it doesn't exist
-                    item_location = ItemLocations(
-                        item_id=invoice_item.item_id,
-                        location=invoice_item.location,
-                        quantity=0
-                    )
-                    db.session.add(item_location)
-
-                # Restore the quantity
-                item_location.quantity += invoice_item.quantity
-
-            # 3. Update the invoice status to indicate it has been returned
-            invoice.status = 'returned'
-            db.session.commit()
-
-            return {"message": "Warranty invoice returned and stock restored successfully"}, 200
+            # Check if this is a full return (no specific items) or partial return
+            if not data or ('itemName' not in data and 'items' not in data):
+                # Full return - existing logic
+                return self._full_warranty_return(invoice, employee_id)
+            else:
+                # Partial return - new logic
+                return self._partial_warranty_return(invoice, data, employee_id)
 
         except Exception as e:
             db.session.rollback()
-            invoice_ns.abort(500, f"Error returning warranty invoice: {str(e)}")
+            invoice_ns.abort(500, f"Error processing warranty return: {str(e)}")
+
+    def _full_warranty_return(self, invoice, employee_id):
+        """Handle full warranty return (original logic)"""
+        # Check if the invoice is already fully returned
+        if invoice.status == 'returned':
+            invoice_ns.abort(400, "This warranty invoice has already been fully returned")
+
+        # Check if any items have been partially returned
+        partial_returns = WarrantyReturn.query.filter_by(warranty_invoice_id=invoice.id).all()
+        if partial_returns:
+            invoice_ns.abort(400, "Cannot do full return - some items have been partially returned. Use partial return for remaining items.")
+
+        # Existing full return logic
+        price_details = InvoicePriceDetail.query.filter_by(invoice_id=invoice.id).all()
+        price_restorations = {}
+        
+        for detail in price_details:
+            key = (detail.source_price_invoice_id, detail.source_price_item_id)
+            if key in price_restorations:
+                price_restorations[key]['quantity'] += detail.quantity
+            else:
+                price_restorations[key] = {
+                    'invoice_id': detail.source_price_invoice_id,
+                    'item_id': detail.source_price_item_id,
+                    'quantity': detail.quantity,
+                    'unit_price': detail.unit_price
+                }
+        
+        for key, restoration in price_restorations.items():
+            price_entry = Prices.query.filter_by(
+                invoice_id=restoration['invoice_id'],
+                item_id=restoration['item_id']
+            ).first()
+            
+            if price_entry:
+                price_entry.quantity += restoration['quantity']
+            else:
+                new_price = Prices(
+                    invoice_id=restoration['invoice_id'],
+                    item_id=restoration['item_id'],
+                    quantity=restoration['quantity'],
+                    unit_price=restoration['unit_price'],
+                    created_at=datetime.now()
+                )
+                db.session.add(new_price)
+
+        # Restore quantities for each item
+        for invoice_item in invoice.items:
+            item_location = ItemLocations.query.filter_by(
+                item_id=invoice_item.item_id,
+                location=invoice_item.location
+            ).first()
+
+            if not item_location:
+                item_location = ItemLocations(
+                    item_id=invoice_item.item_id,
+                    location=invoice_item.location,
+                    quantity=0
+                )
+                db.session.add(item_location)
+
+            item_location.quantity += invoice_item.quantity
+
+        invoice.status = 'returned'
+        db.session.commit()
+
+        return {"message": "Warranty invoice fully returned and stock restored successfully"}, 200
+
+    def _partial_warranty_return(self, invoice, data, employee_id):
+        """Handle partial warranty return (new logic)"""
+        # Parse the request - support both single item and multiple items
+        items_to_return = []
+        
+        if 'itemName' in data and 'itemBar' in data:
+            # Single item format
+            items_to_return.append({
+                'itemName': data['itemName'],
+                'itemBar': data['itemBar'],
+                'quantity': data.get('quantity', None),  # If not specified, return all available
+                'location': data.get('location', None)
+            })
+        elif 'items' in data:
+            # Multiple items format
+            items_to_return = data['items']
+        else:
+            invoice_ns.abort(400, "Invalid request format. Provide either itemName/itemBar or items array")
+
+        returned_items = []
+        
+        for item_data in items_to_return:
+            # Find the warehouse item
+            warehouse_item = Warehouse.query.filter_by(
+                item_name=item_data['itemName'],
+                item_bar=item_data['itemBar']
+            ).first()
+            
+            if not warehouse_item:
+                invoice_ns.abort(404, f"Item '{item_data['itemName']}' with barcode '{item_data['itemBar']}' not found")
+
+            # Find the invoice item for this warehouse item
+            if item_data.get('location'):
+                # Specific location provided
+                invoice_item = InvoiceItem.query.filter_by(
+                    invoice_id=invoice.id,
+                    item_id=warehouse_item.id,
+                    location=item_data['location']
+                ).first()
+            else:
+                # No location specified, find any location for this item
+                invoice_item = InvoiceItem.query.filter_by(
+                    invoice_id=invoice.id,
+                    item_id=warehouse_item.id
+                ).first()
+
+            if not invoice_item:
+                location_msg = f" in location '{item_data['location']}'" if item_data.get('location') else ""
+                invoice_ns.abort(404, f"Item '{item_data['itemName']}' not found in this warranty invoice{location_msg}")
+
+            # Calculate how much can be returned
+            already_returned = db.session.query(db.func.sum(WarrantyReturn.returned_quantity)).filter_by(
+                warranty_invoice_id=invoice.id,
+                item_id=warehouse_item.id,
+                location=invoice_item.location
+            ).scalar() or 0
+
+            available_to_return = invoice_item.quantity - already_returned
+            
+            if available_to_return <= 0:
+                invoice_ns.abort(400, f"Item '{item_data['itemName']}' in location '{invoice_item.location}' has already been fully returned")
+
+            # Determine quantity to return
+            quantity_to_return = item_data.get('quantity')
+            if quantity_to_return is None:
+                quantity_to_return = available_to_return
+            
+            # Validate quantity_to_return
+            if not isinstance(quantity_to_return, (int, float)) or quantity_to_return <= 0:
+                invoice_ns.abort(400, f"Invalid quantity specified for item '{item_data['itemName']}'. Must be a positive number.")
+            
+            quantity_to_return = int(quantity_to_return)  # Ensure it's an integer
+            
+            if quantity_to_return > available_to_return:
+                invoice_ns.abort(400, f"Cannot return {quantity_to_return} of '{item_data['itemName']}'. Only {available_to_return} available to return")
+
+            # Calculate proportional price details to restore
+            price_details_to_restore = InvoicePriceDetail.query.filter_by(
+                invoice_id=invoice.id,
+                item_id=warehouse_item.id
+            ).all()
+
+            total_original_quantity = invoice_item.quantity
+            proportion = quantity_to_return / total_original_quantity
+
+            # Restore proportional prices
+            for detail in price_details_to_restore:
+                quantity_to_restore = int(detail.quantity * proportion)
+                if quantity_to_restore > 0:
+                    price_entry = Prices.query.filter_by(
+                        invoice_id=detail.source_price_invoice_id,
+                        item_id=detail.source_price_item_id
+                    ).first()
+                    
+                    if price_entry:
+                        price_entry.quantity += quantity_to_restore
+                    else:
+                        new_price = Prices(
+                            invoice_id=detail.source_price_invoice_id,
+                            item_id=detail.source_price_item_id,
+                            quantity=quantity_to_restore,
+                            unit_price=detail.unit_price,
+                            created_at=datetime.now()
+                        )
+                        db.session.add(new_price)
+
+            # Restore stock in ItemLocations
+            item_location = ItemLocations.query.filter_by(
+                item_id=warehouse_item.id,
+                location=invoice_item.location
+            ).first()
+
+            if not item_location:
+                item_location = ItemLocations(
+                    item_id=warehouse_item.id,
+                    location=invoice_item.location,
+                    quantity=0
+                )
+                db.session.add(item_location)
+
+            item_location.quantity += quantity_to_return
+
+            # Record the return
+            warranty_return = WarrantyReturn(
+                warranty_invoice_id=invoice.id,
+                item_id=warehouse_item.id,
+                location=invoice_item.location,
+                returned_quantity=quantity_to_return,
+                returned_by_employee_id=employee_id,
+                notes=data.get('notes', '')
+            )
+            db.session.add(warranty_return)
+
+            returned_items.append({
+                'item_name': warehouse_item.item_name,
+                'item_bar': warehouse_item.item_bar,
+                'location': invoice_item.location,
+                'returned_quantity': quantity_to_return,
+                'remaining_quantity': available_to_return - quantity_to_return
+            })
+
+        # Check if all items have been returned and update invoice status
+        all_items_returned = True
+        for invoice_item in invoice.items:
+            already_returned = db.session.query(db.func.sum(WarrantyReturn.returned_quantity)).filter_by(
+                warranty_invoice_id=invoice.id,
+                item_id=invoice_item.item_id,
+                location=invoice_item.location
+            ).scalar() or 0
+            
+            if already_returned < invoice_item.quantity:
+                all_items_returned = False
+                break
+
+        if all_items_returned:
+            invoice.status = 'returned'
+        else:
+            invoice.status = 'partially_returned'
+
+        db.session.commit()
+
+        return {
+            "message": f"Successfully returned {len(returned_items)} item(s)",
+            "returned_items": returned_items,
+            "invoice_status": invoice.status
+        }, 200
+
+# Add endpoint to get warranty return status
+@invoice_ns.route('/<int:invoice_id>/WarrantyReturnStatus')
+class WarrantyReturnStatus(Resource):
+    @jwt_required()
+    def get(self, invoice_id):
+        """Get detailed return status for a warranty invoice"""
+        invoice = Invoice.query.get_or_404(invoice_id)
+        
+        if invoice.type != 'أمانات':
+            invoice_ns.abort(400, "This endpoint is only for warranty invoices")
+
+        # Get all invoice items with their return status
+        items_status = []
+        
+        for invoice_item in invoice.items:
+            # Calculate total returned for this item
+            total_returned = db.session.query(db.func.sum(WarrantyReturn.returned_quantity)).filter_by(
+                warranty_invoice_id=invoice.id,
+                item_id=invoice_item.item_id,
+                location=invoice_item.location
+            ).scalar() or 0
+            
+            # Get return history
+            return_history = db.session.query(WarrantyReturn).filter_by(
+                warranty_invoice_id=invoice.id,
+                item_id=invoice_item.item_id,
+                location=invoice_item.location
+            ).all()
+            
+            items_status.append({
+                'item_id': invoice_item.item_id,
+                'item_name': invoice_item.warehouse.item_name,
+                'item_bar': invoice_item.warehouse.item_bar,
+                'location': invoice_item.location,
+                'original_quantity': invoice_item.quantity,
+                'total_returned': total_returned,
+                'remaining_quantity': invoice_item.quantity - total_returned,
+                'is_fully_returned': total_returned >= invoice_item.quantity,
+                'return_history': [{
+                    'returned_quantity': ret.returned_quantity,
+                    'return_date': ret.return_date.isoformat(),
+                    'returned_by': ret.returned_by.username,
+                    'notes': ret.notes
+                } for ret in return_history]
+            })
+
+        return {
+            'invoice_id': invoice.id,
+            'invoice_status': invoice.status,
+            'items': items_status
+        }, 200
+
             
 #Purchase Request Confirmation
 @invoice_ns.route('/<int:invoice_id>/PurchaseRequestConfirmation')

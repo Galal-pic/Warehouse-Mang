@@ -210,8 +210,8 @@ class WarehouseExcelUltraFast(Resource):
 
             print(f"Processing {len(all_items_to_process)} total item entries")
 
-            # ---- Step 6: Deduplicate and SUM ItemLocations ----
-            # Prepare { (item_id, location): summed quantity }
+            # ---- Step 6: Process ItemLocations for each location separately ----
+            # Group by (item_id, location) to handle multi-location properly
             item_location_map = {}
             for item in all_items_to_process:
                 if item['is_existing']:
@@ -226,7 +226,6 @@ class WarehouseExcelUltraFast(Resource):
                         'item': item
                     }
                 item_location_map[loc_key]['quantity'] += item['quantity']
-                # Optionally: average/last price for this location
 
             # Now, fetch all (item_id, location) pairs already in DB
             all_item_ids = set([k[0] for k in item_location_map.keys()])
@@ -256,20 +255,21 @@ class WarehouseExcelUltraFast(Resource):
                         quantity=data['quantity']
                     ))
 
-            # ---- Step 7: Bulk insert all objects ----
+            # ---- Step 7: Create invoices and invoice items ----
             invoice_totals = {}
-            prices_tracker = {}  # (invoice_id, item_id) -> price_info
             created_invoices = []
             success_count = 0
 
             # Create invoices and invoice items
             invoice_item_rows = []
-            price_rows = []
+            price_tracking = {}  # Track (invoice_id, item_id) -> price info to avoid duplicates
 
-            chunk_items = list(item_location_map.values())
-            for chunk_start in range(0, len(chunk_items), ITEMS_PER_INVOICE):
-                chunk_end = min(chunk_start + ITEMS_PER_INVOICE, len(chunk_items))
-                chunk_subitems = chunk_items[chunk_start:chunk_end]
+            # Convert item_location_map values to a list for chunking
+            location_entries = list(item_location_map.items())
+            
+            for chunk_start in range(0, len(location_entries), ITEMS_PER_INVOICE):
+                chunk_end = min(chunk_start + ITEMS_PER_INVOICE, len(location_entries))
+                chunk_entries = location_entries[chunk_start:chunk_end]
 
                 invoice = Invoice(
                     type="اضافه",
@@ -292,36 +292,49 @@ class WarehouseExcelUltraFast(Resource):
                 created_invoices.append(invoice)
                 invoice_totals[invoice.id] = 0
 
-                for loc_data in chunk_subitems:
+                for (item_id, location), loc_data in chunk_entries:
                     item = loc_data['item']
-                    if item['is_existing']:
-                        warehouse_id = item['warehouse_id']
-                    else:
-                        warehouse_id = item['warehouse_item_obj'].id
                     quantity = loc_data['quantity']
                     unit_price = item['unit_price']
                     total_price = quantity * unit_price
 
                     invoice_totals[invoice.id] += total_price
 
+                    # Create invoice item for this specific location
                     invoice_item_rows.append(InvoiceItem(
                         invoice_id=invoice.id,
-                        item_id=warehouse_id,
+                        item_id=item_id,
                         quantity=quantity,
-                        location=item['location'],
+                        location=location,
                         unit_price=unit_price,
                         total_price=total_price,
                         description=""
                     ))
-                    price_rows.append(Prices(
-                        invoice_id=invoice.id,
-                        item_id=warehouse_id,
-                        quantity=quantity,
-                        unit_price=unit_price,
-                        created_at=current_time
-                    ))
+
+                    # Track price info for deduplication
+                    price_key = (invoice.id, item_id)
+                    if price_key not in price_tracking:
+                        price_tracking[price_key] = {
+                            'total_quantity': 0,
+                            'unit_price': unit_price,
+                            'created_at': current_time
+                        }
+                    price_tracking[price_key]['total_quantity'] += quantity
+
                     success_count += 1
 
+            # Create deduplicated price rows
+            price_rows = []
+            for (invoice_id, item_id), price_info in price_tracking.items():
+                price_rows.append(Prices(
+                    invoice_id=invoice_id,
+                    item_id=item_id,
+                    quantity=price_info['total_quantity'],
+                    unit_price=price_info['unit_price'],
+                    created_at=price_info['created_at']
+                ))
+
+            # ---- Step 8: Bulk insert all objects ----
             if new_item_locations:
                 db.session.bulk_save_objects(new_item_locations)
             if invoice_item_rows:
@@ -555,7 +568,8 @@ class WarehouseDetail(Resource):
     def delete(self, item_id):
         """Delete a warehouse item and its associated locations"""
         item = Warehouse.query.get_or_404(item_id)
-
+        if InvoiceItem.query.filter_by(item_id=item.id).first():
+            warehouse_ns.abort(400, "Cannot delete warehouse item with associated sales")
         ItemLocations.query.filter_by(item_id=item.id).delete()
         db.session.delete(item)
         db.session.commit()

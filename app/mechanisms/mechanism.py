@@ -1,7 +1,7 @@
 from flask_restx import Namespace, Resource, fields
 from flask_jwt_extended import jwt_required
 from .. import db
-from ..models import Mechanism
+from ..models import Mechanism, Invoice
 from ..utils import parse_bool
 from datetime import datetime
 from ..redis_config import cache_result
@@ -228,6 +228,8 @@ class MechanismDetail(Resource):
     def delete(self, mechanism_id):
         """Delete a mechanism"""
         mechanism = Mechanism.query.get_or_404(mechanism_id)
+        if Invoice.query.filter_by(mechanism_id=mechanism.id).first():
+            mechanism_ns.abort(400, "Cannot delete mechanism with associated invoices")
         db.session.delete(mechanism)
         db.session.commit()
         return {"message": "Mechanism deleted successfully"}, 200
