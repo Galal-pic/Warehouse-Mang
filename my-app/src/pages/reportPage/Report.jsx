@@ -37,6 +37,8 @@ import { GridToolbarContainer } from "@mui/x-data-grid";
 import logo from "../../components/header/logo.png";
 import NumberInput from "../../components/number/NumberInput";
 import { useGetUserQuery } from "../services/userApi";
+import Visibility from "@mui/icons-material/Visibility";
+import VisibilityOff from "@mui/icons-material/VisibilityOff";
 
 export default function Report() {
   const { data: user, isLoading: isLoadingUser } = useGetUserQuery();
@@ -1109,37 +1111,39 @@ export default function Report() {
   const handlePrint = () => {
     const style = document.createElement("style");
     style.innerHTML = `
-        @media print {
-          body * {
-            visibility: hidden;
-          }
-          .printable-box, .printable-box * {
-            visibility: visible;
-          }
-          .printable-box {
-            position: absolute;
-            left: 0;
-            top: 0;
-            padding: 10px !important;
+    @media print {
+      body * {
+        visibility: hidden;
+      }
+      .printable-box, .printable-box * {
+        visibility: visible;
+      }
+      .printable-box {
+        position: absolute;
+        left: 0;
+        top: 0;
+        padding: 10px !important;
             margin: 0!important;
-            width: 100%;
-          }
-            .printable-box input,
-        .printable-box textarea,
-        .printable-box .MuiAutocomplete-root {
-          display: none !important;
-        }
-        @page {
-          size: auto;
-          margin: 5mm;
-        }
+        width: 100%;
+      }
+      .printable-box input,
+      .printable-box textarea,
+      .printable-box .MuiAutocomplete-root {
+        display: none !important;
+      }
+      @page {
+        size: auto;
+        margin: 5mm;
+      }
             
-        }
-      `;
+    }
+  `;
     document.head.appendChild(style);
     window.print();
     document.head.removeChild(style);
   };
+  // show details
+  const [show, setShow] = useState(false);
 
   if (isLoadingUser) {
     return (
@@ -1270,8 +1274,8 @@ export default function Report() {
                       اختر نوع التقرير
                     </MenuItem>
                     <MenuItem value="فواتير">فواتير</MenuItem>
-                    <MenuItem value="ماكينة">ماكينة</MenuItem>
-                    <MenuItem value="ميكانيزم">ميكانيزم</MenuItem>
+                    {/* <MenuItem value="ماكينة">ماكينة</MenuItem>
+                    <MenuItem value="ميكانيزم">ميكانيزم</MenuItem> */}
                     <MenuItem value="مخازن">مخازن</MenuItem>
                   </Select>
                 </FormControl>
@@ -1991,12 +1995,36 @@ export default function Report() {
             <Box sx={{ padding: "20px", direction: "rtl" }}>
               {selectedInvoice ? (
                 <>
+                  {(user?.view_prices || user?.username === "admin") &&
+                    selectedInvoice?.type !== "طلب شراء" && (
+                      <Button
+                        onClick={() => setShow(!show)}
+                        sx={{
+                          color: "#1976d2",
+                          position: "absolute",
+                          top: "10px",
+                          left: "10px",
+                          fontSize: "1.8rem",
+                          cursor: "pointer",
+                          borderRadius: "2px",
+                          transition: "all 0.2s ease",
+                          border: "none",
+                          backgroundColor: "transparent",
+                          "&:hover": {
+                            backgroundColor: "rgba(0, 0, 0, 0.04)",
+                            transform: "scale(1.1)",
+                          },
+                        }}
+                      >
+                        {show ? <Visibility /> : <VisibilityOff />}
+                      </Button>
+                    )}
                   <InvoiceModal
                     selectedInvoice={selectedInvoice}
                     isEditingInvoice={false}
                     editingInvoice={selectedInvoice}
                     setEditingInvoice={() => {}}
-                    show={true}
+                    show={show}
                     selectedNowType={{ type: selectedInvoice.type }}
                     addRow={() => {}}
                     handleDeleteItemClick={() => {}}

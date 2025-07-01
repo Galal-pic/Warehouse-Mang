@@ -880,7 +880,8 @@ export default function InvoiceModal({
                   {(show || isPurchasesType) && (
                     <>
                       <TableCell className={styles.tableCellRow}>
-                        {editingInvoice?.type === "اضافه" ? (
+                        {isEditingInvoice &&
+                        editingInvoice?.type === "اضافه" ? (
                           <NumberInput
                             style={{
                               width: "100px",

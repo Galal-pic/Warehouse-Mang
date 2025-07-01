@@ -17,8 +17,11 @@ import { GridToolbarContainer } from "@mui/x-data-grid";
 import { useState } from "react";
 import logo from "../header/logo.png";
 import { TextField } from "@mui/material";
+import { useGetUserQuery } from "../../pages/services/userApi";
 
 const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
+  const { data: user, isLoading: isLoadingUser } = useGetUserQuery();
+
   // State for active tab
   const [tabValue, setTabValue] = useState(0);
 
@@ -569,7 +572,9 @@ const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
   ];
 
   const priceColumns = [
-    { field: "unit_price", headerName: "سعر الوحدة", flex: 1 },
+    user?.view_prices
+      ? { field: "unit_price", headerName: "سعر الوحدة", flex: 1 }
+      : null,
     { field: "quantity", headerName: "الكمية", flex: 1 },
     {
       field: "created_at",
@@ -578,7 +583,7 @@ const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
       renderCell: (params) => (params.value ? params.value.split(" ")[0] : "-"),
     },
     { field: "invoice_id", headerName: "#", flex: 1 },
-  ];
+  ].filter(Boolean);
 
   const invoiceHistoryWithUniqueId =
     item?.invoice_history?.map((row, index) => ({
@@ -586,22 +591,37 @@ const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
       uniqueId: `${row.invoice_id}-${row.invoice_date}-${index}`,
     })) || [];
   const invoiceHistoryColumns = [
-    {
-      field: "unit_price",
-      headerName: "سعر الوحدة",
-      flex: 1,
-      renderCell: (params) =>
-        params.row.invoice_type === "طلب شراء" ? "-" : params.value || "0",
-    },
+    ...(user?.view_prices
+      ? [
+          {
+            field: "unit_price",
+            headerName: "سعر الوحدة",
+            flex: 1,
+            renderCell: (params) =>
+              params.row.invoice_type === "طلب شراء"
+                ? "-"
+                : params.value || "0",
+          },
+        ]
+      : []),
+
     { field: "quantity", headerName: "الكمية", flex: 1 },
     { field: "location", headerName: "الموقع", flex: 1 },
-    {
-      field: "total_price",
-      headerName: "السعر الإجمالي",
-      flex: 1,
-      renderCell: (params) =>
-        params.row.invoice_type === "طلب شراء" ? "-" : params.value || "0",
-    },
+
+    ...(user?.view_prices
+      ? [
+          {
+            field: "total_price",
+            headerName: "السعر الإجمالي",
+            flex: 1,
+            renderCell: (params) =>
+              params.row.invoice_type === "طلب شراء"
+                ? "-"
+                : params.value || "0",
+          },
+        ]
+      : []),
+
     {
       field: "status",
       headerName: "الحالة",

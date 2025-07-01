@@ -92,6 +92,8 @@ const Login = () => {
         updatedUser?.view_reservations
       ) {
         navigate("/invoices");
+      } else if (updatedUser?.view_reports) {
+        navigate("/others/supliers");
       } else if (
         updatedUser?.items_can_edit ||
         updatedUser?.items_can_delete ||
