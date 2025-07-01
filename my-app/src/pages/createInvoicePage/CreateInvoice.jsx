@@ -250,19 +250,17 @@ export default function CreateInvoice() {
       : invoice.type === "مرتجع"
       ? ["machine_name", "mechanism_name", "original_invoice_id"]
       : purchasesType
-      ? ["machine_name", "mechanism_name", "supplier_name"]
+      ? ["supplier_name"]
       : ["machine_name", "mechanism_name"];
 
     const missingFields = requiredFields.filter((field) => !invoice[field]);
 
     if (missingFields.length > 0) {
-      if (missingFields.includes("original_invoice_id")) {
-        return "يجب ملء رقم الفاتورة";
-      }
-      return (
-        isPurchaseOrder ||
-        (!purchasesType && "يجب ملء اسم الماكينة واسم الميكانيزم")
-      );
+      return isPurchaseOrder
+        ? "يجب ملء اسم الماكينة واسم الميكانيزم"
+        : purchasesType
+        ? "يجب ملء اسم المورد"
+        : "يجب ملء اسم الماكينة واسم الميكانيزم";
     }
     return null;
   };
