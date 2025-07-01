@@ -39,6 +39,8 @@ import NumberInput from "../../components/number/NumberInput";
 import { useGetUserQuery } from "../services/userApi";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
+import ArticleIcon from "@mui/icons-material/Article";
+import InvoiceDetails from "../../components/invoiceDetails/InvoiceDetails";
 
 export default function Report() {
   const { data: user, isLoading: isLoadingUser } = useGetUserQuery();
@@ -772,12 +774,20 @@ export default function Report() {
     setIsModalOpen(false);
   };
 
+  // manage Details component
+  const [isInvoiceDetailsOpen, setIsInvoiceDetailsOpen] = useState(false);
+  const [invoiceId, setInvoiceId] = useState(null);
+  const showInvoiceDetails = (id) => {
+    setInvoiceId(id);
+    setIsInvoiceDetailsOpen(true);
+  };
+
   // Define columns for invoices
   const invoiceColumns = [
     {
       field: "refresh",
       headerName: "فتح",
-      width: 70,
+      width: 110,
       renderCell: (params) => {
         return (
           <div
@@ -807,6 +817,34 @@ export default function Report() {
                 }}
               />
             </button>
+            {(user?.view_prices || user?.username === "admin") &&
+              params?.row?.type !== "اضافه" &&
+              params?.row?.type !== "مرتجع" &&
+              params?.row?.type !== "طلب شراء" &&
+              params.row.type !== "اضافه" &&
+              params.row.type !== "طلب شراء" && (
+                <button
+                  onClick={() => showInvoiceDetails(params.row)}
+                  style={{
+                    color: "#d32f2f",
+                    backgroundColor: "transparent",
+                    border: "none",
+                    cursor: "pointer",
+                    display: "flex",
+                  }}
+                >
+                  <ArticleIcon
+                    sx={{
+                      color: "#1976d2",
+                      fontSize: "2.1rem",
+                      padding: "3px",
+                      "&:hover": {
+                        backgroundColor: "#ddd",
+                      },
+                    }}
+                  />
+                </button>
+              )}
           </div>
         );
       },
@@ -2083,6 +2121,15 @@ export default function Report() {
               )}
             </Box>
           </Dialog>
+
+          {/* invoice details data */}
+          {isInvoiceDetailsOpen && (
+            <InvoiceDetails
+              open={isInvoiceDetailsOpen}
+              onClose={() => setIsInvoiceDetailsOpen(false)}
+              invoice={invoiceId}
+            />
+          )}
 
           <ItemDetailsDialog
             item={selectedItem}
