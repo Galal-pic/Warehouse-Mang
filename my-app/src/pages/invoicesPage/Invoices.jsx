@@ -291,12 +291,7 @@ export default function Invoices() {
       quantity: row.quantity,
       location: row.location,
       total_price: row.total_price,
-      unit_price:
-        editingInvoice.type === "مرتجع"
-          ? row.unit_price
-          : selectedNowType?.type !== "purchase"
-          ? Number(row.priceunit)
-          : Number(row.unit_price),
+      unit_price: Number(row.unit_price),
       description: row.description,
     }));
 
@@ -324,12 +319,7 @@ export default function Invoices() {
         location: row.location,
         quantity: Number(row.quantity),
         total_price: row.total_price,
-        unit_price:
-          editingInvoice.type === "مرتجع"
-            ? row.unit_price
-            : selectedNowType?.type !== "purchase"
-            ? Number(row.priceunit)
-            : Number(row.unit_price),
+        unit_price: Number(row.unit_price),
         description: row.description,
         price_details: row.price_details,
       })),
@@ -1065,7 +1055,6 @@ export default function Invoices() {
                     <div>
                       {(user?.can_edit || user?.username === "admin") &&
                         selectedInvoice?.rawStatus !== "confirmed" &&
-                        selectedInvoice?.type === "اضافه" &&
                         selectedInvoice?.status !== "تم" && (
                           <button
                             onClick={() => {

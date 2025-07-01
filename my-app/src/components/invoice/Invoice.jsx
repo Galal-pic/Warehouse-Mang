@@ -880,9 +880,7 @@ export default function InvoiceModal({
                   {(show || isPurchasesType) && (
                     <>
                       <TableCell className={styles.tableCellRow}>
-                        {isEditingInvoice &&
-                        (editingInvoice.type === "اضافه" ||
-                          justEditUnitPrice) ? (
+                        {editingInvoice?.type === "اضافه" ? (
                           <NumberInput
                             style={{
                               width: "100px",
@@ -975,8 +973,6 @@ export default function InvoiceModal({
                               }
                             }}
                           />
-                        ) : isEditingInvoice ? (
-                          "-"
                         ) : (
                           row.unit_price
                         )}
@@ -1056,7 +1052,7 @@ export default function InvoiceModal({
                     gap: "10px",
                   }}
                 >
-                  {!isEditingInvoice || justEditUnitPrice ? (
+                  {!isEditingInvoice ? (
                     editingInvoice?.payment_method === "Custody" ? (
                       `عهدة مع ${editingInvoice.custody_person || "-"}`
                     ) : (
@@ -1148,7 +1144,7 @@ export default function InvoiceModal({
               <Box className={styles.MoneyBox}>
                 <Box className={styles.MoneyLabel}>المدفوع</Box>
                 <Box className={styles.MoneyValue}>
-                  {!isEditingInvoice || justEditUnitPrice ? (
+                  {!isEditingInvoice ? (
                     selectedInvoice?.paid || 0
                   ) : (
                     <NumberInput
