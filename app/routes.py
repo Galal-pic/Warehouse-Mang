@@ -354,11 +354,11 @@ class InvoiceList(Resource):
         if 'supplier_name' in data and data['supplier_name']:
             supplier = Supplier.query.filter_by(name=data['supplier_name']).first()
 
-        if not machine or not mechanism:
+        if not machine or not mechanism and data['type'] != 'طلب شراء':
             invoice_ns.abort(404, "Machine or Mechanism not found")
             
         # If supplier is required for certain types but not provided
-        if data['type'] == 'اضافه' and not supplier:
+        if data['type'] == 'اضافه' and not supplier and data['type'] != 'طلب شراء':
             invoice_ns.abort(404, "Supplier is required for purchase invoices")
 
         # Create the invoice based on its type

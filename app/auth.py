@@ -4,6 +4,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from . import db
 from .models import Employee
 from .utils import parse_bool
+from pprint import pp
 # Create namespace
 auth_ns = Namespace('auth', description='Authentication operations')
 
@@ -315,6 +316,7 @@ class UserManagement(Resource):
     def put(self, user_id):
         """Update user data"""
         data = auth_ns.payload
+        pp({key: value for key, value in data.items() if not value})
         employee = Employee.query.get_or_404(user_id)
 
         # Update basic user information
@@ -330,92 +332,93 @@ class UserManagement(Resource):
             employee.job_name = data['job_name']
         
         # Update permissions if provided
-        if 'permissions' in data:
-            permissions = data['permissions']
+        # if 'permissions' in data:
+        #     permissions = data['permissions']
             
             # Create Invoice permissions
-            if 'createInvoice' in permissions:
-                create_invoice = permissions['createInvoice']
-                if 'create_inventory_operations' in create_invoice:
-                    employee.create_inventory_operations = create_invoice['create_inventory_operations']
-                if 'create_additions' in create_invoice:
-                    employee.create_additions = create_invoice['create_additions']
+            # if 'createInvoice' in permissions:
+            #     create_invoice = permissions['createInvoice']
+        if 'create_inventory_operations' in data:
+            employee.create_inventory_operations = data['create_inventory_operations']
+        if 'create_additions' in data:
+            employee.create_additions = data['create_additions']
             
             # Manage Operations permissions
-            if 'manageOperations' in permissions:
-                manage_operations = permissions['manageOperations']
-                if 'view_additions' in manage_operations:
-                    employee.view_additions = manage_operations['view_additions']
-                if 'view_withdrawals' in manage_operations:
-                    employee.view_withdrawals = manage_operations['view_withdrawals']
-                if 'view_deposits' in manage_operations:
-                    employee.view_deposits = manage_operations['view_deposits']
-                if 'view_returns' in manage_operations:
-                    employee.view_returns = manage_operations['view_returns']
-                if 'view_damages' in manage_operations:
-                    employee.view_damages = manage_operations['view_damages']
-                if 'view_reservations' in manage_operations:
-                    employee.view_reservations = manage_operations['view_reservations']
-                if 'view_prices' in manage_operations:
-                    employee.view_prices = manage_operations['view_prices']
-                if 'view_purchase_requests' in manage_operations:
-                    employee.view_purchase_requests = manage_operations['view_purchase_requests']
-                if 'view_reports' in manage_operations:
-                    employee.view_reports = manage_operations['view_reports']
-                if 'can_edit' in manage_operations:
-                    employee.can_edit = manage_operations['can_edit']
-                if 'can_delete' in manage_operations:
-                    employee.can_delete = manage_operations['can_delete']
-                if 'can_confirm_withdrawal' in manage_operations:
-                    employee.can_confirm_withdrawal = manage_operations['can_confirm_withdrawal']
-                if 'can_withdraw' in manage_operations:
-                    employee.can_withdraw = manage_operations['can_withdraw']
-                if 'can_update_prices' in manage_operations:
-                    employee.can_update_prices = manage_operations['can_update_prices']
-                if 'can_recover_deposits' in manage_operations:
-                    employee.can_recover_deposits = manage_operations['can_recover_deposits']
-                if 'can_confirm_purchase_requests' in manage_operations:
-                    employee.can_confirm_purchase_request = manage_operations['can_confirm_purchase_requests']
+            # if 'manageOperations' in permissions:
+            #     manage_operations = permissions['manageOperations']
+        if 'view_additions' in data:
+            employee.view_additions = data['view_additions']
+        if 'view_withdrawals' in data:
+            employee.view_withdrawals = data['view_withdrawals']
+        if 'view_deposits' in data:
+            employee.view_deposits = data['view_deposits']
+        if 'view_returns' in data:
+            employee.view_returns = data['view_returns']
+        if 'view_damages' in data:
+            employee.view_damages = data['view_damages']
+        if 'view_reservations' in data:
+            employee.view_reservations = data['view_reservations']
+        if 'view_prices' in data:
+            employee.view_prices = data['view_prices']
+        if 'view_purchase_requests' in data:
+            print("except")
+            employee.view_purchase_requests = data['view_purchase_requests']
+        if 'view_reports' in data:
+            employee.view_reports = data['view_reports']
+        if 'can_edit' in data:
+            employee.can_edit = data['can_edit']
+        if 'can_delete' in data:
+            employee.can_delete = data['can_delete']
+        if 'can_confirm_withdrawal' in data:
+            employee.can_confirm_withdrawal = data['can_confirm_withdrawal']
+        if 'can_withdraw' in data:
+            employee.can_withdraw = data['can_withdraw']
+        if 'can_update_prices' in data:
+            employee.can_update_prices = data['can_update_prices']
+        if 'can_recover_deposits' in data:
+            employee.can_recover_deposits = data['can_recover_deposits']
+        if 'can_confirm_purchase_requests' in data:
+            employee.can_confirm_purchase_request = data['can_confirm_purchase_requests']
             
             # Items permissions
-            if 'items' in permissions:
-                items = permissions['items']
-                if 'items_can_edit' in items:
-                    employee.items_can_edit = items['items_can_edit']
-                if 'items_can_delete' in items:
-                    employee.items_can_delete = items['items_can_delete']
-                if 'items_can_add' in items:
-                    employee.items_can_add = items['items_can_add']
+            # if 'items' in permissions:
+            #     items = permissions['items']
+        if 'items_can_edit' in data:
+            employee.items_can_edit = data['items_can_edit']
+        if 'items_can_delete' in data:
+            employee.items_can_delete = data['items_can_delete']
+        if 'items_can_add' in data:
+            employee.items_can_add = data['items_can_add']
             
             # Machines permissions
-            if 'machines' in permissions:
-                machines = permissions['machines']
-                if 'machines_can_edit' in machines:
-                    employee.machines_can_edit = machines['machines_can_edit']
-                if 'machines_can_delete' in machines:
-                    employee.machines_can_delete = machines['machines_can_delete']
-                if 'machines_can_add' in machines:
-                    employee.machines_can_add = machines['machines_can_add']
+            # if 'machines' in permissions:
+            #     machines = permissions['machines']
+        if 'machines_can_edit' in data:
+            employee.machines_can_edit = data['machines_can_edit']
+        if 'machines_can_delete' in data:
+            employee.machines_can_delete = data['machines_can_delete']
+        if 'machines_can_add' in data:
+            employee.machines_can_add = data['machines_can_add']
             
             # Mechanism permissions
-            if 'mechanism' in permissions:
-                mechanism = permissions['mechanism']
-                if 'mechanism_can_edit' in mechanism:
-                    employee.mechanism_can_edit = mechanism['mechanism_can_edit']
-                if 'mechanism_can_delete' in mechanism:
-                    employee.mechanism_can_delete = mechanism['mechanism_can_delete']
-                if 'mechanism_can_add' in mechanism:
-                    employee.mechanism_can_add = mechanism['mechanism_can_add']
+            # if 'mechanism' in permissions:
+            #     mechanism = permissions['mechanism']
+        if 'mechanism_can_edit' in data:
+            employee.mechanism_can_edit = data['mechanism_can_edit']
+        if 'mechanism_can_delete' in data:
+            employee.mechanism_can_delete = data['mechanism_can_delete']
+        if 'mechanism_can_add' in data:
+            employee.mechanism_can_add = data['mechanism_can_add']
             
             # Suppliers permissions
-            if 'suppliers' in permissions:
-                suppliers = permissions['suppliers']
-                if 'suppliers_can_edit' in suppliers:
-                    employee.suppliers_can_edit = suppliers['suppliers_can_edit']
-                if 'suppliers_can_delete' in suppliers:
-                    employee.suppliers_can_delete = suppliers['suppliers_can_delete']
-                if 'suppliers_can_add' in suppliers:
-                    employee.suppliers_can_add = suppliers['suppliers_can_add']
+            # if 'suppliers' in permissions:
+            #     suppliers = permissions['suppliers']
+        if 'suppliers_can_edit' in data:
+            employee.suppliers_can_edit = data['suppliers_can_edit']
+        if 'suppliers_can_delete' in data:
+            employee.suppliers_can_delete = data['suppliers_can_delete']
+        if 'suppliers_can_add' in data:
+            employee.suppliers_can_add = data['suppliers_can_add']
             
             
         
