@@ -14,6 +14,7 @@ from ..models import (
     InvoicePriceDetail,
     PurchaseRequests,
     ReturnSales,  # Added ReturnSales import
+    WarrantyReturn,
 )
 from datetime import datetime
 from ..utils import parse_bool
@@ -348,6 +349,27 @@ class FilterReports(Resource):
             else:
                 purchase_requests = purchase_requests_query.limit(nested_page_size).offset(nested_offset).all()
             
+            # Get warranty returns for this machine
+            warranty_returns_query = WarrantyReturn.query.join(Invoice).filter(Invoice.machine_id == machine.id)
+            
+            # Apply date filters to warranty returns
+            if start_date:
+                warranty_returns_query = warranty_returns_query.filter(WarrantyReturn.return_date >= start_date)
+            if end_date:
+                warranty_returns_query = warranty_returns_query.filter(WarrantyReturn.return_date <= end_date)
+                
+            # Apply warranty invoice filter if provided
+            if args["invoice_id"]:
+                warranty_returns_query = warranty_returns_query.filter(WarrantyReturn.warranty_invoice_id == args["invoice_id"])
+                
+            total_warranty_returns = warranty_returns_query.count()
+            
+            # Apply nested pagination to warranty returns
+            if all_results:
+                warranty_returns = warranty_returns_query.all()
+            else:
+                warranty_returns = warranty_returns_query.limit(nested_page_size).offset(nested_offset).all()
+            
             # Get items related to this machine through BOTH purchase requests AND invoices
             item_ids_from_prs = [pr.item_id for pr in purchase_requests_query.all()]  # Get all PR item IDs
             
@@ -391,6 +413,22 @@ class FilterReports(Resource):
             serialized_items = self._serialize_items_for_machine(related_items, purchase_requests, machine, args)
             serialized_prs = self._serialize_purchase_requests(purchase_requests)
             
+            # Serialize warranty returns
+            serialized_warranty_returns = [{
+                "id": wr.id,
+                "warranty_invoice_id": wr.warranty_invoice_id,
+                "item_id": wr.item_id,
+                "item_name": wr.item.item_name,
+                "item_bar": wr.item.item_bar,
+                "location": wr.location,
+                "returned_quantity": wr.returned_quantity,
+                "return_date": serialize_value(wr.return_date),
+                "returned_by": wr.returned_by.username,
+                "notes": wr.notes,
+                "warranty_invoice_client": wr.warranty_invoice.client_name,
+                "warranty_invoice_status": wr.warranty_invoice.status
+            } for wr in warranty_returns]
+            
             # Build machine data with pagination info for nested lists
             machine_data = {
                 "id": machine.id,
@@ -416,6 +454,13 @@ class FilterReports(Resource):
                     "page_size": nested_page_size,
                     "pages": (total_purchase_requests + nested_page_size - 1) // nested_page_size,
                     "results": serialized_prs
+                },
+                "warranty_returns": {
+                    "total": total_warranty_returns,
+                    "page": nested_page,
+                    "page_size": nested_page_size,
+                    "pages": (total_warranty_returns + nested_page_size - 1) // nested_page_size,
+                    "results": serialized_warranty_returns
                 }
             }
             result.append(machine_data)
@@ -514,6 +559,27 @@ class FilterReports(Resource):
             else:
                 purchase_requests = purchase_requests_query.limit(nested_page_size).offset(nested_offset).all()
             
+            # Get warranty returns for this mechanism
+            warranty_returns_query = WarrantyReturn.query.join(Invoice).filter(Invoice.mechanism_id == mechanism.id)
+            
+            # Apply date filters to warranty returns
+            if start_date:
+                warranty_returns_query = warranty_returns_query.filter(WarrantyReturn.return_date >= start_date)
+            if end_date:
+                warranty_returns_query = warranty_returns_query.filter(WarrantyReturn.return_date <= end_date)
+                
+            # Apply warranty invoice filter if provided
+            if args["invoice_id"]:
+                warranty_returns_query = warranty_returns_query.filter(WarrantyReturn.warranty_invoice_id == args["invoice_id"])
+                
+            total_warranty_returns = warranty_returns_query.count()
+            
+            # Apply nested pagination to warranty returns
+            if all_results:
+                warranty_returns = warranty_returns_query.all()
+            else:
+                warranty_returns = warranty_returns_query.limit(nested_page_size).offset(nested_offset).all()
+            
             # Get items related to this mechanism through BOTH purchase requests AND invoices
             item_ids_from_prs = [pr.item_id for pr in purchase_requests_query.all()]  # Get all PR item IDs
             
@@ -557,6 +623,22 @@ class FilterReports(Resource):
             serialized_items = self._serialize_items_for_mechanism(related_items, purchase_requests, mechanism, args)
             serialized_prs = self._serialize_purchase_requests(purchase_requests)
             
+            # Serialize warranty returns
+            serialized_warranty_returns = [{
+                "id": wr.id,
+                "warranty_invoice_id": wr.warranty_invoice_id,
+                "item_id": wr.item_id,
+                "item_name": wr.item.item_name,
+                "item_bar": wr.item.item_bar,
+                "location": wr.location,
+                "returned_quantity": wr.returned_quantity,
+                "return_date": serialize_value(wr.return_date),
+                "returned_by": wr.returned_by.username,
+                "notes": wr.notes,
+                "warranty_invoice_client": wr.warranty_invoice.client_name,
+                "warranty_invoice_status": wr.warranty_invoice.status
+            } for wr in warranty_returns]
+            
             # Build mechanism data with pagination info for nested lists
             mechanism_data = {
                 "id": mechanism.id,
@@ -582,6 +664,13 @@ class FilterReports(Resource):
                     "page_size": nested_page_size,
                     "pages": (total_purchase_requests + nested_page_size - 1) // nested_page_size,
                     "results": serialized_prs
+                },
+                "warranty_returns": {
+                    "total": total_warranty_returns,
+                    "page": nested_page,
+                    "page_size": nested_page_size,
+                    "pages": (total_warranty_returns + nested_page_size - 1) // nested_page_size,
+                    "results": serialized_warranty_returns
                 }
             }
             result.append(mechanism_data)
@@ -648,7 +737,7 @@ class FilterReports(Resource):
         else:
             invoices = query.limit(page_size).offset(offset).all()
         
-        # Serialize results with ReturnSales information
+        # Serialize results with warranty return information
         result = []
         for invoice in invoices:
             invoice_data = {
@@ -669,18 +758,73 @@ class FilterReports(Resource):
                 "machine": invoice.machine.name if invoice.machine else None,
                 "mechanism": invoice.mechanism.name if invoice.mechanism else None,
                 "supplier": invoice.supplier.name if invoice.supplier else None,
+            }
+            
+            # Enhanced items with warranty return information
+            items_with_return_info = []
+            for item in invoice.items:
+                # Get return history for this specific item in this invoice
+                returned_quantity = 0
+                return_history = []
                 
-                # Add related items
-                "items": [{
+                if invoice.type == 'أمانات':  # Only for warranty invoices
+                    item_returns = WarrantyReturn.query.filter_by(
+                        warranty_invoice_id=invoice.id,
+                        item_id=item.item_id,
+                        location=item.location
+                    ).all()
+                    
+                    returned_quantity = sum(wr.returned_quantity for wr in item_returns)
+                    return_history = [{
+                        "id": wr.id,
+                        "returned_quantity": wr.returned_quantity,
+                        "return_date": serialize_value(wr.return_date),
+                        "returned_by": wr.returned_by.username,
+                        "notes": wr.notes
+                    } for wr in item_returns]
+                
+                item_data = {
                     "item_name": item.warehouse.item_name,
                     "item_bar": item.warehouse.item_bar,
                     "location": item.location,
                     "quantity": item.quantity,
                     "unit_price": item.unit_price,
                     "total_price": item.total_price,
-                    "description": item.description
-                } for item in invoice.items]
-            }
+                    "description": item.description,
+                    "returned_quantity": returned_quantity,
+                    "remaining_quantity": item.quantity - returned_quantity,
+                    "return_history": return_history
+                }
+                items_with_return_info.append(item_data)
+            
+            invoice_data["items"] = items_with_return_info
+            
+            # Add warranty return summary for warranty invoices
+            if invoice.type == 'أمانات':
+                all_warranty_returns = WarrantyReturn.query.filter_by(warranty_invoice_id=invoice.id).all()
+                
+                items_with_returns = len(set((wr.item_id, wr.location) for wr in all_warranty_returns))
+                fully_returned_items = 0
+                partially_returned_items = 0
+                
+                # Calculate return statistics
+                for item in invoice.items:
+                    item_returns = [wr for wr in all_warranty_returns 
+                                if wr.item_id == item.item_id and wr.location == item.location]
+                    if item_returns:
+                        total_returned = sum(wr.returned_quantity for wr in item_returns)
+                        if total_returned >= item.quantity:
+                            fully_returned_items += 1
+                        else:
+                            partially_returned_items += 1
+                
+                invoice_data["warranty_return_summary"] = {
+                    "total_returns": len(all_warranty_returns),
+                    "total_returned_items": sum(wr.returned_quantity for wr in all_warranty_returns),
+                    "items_with_returns": items_with_returns,
+                    "fully_returned_items": fully_returned_items,
+                    "partially_returned_items": partially_returned_items
+                }
             
             # Add ReturnSales information if invoice type is "مرتجع"
             if invoice.type == "مرتجع":
@@ -709,7 +853,7 @@ class FilterReports(Resource):
             "pages": (total_count + page_size - 1) // page_size,
             "results": result
         }, 200
-    
+        
     def _filter_items(self, args, start_date, end_date, page_size, offset, all_results):
         """Filter warehouse items based on provided parameters"""
         # Start with base query
@@ -774,7 +918,46 @@ class FilterReports(Resource):
                 "created_at": serialize_value(price.created_at)
             } for price in prices]
             
-            # Build item data with all relevant information
+            # Get warranty returns for this item
+            warranty_returns_query = WarrantyReturn.query.filter(WarrantyReturn.item_id == item.id)
+            
+            # Apply date filters to warranty returns
+            if start_date:
+                warranty_returns_query = warranty_returns_query.filter(WarrantyReturn.return_date >= start_date)
+            if end_date:
+                warranty_returns_query = warranty_returns_query.filter(WarrantyReturn.return_date <= end_date)
+            if args["location"]:
+                warranty_returns_query = warranty_returns_query.filter(WarrantyReturn.location.ilike(f"%{args['location']}%"))
+                
+            warranty_returns = warranty_returns_query.all()
+            
+            # Build enhanced invoice history with warranty return information
+            invoice_history = []
+            for inv_item in invoice_items:
+                # Calculate warranty return info for this specific invoice item
+                returned_quantity = 0
+                if inv_item.invoice.type == 'أمانات':
+                    item_returns = WarrantyReturn.query.filter_by(
+                        warranty_invoice_id=inv_item.invoice_id,
+                        item_id=item.id,
+                        location=inv_item.location
+                    ).all()
+                    returned_quantity = sum(wr.returned_quantity for wr in item_returns)
+                
+                invoice_history.append({
+                    "invoice_id": inv_item.invoice_id,
+                    "invoice_type": inv_item.invoice.type,
+                    "invoice_date": serialize_value(inv_item.invoice.created_at),
+                    "location": inv_item.location,
+                    "quantity": inv_item.quantity,
+                    "unit_price": inv_item.unit_price,
+                    "total_price": inv_item.total_price,
+                    "status": inv_item.invoice.status,
+                    "returned_quantity": returned_quantity,
+                    "remaining_quantity": inv_item.quantity - returned_quantity
+                })
+            
+            # Build item data with all relevant information including warranty returns
             item_data = {
                 "id": item.id,
                 "item_name": item.item_name,
@@ -783,16 +966,18 @@ class FilterReports(Resource):
                 "updated_at": serialize_value(item.updated_at),
                 "locations": locations,
                 "prices": prices_serialized,
-                "invoice_history": [{
-                    "invoice_id": inv_item.invoice_id,
-                    "invoice_type": inv_item.invoice.type,
-                    "invoice_date": serialize_value(inv_item.invoice.created_at),
-                    "location": inv_item.location,
-                    "quantity": inv_item.quantity,
-                    "unit_price": inv_item.unit_price,
-                    "total_price": inv_item.total_price,
-                    "status": inv_item.invoice.status
-                } for inv_item in invoice_items],
+                "invoice_history": invoice_history,
+                "warranty_returns": [{
+                    "id": wr.id,
+                    "warranty_invoice_id": wr.warranty_invoice_id,
+                    "location": wr.location,
+                    "returned_quantity": wr.returned_quantity,
+                    "return_date": serialize_value(wr.return_date),
+                    "returned_by": wr.returned_by.username,
+                    "notes": wr.notes,
+                    "warranty_invoice_type": wr.warranty_invoice.type,
+                    "warranty_invoice_client": wr.warranty_invoice.client_name
+                } for wr in warranty_returns],
                 "purchase_requests": [{
                     "id": req.id,
                     "status": req.status,
@@ -815,9 +1000,24 @@ class FilterReports(Resource):
             "pages": (total_count + page_size - 1) // page_size,
             "results": result
         }, 200
-    
+        
+    def _get_warranty_returns_for_entity(self, entity_type, entity_id, start_date=None, end_date=None):
+        """Get warranty returns for a specific machine or mechanism"""
+        if entity_type == 'machine':
+            warranty_returns_query = WarrantyReturn.query.join(Invoice).filter(Invoice.machine_id == entity_id)
+        else:  # mechanism
+            warranty_returns_query = WarrantyReturn.query.join(Invoice).filter(Invoice.mechanism_id == entity_id)
+        
+        # Apply date filters
+        if start_date:
+            warranty_returns_query = warranty_returns_query.filter(WarrantyReturn.return_date >= start_date)
+        if end_date:
+            warranty_returns_query = warranty_returns_query.filter(WarrantyReturn.return_date <= end_date)
+        
+        return warranty_returns_query.all()
+
     def _serialize_invoices(self, invoices):
-        """Serialize invoices data with ReturnSales information"""
+        """Serialize invoices data with warranty return information"""
         serialized_invoices = []
         for invoice in invoices:
             invoice_data = {
@@ -836,22 +1036,57 @@ class FilterReports(Resource):
                 "machine": invoice.machine.name if invoice.machine else None,
                 "mechanism": invoice.mechanism.name if invoice.mechanism else None,
                 "supplier": invoice.supplier.name if invoice.supplier else None,
-                "items": [{
+            }
+            
+            # Enhanced items with warranty return information
+            items_with_return_info = []
+            for item in invoice.items:
+                # Get return history for warranty invoices
+                returned_quantity = 0
+                return_history = []
+                
+                if invoice.type == 'أمانات':
+                    item_returns = WarrantyReturn.query.filter_by(
+                        warranty_invoice_id=invoice.id,
+                        item_id=item.item_id,
+                        location=item.location
+                    ).all()
+                    
+                    returned_quantity = sum(wr.returned_quantity for wr in item_returns)
+                    return_history = [{
+                        "returned_quantity": wr.returned_quantity,
+                        "return_date": serialize_value(wr.return_date),
+                        "returned_by": wr.returned_by.username,
+                        "notes": wr.notes
+                    } for wr in item_returns]
+                
+                items_with_return_info.append({
                     "item_name": item.warehouse.item_name,
                     "item_bar": item.warehouse.item_bar,
                     "location": item.location,
                     "quantity": item.quantity,
                     "unit_price": item.unit_price,
                     "total_price": item.total_price,
-                    "description": item.description
-                } for item in invoice.items]
-            }
+                    "description": item.description,
+                    "returned_quantity": returned_quantity,
+                    "remaining_quantity": item.quantity - returned_quantity,
+                    "return_history": return_history
+                })
+            
+            invoice_data["items"] = items_with_return_info
+            
+            # Add warranty return summary for warranty invoices
+            if invoice.type == 'أمانات':
+                all_warranty_returns = WarrantyReturn.query.filter_by(warranty_invoice_id=invoice.id).all()
+                invoice_data["warranty_return_summary"] = {
+                    "total_returns": len(all_warranty_returns),
+                    "total_returned_items": sum(wr.returned_quantity for wr in all_warranty_returns)
+                }
             
             # Add ReturnSales information if invoice type is "مرتجع"
             if invoice.type == "مرتجع":
                 return_sales_record = ReturnSales.query.filter_by(return_invoice_id=invoice.id).first()
                 if return_sales_record:
-                    # Get the original sales invoice
                     original_invoice = return_sales_record.sales_invoice
                     invoice_data['return_sales_info'] = {
                         'original_invoice_id': return_sales_record.sales_invoice_id,
