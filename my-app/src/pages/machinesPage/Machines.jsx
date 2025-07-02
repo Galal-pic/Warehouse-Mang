@@ -320,7 +320,7 @@ export default function Machines() {
         } else {
           setOpenSnackbar(true);
           setSnackbarMessage(
-            "خطأ في حذف الماكينة، قد تكون الماكينة غير موجودة بالفعل، اذا استمرت المشكلة حاول اعادة تحميل الصفحة"
+            "خطأ في حذف الماكينة، قد يكون هناك بيانات متعلقه بهذه الماكينة، او انها غير موجودة بالفعل"
           );
           setSnackBarType("error");
         }

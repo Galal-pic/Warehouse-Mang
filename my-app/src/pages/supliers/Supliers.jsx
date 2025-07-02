@@ -329,7 +329,7 @@ export default function Suppliers() {
         } else {
           setOpenSnackbar(true);
           setSnackbarMessage(
-            "خطأ في حذف المورد قد يكون المورد غير موجود بالفعل، اذا استمرت المشكلة حاول اعادة تحميل الصفحة"
+            "خطأ في حذف المورد قد يكون هناك بيانات متعلقه بهذا المورد او انه غير موجودة بالفعل"
           );
           setSnackBarType("error");
         }

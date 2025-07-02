@@ -961,6 +961,14 @@ export default function Report() {
         usersData?.users?.map((user) => ({
           name: user.username,
         })) || [],
+      المراجع:
+        usersData?.users?.map((user) => ({
+          name: user.username,
+        })) || [],
+      "عامل المخزن":
+        usersData?.users?.map((user) => ({
+          name: user.username,
+        })) || [],
       الماكينه:
         machinesData?.machines?.map((machine) => ({ name: machine.name })) ||
         [],
@@ -1342,31 +1350,9 @@ export default function Report() {
                           backgroundColor: "#ddd",
                         }}
                       >
-                        {[
-                          "المراجع",
-                          "اسم العميل",
-                          "رقم الفاتورة",
-                          "عامل المخزن",
-                        ].includes(fieldName) ? (
-                          fieldName === "رقم الفاتورة" ? (
-                            <Box sx={{ height: "50px" }}>
-                              <NumberInput
-                                placeholder={fieldName}
-                                value={filters[fieldName]}
-                                onChange={(e) =>
-                                  handleFilterChange(fieldName, e.target.value)
-                                }
-                                style={{
-                                  border: "none",
-                                  outline: "none",
-                                  width: "100%",
-                                  backgroundColor: "#ddd",
-                                  textAlign: "center",
-                                }}
-                              />
-                            </Box>
-                          ) : (
-                            <input
+                        {fieldName === "رقم الفاتورة" ? (
+                          <Box sx={{ height: "50px" }}>
+                            <NumberInput
                               placeholder={fieldName}
                               value={filters[fieldName]}
                               onChange={(e) =>
@@ -1375,16 +1361,36 @@ export default function Report() {
                               style={{
                                 border: "none",
                                 outline: "none",
-                                height: "50px",
                                 width: "100%",
                                 backgroundColor: "#ddd",
                                 textAlign: "center",
                               }}
                             />
-                          )
+                          </Box>
+                        ) : fieldName === "اسم العميل" ? (
+                          <input
+                            placeholder={fieldName}
+                            value={filters[fieldName]}
+                            onChange={(e) =>
+                              handleFilterChange(fieldName, e.target.value)
+                            }
+                            style={{
+                              border: "none",
+                              outline: "none",
+                              height: "50px",
+                              width: "100%",
+                              backgroundColor: "#ddd",
+                              textAlign: "center",
+                            }}
+                          />
                         ) : (
                           <CustomAutoCompleteField
-                            isLoading={false}
+                            isLoading={
+                              fieldName === "اسم الموظف" ||
+                              fieldName === "المراجع"
+                                ? isUsersLoading
+                                : false
+                            }
                             values={filterOptions[fieldName]}
                             editingItem={{ [fieldName]: filters[fieldName] }}
                             setEditingItem={(newItem) =>
@@ -1436,66 +1442,48 @@ export default function Report() {
                           backgroundColor: "#ddd",
                         }}
                       >
-                        {fieldName === "عامل المخزن" ? (
-                          <input
-                            placeholder={fieldName}
-                            value={filters[fieldName]}
-                            onChange={(e) =>
-                              handleFilterChange(fieldName, e.target.value)
-                            }
-                            style={{
-                              border: "none",
-                              outline: "none",
-                              height: "50px",
-                              width: "100%",
-                              backgroundColor: "#ddd",
-                              textAlign: "center",
-                            }}
-                          />
-                        ) : (
-                          <CustomAutoCompleteField
-                            isBig={[
-                              "الماكينه",
-                              "الميكانيزم",
-                              "اسم المورد",
-                            ].includes(fieldName)}
-                            isLoading={
-                              fieldName === "الماكينه"
-                                ? isMachinesLoading
-                                : fieldName === "الميكانيزم"
-                                ? isMechanismsLoading
-                                : fieldName === "اسم المورد"
-                                ? isSuppliersLoading
-                                : fieldName === "اسم الموظف"
-                                ? isUsersLoading
-                                : false
-                            }
-                            values={filterOptions[fieldName]}
-                            editingItem={{ [fieldName]: filters[fieldName] }}
-                            setEditingItem={(newItem) =>
-                              handleFilterChange(fieldName, newItem[fieldName])
-                            }
-                            fieldName={fieldName}
-                            placeholder={`اختر ${fieldName}`}
-                            sx={{
-                              "& .MuiInputBase-root": {
-                                fontSize: "0.95rem",
-                                backgroundColor: "#f8fafc",
-                                borderRadius: "6px",
-                                "&:hover": {
-                                  backgroundColor: "#f1f5f9",
-                                },
+                        <CustomAutoCompleteField
+                          isBig={[
+                            "الماكينه",
+                            "الميكانيزم",
+                            "اسم المورد",
+                          ].includes(fieldName)}
+                          isLoading={
+                            fieldName === "الماكينه"
+                              ? isMachinesLoading
+                              : fieldName === "الميكانيزم"
+                              ? isMechanismsLoading
+                              : fieldName === "اسم المورد"
+                              ? isSuppliersLoading
+                              : fieldName === "عامل المخزن"
+                              ? isUsersLoading
+                              : false
+                          }
+                          values={filterOptions[fieldName]}
+                          editingItem={{ [fieldName]: filters[fieldName] }}
+                          setEditingItem={(newItem) =>
+                            handleFilterChange(fieldName, newItem[fieldName])
+                          }
+                          fieldName={fieldName}
+                          placeholder={`اختر ${fieldName}`}
+                          sx={{
+                            "& .MuiInputBase-root": {
+                              fontSize: "0.95rem",
+                              backgroundColor: "#f8fafc",
+                              borderRadius: "6px",
+                              "&:hover": {
+                                backgroundColor: "#f1f5f9",
                               },
-                              "& .MuiInputLabel-root": {
-                                fontSize: "0.95rem",
+                            },
+                            "& .MuiInputLabel-root": {
+                              fontSize: "0.95rem",
+                              color: "#4b6584",
+                              "&.Mui-focused": {
                                 color: "#4b6584",
-                                "&.Mui-focused": {
-                                  color: "#4b6584",
-                                },
                               },
-                            }}
-                          />
-                        )}
+                            },
+                          }}
+                        />
                       </Box>
                     ))}
                   </Box>

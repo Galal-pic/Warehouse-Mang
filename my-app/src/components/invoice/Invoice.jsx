@@ -259,6 +259,7 @@ export default function InvoiceModal({
       id: selectedInvoice?.id,
       itemName: selectedInvoice?.items[index]?.item_name,
       itemBar: selectedInvoice?.items[index]?.barcode,
+      location: selectedInvoice?.items[index]?.location,
     };
 
     try {

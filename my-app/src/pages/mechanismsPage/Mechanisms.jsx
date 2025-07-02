@@ -341,7 +341,7 @@ export default function Mechanisms() {
         } else {
           setOpenSnackbar(true);
           setSnackbarMessage(
-            "خطأ في حذف الميكانيزم قد يكون الميكانيزم غير موجود بالفعل، اذا استمرت المشكلة حاول اعادة تحميل الصفحة"
+            "خطأ في حذف الميكانيزم قد يكون هناك بيانات متعلقه بهذا الميكانيزم او انه غير موجودة بالفعل"
           );
           setSnackBarType("error");
         }
