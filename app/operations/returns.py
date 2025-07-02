@@ -4,10 +4,16 @@ from .. import db
 from sqlalchemy.exc import SQLAlchemyError
 from ..utils import operation_result
 
+from datetime import datetime
+from ..models import Invoice, Warehouse, ItemLocations, InvoiceItem, Prices, InvoicePriceDetail, ReturnSales
+from .. import db
+from sqlalchemy.exc import SQLAlchemyError
+from ..utils import operation_result
+
 def Return_Operations(data, machine, mechanism, supplier, employee, machine_ns, warehouse_ns, invoice_ns, mechanism_ns, item_location_n, supplier_ns):
     """
     Create a return invoice (مرتجع type).
-    Return operations add inventory back to the system and potentially create new price records.
+    Return operations add inventory back to the system and properly restore price records using FIFO order.
     """
     try:
         # Create new invoice
@@ -39,7 +45,7 @@ def Return_Operations(data, machine, mechanism, supplier, employee, machine_ns, 
             warehouse_item = Warehouse.query.filter_by(item_name=item_data["item_name"]).first()
             if not warehouse_item:
                 db.session.rollback()
-                return operation_result(404, "error",f"Item '{item_data['item_name']}' not found in warehouse", None)
+                return operation_result(404, "error", f"Item '{item_data['item_name']}' not found in warehouse", None)
             
             # Verify or create the location
             item_location = ItemLocations.query.filter_by(
@@ -59,7 +65,7 @@ def Return_Operations(data, machine, mechanism, supplier, employee, machine_ns, 
             # Check for duplicate items
             if (warehouse_item.id, item_data['location']) in item_ids:
                 db.session.rollback()
-                return operation_result(400, "error",f"Item '{item_data['item_name']}' already added to invoice", None)
+                return operation_result(400, "error", f"Item '{item_data['item_name']}' already added to invoice", None)
             
             item_ids.append((warehouse_item.id, item_data['location']))
             
@@ -67,8 +73,6 @@ def Return_Operations(data, machine, mechanism, supplier, employee, machine_ns, 
             quantity = item_data["quantity"]
             unit_price = item_data.get("unit_price", 0)
             total_price = item_data.get('total_price', quantity * unit_price)
-            
-                  
             
             # Update the quantity in the warehouse (increase for return)
             item_location.quantity += quantity
@@ -85,51 +89,70 @@ def Return_Operations(data, machine, mechanism, supplier, employee, machine_ns, 
             )
             db.session.add(invoice_item)
             
-            # For returns, create or update a price record if a unit price is provided
-            # This allows the returned items to re-enter the FIFO system
+            # For returns, restore price records based on original sales invoice
             price_updated = False
             
             if 'original_invoice_id' in data and data['original_invoice_id']:
-                # Try to find and update prices from the original invoice
+                # Get price details for this specific item from the original sales invoice
                 original_invoice_details = InvoicePriceDetail.query.filter_by(
-                    invoice_id=data['original_invoice_id']
-                ).all()
+                    invoice_id=data['original_invoice_id'],
+                    item_id=warehouse_item.id  # Filter by item_id here too
+                ).order_by(InvoicePriceDetail.id.asc()).all()  # Maintain FIFO order
                 
-                # Check for old return invoices
-                total_sales_items = sum([
-                    detail.quantity for detail in original_invoice_details
-                ])
-                old_return_invoices = ReturnSales.query.filter_by(
-                sales_invoice_id=data['original_invoice_id']
-                ).all()
-                
-                total_quantity = 0
-                if old_return_invoices:
-                    for old_invoice in old_return_invoices:
-                        old_invoice_items = InvoiceItem.query.filter_by(
-                            invoice_id=old_invoice.return_invoice_id,
-                            item_id=warehouse_item.id
-                        ).all()
-                        for old_invoice_item in old_invoice_items:
-                            total_quantity += old_invoice_item.quantity
+                if original_invoice_details:
+                    # Check for old return invoices
+                    total_sales_items = sum([
+                        detail.quantity for detail in original_invoice_details
+                    ])
+                    old_return_invoices = ReturnSales.query.filter_by(
+                        sales_invoice_id=data['original_invoice_id']
+                    ).all()
+                    
+                    total_returned_quantity = 0
+                    if old_return_invoices:
+                        for old_invoice in old_return_invoices:
+                            old_invoice_items = InvoiceItem.query.filter_by(
+                                invoice_id=old_invoice.return_invoice_id,
+                                item_id=warehouse_item.id
+                            ).all()
+                            for old_invoice_item in old_invoice_items:
+                                total_returned_quantity += old_invoice_item.quantity
+                                
+                    if total_returned_quantity + item_data['quantity'] > total_sales_items:
+                        db.session.rollback()
+                        return operation_result(400, "error", f"Return quantity exceeds the total sales quantity for item '{item_data['item_name']}'", None)
+                    
+                    # FIXED: Restore quantities proportionally based on FIFO consumption
+                    remaining_to_return = item_data['quantity']
+                    
+                    # Process price details in FIFO order (same order as original consumption)
+                    for detail in original_invoice_details:
+                        if remaining_to_return <= 0:
+                            break
                             
-                if total_quantity + item_data['quantity'] > total_sales_items:
-                    db.session.rollback()
-                    return operation_result(400, "error",f"Return quantity exceeds the total sales quantity for item '{item_data['item_name']}'", None)
-                
-                for detail in original_invoice_details:
-                    if detail.item_id == warehouse_item.id:
+                        # Find the corresponding price record
                         price = Prices.query.filter_by(
                             invoice_id=detail.source_price_invoice_id,
-                            item_id=detail.item_id
+                            item_id=detail.source_price_item_id
                         ).first()
                         
                         if price:
-                            # Update the existing price record
-                            price.quantity += quantity
+                            # Calculate how much to return to this specific price record
+                            # Return proportionally based on how much was originally consumed
+                            quantity_to_return = min(remaining_to_return, detail.quantity)
+                            
+                            # Update the price record
+                            price.quantity += quantity_to_return
                             db.session.add(price)
+                            
+                            # Reduce remaining quantity to return
+                            remaining_to_return -= quantity_to_return
                             price_updated = True
-                            break
+                    
+                    # If there's still quantity left to return (shouldn't happen with proper validation)
+                    if remaining_to_return > 0:
+                        db.session.rollback()
+                        return operation_result(400, "error", f"Cannot properly restore all returned quantities for item '{item_data['item_name']}'", None)
             
             # If no price was updated from original invoice, create a new price record
             if not price_updated and unit_price > 0:
@@ -144,12 +167,13 @@ def Return_Operations(data, machine, mechanism, supplier, employee, machine_ns, 
                     
             total_invoice_amount += total_price
             
-        # Create a return sales record
-        return_sales_invoice = ReturnSales(
-            sales_invoice_id=data['original_invoice_id'],
-            return_invoice_id=new_invoice.id
-        )
-        db.session.add(return_sales_invoice)
+        # Create a return sales record if original_invoice_id is provided
+        if 'original_invoice_id' in data and data['original_invoice_id']:
+            return_sales_invoice = ReturnSales(
+                sales_invoice_id=data['original_invoice_id'],
+                return_invoice_id=new_invoice.id
+            )
+            db.session.add(return_sales_invoice)
         
         # Update invoice totals
         new_invoice.total_amount = total_invoice_amount
@@ -172,20 +196,89 @@ def delete_return(invoice, invoice_ns):
         return operation_result(400, "error", "Can only delete return invoices with this method")
 
     try:
-        # Check if any of the returned items have been sold again
-        price_records = Prices.query.filter_by(invoice_id=invoice.id).all()
-        for price_record in price_records:
-            # Check if some have been consumed (original quantity > current quantity)
-            # This is the correct comparison - not comparing price_record.quantity to itself
-            original_quantity = sum([item.quantity for item in invoice.items 
-                                   if item.item_id == price_record.item_id])
-            if price_record.quantity < original_quantity:
-                db.session.rollback()
-                return operation_result(400, "error",  f"Cannot delete return invoice: Some returned items have already been sold again.")
+        # Get the original sales invoice information
+        return_sales_record = ReturnSales.query.filter_by(return_invoice_id=invoice.id).first()
+        original_sales_invoice_id = None
         
-        # Restore quantities for each item (decrease for return deletion)
+        if return_sales_record:
+            original_sales_invoice_id = return_sales_record.sales_invoice_id
+
+        # Process each item in the return invoice
         for invoice_item in invoice.items:
-            # Find the item location
+            warehouse_item = invoice_item.warehouse
+            
+            # Step 1: Check if we need to revert price changes made to existing price records
+            if original_sales_invoice_id:
+                # Get the price details from the original sales invoice for this item
+                original_price_details = InvoicePriceDetail.query.filter_by(
+                    invoice_id=original_sales_invoice_id,
+                    item_id=warehouse_item.id
+                ).order_by(InvoicePriceDetail.id.asc()).all()
+                
+                # Calculate how much quantity was returned to each price record
+                remaining_to_revert = invoice_item.quantity
+                
+                for detail in original_price_details:
+                    if remaining_to_revert <= 0:
+                        break
+                    
+                    # Find the price record that was restored
+                    price_record = Prices.query.filter_by(
+                        invoice_id=detail.source_price_invoice_id,
+                        item_id=detail.source_price_item_id
+                    ).first()
+                    
+                    if price_record:
+                        # Calculate how much was returned to this price record
+                        quantity_returned_to_this_record = min(remaining_to_revert, detail.quantity)
+                        
+                        # Check if this quantity has been consumed again since the return
+                        if price_record.quantity < quantity_returned_to_this_record:
+                            db.session.rollback()
+                            return operation_result(400, "error", 
+                                f"Cannot delete return invoice: {quantity_returned_to_this_record - price_record.quantity} units of "
+                                f"'{warehouse_item.item_name}' from the returned stock have already been sold again. "
+                                f"Available in price record: {price_record.quantity}, trying to remove: {quantity_returned_to_this_record}")
+                        
+                        # Subtract the returned quantity back from the price record
+                        price_record.quantity -= quantity_returned_to_this_record
+                        remaining_to_revert -= quantity_returned_to_this_record
+                        
+                        # FIXED: Only delete price records if they have no references AND are empty
+                        if price_record.quantity <= 0:
+                            # Check if this price record is referenced by any invoice_price_detail records
+                            referencing_details = InvoicePriceDetail.query.filter_by(
+                                source_price_invoice_id=price_record.invoice_id,
+                                source_price_item_id=price_record.item_id
+                            ).first()
+                            
+                            # Only delete if no references exist
+                            if not referencing_details:
+                                db.session.delete(price_record)
+                            # If there are references, leave the record with 0 quantity
+            
+            # Step 2: Handle price records that were created specifically by this return invoice
+            return_created_prices = Prices.query.filter_by(
+                invoice_id=invoice.id,
+                item_id=warehouse_item.id
+            ).all()
+            
+            for price_record in return_created_prices:
+                # Check if any quantity from these price records has been consumed
+                price_details_consuming_this = InvoicePriceDetail.query.filter_by(
+                    source_price_invoice_id=price_record.invoice_id,
+                    source_price_item_id=price_record.item_id
+                ).all()
+                
+                consumed_from_return_price = sum(detail.quantity for detail in price_details_consuming_this)
+                
+                if consumed_from_return_price > 0:
+                    db.session.rollback()
+                    return operation_result(400, "error", 
+                        f"Cannot delete return invoice: {consumed_from_return_price} units of "
+                        f"'{warehouse_item.item_name}' from the returned stock have already been sold again.")
+            
+            # Step 3: Restore inventory quantities (subtract the returned quantity)
             item_location = ItemLocations.query.filter_by(
                 item_id=invoice_item.item_id,
                 location=invoice_item.location
@@ -193,27 +286,51 @@ def delete_return(invoice, invoice_ns):
             
             if not item_location:
                 raise ValueError(
-                    f"Item {invoice_item.warehouse.item_name} not found in location {invoice_item.location}"
+                    f"Item {warehouse_item.item_name} not found in location {invoice_item.location}"
                 )
 
-            # Restore the quantity (subtract for return deletion)
+            # Subtract the returned quantity (since we're deleting the return)
             item_location.quantity -= invoice_item.quantity
             
             # Check for negative quantity
             if item_location.quantity < 0:
                 db.session.rollback()
-                return operation_result(400, "error",  f"Cannot delete return invoice: Not enough quantity for item " +
-                    f"'{invoice_item.warehouse.item_name}' in location '{invoice_item.location}'. " +
+                return operation_result(400, "error", 
+                    f"Cannot delete return invoice: Not enough quantity for item "
+                    f"'{warehouse_item.item_name}' in location '{invoice_item.location}'. "
+                    f"Available: {item_location.quantity + invoice_item.quantity}, "
+                    f"trying to remove: {invoice_item.quantity}. "
                     f"Some items may have already been moved or sold.")
+
+        # Step 4: Delete price records created specifically by this return invoice
+        # FIXED: Only delete if they have no references
+        return_created_prices = Prices.query.filter_by(invoice_id=invoice.id).all()
+        for price_record in return_created_prices:
+            # Check if this price record is referenced by any invoice_price_detail records
+            referencing_details = InvoicePriceDetail.query.filter_by(
+                source_price_invoice_id=price_record.invoice_id,
+                source_price_item_id=price_record.item_id
+            ).first()
+            
+            # Only delete if no references exist
+            if not referencing_details:
+                db.session.delete(price_record)
+            else:
+                # If there are references, we cannot delete this return invoice
+                # because it would leave orphaned price detail records
+                db.session.rollback()
+                return operation_result(400, "error", 
+                    f"Cannot delete return invoice: Items from this return have already been sold again. "
+                    f"Delete the subsequent sales invoices first.")
         
-        # Delete price records
-        Prices.query.filter_by(invoice_id=invoice.id).delete()
-        
-        # Delete invoice items and the invoice
+        # Step 5: Delete invoice items
         InvoiceItem.query.filter_by(invoice_id=invoice.id).delete()
         
-        #Delete the return_sales records
-        ReturnSales.query.filter_by(return_invoice_id=invoice.id).delete()    
+        # Step 6: Delete the return_sales record
+        if return_sales_record:
+            db.session.delete(return_sales_record)
+        
+        # Step 7: Delete the invoice itself
         db.session.delete(invoice)
         
         db.session.commit()
