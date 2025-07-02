@@ -102,6 +102,8 @@ export default function Invoices() {
         displayStatus = "لم تؤكد";
       } else if (invoice.status === "confirmed") {
         displayStatus = "تم";
+      } else if (invoice.status === "partially_returned") {
+        displayStatus = "استرداد جزئي";
       } else if (invoice.status === "returned") {
         displayStatus = "تم الاسترداد";
       } else {
@@ -662,7 +664,11 @@ export default function Invoices() {
                 </button>
               )}
             {selectedNowType?.label === "أمانات" &&
-              (params.row.status !== "تم الاسترداد" ? (
+              (params.row.status === "تم الاسترداد" ? (
+                "تم الاسترداد"
+              ) : params.row.status === "استرداد جزئي" ? (
+                "استرداد جزئي"
+              ) : (
                 <Button
                   variant="contained"
                   color="info"
@@ -682,8 +688,6 @@ export default function Invoices() {
                     "استرداد"
                   )}
                 </Button>
-              ) : (
-                "تم الاسترداد"
               ))}
 
             {/* {params.row.items.some((item) => item.total_price === 0) && (
@@ -721,6 +725,9 @@ export default function Invoices() {
 
         if (status === "تم" || status === "تم الاسترداد") {
           return "تم";
+        }
+        if (status === "استرداد جزئي") {
+          return "استرداد جزئي";
         }
 
         let buttonText = status;
@@ -1099,7 +1106,9 @@ export default function Invoices() {
                   addRow={addRow}
                   handleDeleteItemClick={handleDeleteItemClick}
                   justEditUnitPrice={true}
-                  canEsterdad={true}
+                  canEsterdad={
+                    user?.can_recover_deposits || user?.username === "admin"
+                  }
                   setSelectedInvoice={setSelectedInvoice}
                 />
                 <Divider sx={{ marginTop: 5 }} />

@@ -82,6 +82,7 @@ export default function Report() {
         draft: "لم تراجع",
         accreditation: "لم تؤكد",
         confirmed: "تم",
+        partially_returned: "استرداد جزئي",
         returned: "تم الاسترداد",
       };
 
@@ -669,6 +670,7 @@ export default function Report() {
     "لم تراجع": "draft",
     "لم تؤكد": "accreditation",
     تم: "confirmed",
+    "استرداد جزئي": "partially_returned",
     "تم الاسترداد": "returned",
   };
 
@@ -869,6 +871,7 @@ export default function Report() {
           draft: "لم تراجع",
           accreditation: "لم تؤكد",
           confirmed: "تم",
+          partially_returned: "استرداد جزئي",
           returned: "تم الاسترداد",
         };
         return statusMap[params.value] || params.value || "-";
@@ -1199,12 +1202,7 @@ export default function Report() {
       </div>
     );
   } else {
-    if (
-      user?.username === "admin" ||
-      user?.machines_can_edit ||
-      user?.machines_can_add ||
-      user?.machines_can_delete
-    ) {
+    if (user?.username === "admin" || user?.view_reports) {
       return (
         <Box
           sx={{

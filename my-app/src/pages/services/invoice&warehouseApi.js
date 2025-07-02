@@ -156,6 +156,13 @@ export const api = createApi({
       }),
       invalidatesTags: ["Invoice"],
     }),
+    returnWarrantyInvoicePartially: builder.mutation({
+      query: ({ id }) => ({
+        url: `/invoice/${id}/WarrantyReturnStatus`,
+        method: "GET",
+      }),
+      // invalidatesTags: ["Invoice"],
+    }),
     priceReport: builder.query({
       query: (id) => `/invoice/price-report/${id}`,
     }),
@@ -285,6 +292,7 @@ export const {
   useConfirmTalabSheraaInvoiceMutation,
   useRefreshInvoiceMutation,
   useReturnWarrantyInvoiceMutation,
+  useReturnWarrantyInvoicePartiallyMutation,
   usePriceReportQuery,
   useGetInvoiceQuery,
   useGetReportsQuery,

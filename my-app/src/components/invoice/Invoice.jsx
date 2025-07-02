@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Box,
   Table,
@@ -9,6 +9,7 @@ import {
   TextField,
   Dialog,
   IconButton,
+  CircularProgress,
 } from "@mui/material";
 import ClearOutlinedIcon from "@mui/icons-material/ClearOutlined";
 import AddIcon from "@mui/icons-material/Add";
@@ -28,6 +29,7 @@ import {
 import {
   useGetInvoiceQuery,
   useGetInvoicesNumbersQuery,
+  useReturnWarrantyInvoicePartiallyMutation,
 } from "../../pages/services/invoice&warehouseApi";
 import KeyboardReturnIcon from "@mui/icons-material/KeyboardReturn";
 
@@ -93,7 +95,7 @@ export default function InvoiceModal({
     refetch: refetchWarehouses,
   } = useGetWarehousesQuery(
     { all: true },
-    { pollingInterval: 300000, skip: !isEditingInvoice || justEditUnitPrice } // Only fetch when editing
+    { pollingInterval: 300000, skip: !isEditingInvoice || justEditUnitPrice }
   );
   const warehouse = warehouseData?.warehouses || [];
 
@@ -140,7 +142,67 @@ export default function InvoiceModal({
     }
   }, [isInvoiceNumbersError]);
 
-  // State for controlling the original invoice modal
+  const [
+    returnWarrantyInvoicePartially,
+    { data: amanatReturnInfo, isLoading: isAmanatReturnInfoLoading, refetch },
+  ] = useReturnWarrantyInvoicePartiallyMutation();
+
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [isFetchError, setIsFetchError] = useState(false);
+  const lastFetchedInvoiceId = useRef(null);
+  const isFetching = useRef(false);
+
+  useEffect(() => {
+    if (
+      selectedInvoice?.id &&
+      canEsterdad &&
+      isAmanatType &&
+      selectedInvoice.id !== lastFetchedInvoiceId.current &&
+      !isFetching.current
+    ) {
+      isFetching.current = true;
+      setIsInitialLoading(true);
+      setIsFetchError(false);
+      returnWarrantyInvoicePartially({ id: selectedInvoice.id })
+        .unwrap()
+        .then((updatedAmanatReturnInfo) => {
+          setSelectedInvoice((prev) => ({
+            ...prev,
+            items: prev.items.map((item) => ({
+              ...item,
+              is_fully_returned:
+                updatedAmanatReturnInfo?.items?.find(
+                  (retItem) =>
+                    retItem.item_name === item.item_name &&
+                    retItem.item_bar === item.barcode &&
+                    retItem.location === item.location
+                )?.is_fully_returned ||
+                item.is_fully_returned ||
+                false,
+            })),
+          }));
+          lastFetchedInvoiceId.current = selectedInvoice.id;
+        })
+        .catch((error) => {
+          console.error(
+            "خطأ في استدعاء /invoice/{id}/WarrantyReturnStatus:",
+            error
+          );
+          setSnackBarType("error");
+          setSnackbarMessage("فشل في جلب بيانات الاسترداد");
+          setOpenSnackbar(true);
+          setIsFetchError(true);
+        })
+        .finally(() => {
+          setIsInitialLoading(false);
+          isFetching.current = false;
+        });
+    } else {
+      setIsInitialLoading(false);
+      setIsFetchError(false);
+    }
+  }, [selectedInvoice?.id, canEsterdad, isAmanatType]);
+
   const [openOriginalInvoiceModal, setOpenOriginalInvoiceModal] =
     useState(false);
   const [selectedInvoiceId, setSelectedInvoiceId] = useState(null);
@@ -200,18 +262,34 @@ export default function InvoiceModal({
     };
 
     try {
+      // تنفيذ عملية الاسترداد
       await ReturnWarrantyInvoice(data).unwrap();
-      // const updatedItems = [...selectedInvoice.items];
-      // updatedItems[index] = {
-      //   ...updatedItems[index],
-      //   ,
-      // };
 
-      setSelectedInvoice({
-        ...selectedInvoice,
-        status: "returned",
-      });
+      // إعادة جلب بيانات حالة الاسترداد
+      const updatedAmanatReturnInfo = await returnWarrantyInvoicePartially({
+        id: selectedInvoice.id,
+      }).unwrap();
 
+      // تحديث الحالة المحلية لـ selectedInvoice
+      setSelectedInvoice((prev) => ({
+        ...prev,
+        items: prev.items.map((item, i) =>
+          i === index
+            ? {
+                ...item,
+                is_fully_returned:
+                  updatedAmanatReturnInfo?.items?.find(
+                    (retItem) =>
+                      retItem.item_name === item.item_name &&
+                      retItem.item_bar === item.barcode &&
+                      retItem.location === item.location
+                  )?.is_fully_returned || true, // افتراض الاسترداد الناجح
+              }
+            : item
+        ),
+      }));
+
+      // عرض رسالة نجاح
       setSnackBarType("success");
       setSnackbarMessage("تم التحديث بنجاح");
       setOpenSnackbar(true);
@@ -627,17 +705,38 @@ export default function InvoiceModal({
                         <ClearOutlinedIcon fontSize="small" />
                       </button>
                     )}
-                    {canEsterdad &&
+                    {(isInitialLoading || isAmanatReturnInfoLoading) &&
+                      !isFetchError ? (
+                        <CircularProgress
+                          className={styles.clearIcon}
+                          size={22}
+                          sx={{
+                            position: "absolute",
+                            right: "-25px",
+                            top: "5px",
+                            cursor: "default",
+                          }}
+                        />
+                      ) : !isFetchError &&
+                        !selectedInvoice?.items[index]?.is_fully_returned &&
+                        !amanatReturnInfo?.items?.find(
+                          (item) =>
+                            item.item_name === row.item_name &&
+                            item.item_bar === row.barcode &&
+                            item.location === row.location &&
+                            item.is_fully_returned
+                      ) &&
+                      canEsterdad &&
                       isAmanatType &&
                       selectedInvoice?.status !== "returned" &&
-                      selectedInvoice?.status !== "تم الاسترداد" && (
+                      selectedInvoice?.status !== "تم الاسترداد" ? (
                         <button
                           onClick={() => handleReturnItemClick(index)}
                           className={styles.clearIcon}
                         >
                           <KeyboardReturnIcon fontSize="small" />
                         </button>
-                      )}
+                    ) : null}
                   </TableCell>
                   <TableCell
                     className={styles.tableCellRow}

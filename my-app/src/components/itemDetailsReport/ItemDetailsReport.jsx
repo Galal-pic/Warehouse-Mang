@@ -62,6 +62,7 @@ const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
         draft: "لم تراجع",
         accreditation: "لم تؤكد",
         confirmed: "تم",
+        partially_returned: "استرداد جزئي",
         returned: "تم الاسترداد",
       };
 
@@ -631,6 +632,7 @@ const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
           draft: "لم تراجع",
           accreditation: "لم تؤكد",
           confirmed: "تم",
+          partially_returned: "استرداد جزئي",
           returned: "تم الاسترداد",
         };
         return statusMap[params.value] || params.value || "-";
