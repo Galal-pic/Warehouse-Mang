@@ -142,15 +142,14 @@ export default function InvoiceModal({
     }
   }, [isInvoiceNumbersError]);
 
-  const [
-    returnWarrantyInvoicePartially,
-    { data: amanatReturnInfo, isLoading: isAmanatReturnInfoLoading, refetch },
-  ] = useReturnWarrantyInvoicePartiallyMutation();
+  const [returnWarrantyInvoicePartially, { data: amanatReturnInfo }] =
+    useReturnWarrantyInvoicePartiallyMutation();
 
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [isFetchError, setIsFetchError] = useState(false);
   const lastFetchedInvoiceId = useRef(null);
   const isFetching = useRef(false);
+  const [loadingItems, setLoadingItems] = useState([]);
 
   useEffect(() => {
     if (
@@ -262,16 +261,19 @@ export default function InvoiceModal({
       location: selectedInvoice?.items[index]?.location,
     };
 
+    setLoadingItems((prev) => {
+      const newLoadingItems = [...prev];
+      newLoadingItems[index] = true;
+      return newLoadingItems;
+    });
+
     try {
-      // تنفيذ عملية الاسترداد
       await ReturnWarrantyInvoice(data).unwrap();
 
-      // إعادة جلب بيانات حالة الاسترداد
       const updatedAmanatReturnInfo = await returnWarrantyInvoicePartially({
         id: selectedInvoice.id,
       }).unwrap();
 
-      // تحديث الحالة المحلية لـ selectedInvoice
       setSelectedInvoice((prev) => ({
         ...prev,
         items: prev.items.map((item, i) =>
@@ -284,13 +286,12 @@ export default function InvoiceModal({
                       retItem.item_name === item.item_name &&
                       retItem.item_bar === item.barcode &&
                       retItem.location === item.location
-                  )?.is_fully_returned || true, // افتراض الاسترداد الناجح
+                  )?.is_fully_returned || true,
               }
             : item
         ),
       }));
 
-      // عرض رسالة نجاح
       setSnackBarType("success");
       setSnackbarMessage("تم التحديث بنجاح");
       setOpenSnackbar(true);
@@ -302,6 +303,12 @@ export default function InvoiceModal({
           : "خطأ في التحديث، إذا استمرت المشكلة حاول إعادة تحميل الصفحة"
       );
       setOpenSnackbar(true);
+    } finally {
+      setLoadingItems((prev) => {
+        const newLoadingItems = [...prev];
+        newLoadingItems[index] = false;
+        return newLoadingItems;
+      });
     }
   };
 
@@ -706,37 +713,37 @@ export default function InvoiceModal({
                         <ClearOutlinedIcon fontSize="small" />
                       </button>
                     )}
-                    {(isInitialLoading || isAmanatReturnInfoLoading) &&
-                      !isFetchError ? (
-                        <CircularProgress
-                          className={styles.clearIcon}
-                          size={22}
-                          sx={{
-                            position: "absolute",
-                            right: "-25px",
-                            top: "5px",
-                            cursor: "default",
-                          }}
-                        />
-                      ) : !isFetchError &&
-                        !selectedInvoice?.items[index]?.is_fully_returned &&
-                        !amanatReturnInfo?.items?.find(
-                          (item) =>
-                            item.item_name === row.item_name &&
-                            item.item_bar === row.barcode &&
-                            item.location === row.location &&
-                            item.is_fully_returned
+                    {(isInitialLoading || loadingItems[index]) &&
+                    !isFetchError ? (
+                      <CircularProgress
+                        className={styles.clearIcon}
+                        size={22}
+                        sx={{
+                          position: "absolute",
+                          right: "-25px",
+                          top: "5px",
+                          cursor: "default",
+                        }}
+                      />
+                    ) : !isFetchError &&
+                      !selectedInvoice?.items[index]?.is_fully_returned &&
+                      !amanatReturnInfo?.items?.find(
+                        (item) =>
+                          item.item_name === row.item_name &&
+                          item.item_bar === row.barcode &&
+                          item.location === row.location &&
+                          item.is_fully_returned
                       ) &&
                       canEsterdad &&
                       isAmanatType &&
                       selectedInvoice?.status !== "returned" &&
                       selectedInvoice?.status !== "تم الاسترداد" ? (
-                        <button
-                          onClick={() => handleReturnItemClick(index)}
-                          className={styles.clearIcon}
-                        >
-                          <KeyboardReturnIcon fontSize="small" />
-                        </button>
+                      <button
+                        onClick={() => handleReturnItemClick(index)}
+                        className={styles.clearIcon}
+                      >
+                        <KeyboardReturnIcon fontSize="small" />
+                      </button>
                     ) : null}
                   </TableCell>
                   <TableCell
