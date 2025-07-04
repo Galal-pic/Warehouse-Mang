@@ -126,8 +126,8 @@ def Void_Operations(data, machine, mechanism, supplier, employee, machine_ns, wa
                         entries_to_update.append(price_entry)
                         
                         # If the price entry is now empty, delete it
-                        if price_entry.quantity <= 0:
-                            db.session.delete(price_entry)
+                        # if price_entry.quantity <= 0:
+                        #     db.session.delete(price_entry)
                     
                     # Check if we've accounted for the entire requested quantity
                     if remaining_to_void > 0:
