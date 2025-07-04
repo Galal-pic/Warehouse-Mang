@@ -475,7 +475,7 @@ class InvoiceDetail(Resource):
         }
         return invoice_data
 
-    @invoice_ns.marshal_with(invoice_model)
+    # @invoice_ns.marshal_with(invoice_model)
     @jwt_required()
     def put(self, invoice_id):
         """Update an invoice"""

@@ -405,7 +405,7 @@ def put_purchase(data, invoice, machine, mechanism, invoice_ns):
             if affected_sales_invoices:
                 message += f". {len(affected_sales_invoices)} sales invoice(s) were automatically recalculated due to price changes."
         
-        return {"message": message, "affected_sales_invoices": list(affected_sales_invoices)}, 200
+        return {"message": "Purchase invoice updated successfully"}, 200
 
     except SQLAlchemyError as e:
         db.session.rollback()
