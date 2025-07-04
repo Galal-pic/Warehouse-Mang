@@ -62,6 +62,7 @@ export default function Report() {
         total_amount: "الإجمالي",
         paid: "المدفوع",
         residual: "المتبقي",
+        payment_method: "طريقة الدفع",
         status: "الحالة",
         employee_name: "اسم الموظف",
         comment: "التعليق",
@@ -98,6 +99,7 @@ export default function Report() {
           [columnTranslations.total_amount]: invoice.total_amount || "-",
           [columnTranslations.paid]: invoice.paid || "-",
           [columnTranslations.residual]: invoice.residual || "-",
+          [columnTranslations.payment_method]: invoice.payment_method || "-",
           [columnTranslations.status]:
             statusMap[invoice.status] || invoice.status || "-",
           [columnTranslations.employee_name]: invoice.employee_name || "-",
@@ -120,6 +122,7 @@ export default function Report() {
           columnTranslations.total_amount,
           columnTranslations.paid,
           columnTranslations.residual,
+          columnTranslations.payment_method,
           columnTranslations.status,
           columnTranslations.employee_name,
           columnTranslations.comment,

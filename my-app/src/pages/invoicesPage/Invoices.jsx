@@ -307,6 +307,11 @@ export default function Invoices() {
       total_amount: editingInvoice.total_amount,
       paid: editingInvoice?.paid || 0,
       residual: editingInvoice?.paid - editingInvoice.total_amount || 0,
+      payment_method: editingInvoice?.payment_method,
+      custody_person:
+        editingInvoice?.payment_method === "Custody"
+          ? editingInvoice?.custody_person
+          : null,
       employee_name: editingInvoice.employee_name,
       client_name: editingInvoice.client_name,
       warehouse_manager: editingInvoice.warehouse_manager,
