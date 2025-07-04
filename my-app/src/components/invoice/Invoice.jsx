@@ -882,7 +882,7 @@ export default function InvoiceModal({
                       width: "100px",
                     }}
                   >
-                    {isEditingInvoice && !justEditUnitPrice ? (
+                    {isEditingInvoice ? (
                       <NumberInput
                         style={{
                           width: "100px",

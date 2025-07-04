@@ -573,7 +573,7 @@ const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
   ];
 
   const priceColumns = [
-    user?.view_prices
+    user?.view_prices || user?.username === "admin"
       ? { field: "unit_price", headerName: "سعر الوحدة", flex: 1 }
       : null,
     { field: "quantity", headerName: "الكمية", flex: 1 },
@@ -592,7 +592,7 @@ const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
       uniqueId: `${row.invoice_id}-${row.invoice_date}-${index}`,
     })) || [];
   const invoiceHistoryColumns = [
-    ...(user?.view_prices
+    ...(user?.view_prices || user?.username === "admin"
       ? [
           {
             field: "unit_price",
@@ -609,7 +609,7 @@ const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
     { field: "quantity", headerName: "الكمية", flex: 1 },
     { field: "location", headerName: "الموقع", flex: 1 },
 
-    ...(user?.view_prices
+    ...(user?.view_prices || user?.username === "admin"
       ? [
           {
             field: "total_price",

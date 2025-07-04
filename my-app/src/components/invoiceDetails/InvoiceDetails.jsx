@@ -141,22 +141,7 @@ const InvoiceDetails = ({ open, onClose, invoice }) => {
                   }}
                 >
                   <DetailItem label="الباركود" value={item.barcode} />
-                  <DetailItem
-                    label="الموقع"
-                    value={
-                      invoice?.items
-                        ?.filter(
-                          (invItem) =>
-                            invItem.item_name === item.item_name &&
-                            invItem.barcode === item.barcode
-                        )
-                        .map((invItem, idx) => (
-                          <div key={idx} style={{ marginBottom: "4px" }}>
-                            {invItem.location || "غير متوفر"}
-                          </div>
-                        )) || "غير متوفر"
-                    }
-                  />
+                  <DetailItem label="الموقع" value={item.location} />
                   <DetailItem label="الكمية" value={item.quantity} />
                   <DetailItem
                     label="سعر الوحدة"
