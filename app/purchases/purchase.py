@@ -388,6 +388,8 @@ def put_purchase(data, invoice, machine, mechanism, invoice_ns):
             invoice.comment = data.get("comment", invoice.comment)
             invoice.status = data.get("status", invoice.status)
             invoice.employee_name = data.get("employee_name", invoice.employee_name)
+            invoice.payment_method = data.get("payment_method", invoice.payment_method)
+            invoice.custody_person = data.get("custody_person", invoice.custody_person)
             
             if machine:
                 invoice.machine_id = machine.id
