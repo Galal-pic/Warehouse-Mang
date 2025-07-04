@@ -15,9 +15,9 @@ from .mechanisms.mechanism import mechanism_ns
 from .suppliers.supplier import supplier_ns
 from .models import (
     Employee, Machine, Mechanism, Warehouse, ItemLocations, Invoice, InvoiceItem,
-    Supplier, Prices, InvoicePriceDetail, PurchaseRequests, ReturnSales, WarrantyReturn
+    Supplier, Prices, InvoicePriceDetail, PurchaseRequests, ReturnSales, WarrantyReturn,
 )
-from sqlalchemy import desc
+from sqlalchemy import desc, exists
 from sqlalchemy.exc import SQLAlchemyError
 from .utils import parse_bool
 
@@ -129,7 +129,12 @@ class invoices_get(Resource):
             query = query.filter_by(status="confirmed")
         elif type == "صفرية":
             # Zero amount invoices (total_amount = 0)
-            query = query.filter_by(total_amount=0)
+            query = query.filter(exists().where(
+                (Prices.invoice_id == Invoice.id) & 
+                (Prices.unit_price == 0)
+            ))
+            
+            
         else:
             # Regular invoice type filtering
             query = query.filter_by(type=type)
