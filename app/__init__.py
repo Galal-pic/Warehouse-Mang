@@ -55,7 +55,7 @@ def create_app():
                 "origins": (
                     "http://localhost:5173"
                     if flask_env == "development"
-                    else "https://demo.thunder-project.xyz"
+                    else "https://cupii.store"
                 )
             }
         },
