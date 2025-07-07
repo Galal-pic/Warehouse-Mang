@@ -249,8 +249,6 @@ export default function CreateInvoice() {
       ? ["machine_name", "mechanism_name"]
       : invoice.type === "مرتجع"
       ? ["machine_name", "mechanism_name", "original_invoice_id"]
-      : purchasesType
-      ? ["supplier_name"]
       : ["machine_name", "mechanism_name"];
 
     const missingFields = requiredFields.filter((field) => !invoice[field]);
@@ -258,10 +256,21 @@ export default function CreateInvoice() {
     if (missingFields.length > 0) {
       return isPurchaseOrder
         ? "يجب ملء اسم الماكينة واسم الميكانيزم"
-        : purchasesType
-        ? "يجب ملء اسم المورد"
+        : invoice.type === "مرتجع"
+        ? "يجب ملء اسم الماكينة واسم الميكانيزم ورقم الفاتورة الأصلية"
         : "يجب ملء اسم الماكينة واسم الميكانيزم";
     }
+
+    // Check supplier_name for each item in "إضافة" type
+    if (invoice.type === "اضافه") {
+      const itemsWithoutSupplier = invoice.items.filter(
+        (item) => !item.supplier_name || item.supplier_name.trim() === ""
+      );
+      if (itemsWithoutSupplier.length > 0) {
+        return "يجب تحديد اسم المورد لكل عنصر في الفاتورة";
+      }
+    }
+
     return null;
   };
 
@@ -296,6 +305,7 @@ export default function CreateInvoice() {
           unit_price: Number(item.unit_price),
           total_price: Number(item.total_price),
           description: item.description,
+          supplier_name: item.supplier_name, // Include supplier_name for each item
         })),
       total_amount: totalAmount,
       employee_name: user?.username,
@@ -303,6 +313,7 @@ export default function CreateInvoice() {
       date,
       time,
     };
+    console.log(invoiceData);
 
     try {
       await createInvoice(invoiceData).unwrap();

@@ -113,6 +113,13 @@ export default function InvoiceModal({
       editingInvoice?.type === "أمانات",
     [selectedNowType?.type, selectedInvoice?.type, editingInvoice?.type]
   );
+  const isEdafaType = useMemo(
+    () =>
+      selectedNowType?.type === "اضافه" ||
+      selectedInvoice?.type === "اضافه" ||
+      editingInvoice?.type === "اضافه",
+    [selectedNowType?.type, selectedInvoice?.type, editingInvoice?.type]
+  );
 
   const {
     data: invoicesData,
@@ -484,37 +491,7 @@ export default function InvoiceModal({
             }}
           >
             <TableBody>
-              {/* Inputs for Supplier, Machine, Mechanism Names, and Invoice Number */}
-              {(selectedNowType?.type === "purchase" ||
-                isPurchasesType ||
-                selectedInvoice?.type === "اضافه") && (
-                <TableRow className={styles.tableRow}>
-                  <TableCell className={styles.tableCell} colSpan={2}>
-                    اسم المورد
-                  </TableCell>
-                  <TableCell
-                    className={styles.tableInputCell}
-                    colSpan={6}
-                    sx={{
-                      padding: "0px !important",
-                    }}
-                  >
-                    {isEditingInvoice && !justEditUnitPrice ? (
-                      <CustomAutoCompleteField
-                        loading={isSuppliersLoading}
-                        values={suppliers}
-                        editingItem={editingInvoice}
-                        setEditingItem={setEditingInvoice}
-                        fieldName="supplier_name"
-                        placeholder="اسم المورد"
-                        isBig={true}
-                      />
-                    ) : (
-                      selectedInvoice.supplier_name
-                    )}
-                  </TableCell>
-                </TableRow>
-              )}
+              {/* Inputs for Machine, Mechanism Names, and Invoice Number */}
               {(selectedNowType?.type === "مرتجع" ||
                 selectedInvoice?.type === "مرتجع" ||
                 editingInvoice?.type === "مرتجع") && (
@@ -635,6 +612,9 @@ export default function InvoiceModal({
                     }}
                   />
                 </TableCell>
+                {isEdafaType && (
+                  <TableCell className={styles.tableCell}>اسم المورد</TableCell>
+                )}
                 <TableCell className={styles.tableCell}>اسم الصنف</TableCell>
                 <TableCell className={styles.tableCell}>الرمز</TableCell>
                 <TableCell className={styles.tableCell}>الموقع</TableCell>
@@ -721,6 +701,42 @@ export default function InvoiceModal({
                         </button>
                       ) : null)}
                   </TableCell>
+                  {isEdafaType && (
+                    <TableCell
+                      className={styles.tableCellRow}
+                      sx={{
+                        "&.MuiTableCell-root": {
+                          padding: "0px",
+                          whiteSpace: "normal",
+                          wordBreak: "break-word",
+                        },
+                      }}
+                    >
+                      {isEditingInvoice && !justEditUnitPrice ? (
+                        <CustomAutoCompleteField
+                          loading={isSuppliersLoading}
+                          values={suppliers}
+                          editingItem={row}
+                          setEditingItem={(newItem) => {
+                            const updatedItems = [...editingInvoice.items];
+                            updatedItems[index] = {
+                              ...updatedItems[index],
+                              supplier_name: newItem.supplier_name,
+                            };
+                            setEditingInvoice({
+                              ...editingInvoice,
+                              items: updatedItems,
+                            });
+                          }}
+                          fieldName="supplier_name"
+                          placeholder="اسم المورد"
+                          isBig={true}
+                        />
+                      ) : (
+                        row.supplier_name || "-"
+                      )}
+                    </TableCell>
+                  )}
                   <TableCell
                     className={styles.tableCellRow}
                     sx={{
@@ -760,6 +776,8 @@ export default function InvoiceModal({
                             total_price: 0,
                             availableLocations: selectedItem?.locations || [],
                             maxquantity: 0,
+                            supplier_name:
+                              updatedItems[index].supplier_name || "", // Preserve supplier_name
                           };
                           setEditingInvoice({
                             ...editingInvoice,
@@ -773,6 +791,7 @@ export default function InvoiceModal({
                       row.item_name
                     )}
                   </TableCell>
+                  {/* بقية الخلايا كما هي */}
                   <TableCell className={styles.tableCellRow}>
                     {row.barcode}
                   </TableCell>
@@ -838,6 +857,8 @@ export default function InvoiceModal({
                                 : row.unit_price,
                             total_price: 0,
                             maxquantity,
+                            supplier_name:
+                              updatedItems[index].supplier_name || "", // Preserve supplier_name
                           };
                           setEditingInvoice({
                             ...editingInvoice,
@@ -943,6 +964,8 @@ export default function InvoiceModal({
                                 : isPurchasesType
                                 ? newQuantity * Number(row.unit_price)
                                 : newQuantity * row.unit_price,
+                            supplier_name:
+                              updatedItems[index].supplier_name || "", // Preserve supplier_name
                           };
                           const totalAmount = updatedItems.reduce(
                             (sum, item) => sum + (item.total_price || 0),
@@ -960,12 +983,30 @@ export default function InvoiceModal({
                     )}
                   </TableCell>
                   {canEsterdad && isAmanatType && (
-                    <TableCell className={styles.tableCellRow}>
+                    <TableCell
+                      className={styles.tableCellRow}
+                      sx={{
+                        position: "relative",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        minWidth: "80px",
+                        padding: "8px",
+                        transition: "all 0.3s ease",
+                      }}
+                    >
                       {((isInitialLoading || loadingItems[index]) &&
                         !isFetchError) ||
                       selectedInvoice?.items[index]?.is_fully_returned ===
                         undefined ? (
-                        <Box>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                            justifyContent: "center",
+                          }}
+                        >
                           <CircularProgress
                             size={20}
                             sx={{
@@ -973,9 +1014,27 @@ export default function InvoiceModal({
                               cursor: "default",
                             }}
                           />
+                          <span
+                            style={{
+                              fontSize: "14px",
+                              color: "#666",
+                              fontWeight: 400,
+                            }}
+                          >
+                            جارٍ التحميل...
+                          </span>
                         </Box>
                       ) : (
-                        row.total_returned || 0
+                        <span
+                          style={{
+                            fontSize: "16px",
+                            color: "#333",
+                            fontWeight: 500,
+                            textAlign: "center",
+                          }}
+                        >
+                          {row.total_returned || 0}
+                        </span>
                       )}
                     </TableCell>
                   )}
@@ -1020,10 +1079,12 @@ export default function InvoiceModal({
                               }
 
                               const newUnitPrice = Number(e.target.value) || 0;
-
                               const updatedItems = editingInvoice.items.map(
                                 (item) => {
-                                  if (item.item_name === row.item_name) {
+                                  if (
+                                    item.item_name === row.item_name &&
+                                    item.supplier_name === row.supplier_name
+                                  ) {
                                     const newTotalPrice =
                                       newUnitPrice * (item.quantity || 0);
                                     return {
