@@ -470,7 +470,15 @@ const CustomToolbar = ({
                 }}
               >
                 <MenuItem
-                  onClick={() => document.getElementById("file-upload").click()}
+                  onClick={() => {
+                    if (addPermissions) {
+                      document.getElementById("file-upload").click();
+                    } else {
+                      setOpenSnackbar(true);
+                      setSnackbarMessage("ليس لديك صلاحيات لإضافة عنصر");
+                      setSnackBarType("info");
+                    }
+                  }}
                 >
                   Import
                   <input
@@ -501,12 +509,20 @@ const CustomToolbar = ({
                   >
                     Export Item Location Data
                   </MenuItem>,
-                  <MenuItem
-                    key="item-price-data"
-                    onClick={handleExportItemPriceData}
-                  >
-                    Export Item Price Data
-                  </MenuItem>,
+                  // <MenuItem
+                  //   key="item-price-data"
+                  //   onClick={(event) => {
+                  //     if (addPermissions) {
+                  //       handleExportItemPriceData(event);
+                  //     } else {
+                  //       setOpenSnackbar(true);
+                  //       setSnackbarMessage("ليس لديك صلاحيات لهذا التقرير");
+                  //       setSnackBarType("info");
+                  //     }
+                  //   }}
+                  // >
+                  //   Export Item Price Data
+                  // </MenuItem>,
                 ]}
               </Menu>
             </>

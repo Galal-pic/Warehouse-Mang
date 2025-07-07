@@ -23,13 +23,11 @@ import { useGetSuppliersQuery } from "../../pages/services/supplierApi";
 import { useGetMachinesQuery } from "../../pages/services/machineApi";
 import { useGetMechanismsQuery } from "../../pages/services/mechanismApi";
 import {
-  useGetWarehousesQuery,
-  useReturnWarrantyInvoiceMutation,
-} from "../../pages/services/invoice&warehouseApi";
-import {
   useGetInvoiceQuery,
   useGetInvoicesNumbersQuery,
   useReturnWarrantyInvoicePartiallyMutation,
+  useGetWarehousesQuery,
+  useReturnWarrantyInvoiceMutation,
 } from "../../pages/services/invoice&warehouseApi";
 import KeyboardReturnIcon from "@mui/icons-material/KeyboardReturn";
 
@@ -127,7 +125,7 @@ export default function InvoiceModal({
       !isEditingInvoice ||
       !isMortaga3Type ||
       !editingInvoice?.type ||
-      justEditUnitPrice, // إضافة تحقق إضافي
+      justEditUnitPrice,
   });
 
   const invoiceNumbers = invoicesData?.["sales-invoices"]?.map((number) =>
@@ -178,6 +176,15 @@ export default function InvoiceModal({
                 )?.is_fully_returned ||
                 item.is_fully_returned ||
                 false,
+              total_returned:
+                updatedAmanatReturnInfo?.items?.find(
+                  (retItem) =>
+                    retItem.item_name === item.item_name &&
+                    retItem.item_bar === item.barcode &&
+                    retItem.location === item.location
+                )?.total_returned ||
+                item.total_returned ||
+                0,
             })),
           }));
           lastFetchedInvoiceId.current = selectedInvoice.id;
@@ -200,7 +207,13 @@ export default function InvoiceModal({
       setIsInitialLoading(false);
       setIsFetchError(false);
     }
-  }, [selectedInvoice?.id, canEsterdad, isAmanatType]);
+  }, [
+    selectedInvoice.id,
+    canEsterdad,
+    isAmanatType,
+    returnWarrantyInvoicePartially,
+    setSelectedInvoice,
+  ]);
 
   const [openOriginalInvoiceModal, setOpenOriginalInvoiceModal] =
     useState(false);
@@ -253,64 +266,9 @@ export default function InvoiceModal({
   // Recovery
   const [ReturnWarrantyInvoice] = useReturnWarrantyInvoiceMutation();
 
-  const handleReturnItemClick = async (index) => {
-    const data = {
-      id: selectedInvoice?.id,
-      itemName: selectedInvoice?.items[index]?.item_name,
-      itemBar: selectedInvoice?.items[index]?.barcode,
-      location: selectedInvoice?.items[index]?.location,
-    };
-
-    setLoadingItems((prev) => {
-      const newLoadingItems = [...prev];
-      newLoadingItems[index] = true;
-      return newLoadingItems;
-    });
-
-    try {
-      await ReturnWarrantyInvoice(data).unwrap();
-
-      const updatedAmanatReturnInfo = await returnWarrantyInvoicePartially({
-        id: selectedInvoice.id,
-      }).unwrap();
-
-      setSelectedInvoice((prev) => ({
-        ...prev,
-        items: prev.items.map((item, i) =>
-          i === index
-            ? {
-                ...item,
-                is_fully_returned:
-                  updatedAmanatReturnInfo?.items?.find(
-                    (retItem) =>
-                      retItem.item_name === item.item_name &&
-                      retItem.item_bar === item.barcode &&
-                      retItem.location === item.location
-                  )?.is_fully_returned || true,
-              }
-            : item
-        ),
-      }));
-
-      setSnackBarType("success");
-      setSnackbarMessage("تم التحديث بنجاح");
-      setOpenSnackbar(true);
-    } catch (error) {
-      setSnackBarType("error");
-      setSnackbarMessage(
-        error.response && error.response.status === "FETCH_ERROR"
-          ? "خطأ في الوصول إلى قاعدة البيانات"
-          : "خطأ في التحديث، إذا استمرت المشكلة حاول إعادة تحميل الصفحة"
-      );
-      setOpenSnackbar(true);
-    } finally {
-      setLoadingItems((prev) => {
-        const newLoadingItems = [...prev];
-        newLoadingItems[index] = false;
-        return newLoadingItems;
-      });
-    }
-  };
+  const [openReturnDialog, setOpenReturnDialog] = useState(false);
+  const [selectedItemIndex, setSelectedItemIndex] = useState(null);
+  const [returnQuantity, setReturnQuantity] = useState("");
 
   // Handle closing the original invoice modal
   const handleCloseOriginalInvoiceModal = () => {
@@ -614,7 +572,7 @@ export default function InvoiceModal({
                       </TableCell>
                       <TableCell
                         className={styles.tableInputCell}
-                        colSpan={6}
+                        colSpan={canEsterdad && isAmanatType ? 7 : 6}
                         sx={{
                           padding: "0px !important",
                         }}
@@ -640,7 +598,7 @@ export default function InvoiceModal({
                       </TableCell>
                       <TableCell
                         className={styles.tableInputCell}
-                        colSpan={6}
+                        colSpan={canEsterdad && isAmanatType ? 7 : 6}
                         sx={{
                           padding: "0px !important",
                         }}
@@ -681,6 +639,11 @@ export default function InvoiceModal({
                 <TableCell className={styles.tableCell}>الرمز</TableCell>
                 <TableCell className={styles.tableCell}>الموقع</TableCell>
                 <TableCell className={styles.tableCell}>الكمية</TableCell>
+                {canEsterdad && isAmanatType && (
+                  <TableCell className={styles.tableCell}>
+                    الكمية المستردة
+                  </TableCell>
+                )}
                 {(show || isPurchasesType) && (
                   <>
                     <TableCell className={styles.tableCell}>السعر</TableCell>
@@ -713,38 +676,50 @@ export default function InvoiceModal({
                         <ClearOutlinedIcon fontSize="small" />
                       </button>
                     )}
-                    {(isInitialLoading || loadingItems[index]) &&
-                    !isFetchError ? (
-                      <CircularProgress
-                        className={styles.clearIcon}
-                        size={22}
-                        sx={{
-                          position: "absolute",
-                          right: "-25px",
-                          top: "5px",
-                          cursor: "default",
-                        }}
-                      />
-                    ) : !isFetchError &&
-                      !selectedInvoice?.items[index]?.is_fully_returned &&
-                      !amanatReturnInfo?.items?.find(
-                        (item) =>
-                          item.item_name === row.item_name &&
-                          item.item_bar === row.barcode &&
-                          item.location === row.location &&
-                          item.is_fully_returned
-                      ) &&
+                    {isAmanatType &&
                       canEsterdad &&
-                      isAmanatType &&
-                      selectedInvoice?.status !== "returned" &&
-                      selectedInvoice?.status !== "تم الاسترداد" ? (
-                      <button
-                        onClick={() => handleReturnItemClick(index)}
-                        className={styles.clearIcon}
-                      >
-                        <KeyboardReturnIcon fontSize="small" />
-                      </button>
-                    ) : null}
+                      (((isInitialLoading || loadingItems[index]) &&
+                        !isFetchError) ||
+                      selectedInvoice?.items[index]?.is_fully_returned ===
+                        undefined ? (
+                        <CircularProgress
+                          className={styles.clearIcon}
+                          size={22}
+                          sx={{
+                            position: "absolute",
+                            right: "-25px",
+                            top: "5px",
+                            cursor: "default",
+                          }}
+                        />
+                      ) : !isInitialLoading &&
+                        !isFetchError &&
+                        selectedInvoice?.items[index]?.is_fully_returned !==
+                          undefined &&
+                        !selectedInvoice?.items[index]?.is_fully_returned &&
+                        !amanatReturnInfo?.items?.find(
+                          (item) =>
+                            item.item_name === row.item_name &&
+                            item.item_bar === row.barcode &&
+                            item.location === row.location &&
+                            item.is_fully_returned
+                        ) &&
+                        canEsterdad &&
+                        isAmanatType &&
+                        selectedInvoice?.status !== "returned" &&
+                        selectedInvoice?.status !== "تم الاسترداد" ? (
+                        <button
+                          onClick={() => {
+                            setSelectedItemIndex(index);
+                            setReturnQuantity("");
+                            setOpenReturnDialog(true);
+                          }}
+                          className={styles.clearIcon}
+                          title="استرداد العنصر"
+                        >
+                          <KeyboardReturnIcon fontSize="small" />
+                        </button>
+                      ) : null)}
                   </TableCell>
                   <TableCell
                     className={styles.tableCellRow}
@@ -984,6 +959,26 @@ export default function InvoiceModal({
                       row.quantity
                     )}
                   </TableCell>
+                  {canEsterdad && isAmanatType && (
+                    <TableCell className={styles.tableCellRow}>
+                      {((isInitialLoading || loadingItems[index]) &&
+                        !isFetchError) ||
+                      selectedInvoice?.items[index]?.is_fully_returned ===
+                        undefined ? (
+                        <Box>
+                          <CircularProgress
+                            size={20}
+                            sx={{
+                              color: "#1976d2",
+                              cursor: "default",
+                            }}
+                          />
+                        </Box>
+                      ) : (
+                        row.total_returned || 0
+                      )}
+                    </TableCell>
+                  )}
                   {(show || isPurchasesType) && (
                     <>
                       <TableCell className={styles.tableCellRow}>
@@ -1388,6 +1383,178 @@ export default function InvoiceModal({
           ) : (
             <Box>لم يتم العثور على الفاتورة</Box>
           )}
+        </Box>
+      </Dialog>
+      <Dialog
+        open={openReturnDialog}
+        onClose={() => setOpenReturnDialog(false)}
+        sx={{ direction: "rtl" }}
+      >
+        <Box sx={{ padding: "20px", textAlign: "center" }}>
+          <Box sx={{ marginBottom: "20px" }}>
+            <label
+              style={{
+                display: "block",
+                fontSize: "16px",
+                marginBottom: "8px",
+                color: "#333",
+                fontWeight: "500",
+              }}
+            >
+              كمية الاسترداد
+            </label>
+            <input
+              type="number"
+              value={returnQuantity}
+              onChange={(e) => {
+                const value = Math.max(0, Number(e.target.value));
+                setReturnQuantity(value);
+              }}
+              onInput={(e) => {
+                const maxQuantity =
+                  amanatReturnInfo?.items[selectedItemIndex]
+                    ?.remaining_quantity || 0;
+                if (e.target.value < 0) {
+                  e.target.value = 0;
+                }
+                if (e.target.value > maxQuantity) {
+                  e.target.value = maxQuantity;
+                  setSnackBarType("warning");
+                  setSnackbarMessage(
+                    `الكمية القصوى المسموح بها هي ${maxQuantity}`
+                  );
+                  setOpenSnackbar(true);
+                }
+              }}
+              style={{
+                width: "200px",
+                padding: "10px",
+                fontSize: "16px",
+                textAlign: "center",
+                border: "1px solid #ccc",
+                borderRadius: "4px",
+                outline: "none",
+                transition: "border-color 0.3s ease",
+              }}
+              onFocus={(e) => (e.target.style.borderColor = "#1976d2")}
+              onBlur={(e) => (e.target.style.borderColor = "#ccc")}
+              min="0"
+            />
+          </Box>
+          <Box sx={{ display: "flex", gap: "10px", justifyContent: "center" }}>
+            <button
+              onClick={async () => {
+                if (!returnQuantity || returnQuantity <= 0) {
+                  setSnackBarType("error");
+                  setSnackbarMessage("يرجى إدخال كمية استرداد صالحة");
+                  setOpenSnackbar(true);
+                  return;
+                }
+                const data = {
+                  id: selectedInvoice?.id,
+                  itemName:
+                    selectedInvoice?.items[selectedItemIndex]?.item_name,
+                  itemBar: selectedInvoice?.items[selectedItemIndex]?.barcode,
+                  location: selectedInvoice?.items[selectedItemIndex]?.location,
+                  quantity: returnQuantity,
+                };
+
+                setLoadingItems((prev) => {
+                  const newLoadingItems = [...prev];
+                  newLoadingItems[selectedItemIndex] = true;
+                  return newLoadingItems;
+                });
+
+                try {
+                  await ReturnWarrantyInvoice(data).unwrap();
+
+                  const updatedAmanatReturnInfo =
+                    await returnWarrantyInvoicePartially({
+                      id: selectedInvoice.id,
+                    }).unwrap();
+
+                  setSelectedInvoice((prev) => ({
+                    ...prev,
+                    items: prev.items.map((item, i) =>
+                      i === selectedItemIndex
+                        ? {
+                            ...item,
+                            is_fully_returned:
+                              updatedAmanatReturnInfo?.items?.find(
+                                (retItem) =>
+                                  retItem.item_name === item.item_name &&
+                                  retItem.item_bar === item.barcode &&
+                                  retItem.location === item.location
+                              )?.is_fully_returned ||
+                              returnQuantity === item.quantity,
+                            total_returned:
+                              updatedAmanatReturnInfo?.items?.find(
+                                (retItem) =>
+                                  retItem.item_name === item.item_name &&
+                                  retItem.item_bar === item.barcode &&
+                                  retItem.location === item.location
+                              )?.total_returned ||
+                              (item.total_returned || 0) + returnQuantity,
+                          }
+                        : item
+                    ),
+                  }));
+
+                  setSnackBarType("success");
+                  setSnackbarMessage("تم التحديث بنجاح");
+                  setOpenSnackbar(true);
+                  setOpenReturnDialog(false);
+                } catch (error) {
+                  setSnackBarType("error");
+                  setSnackbarMessage(
+                    error.response && error.response.status === "FETCH_ERROR"
+                      ? "خطأ في الوصول إلى قاعدة البيانات"
+                      : "خطأ في التحديث، إذا استمرت المشكلة حاول إعادة تحميل الصفحة"
+                  );
+                  setOpenSnackbar(true);
+                } finally {
+                  setLoadingItems((prev) => {
+                    const newLoadingItems = [...prev];
+                    newLoadingItems[selectedItemIndex] = false;
+                    return newLoadingItems;
+                  });
+                  setOpenReturnDialog(false);
+                }
+              }}
+              style={{
+                padding: "10px 20px",
+                backgroundColor: "#1976d2",
+                color: "white",
+                border: "none",
+                borderRadius: "4px",
+                cursor: "pointer",
+                fontSize: "16px",
+                transition: "background-color 0.3s ease",
+              }}
+              onMouseOver={(e) => (e.target.style.backgroundColor = "#1565c0")}
+              onMouseOut={(e) => (e.target.style.backgroundColor = "#1976d2")}
+              disabled={loadingItems[selectedItemIndex] || !returnQuantity}
+            >
+              {loadingItems[selectedItemIndex] ? "جاري التحميل..." : "تأكيد"}
+            </button>
+            <button
+              onClick={() => setOpenReturnDialog(false)}
+              style={{
+                padding: "10px 20px",
+                backgroundColor: "#d32f2f",
+                color: "white",
+                border: "none",
+                borderRadius: "4px",
+                cursor: "pointer",
+                fontSize: "16px",
+                transition: "background-color 0.3s ease",
+              }}
+              onMouseOver={(e) => (e.target.style.backgroundColor = "#b71c1c")}
+              onMouseOut={(e) => (e.target.style.backgroundColor = "#d32f2f")}
+            >
+              إلغاء
+            </button>
+          </Box>
         </Box>
       </Dialog>
 
