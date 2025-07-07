@@ -74,22 +74,26 @@ export const filtersTypes = (user) => {
       type: "operation",
       url: "/invoice/طلب شراء",
     },
-    user?.username === "admin" && {
+    // user?.username === "admin" &&
+    {
       label: "لم تراجع",
       type: "status",
       url: "/invoice/لم-تراجع",
     },
-    user?.username === "admin" && {
+    // user?.username === "admin" &&
+    {
       label: "لم تؤكد",
       type: "status",
       url: "/invoice/لم-تؤكد",
     },
-    user?.username === "admin" && {
+    // user?.username === "admin" &&
+    {
       label: "تم",
       type: "status",
       url: "/invoice/تم",
     },
-    user?.username === "admin" && {
+    // user?.username === "admin" &&
+    {
       label: "صفرية",
       type: "status",
       url: "/invoice/صفرية",
