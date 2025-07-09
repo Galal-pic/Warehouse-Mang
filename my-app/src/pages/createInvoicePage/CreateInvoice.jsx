@@ -20,7 +20,7 @@ import {
 } from "../services/invoice&warehouseApi";
 
 // Constants
-const operationTypes = ["صرف", "أمانات", "مرتجع", "توالف", "حجز"];
+const operationTypes = ["صرف", "أمانات", "مرتجع", "توالف", "حجز", "تحويل"];
 const purchasesTypes = ["اضافه"];
 const LOCAL_STORAGE_KEY = "invoiceDraft";
 const PURCHASE_ORDER_LOCAL_STORAGE_KEY = "purchaseOrderDraft";
@@ -306,6 +306,7 @@ export default function CreateInvoice() {
           total_price: Number(item.total_price),
           description: item.description,
           supplier_name: item.supplier_name, // Include supplier_name for each item
+          new_location: item.new_location || "",
         })),
       total_amount: totalAmount,
       employee_name: user?.username,

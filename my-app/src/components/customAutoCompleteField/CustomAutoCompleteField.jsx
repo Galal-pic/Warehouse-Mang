@@ -44,7 +44,7 @@ function renderRow(props) {
       ? option || ""
       : fieldName === "item_name"
       ? option || ""
-      : fieldName === "location"
+      : fieldName === "location" || fieldName === "new_location"
       ? option.location || ""
       : option.name || "";
 
@@ -164,11 +164,15 @@ function CustomAutoCompleteField({
           const aGroup =
             typeof a === "string"
               ? a[0]?.toUpperCase()
-              : a.name?.[0]?.toUpperCase() || "";
+              : a.location?.[0]?.toUpperCase() ||
+                a.name?.[0]?.toUpperCase() ||
+                "";
           const bGroup =
             typeof b === "string"
               ? b[0]?.toUpperCase()
-              : b.name?.[0]?.toUpperCase() || "";
+              : b.location?.[0]?.toUpperCase() ||
+                b.name?.[0]?.toUpperCase() ||
+                "";
           return aGroup.localeCompare(bGroup);
         })
       : []
@@ -210,7 +214,7 @@ function CustomAutoCompleteField({
           ? fieldName === "item_name"
             ? values.find((item) => item === String(editingItem[fieldName])) ||
               null
-            : fieldName === "location"
+            : fieldName === "location" || fieldName === "new_location"
             ? values.find(
                 (item) => item.location === String(editingItem[fieldName])
               ) || null
@@ -244,14 +248,14 @@ function CustomAutoCompleteField({
           ? option || ""
           : fieldName === "item_name"
           ? option || ""
-          : fieldName === "location"
+          : fieldName === "location" || fieldName === "new_location"
           ? option.location || ""
           : option.name || ""
       }
       isOptionEqualToValue={(option, value) =>
         fieldName === "item_name"
           ? option === value
-          : fieldName === "location"
+          : fieldName === "location" || fieldName === "new_location"
           ? option.location === value?.location
           : fieldName === "original_invoice_id"
           ? option === value
@@ -265,7 +269,8 @@ function CustomAutoCompleteField({
               ? newValue
               : newValue && fieldName === "item_name"
               ? newValue
-              : newValue && fieldName === "location"
+              : newValue &&
+                (fieldName === "location" || fieldName === "new_location")
               ? newValue.location
               : newValue
               ? newValue.name
@@ -286,7 +291,9 @@ function CustomAutoCompleteField({
         groupBy: (option) =>
           typeof option === "string"
             ? option[0]?.toUpperCase()
-            : option.name?.[0]?.toUpperCase() || "",
+            : option.location?.[0]?.toUpperCase() ||
+              option.name?.[0]?.toUpperCase() ||
+              "",
         renderGroup: (params) => params,
       })}
     />

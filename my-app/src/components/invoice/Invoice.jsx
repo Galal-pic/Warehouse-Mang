@@ -121,6 +121,14 @@ export default function InvoiceModal({
     [selectedNowType?.type, selectedInvoice?.type, editingInvoice?.type]
   );
 
+  const isTransferType = useMemo(
+    () =>
+      selectedNowType?.type === "تحويل" ||
+      selectedInvoice?.type === "تحويل" ||
+      editingInvoice?.type === "تحويل",
+    [selectedNowType?.type, selectedInvoice?.type, editingInvoice?.type]
+  );
+
   const {
     data: invoicesData,
     isLoading: isInvoiceNumbersLoading,
@@ -385,6 +393,12 @@ export default function InvoiceModal({
               (loc) => loc.location === item.location
             )?.quantity || 0;
         }
+        if (isTransferType && item.location) {
+          const selectedLocation = availableLocations.find(
+            (loc) => loc.location === item.location
+          );
+          maxquantity = selectedLocation ? selectedLocation.quantity : 0;
+        }
 
         return {
           ...item,
@@ -392,6 +406,7 @@ export default function InvoiceModal({
           unit_price,
           price_details,
           maxquantity,
+          new_location: item.new_location || "",
         };
       });
 
@@ -417,6 +432,7 @@ export default function InvoiceModal({
     editingInvoice,
     setEditingInvoice,
     isEditingInvoice,
+    isTransferType,
   ]);
 
   // Snackbar
@@ -619,6 +635,11 @@ export default function InvoiceModal({
                 <TableCell className={styles.tableCell}>الرمز</TableCell>
                 <TableCell className={styles.tableCell}>الموقع</TableCell>
                 <TableCell className={styles.tableCell}>الكمية</TableCell>
+                {isTransferType && (
+                  <TableCell className={styles.tableCell}>
+                    الموقع الجديد
+                  </TableCell>
+                )}
                 {canEsterdad && isAmanatType && (
                   <TableCell className={styles.tableCell}>
                     الكمية المستردة
@@ -894,7 +915,8 @@ export default function InvoiceModal({
                             e.target.value = 0;
                           }
                           if (
-                            (selectedNowType?.type === "مرتجع" ||
+                            (isTransferType ||
+                              selectedNowType?.type === "مرتجع" ||
                               editingInvoice?.type === "مرتجع") &&
                             e.target.value > row.maxquantity
                           ) {
@@ -982,6 +1004,66 @@ export default function InvoiceModal({
                       row.quantity
                     )}
                   </TableCell>
+                  {isTransferType && (
+                    <TableCell
+                      className={styles.tableCellRow}
+                      sx={{
+                        "&.MuiTableCell-root": {
+                          padding: "0px",
+                          maxWidth: "200px",
+                          whiteSpace: "normal",
+                          wordBreak: "break-word",
+                        },
+                      }}
+                    >
+                      {isEditingInvoice && !justEditUnitPrice ? (
+                        <CustomAutoCompleteField
+                          loading={row.item_name === "" ? false : true}
+                          values={(row?.availableLocations || []).filter(
+                            (loc) => loc.location !== row.location
+                          )}
+                          editingItem={row}
+                          setEditingItem={(newItem) => {
+                            if (!newItem.new_location) return;
+                            const matchedItem = editingInvoice?.items?.find(
+                              (row11) =>
+                                row11.barcode === row.barcode &&
+                                row11.new_location === newItem.new_location
+                            );
+                            if (matchedItem) {
+                              setSnackbarMessage(
+                                "هذا الموقع الجديد موجود بالفعل"
+                              );
+                              setSnackBarType("info");
+                              setOpenSnackbar(true);
+                              return;
+                            }
+                            if (newItem.new_location === row.location) {
+                              setSnackbarMessage(
+                                "لا يمكن تحويل الكمية إلى نفس الموقع"
+                              );
+                              setSnackBarType("warning");
+                              setOpenSnackbar(true);
+                              return;
+                            }
+                            const updatedItems = [...editingInvoice.items];
+                            updatedItems[index] = {
+                              ...updatedItems[index],
+                              new_location: newItem?.new_location || "",
+                            };
+                            setEditingInvoice({
+                              ...editingInvoice,
+                              items: updatedItems,
+                            });
+                          }}
+                          fieldName="new_location"
+                          placeholder="الموقع الجديد"
+                        />
+                      ) : (
+                        row.new_location || "-"
+                      )}
+                    </TableCell>
+                  )}
                   {canEsterdad && isAmanatType && (
                     <TableCell
                       className={styles.tableCellRow}
