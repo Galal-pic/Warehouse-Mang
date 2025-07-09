@@ -7,6 +7,11 @@ import {
   CircularProgress,
   Divider,
   Typography,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
 } from "@mui/material";
 import ClearOutlinedIcon from "@mui/icons-material/ClearOutlined";
 import LaunchIcon from "@mui/icons-material/Launch";
@@ -26,8 +31,8 @@ import {
   useDeleteInvoiceMutation,
   useUpdateInvoiceMutation,
   useConfirmInvoiceMutation,
-  useRefreshInvoiceMutation,
   useReturnWarrantyInvoiceMutation,
+  useConfirmTalabSheraaInvoiceMutation,
 } from "../services/invoice&warehouseApi";
 import PrintableTable from "../../components/printableTable/PrintableTable ";
 import PrintIcon from "@mui/icons-material/Print";
@@ -81,8 +86,8 @@ export default function Invoices() {
   const [deleteInvoice] = useDeleteInvoiceMutation();
   const [updateInvoice] = useUpdateInvoiceMutation();
   const [confirmInvoice] = useConfirmInvoiceMutation();
-  const [refreshInvoice] = useRefreshInvoiceMutation();
   const [ReturnWarrantyInvoice] = useReturnWarrantyInvoiceMutation();
+  const [confirmTalabSheraaInvoice] = useConfirmTalabSheraaInvoiceMutation();
 
   // Helper function
   const formatTime = (datetime) => {
@@ -106,14 +111,15 @@ export default function Invoices() {
         displayStatus = "استرداد جزئي";
       } else if (invoice.status === "returned") {
         displayStatus = "تم الاسترداد";
+      } else if (invoice.status === "accepted") {
+        displayStatus = "مقبول";
+      } else if (invoice.status === "rejected") {
+        displayStatus = "مرفوض";
       } else {
         displayStatus = invoice.status;
       }
 
       return {
-        // refresh: invoice.items.some((item) => item.total_price === 0)
-        //   ? "تحديث اسعار"
-        //   : "",
         ...invoice,
         status: displayStatus,
         rawStatus: invoice.status,
@@ -133,7 +139,7 @@ export default function Invoices() {
   };
 
   // Simplified delete handler
-  const handleDeleteSelectedRows = async (selectedIds) => {
+  const handleDeleteSelectedRows = async () => {
     if (deleteCheckBoxConfirmationText.trim().toLowerCase() === "نعم") {
       const confirmedInvoices = selectedRows.filter(
         (invoice) =>
@@ -187,37 +193,6 @@ export default function Invoices() {
   // Simplified delete handler
   const [rowSelectionModel, setRowSelectionModel] = useState([]);
 
-  const [isRefreshArrayLoading, setIsRefreshArrayLoading] = useState(false);
-  const handleRefreshSelectedRows = async (selectedRows) => {
-    setIsRefreshArrayLoading(true);
-    try {
-      await Promise.all(
-        selectedRows.map((invoice) => refreshInvoice(invoice.id).unwrap())
-      );
-      setOpenSnackbar(true);
-      setSnackbarMessage("تم التحديث بنجاح");
-      setSnackBarType("success");
-    } catch (error) {
-      if (error.response && error.response.status === "FETCH_ERROR") {
-        setOpenSnackbar(true);
-        setSnackbarMessage("خطأ في الوصول إلى قاعدة البيانات");
-        setSnackBarType("error");
-      } else {
-        setOpenSnackbar(true);
-        setSnackbarMessage(
-          "خطأ في التحديث، إذا استمرت المشكله حاول اعادة تحميل الصفحة"
-        );
-        setSnackBarType("error");
-      }
-    } finally {
-      setIsRefreshArrayLoading(false);
-      setDeleteDialogCheckBoxOpen(false);
-      setDeleteCheckBoxConfirmationText("");
-      setSelectedRows([]);
-      setRowSelectionModel([]);
-    }
-  };
-
   // Confirm Invoice
   const handleInvoiceAction = async (id) => {
     setIsConfirmDone((prev) => ({ ...prev, [id]: true }));
@@ -252,37 +227,8 @@ export default function Invoices() {
       return;
     }
 
-    // // Step 2: Validate required fields
-    // if (selectedNowType?.type === "purchase") {
-    //   if (
-    //     !editingInvoice.machine_name ||
-    //     !editingInvoice.mechanism_name ||
-    //     !editingInvoice.supplier_name
-    //   ) {
-    //     setSnackbarMessage("يجب ملئ اسم المورد واسم الماكينة واسم الميكانيزم");
-    //     setSnackBarType("info");
-    //     setOpenSnackbar(true);
-    //     return;
-    //   }
-    // } else if (!editingInvoice.machine_name || !editingInvoice.mechanism_name) {
-    //   setSnackbarMessage("يجب ملئ اسم الماكينة واسم الميكانيزم");
-    //   setSnackBarType("info");
-    //   setOpenSnackbar(true);
-    //   return;
-    // }
-
     // Step 3: Filter and validate items
     let newRows = editingInvoice.items;
-    // newRows = editingInvoice.items.filter(
-    //   (row) => Number(row.quantity) !== 0 && row.quantity !== ""
-    // );
-
-    // if (newRows.length === 0) {
-    //   setSnackbarMessage("يجب ملء عنصر واحد على الأقل");
-    //   setSnackBarType("warning");
-    //   setOpenSnackbar(true);
-    //   return;
-    // }
 
     // Step 4: Prepare newRows with counter
     newRows = newRows.map((row, index) => ({
@@ -392,32 +338,6 @@ export default function Invoices() {
     }
   };
 
-  // Refresh Data
-  const [loadingRows, setLoadingRows] = useState({});
-  const handleRefresh = async (id) => {
-    setLoadingRows((prev) => ({ ...prev, [id]: true }));
-    try {
-      await refreshInvoice(id).unwrap();
-      setSnackbarMessage("تم التحديث بنجاح");
-      setSnackBarType("success");
-    } catch (error) {
-      if (error.response && error.response.status === "FETCH_ERROR") {
-        setOpenSnackbar(true);
-        setSnackbarMessage("خطأ في الوصول إلى قاعدة البيانات");
-        setSnackBarType("error");
-      } else {
-        setOpenSnackbar(true);
-        setSnackbarMessage(
-          "خطأ في التحديث، إذا استمرت المشكله حاول اعادة تحميل الصفحة"
-        );
-        setSnackBarType("error");
-      }
-    } finally {
-      setOpenSnackbar(true);
-      setLoadingRows((prev) => ({ ...prev, [id]: false }));
-    }
-  };
-
   // Delete Single Invoice
   const handleDelete = async () => {
     if (deleteConfirmationText.trim().toLowerCase() === "نعم") {
@@ -494,7 +414,7 @@ export default function Invoices() {
   const [selectedRows, setSelectedRows] = useState([]);
 
   // custom toolbar
-  function CustomToolbar({ columnVisibilityModel, ...props }) {
+  function CustomToolbar({ columnVisibilityModel }) {
     const printableTableRef = useRef(null);
 
     const handlePrint = () => {
@@ -568,29 +488,6 @@ export default function Invoices() {
                 حذف المحدد ({selectedRows.length})
               </Button>
             )}
-            {/* {selectedRows.some((invoice) =>
-              invoice.items.every((item) => item.total_price !== 0)
-            )
-              ? ""
-              : (user?.can_update_prices || user?.username === "admin") && (
-                  <Button
-                    variant="contained"
-                    startIcon={<ClearOutlinedIcon />}
-                    onClick={() => handleRefreshSelectedRows(selectedRows)}
-                    sx={{
-                      position: "absolute",
-                      top: "15px",
-                      left: user?.username === "admin" ? "150px" : "0",
-                    }}
-                    disabled={isRefreshArrayLoading}
-                  >
-                    {isRefreshArrayLoading ? (
-                      <CircularProgress size={24} />
-                    ) : (
-                      `تحديث اسعار المحدد (${selectedRows.length})`
-                    )}
-                  </Button>
-                )} */}
           </>
         )}
         <Button
@@ -621,6 +518,80 @@ export default function Invoices() {
   const showInvoiceDetails = (id) => {
     setInvoiceId(id);
     setIsInvoiceDetailsOpen(true);
+  };
+
+  // accept or reject sheraa talab
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState(null);
+
+  const handleRejectInvoice = (id) => {
+    setSelectedInvoiceId(id);
+    setRejectDialogOpen(true);
+    setRejectReason("");
+  };
+
+  const handleConfirmReject = async () => {
+    if (!rejectReason.trim()) {
+      setOpenSnackbar(true);
+      setSnackbarMessage("يرجى إدخال سبب الرفض");
+      setSnackBarType("error");
+      return;
+    }
+
+    setIsConfirmDone((prev) => ({ ...prev, [selectedInvoiceId]: true }));
+    try {
+      await confirmTalabSheraaInvoice({
+        id: selectedInvoiceId,
+        isPurchaseApproved: false,
+      }).unwrap();
+
+      const invoice = invoices.find((inv) => inv.id === selectedInvoiceId);
+      if (!invoice) {
+        throw new Error("الفاتورة غير موجودة");
+      }
+
+      await updateInvoice({
+        ...invoice,
+        id: selectedInvoiceId,
+        comment: rejectReason,
+      }).unwrap();
+
+      setOpenSnackbar(true);
+      setSnackbarMessage("تم رفض الفاتورة بنجاح");
+      setSnackBarType("success");
+      refetchInvoices();
+    } catch (error) {
+      console.log(error);
+      setOpenSnackbar(true);
+      setSnackbarMessage("خطأ في رفض الفاتورة أو تحديث التعليق");
+      setSnackBarType("error");
+    } finally {
+      setIsConfirmDone((prev) => ({ ...prev, [selectedInvoiceId]: false }));
+      setRejectDialogOpen(false);
+      setRejectReason("");
+      setSelectedInvoiceId(null);
+    }
+  };
+  const handleAcceptInvoice = async (id) => {
+    setIsConfirmDone((prev) => ({ ...prev, [id]: true }));
+    try {
+      await confirmTalabSheraaInvoice({
+        id,
+        isPurchaseApproved: true,
+      }).unwrap();
+      setOpenSnackbar(true);
+      setSnackbarMessage("تم قبول الفاتورة بنجاح");
+      setSnackBarType("success");
+      refetchInvoices();
+    } catch (error) {
+      console.log(error);
+      setOpenSnackbar(true);
+      setSnackbarMessage("خطأ في قبول الفاتورة");
+      setSnackBarType("error");
+    } finally {
+      setIsConfirmDone((prev) => ({ ...prev, [id]: false }));
+    }
   };
 
   // columns
@@ -694,38 +665,16 @@ export default function Invoices() {
                   )}
                 </Button>
               ))}
-
-            {/* {params.row.items.some((item) => item.total_price === 0) && (
-              <Button
-                variant="contained"
-                color="info"
-                onClick={() => handleRefresh(params.row.id)}
-                sx={{
-                  borderRadius: "8px",
-                  padding: "6px 16px",
-                }}
-                disabled={
-                  loadingRows[params.row.id] ||
-                  (user?.username !== "admin" && !user?.can_update_prices)
-                }
-              >
-                {loadingRows[params.row.id] ? (
-                  <CircularProgress size={24} />
-                ) : (
-                  "تحديث اسعار"
-                )}
-              </Button>
-            )} */}
           </div>
         );
       },
     },
     {
-      width: 86,
+      width: 200,
       field: "status",
       headerName: "حالة العملية",
       renderCell: (params) => {
-        const { status, rawStatus, id } = params.row;
+        const { status, rawStatus, id, type } = params.row;
         const isLoading = isConfirmDone[id] || false;
 
         if (status === "تم" || status === "تم الاسترداد") {
@@ -733,6 +682,49 @@ export default function Invoices() {
         }
         if (status === "استرداد جزئي") {
           return "استرداد جزئي";
+        }
+        if (status === "مقبول") {
+          return "مقبول";
+        }
+        if (status === "مرفوض") {
+          return "مرفوض";
+        }
+
+        if (type === "طلب شراء" && rawStatus === "draft") {
+          return (
+            <div style={{ display: "flex", gap: "8px" }}>
+              <Button
+                variant="contained"
+                color="success"
+                onClick={() => handleAcceptInvoice(id)}
+                sx={{
+                  borderRadius: "8px",
+                  padding: "6px 10px",
+                }}
+                disabled={
+                  isLoading ||
+                  !(user?.can_confirm_withdrawal || user?.username === "admin")
+                }
+              >
+                {isLoading ? <CircularProgress size={24} /> : "قبول"}
+              </Button>
+              <Button
+                variant="contained"
+                color="error"
+                onClick={() => handleRejectInvoice(id)}
+                sx={{
+                  borderRadius: "8px",
+                  padding: "6px 10px",
+                }}
+                disabled={
+                  isLoading ||
+                  !(user?.can_confirm_withdrawal || user?.username === "admin")
+                }
+              >
+                {isLoading ? <CircularProgress size={24} /> : "رفض"}
+              </Button>
+            </div>
+          );
         }
 
         let buttonText = status;
@@ -1189,6 +1181,50 @@ export default function Invoices() {
             message={"هل أنت متأكد من رغبتك في حذف العناصر المحددة؟"}
             loader={isArrayDeleting}
           />
+
+          {/* reject talab sheraa */}
+          <Dialog
+            open={rejectDialogOpen}
+            onClose={() => setRejectDialogOpen(false)}
+            dir="rtl"
+          >
+            <DialogTitle>سبب رفض الفاتورة</DialogTitle>
+            <DialogContent>
+              <TextField
+                autoFocus
+                margin="dense"
+                label="سبب الرفض"
+                fullWidth
+                multiline
+                rows={4}
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+              />
+            </DialogContent>
+            <DialogActions>
+              <Button
+                onClick={() => setRejectDialogOpen(false)}
+                color="primary"
+                variant="contained"
+              >
+                إلغاء
+              </Button>
+              <Button
+                onClick={handleConfirmReject}
+                color="error"
+                variant="contained"
+                disabled={
+                  isConfirmDone[selectedInvoiceId] || !rejectReason.trim()
+                }
+              >
+                {isConfirmDone[selectedInvoiceId] ? (
+                  <CircularProgress size={24} />
+                ) : (
+                  "تأكيد الرفض"
+                )}
+              </Button>
+            </DialogActions>
+          </Dialog>
 
           {/* Snackbar */}
           <SnackBar

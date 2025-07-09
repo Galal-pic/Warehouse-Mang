@@ -135,9 +135,10 @@ export const api = createApi({
       invalidatesTags: ["Invoice"],
     }),
     confirmTalabSheraaInvoice: builder.mutation({
-      query: (id) => ({
+      query: ({ id, ...body }) => ({
         url: `/invoice/${id}/PurchaseRequestConfirmation`,
         method: "POST",
+        body,
       }),
       invalidatesTags: ["Invoice"],
     }),
