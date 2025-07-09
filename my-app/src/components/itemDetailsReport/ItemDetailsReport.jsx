@@ -56,6 +56,8 @@ const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
         status: "الحالة",
         invoice_date: "تاريخ الفاتورة",
         invoice_type: "نوع الفاتورة",
+        machine_name: "الماكينة",
+        mechanism_name: "الميكانيزم",
       };
 
       const statusMap = {
@@ -101,6 +103,8 @@ const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
             invoice.invoice_date?.split(" ")[0] || "-",
           [columnTranslations.invoice_type]: invoice.invoice_type || "-",
           [columnTranslations.invoice_id]: invoice.invoice_id || "-",
+          [columnTranslations.machine_name]: invoice.machine_name || "-",
+          [columnTranslations.mechanism_name]: invoice.mechanism_name || "-",
         }));
         headers = [
           columnTranslations.unit_price,
@@ -111,6 +115,8 @@ const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
           columnTranslations.invoice_date,
           columnTranslations.invoice_type,
           columnTranslations.invoice_id,
+          columnTranslations.machine_name,
+          columnTranslations.mechanism_name,
         ];
       }
 
@@ -608,6 +614,18 @@ const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
 
     { field: "quantity", headerName: "الكمية", flex: 1 },
     { field: "location", headerName: "الموقع", flex: 1 },
+    {
+      field: "machine",
+      headerName: "الماكينة",
+      flex: 1,
+      renderCell: (params) => params.value || "-",
+    },
+    {
+      field: "mechanism",
+      headerName: "الميكانيزم",
+      flex: 1,
+      renderCell: (params) => params.value || "-",
+    },
 
     ...(user?.view_prices || user?.username === "admin"
       ? [

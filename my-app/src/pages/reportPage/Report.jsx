@@ -854,6 +854,19 @@ export default function Report() {
         );
       },
     },
+    ...(user?.view_prices || user?.username === "admin"
+      ? [
+          {
+            field: "total_amount",
+            headerName: "الإجمالى",
+            flex: 1,
+            renderCell: (params) =>
+              params.row.invoice_type === "طلب شراء"
+                ? "-"
+                : params.value || "0",
+          },
+        ]
+      : []),
     {
       flex: 1,
       field: "items",
