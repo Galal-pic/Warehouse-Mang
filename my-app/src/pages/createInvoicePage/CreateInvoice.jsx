@@ -256,9 +256,8 @@ export default function CreateInvoice() {
     if (missingFields.length > 0) {
       return isPurchaseOrder
         ? "يجب ملء اسم الماكينة واسم الميكانيزم"
-        : invoice.type === "مرتجع"
-        ? "يجب ملء اسم الماكينة واسم الميكانيزم ورقم الفاتورة الأصلية"
-        : "يجب ملء اسم الماكينة واسم الميكانيزم";
+        : invoice.type === "مرتجع" &&
+            "يجب ملء اسم الماكينة واسم الميكانيزم ورقم الفاتورة الأصلية";
     }
 
     // Check supplier_name for each item in "إضافة" type
