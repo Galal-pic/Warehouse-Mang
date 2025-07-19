@@ -50,6 +50,7 @@ const ChangePassword = ({ open, onClose, userId, onSuccess }) => {
       onSuccess("تم تغيير كلمة المرور بنجاح", "success");
       onClose();
     } catch (err) {
+      console.log(err)
       // Extract server-side error message if available
       const errorMessage = "فشل في تغيير كلمة المرور. حاول مرة أخرى.";
       setError(errorMessage);

@@ -247,7 +247,6 @@ export default function Invoices() {
     const updatedInvoice = {
       id: editingInvoice.id,
       type: editingInvoice.type,
-      supplier_name: editingInvoice.supplier_name,
       machine_name: editingInvoice.machine_name,
       mechanism_name: editingInvoice.mechanism_name,
       total_amount: editingInvoice.total_amount,
@@ -267,6 +266,7 @@ export default function Invoices() {
           ? editingInvoice.original_invoice_id
           : undefined,
       items: newRows.map((row) => ({
+        supplier_name: row.supplier_name,
         item_name: row.item_name,
         barcode: row.barcode,
         location: row.location,
