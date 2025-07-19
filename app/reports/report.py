@@ -1,6 +1,6 @@
 from flask_restx import Namespace, Resource, fields
 from flask_jwt_extended import jwt_required
-from sqlalchemy import or_, and_
+from sqlalchemy import or_, and_, desc
 from ..models import (
     Mechanism,
     Employee,
@@ -13,7 +13,7 @@ from ..models import (
     Prices,
     InvoicePriceDetail,
     PurchaseRequests,
-    ReturnSales,  # Added ReturnSales import
+    ReturnSales,
     WarrantyReturn,
 )
 from datetime import datetime
@@ -34,6 +34,7 @@ price_model = reports_ns.model('Price', {
     'created_at': fields.String(description='Created date and time')
 })
 
+# Updated invoice item model to include supplier information per item
 invoice_item_model = reports_ns.model('InvoiceItem', {
     'item_name': fields.String(description='Item name'),
     'item_bar': fields.String(description='Item barcode'),
@@ -41,7 +42,9 @@ invoice_item_model = reports_ns.model('InvoiceItem', {
     'quantity': fields.Integer(description='Quantity'),
     'unit_price': fields.Float(description='Unit price'),
     'total_price': fields.Float(description='Total price'),
-    'description': fields.String(description='Description')
+    'description': fields.String(description='Description'),
+    'supplier_name': fields.String(description='Supplier name for this item'),
+    'supplier_id': fields.Integer(description='Supplier ID for this item')
 })
 
 invoice_history_model = reports_ns.model('InvoiceHistory', {
@@ -52,7 +55,9 @@ invoice_history_model = reports_ns.model('InvoiceHistory', {
     'quantity': fields.Integer(description='Quantity'),
     'unit_price': fields.Float(description='Unit price'),
     'total_price': fields.Float(description='Total price'),
-    'status': fields.String(description='Invoice status')
+    'status': fields.String(description='Invoice status'),
+    'supplier_name': fields.String(description='Supplier name for this item'),
+    'supplier_id': fields.Integer(description='Supplier ID for this item')
 })
 
 purchase_request_model = reports_ns.model('PurchaseRequest', {
@@ -79,7 +84,7 @@ item_model = reports_ns.model('Item', {
     'purchase_requests': fields.List(fields.Nested(purchase_request_model), description='Purchase requests')
 })
 
-# Updated invoice model definition to include return sales info
+# Updated invoice model to remove invoice-level supplier and add suppliers summary
 invoice_model = reports_ns.model('Invoice', {
     'id': fields.Integer(description='Invoice ID'),
     'type': fields.String(description='Invoice type'),
@@ -95,27 +100,9 @@ invoice_model = reports_ns.model('Invoice', {
     'employee_name': fields.String(description='Employee name'),
     'machine': fields.String(description='Machine name'),
     'mechanism': fields.String(description='Mechanism name'),
-    'supplier': fields.String(description='Supplier name'),
+    'suppliers_summary': fields.List(fields.String, description='List of unique suppliers used in this invoice'),
     'items': fields.List(fields.Nested(invoice_item_model), description='Invoice items'),
     'return_sales_info': fields.Raw(description='Return sales information (for مرتجع invoices)')
-})
-
-machine_report_model = reports_ns.model('MachineReport', {
-    'id': fields.Integer(description='Machine ID'),
-    'name': fields.String(description='Machine name'),
-    'description': fields.String(description='Machine description'),
-    'invoices': fields.List(fields.Nested(invoice_model), description='Related invoices'),
-    'items': fields.List(fields.Nested(item_model), description='Related items via purchase requests'),
-    'purchase_requests': fields.List(fields.Nested(purchase_request_model), description='Purchase requests')
-})
-
-mechanism_report_model = reports_ns.model('MechanismReport', {
-    'id': fields.Integer(description='Mechanism ID'),
-    'name': fields.String(description='Mechanism name'),
-    'description': fields.String(description='Mechanism description'),
-    'invoices': fields.List(fields.Nested(invoice_model), description='Related invoices'),
-    'items': fields.List(fields.Nested(item_model), description='Related items via purchase requests'),
-    'purchase_requests': fields.List(fields.Nested(purchase_request_model), description='Purchase requests')
 })
 
 # Create parsers
@@ -138,8 +125,9 @@ pagination_parser.add_argument(
     help="Get all items (default: True) \naccepts values [\'true\', \'false\', \'1\', \'0\', \'t\', \'f\', \'y\', \'n\', \'yes\', \'no\']",
 )
 
+# Updated filter parser (removed machine and mechanism filters)
 filter_parser = pagination_parser.copy()
-filter_parser.add_argument("type", type=str, required=True, help="Report type (invoice, item, mechanism, machine)")
+filter_parser.add_argument("type", type=str, required=True, help="Report type (invoice, item)")
 filter_parser.add_argument("invoice_id", type=int, required=False, help="Filter by specific invoice ID")
 filter_parser.add_argument("warehouse_manager", type=str, required=False, help="Filter by warehouse manager")
 filter_parser.add_argument("machine", type=str, required=False, help="Filter by machine name")
@@ -198,15 +186,20 @@ class Reports(Resource):
             table_name = model.__tablename__
             columns = [col.name for col in model.__table__.columns if col.name not in ["password", "password_hash"]]
             
+            # Add DESC ordering by id if the model has an id column
+            query = model.query
+            if hasattr(model, 'id'):
+                query = query.order_by(desc(model.id))
+            
             if not all_results:
                 row_data = [
                     {col: serialize_value(getattr(row, col)) for col in columns}
-                    for row in model.query.limit(page_size).offset(offset).all()
+                    for row in query.limit(page_size).offset(offset).all()
                 ]
             else:
                 row_data = [
                     {col: serialize_value(getattr(row, col)) for col in columns}
-                    for row in model.query.all()
+                    for row in query.all()
                 ]
                 
             full_report[table_name] = row_data
@@ -254,10 +247,6 @@ class FilterReports(Resource):
             return self._filter_invoices(args, start_date, end_date, page_size, offset, all_results)
         elif report_type == "item":
             return self._filter_items(args, start_date, end_date, page_size, offset, all_results)
-        elif report_type == "machine":
-            return self._filter_machines(args, start_date, end_date, page_size, offset, all_results)
-        elif report_type == "mechanism":
-            return self._filter_mechanisms(args, start_date, end_date, page_size, offset, all_results)
         else:
             reports_ns.abort(400, f"Unsupported report type: {report_type}")
     
@@ -685,8 +674,8 @@ class FilterReports(Resource):
     
     def _filter_invoices(self, args, start_date, end_date, page_size, offset, all_results):
         """Filter invoices based on provided parameters"""
-        # Start with base query
-        query = Invoice.query
+        # Start with base query with DESC ordering
+        query = Invoice.query.order_by(desc(Invoice.id))
         
         # Apply invoice_id filter if provided (exact match)
         if args["invoice_id"]:
@@ -718,8 +707,12 @@ class FilterReports(Resource):
         if args["mechanism"]:
             query = query.join(Mechanism).filter(Mechanism.name.ilike(f"%{args['mechanism']}%"))
             
+        # Updated supplier filter to check item-level suppliers
         if args["supplier"]:
-            query = query.join(Supplier).filter(Supplier.name.ilike(f"%{args['supplier']}%"))
+            # Filter invoices that have items with the specified supplier
+            query = query.join(InvoiceItem).join(Supplier, InvoiceItem.supplier_id == Supplier.id).filter(
+                Supplier.name.ilike(f"%{args['supplier']}%")
+            ).distinct()
             
         # Apply date filters
         if start_date:
@@ -737,7 +730,7 @@ class FilterReports(Resource):
         else:
             invoices = query.limit(page_size).offset(offset).all()
         
-        # Serialize results with warranty return information
+        # Serialize results with warranty return information and supplier per item
         result = []
         for invoice in invoices:
             invoice_data = {
@@ -757,12 +750,27 @@ class FilterReports(Resource):
                 # Add related entities
                 "machine": invoice.machine.name if invoice.machine else None,
                 "mechanism": invoice.mechanism.name if invoice.mechanism else None,
-                "supplier": invoice.supplier.name if invoice.supplier else None,
+                # Remove invoice-level supplier since it's now per item
             }
             
-            # Enhanced items with warranty return information
+            # Enhanced items with warranty return information and supplier info
             items_with_return_info = []
+            suppliers_used = set()  # Track unique suppliers for summary
+            
             for item in invoice.items:
+                # Get supplier information for this item
+                supplier_name = None
+                supplier_id = None
+                if hasattr(item, 'supplier_id') and item.supplier_id:
+                    supplier = Supplier.query.get(item.supplier_id)
+                    if supplier:
+                        supplier_name = supplier.name
+                        supplier_id = supplier.id
+                        suppliers_used.add(supplier_name)
+                elif hasattr(item, 'supplier_name') and item.supplier_name:
+                    supplier_name = item.supplier_name
+                    suppliers_used.add(supplier_name)
+                
                 # Get return history for this specific item in this invoice
                 returned_quantity = 0
                 return_history = []
@@ -791,6 +799,8 @@ class FilterReports(Resource):
                     "unit_price": item.unit_price,
                     "total_price": item.total_price,
                     "description": item.description,
+                    "supplier_name": supplier_name,  # NEW: supplier per item
+                    "supplier_id": supplier_id,      # NEW: supplier ID per item
                     "returned_quantity": returned_quantity,
                     "remaining_quantity": item.quantity - returned_quantity,
                     "return_history": return_history
@@ -798,6 +808,7 @@ class FilterReports(Resource):
                 items_with_return_info.append(item_data)
             
             invoice_data["items"] = items_with_return_info
+            invoice_data["suppliers_summary"] = list(suppliers_used)  # NEW: Summary of suppliers used
             
             # Add warranty return summary for warranty invoices
             if invoice.type == 'أمانات':
@@ -856,8 +867,8 @@ class FilterReports(Resource):
         
     def _filter_items(self, args, start_date, end_date, page_size, offset, all_results):
         """Filter warehouse items based on provided parameters"""
-        # Start with base query
-        query = Warehouse.query
+        # Start with base query with DESC ordering
+        query = Warehouse.query.order_by(desc(Warehouse.id))
         
         # Apply filters if they exist - using exact matching by default
         if args["item_name"]:
@@ -885,7 +896,7 @@ class FilterReports(Resource):
             } for loc in item.item_locations]
             
             # Get all invoices for this item, applying filters if needed
-            invoice_items_query = InvoiceItem.query.filter(InvoiceItem.item_id == item.id).join(Invoice)
+            invoice_items_query = InvoiceItem.query.filter(InvoiceItem.item_id == item.id).join(Invoice).order_by(desc(Invoice.id))
             
             # Apply invoice_id filter if provided
             if args["invoice_id"]:
@@ -905,11 +916,11 @@ class FilterReports(Resource):
             
             invoice_items = invoice_items_query.all()
             
-            # Get pricing history (filter by invoice_id if provided)
+            # Get pricing history (filter by invoice_id if provided) with DESC ordering
             if args["invoice_id"]:
                 prices = [price for price in item.prices if price.invoice_id == args["invoice_id"]]
             else:
-                prices = list(item.prices)
+                prices = sorted(item.prices, key=lambda x: x.invoice_id, reverse=True)
             
             prices_serialized = [{
                 "invoice_id": price.invoice_id,
@@ -918,8 +929,8 @@ class FilterReports(Resource):
                 "created_at": serialize_value(price.created_at)
             } for price in prices]
             
-            # Get warranty returns for this item
-            warranty_returns_query = WarrantyReturn.query.filter(WarrantyReturn.item_id == item.id)
+            # Get warranty returns for this item with DESC ordering
+            warranty_returns_query = WarrantyReturn.query.filter(WarrantyReturn.item_id == item.id).order_by(desc(WarrantyReturn.id))
             
             # Apply date filters to warranty returns
             if start_date:
@@ -931,9 +942,20 @@ class FilterReports(Resource):
                 
             warranty_returns = warranty_returns_query.all()
             
-            # Build enhanced invoice history with warranty return information
+            # Build enhanced invoice history with warranty return information and supplier info
             invoice_history = []
             for inv_item in invoice_items:
+                # Get supplier information for this item
+                supplier_name = None
+                supplier_id = None
+                if hasattr(inv_item, 'supplier_id') and inv_item.supplier_id:
+                    supplier = Supplier.query.get(inv_item.supplier_id)
+                    if supplier:
+                        supplier_name = supplier.name
+                        supplier_id = supplier.id
+                elif hasattr(inv_item, 'supplier_name') and inv_item.supplier_name:
+                    supplier_name = inv_item.supplier_name
+                
                 # Calculate warranty return info for this specific invoice item
                 returned_quantity = 0
                 if inv_item.invoice.type == 'أمانات':
@@ -953,6 +975,8 @@ class FilterReports(Resource):
                     "unit_price": inv_item.unit_price,
                     "total_price": inv_item.total_price,
                     "status": inv_item.invoice.status,
+                    "supplier_name": supplier_name,  # NEW: supplier per item
+                    "supplier_id": supplier_id,      # NEW: supplier ID per item
                     "returned_quantity": returned_quantity,
                     "remaining_quantity": inv_item.quantity - returned_quantity
                 })
@@ -988,7 +1012,7 @@ class FilterReports(Resource):
                     "machine": req.machine.name if req.machine else None,
                     "mechanism": req.mechanism.name if req.mechanism else None,
                     "employee": req.employee.username if req.employee else None
-                } for req in item.purchase_requests]
+                } for req in sorted(item.purchase_requests, key=lambda x: x.id, reverse=True)]
             }
             
             result.append(item_data)
@@ -1014,10 +1038,10 @@ class FilterReports(Resource):
         if end_date:
             warranty_returns_query = warranty_returns_query.filter(WarrantyReturn.return_date <= end_date)
         
-        return warranty_returns_query.all()
+        return warranty_returns_query.order_by(desc(WarrantyReturn.id)).all()
 
     def _serialize_invoices(self, invoices):
-        """Serialize invoices data with warranty return information"""
+        """Serialize invoices data with warranty return information and supplier per item"""
         serialized_invoices = []
         for invoice in invoices:
             invoice_data = {
@@ -1035,12 +1059,27 @@ class FilterReports(Resource):
                 "employee_name": invoice.employee_name,
                 "machine": invoice.machine.name if invoice.machine else None,
                 "mechanism": invoice.mechanism.name if invoice.mechanism else None,
-                "supplier": invoice.supplier.name if invoice.supplier else None,
+                # Remove invoice-level supplier since it's now per item
             }
             
-            # Enhanced items with warranty return information
+            # Enhanced items with warranty return information and supplier info
             items_with_return_info = []
+            suppliers_used = set()  # Track unique suppliers for summary
+            
             for item in invoice.items:
+                # Get supplier information for this item
+                supplier_name = None
+                supplier_id = None
+                if hasattr(item, 'supplier_id') and item.supplier_id:
+                    supplier = Supplier.query.get(item.supplier_id)
+                    if supplier:
+                        supplier_name = supplier.name
+                        supplier_id = supplier.id
+                        suppliers_used.add(supplier_name)
+                elif hasattr(item, 'supplier_name') and item.supplier_name:
+                    supplier_name = item.supplier_name
+                    suppliers_used.add(supplier_name)
+                
                 # Get return history for warranty invoices
                 returned_quantity = 0
                 return_history = []
@@ -1068,12 +1107,15 @@ class FilterReports(Resource):
                     "unit_price": item.unit_price,
                     "total_price": item.total_price,
                     "description": item.description,
+                    "supplier_name": supplier_name,  # NEW: supplier per item
+                    "supplier_id": supplier_id,      # NEW: supplier ID per item
                     "returned_quantity": returned_quantity,
                     "remaining_quantity": item.quantity - returned_quantity,
                     "return_history": return_history
                 })
             
             invoice_data["items"] = items_with_return_info
+            invoice_data["suppliers_summary"] = list(suppliers_used)  # NEW: Summary of suppliers used
             
             # Add warranty return summary for warranty invoices
             if invoice.type == 'أمانات':

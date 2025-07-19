@@ -1,13 +1,14 @@
 from flask_restx import Namespace, Resource, fields
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from werkzeug.security import generate_password_hash, check_password_hash
+from sqlalchemy import desc
 from . import db
 from .models import Employee
 from .utils import parse_bool
 from pprint import pp
+
 # Create namespace
 auth_ns = Namespace('auth', description='Authentication operations')
-
 
 pagination_parser = auth_ns.parser()
 pagination_parser.add_argument('page',
@@ -25,13 +26,14 @@ pagination_parser.add_argument('all',
                                required=False,
                                default=True,
                                help='Get all items (default: True) \naccepts values [\'true\', \'false\', \'1\', \'0\', \'t\', \'f\', \'y\', \'n\', \'yes\', \'no\']')
+
 # Create Invoice Permissions
 create_invoice_model = auth_ns.model('CreateInvoicePermissions', {
     'create_inventory_operations': fields.Boolean(default=False, description='Permission to create inventory operations'),
     'create_additions': fields.Boolean(default=False, description='Permission to create additions')
 })
 
-# Manage Operations Permissions
+# Manage Operations Permissions - Updated with new view permissions
 manage_operations_model = auth_ns.model('ManageOperationsPermissions', {
     'view_additions': fields.Boolean(default=False, description='Permission to view additions'),
     'view_withdrawals': fields.Boolean(default=False, description='Permission to view withdrawals'),
@@ -42,13 +44,26 @@ manage_operations_model = auth_ns.model('ManageOperationsPermissions', {
     'view_prices': fields.Boolean(default=False, description='Permission to view prices'),
     'view_purchase_requests': fields.Boolean(default=False, description='Permission to view purchase requests'),
     'view_reports': fields.Boolean(default=False, description='Permission to view reports'),
+    
+    # NEW: Status-based view permissions
+    'view_zero_valued': fields.Boolean(default=False, description='Permission to view zero-valued invoices'),
+    'view_confirmed': fields.Boolean(default=False, description='Permission to view confirmed invoices'),
+    'view_unreviewed': fields.Boolean(default=False, description='Permission to view unreviewed invoices'),
+    'view_unconfirmed': fields.Boolean(default=False, description='Permission to view unconfirmed invoices'),
+    
     'can_edit': fields.Boolean(default=False, description='Permission to edit operations'),
     'can_delete': fields.Boolean(default=False, description='Permission to delete operations'),
     'can_confirm_withdrawal': fields.Boolean(default=False, description='Permission to confirm withdrawals'),
     'can_withdraw': fields.Boolean(default=False, description='Permission to withdraw'),
     'can_update_prices': fields.Boolean(default=False, description='Permission to update prices'),
     'can_recover_deposits': fields.Boolean(default=False, description='Permission to recover deposits'),
-    'can_confirm_purchase_requests': fields.Boolean(default=False, description='Permission to confirm purchase requests')
+    'can_confirm_purchase_requests': fields.Boolean(default=False, description='Permission to confirm purchase requests'),
+    
+    # NEW: Status-based change permissions
+    'can_change_zero_valued': fields.Boolean(default=False, description='Permission to change zero-valued status'),
+    'can_change_confirmed': fields.Boolean(default=False, description='Permission to change confirmed status'),
+    'can_change_unreviewed': fields.Boolean(default=False, description='Permission to change unreviewed status'),
+    'can_change_unconfirmed': fields.Boolean(default=False, description='Permission to change unconfirmed status')
 })
 
 # Items Permissions
@@ -103,7 +118,7 @@ login_model = auth_ns.model('Login', {
     'password': fields.String(required=True, description='Password')
 })
 
-# Model for returning user data
+# Model for returning user data - Updated with all new permissions
 user_model = auth_ns.model('User', {
     'id': fields.Integer(readOnly=True, description='User ID'),
     'username': fields.String(required=True, description='Username'),
@@ -122,6 +137,13 @@ user_model = auth_ns.model('User', {
     'view_prices': fields.Boolean(description='Permission to view prices'),
     'view_purchase_requests': fields.Boolean(description='Permission to view purchase requests'),
     'view_reports': fields.Boolean(description='Permission to view reports'),
+    
+    # NEW: Status-based view permissions
+    'view_zero_valued': fields.Boolean(description='Permission to view zero-valued invoices'),
+    'view_confirmed': fields.Boolean(description='Permission to view confirmed invoices'),
+    'view_unreviewed': fields.Boolean(description='Permission to view unreviewed invoices'),
+    'view_unconfirmed': fields.Boolean(description='Permission to view unconfirmed invoices'),
+    
     'can_edit': fields.Boolean(description='Permission to edit operations'),
     'can_delete': fields.Boolean(description='Permission to delete operations'),
     'can_confirm_withdrawal': fields.Boolean(description='Permission to confirm withdrawals'),
@@ -129,6 +151,13 @@ user_model = auth_ns.model('User', {
     'can_update_prices': fields.Boolean(description='Permission to update prices'),
     'can_recover_deposits': fields.Boolean(description='Permission to recover deposits'),
     'can_confirm_purchase_requests': fields.Boolean(description='Permission to confirm purchase requests'),
+    
+    # NEW: Status-based change permissions
+    'can_change_zero_valued': fields.Boolean(description='Permission to change zero-valued status'),
+    'can_change_confirmed': fields.Boolean(description='Permission to change confirmed status'),
+    'can_change_unreviewed': fields.Boolean(description='Permission to change unreviewed status'),
+    'can_change_unconfirmed': fields.Boolean(description='Permission to change unconfirmed status'),
+    
     'items_can_edit': fields.Boolean(description='Permission to edit items'),
     'items_can_delete': fields.Boolean(description='Permission to delete items'),
     'items_can_add': fields.Boolean(description='Permission to add items'),
@@ -165,6 +194,7 @@ change_password_model = auth_ns.model('ChangePassword', {
     'new_password': fields.String(required=True, description='New password'),
     'confirm_new_password': fields.String(required=True, description='Confirm password')
 })
+
 # Endpoints
 @auth_ns.route('/register')
 class Register(Resource):
@@ -197,6 +227,13 @@ class Register(Resource):
         view_prices = manage_operations.get('view_prices', False)
         view_purchase_requests = manage_operations.get('view_purchase_requests', False)
         view_reports = manage_operations.get('view_reports', False)
+        
+        # NEW: Status-based view permissions
+        view_zero_valued = manage_operations.get('view_zero_valued', False)
+        view_confirmed = manage_operations.get('view_confirmed', False)
+        view_unreviewed = manage_operations.get('view_unreviewed', False)
+        view_unconfirmed = manage_operations.get('view_unconfirmed', False)
+        
         can_edit = manage_operations.get('can_edit', False)
         can_delete = manage_operations.get('can_delete', False)
         can_confirm_withdrawal = manage_operations.get('can_confirm_withdrawal', False)
@@ -204,6 +241,12 @@ class Register(Resource):
         can_update_prices = manage_operations.get('can_update_prices', False)
         can_recover_deposits = manage_operations.get('can_recover_deposits', False)
         can_confirm_purchase_requests = manage_operations.get('can_confirm_purchase_requests', False)
+        
+        # NEW: Status-based change permissions
+        can_change_zero_valued = manage_operations.get('can_change_zero_valued', False)
+        can_change_confirmed = manage_operations.get('can_change_confirmed', False)
+        can_change_unreviewed = manage_operations.get('can_change_unreviewed', False)
+        can_change_unconfirmed = manage_operations.get('can_change_unconfirmed', False)
         
         # Items permissions
         items = permissions.get('items', {})
@@ -248,6 +291,13 @@ class Register(Resource):
             view_prices=view_prices,
             view_purchase_requests=view_purchase_requests,
             view_reports=view_reports,
+            
+            # NEW: Status-based view permissions
+            view_zero_valued=view_zero_valued,
+            view_confirmed=view_confirmed,
+            view_unreviewed=view_unreviewed,
+            view_unconfirmed=view_unconfirmed,
+            
             can_edit=can_edit,
             can_delete=can_delete,
             can_confirm_withdrawal=can_confirm_withdrawal,
@@ -255,6 +305,12 @@ class Register(Resource):
             can_update_prices=can_update_prices,
             can_recover_deposits=can_recover_deposits,
             can_confirm_purchase_requests=can_confirm_purchase_requests,
+            
+            # NEW: Status-based change permissions
+            can_change_zero_valued=can_change_zero_valued,
+            can_change_confirmed=can_change_confirmed,
+            can_change_unreviewed=can_change_unreviewed,
+            can_change_unconfirmed=can_change_unconfirmed,
             
             items_can_edit=items_can_edit,
             items_can_delete=items_can_delete,
@@ -291,7 +347,6 @@ class Login(Resource):
 
         access_token = create_access_token(identity=str(employee.id))
         return {"access_token": access_token}, 200
-
 
 @auth_ns.route('/user/<int:user_id>/change-password')
 class ChangePassword(Resource):
@@ -331,21 +386,13 @@ class UserManagement(Resource):
         if 'job_name' in data:
             employee.job_name = data['job_name']
         
-        # Update permissions if provided
-        # if 'permissions' in data:
-        #     permissions = data['permissions']
-            
-            # Create Invoice permissions
-            # if 'createInvoice' in permissions:
-            #     create_invoice = permissions['createInvoice']
+        # Update permissions if provided - Create Invoice permissions
         if 'create_inventory_operations' in data:
             employee.create_inventory_operations = data['create_inventory_operations']
         if 'create_additions' in data:
             employee.create_additions = data['create_additions']
             
-            # Manage Operations permissions
-            # if 'manageOperations' in permissions:
-            #     manage_operations = permissions['manageOperations']
+        # Manage Operations permissions
         if 'view_additions' in data:
             employee.view_additions = data['view_additions']
         if 'view_withdrawals' in data:
@@ -361,10 +408,20 @@ class UserManagement(Resource):
         if 'view_prices' in data:
             employee.view_prices = data['view_prices']
         if 'view_purchase_requests' in data:
-            print("except")
             employee.view_purchase_requests = data['view_purchase_requests']
         if 'view_reports' in data:
             employee.view_reports = data['view_reports']
+            
+        # NEW: Status-based view permissions
+        if 'view_zero_valued' in data:
+            employee.view_zero_valued = data['view_zero_valued']
+        if 'view_confirmed' in data:
+            employee.view_confirmed = data['view_confirmed']
+        if 'view_unreviewed' in data:
+            employee.view_unreviewed = data['view_unreviewed']
+        if 'view_unconfirmed' in data:
+            employee.view_unconfirmed = data['view_unconfirmed']
+            
         if 'can_edit' in data:
             employee.can_edit = data['can_edit']
         if 'can_delete' in data:
@@ -378,11 +435,19 @@ class UserManagement(Resource):
         if 'can_recover_deposits' in data:
             employee.can_recover_deposits = data['can_recover_deposits']
         if 'can_confirm_purchase_requests' in data:
-            employee.can_confirm_purchase_request = data['can_confirm_purchase_requests']
+            employee.can_confirm_purchase_requests = data['can_confirm_purchase_requests']
             
-            # Items permissions
-            # if 'items' in permissions:
-            #     items = permissions['items']
+        # NEW: Status-based change permissions
+        if 'can_change_zero_valued' in data:
+            employee.can_change_zero_valued = data['can_change_zero_valued']
+        if 'can_change_confirmed' in data:
+            employee.can_change_confirmed = data['can_change_confirmed']
+        if 'can_change_unreviewed' in data:
+            employee.can_change_unreviewed = data['can_change_unreviewed']
+        if 'can_change_unconfirmed' in data:
+            employee.can_change_unconfirmed = data['can_change_unconfirmed']
+            
+        # Items permissions
         if 'items_can_edit' in data:
             employee.items_can_edit = data['items_can_edit']
         if 'items_can_delete' in data:
@@ -390,9 +455,7 @@ class UserManagement(Resource):
         if 'items_can_add' in data:
             employee.items_can_add = data['items_can_add']
             
-            # Machines permissions
-            # if 'machines' in permissions:
-            #     machines = permissions['machines']
+        # Machines permissions
         if 'machines_can_edit' in data:
             employee.machines_can_edit = data['machines_can_edit']
         if 'machines_can_delete' in data:
@@ -400,9 +463,7 @@ class UserManagement(Resource):
         if 'machines_can_add' in data:
             employee.machines_can_add = data['machines_can_add']
             
-            # Mechanism permissions
-            # if 'mechanism' in permissions:
-            #     mechanism = permissions['mechanism']
+        # Mechanism permissions
         if 'mechanism_can_edit' in data:
             employee.mechanism_can_edit = data['mechanism_can_edit']
         if 'mechanism_can_delete' in data:
@@ -410,17 +471,13 @@ class UserManagement(Resource):
         if 'mechanism_can_add' in data:
             employee.mechanism_can_add = data['mechanism_can_add']
             
-            # Suppliers permissions
-            # if 'suppliers' in permissions:
-            #     suppliers = permissions['suppliers']
+        # Suppliers permissions
         if 'suppliers_can_edit' in data:
             employee.suppliers_can_edit = data['suppliers_can_edit']
         if 'suppliers_can_delete' in data:
             employee.suppliers_can_delete = data['suppliers_can_delete']
         if 'suppliers_can_add' in data:
             employee.suppliers_can_add = data['suppliers_can_add']
-            
-            
         
         db.session.commit()
         return employee, 200
@@ -439,7 +496,7 @@ class Users(Resource):
     @auth_ns.expect(pagination_parser)
     @jwt_required()
     def get(self):
-        """Get all users"""
+        """Get all users with DESC ordering"""
         args = pagination_parser.parse_args()
         page = int(args['page'])
         page_size = int(args['page_size'])
@@ -447,7 +504,10 @@ class Users(Resource):
         if page < 1 or page_size < 1:
             auth_ns.abort(400, "Page and page_size must be positive integers")
         offset = (page - 1) * page_size
-        query = Employee.query
+        
+        # Add DESC ordering by id
+        query = Employee.query.order_by(desc(Employee.id))
+        
         if not all_results:
             employees = query.limit(page_size).offset(offset).all()
         else:
@@ -474,5 +534,3 @@ class CurrentUser(Resource):
         if not user:
             auth_ns.abort(404, "User not found")
         return user, 200
-    
-    

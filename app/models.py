@@ -24,6 +24,11 @@ class Employee(db.Model):
     view_purchase_requests = db.Column(db.Boolean, default=False)
     view_reports = db.Column(db.Boolean, default=False)
     
+    view_zero_valued = db.Column(db.Boolean, default=False)
+    view_confirmed = db.Column(db.Boolean, default=False)
+    view_unreviewed = db.Column(db.Boolean, default=False)
+    view_unconfirmed = db.Column(db.Boolean, default=False)
+    
     can_edit = db.Column(db.Boolean, default=False)
     can_delete = db.Column(db.Boolean, default=False)
     can_confirm_withdrawal = db.Column(db.Boolean, default=False)
@@ -31,6 +36,12 @@ class Employee(db.Model):
     can_update_prices = db.Column(db.Boolean, default=False)
     can_recover_deposits = db.Column(db.Boolean, default=False)
     can_confirm_purchase_requests = db.Column(db.Boolean, default=False)
+
+    can_change_zero_valued = db.Column(db.Boolean, default=False)
+    can_change_confirmed = db.Column(db.Boolean, default=False)
+    can_change_unreviewed = db.Column(db.Boolean, default=False)
+    can_change_unconfirmed = db.Column(db.Boolean, default=False)
+    
     
     # Items Permissions
     items_can_edit = db.Column(db.Boolean, default=False)
@@ -130,10 +141,15 @@ class InvoiceItem(db.Model):
     total_price = db.Column(db.Float, nullable=True)
     unit_price = db.Column(db.Float, nullable=True)
     description = db.Column(db.Text)
+    
+    # NEW: Add supplier information per item
+    supplier_id = db.Column(db.Integer, db.ForeignKey('supplier.id'), nullable=True)
+    supplier_name = db.Column(db.String(255), nullable=True)  # Store name for reference
 
     # Relationships
     invoice = db.relationship('Invoice', back_populates='items')
     warehouse = db.relationship('Warehouse', back_populates='invoice_items')
+    supplier = db.relationship('Supplier', backref='invoice_items')  # NEW relationship
 
 # Warehouse Model
 class Warehouse(db.Model):

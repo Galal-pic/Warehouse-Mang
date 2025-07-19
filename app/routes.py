@@ -60,6 +60,8 @@ invoice_item_model = invoice_ns.model('InvoiceItem', {
     'total_price': fields.Float(required=True),  # total price
     'unit_price': fields.Float(required=True),   # unit price
     'description': fields.String(required=False),
+    'supplier_name': fields.String(required=False),  # NEW: supplier per item
+    'supplier_id': fields.Integer(required=False),   # NEW: supplier ID per item
     'price_details': fields.List(fields.Nested(price_detail_model), description='FIFO price breakdown')
 })
 
@@ -79,12 +81,12 @@ invoice_model = invoice_ns.model('Invoice', {
     'employee_name': fields.String(required=True),
     'machine_name': fields.String(required=True),
     'mechanism_name': fields.String(required=True),
-    'supplier_name': fields.String(required=False),
+    # Remove supplier_name from invoice level since it's now per item
     "created_at": fields.String(required=False),
     "payment_method": fields.String(required=False),
     "custody_person": fields.String(required=False),
     'items': fields.List(fields.Nested(invoice_item_model)),
-    
+    'suppliers_summary': fields.List(fields.String, description='List of unique suppliers used in this invoice')
 })
 
 # Model for pagination
@@ -133,8 +135,6 @@ class invoices_get(Resource):
                 (Prices.invoice_id == Invoice.id) & 
                 (Prices.unit_price == 0)
             ))
-            
-            
         else:
             # Regular invoice type filtering
             query = query.filter_by(type=type)
@@ -148,16 +148,17 @@ class invoices_get(Resource):
         
         result = []
         for invoice in invoices:
-            # Fetch related machine, mechanism and supplier data
+            # Fetch related machine, mechanism (no more invoice-level supplier)
             machine = Machine.query.get(invoice.machine_id) if invoice.machine_id else None
             mechanism = Mechanism.query.get(invoice.mechanism_id) if invoice.mechanism_id else None
-            supplier = Supplier.query.get(invoice.supplier_id) if invoice.supplier_id else None
 
             # Fetch related items data
             items = InvoiceItem.query.filter_by(invoice_id=invoice.id).all()
             
-            # Prepare items with price details for FIFO transactions
+            # Prepare items with price details for FIFO transactions and supplier info
             item_list = []
+            suppliers_used = set()  # Track unique suppliers for summary
+            
             for item in items:
                 # Get price details if this is a sales or void or warranty type invoice (FIFO consumer)
                 price_details = []
@@ -179,6 +180,19 @@ class invoices_get(Resource):
                             'subtotal': detail.subtotal
                         })
                 
+                # Get supplier information for this item
+                supplier_name = None
+                supplier_id = None
+                if hasattr(item, 'supplier_id') and item.supplier_id:
+                    supplier = Supplier.query.get(item.supplier_id)
+                    if supplier:
+                        supplier_name = supplier.name
+                        supplier_id = supplier.id
+                        suppliers_used.add(supplier_name)
+                elif hasattr(item, 'supplier_name') and item.supplier_name:
+                    supplier_name = item.supplier_name
+                    suppliers_used.add(supplier_name)
+                
                 item_data = {
                     "item_name": Warehouse.query.get(item.item_id).item_name,
                     "barcode": Warehouse.query.get(item.item_id).item_bar,
@@ -187,6 +201,8 @@ class invoices_get(Resource):
                     "total_price": item.total_price,
                     'unit_price': item.unit_price,
                     "description": item.description,
+                    "supplier_name": supplier_name,  # NEW: supplier per item
+                    "supplier_id": supplier_id,      # NEW: supplier ID per item
                 }
                 
                 # Add price details if they exist
@@ -209,11 +225,12 @@ class invoices_get(Resource):
                 "employee_name": invoice.employee_name,
                 "machine_name": machine.name if machine else None,
                 "mechanism_name": mechanism.name if mechanism else None,
-                "supplier_name": supplier.name if supplier else None,
+                # Remove supplier_name from invoice level
                 "created_at": invoice.created_at,
                 "payment_method": invoice.payment_method,
                 "custody_person": invoice.custody_person,
-                "items": item_list
+                "items": item_list,
+                "suppliers_summary": list(suppliers_used)  # NEW: Summary of suppliers used
             }
             
             # Add original invoice ID for returned sales
@@ -258,20 +275,20 @@ class InvoiceList(Resource):
             invoices = query.all()
         total_count = query.count()
 
-
         # Prepare the response data
         result = []
         for invoice in invoices:
-            # Fetch related machine, mechanism and supplier data
+            # Fetch related machine, mechanism (no more invoice-level supplier)
             machine = Machine.query.get(invoice.machine_id) if invoice.machine_id else None
             mechanism = Mechanism.query.get(invoice.mechanism_id) if invoice.mechanism_id else None
-            supplier = Supplier.query.get(invoice.supplier_id) if invoice.supplier_id else None
 
             # Fetch related items data
             items = InvoiceItem.query.filter_by(invoice_id=invoice.id).all()
             
-            # Prepare items with price details for FIFO transactions
+            # Prepare items with price details for FIFO transactions and supplier info
             item_list = []
+            suppliers_used = set()  # Track unique suppliers for summary
+            
             for item in items:
                 # Get price details if this is a sales or void or warranty type invoice (FIFO consumer)
                 price_details = []
@@ -292,6 +309,19 @@ class InvoiceList(Resource):
                             'subtotal': detail.subtotal
                         })
 
+                # Get supplier information for this item
+                supplier_name = None
+                supplier_id = None
+                if hasattr(item, 'supplier_id') and item.supplier_id:
+                    supplier = Supplier.query.get(item.supplier_id)
+                    if supplier:
+                        supplier_name = supplier.name
+                        supplier_id = supplier.id
+                        suppliers_used.add(supplier_name)
+                elif hasattr(item, 'supplier_name') and item.supplier_name:
+                    supplier_name = item.supplier_name
+                    suppliers_used.add(supplier_name)
+
                 item_data = {
                     "item_name": Warehouse.query.get(item.item_id).item_name,
                     "barcode": Warehouse.query.get(item.item_id).item_bar,
@@ -300,6 +330,8 @@ class InvoiceList(Resource):
                     "total_price": item.total_price,
                     'unit_price': item.unit_price,
                     "description": item.description,
+                    "supplier_name": supplier_name,  # NEW: supplier per item
+                    "supplier_id": supplier_id,      # NEW: supplier ID per item
                 }
                 
                 # Add price details if they exist
@@ -323,11 +355,12 @@ class InvoiceList(Resource):
                 "employee_name": invoice.employee_name,
                 "machine_name": machine.name if machine else None,
                 "mechanism_name": mechanism.name if mechanism else None,
-                "supplier_name": supplier.name if supplier else None,
+                # Remove supplier_name from invoice level
                 "created_at": invoice.created_at,
                 "custody_person": invoice.custody_person,
                 "payment_method": invoice.payment_method,
-                "items": item_list
+                "items": item_list,
+                "suppliers_summary": list(suppliers_used)  # NEW: Summary of suppliers used
             }
             result.append(invoice_data)
 
@@ -361,15 +394,15 @@ class InvoiceList(Resource):
         supplier = None
         
         # Get supplier if name provided
-        if 'supplier_name' in data and data['supplier_name']:
-            supplier = Supplier.query.filter_by(name=data['supplier_name']).first()
+        # if 'supplier_name' in data and data['supplier_name']:
+        #     supplier = Supplier.query.filter_by(name=data['supplier_name']).first()
 
         # if not machine or not mechanism and data['type'] != 'اضافه':
         #     invoice_ns.abort(404, "Machine or Mechanism not found")
             
         # If supplier is required for certain types but not provided
-        if data['type'] == 'اضافه' and not supplier:
-            invoice_ns.abort(404, "Supplier is required for purchase invoices")
+        # if data['type'] == 'اضافه' and not supplier:
+        #     invoice_ns.abort(404, "Supplier is required for purchase invoices")
 
         # Create the invoice based on its type
         result = None
@@ -406,16 +439,17 @@ class InvoiceDetail(Resource):
         """Get an invoice by ID"""
         invoice = Invoice.query.get_or_404(invoice_id)
         
-        # Fetch related machine, mechanism and supplier data
+        # Fetch related machine, mechanism (no more invoice-level supplier)
         machine = Machine.query.get(invoice.machine_id) if invoice.machine_id else None
         mechanism = Mechanism.query.get(invoice.mechanism_id) if invoice.mechanism_id else None
-        supplier = Supplier.query.get(invoice.supplier_id) if invoice.supplier_id else None
         
         # Fetch related items data
         items = InvoiceItem.query.filter_by(invoice_id=invoice.id).all()
         
-        # Prepare items with price details for FIFO transactions
+        # Prepare items with price details for FIFO transactions and supplier info
         item_list = []
+        suppliers_used = set()  # Track unique suppliers for summary
+        
         for item in items:
             # Get price details if this is a sales or void or warranty type invoice (FIFO consumer)
             price_details = []
@@ -436,6 +470,19 @@ class InvoiceDetail(Resource):
                         'subtotal': detail.subtotal
                     })
 
+            # Get supplier information for this item
+            supplier_name = None
+            supplier_id = None
+            if hasattr(item, 'supplier_id') and item.supplier_id:
+                supplier = Supplier.query.get(item.supplier_id)
+                if supplier:
+                    supplier_name = supplier.name
+                    supplier_id = supplier.id
+                    suppliers_used.add(supplier_name)
+            elif hasattr(item, 'supplier_name') and item.supplier_name:
+                supplier_name = item.supplier_name
+                suppliers_used.add(supplier_name)
+
             item_data = {
                 "item_name": Warehouse.query.get(item.item_id).item_name,
                 "barcode": Warehouse.query.get(item.item_id).item_bar,
@@ -444,6 +491,8 @@ class InvoiceDetail(Resource):
                 "total_price": item.total_price,
                 'unit_price': item.unit_price,
                 "description": item.description,
+                "supplier_name": supplier_name,  # NEW: supplier per item
+                "supplier_id": supplier_id,      # NEW: supplier ID per item
             }
             
             # Add price details if they exist
@@ -467,11 +516,12 @@ class InvoiceDetail(Resource):
             "employee_name": invoice.employee_name,
             "machine_name": machine.name if machine else None,
             "mechanism_name": mechanism.name if mechanism else None,
-            "supplier_name": supplier.name if supplier else None,
+            # Remove supplier_name from invoice level
             "created_at": invoice.created_at,
             "payment_method": invoice.payment_method,
             "custody_person": invoice.custody_person,
-            "items": item_list
+            "items": item_list,
+            "suppliers_summary": list(suppliers_used)  # NEW: Summary of suppliers used
         }
         return invoice_data
 
@@ -488,15 +538,15 @@ class InvoiceDetail(Resource):
         supplier = None
         
         # Get supplier if name provided
-        if 'supplier_name' in data and data['supplier_name']:
-            supplier = Supplier.query.filter_by(name=data['supplier_name']).first()
+        # if 'supplier_name' in data and data['supplier_name']:
+        #     supplier = Supplier.query.filter_by(name=data['supplier_name']).first()
 
         # if not machine or not mechanism:
         #     invoice_ns.abort(404, "Machine or Mechanism not found")
             
         # Update supplier ID in the data if supplier is found
-        if supplier:
-            data["supplier_id"] = supplier.id
+        # if supplier:
+        #     data["supplier_id"] = supplier.id
             
         # Call the appropriate update function based on invoice type
         if invoice.type == 'صرف':
