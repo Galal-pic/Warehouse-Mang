@@ -841,7 +841,7 @@ export default function InvoiceModal({
                               row11.barcode === row.barcode &&
                               row11.location === newItem.location
                           );
-                          if (matchedItem) {
+                          if (matchedItem && !isEdafaType) {
                             setSnackbarMessage("هذا العنصر موجود بالفعل");
                             setSnackBarType("info");
                             setOpenSnackbar(true);
@@ -1165,7 +1165,7 @@ export default function InvoiceModal({
                                 (item) => {
                                   if (
                                     item.item_name === row.item_name &&
-                                    item.supplier_name === row.supplier_name
+                                    item.barcode === row.barcode
                                   ) {
                                     const newTotalPrice =
                                       newUnitPrice * (item.quantity || 0);
