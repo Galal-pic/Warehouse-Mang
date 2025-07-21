@@ -8,10 +8,10 @@ import ReservationInvoiceModal from "./ReservationInvoiceModal";
 import DamageInvoiceModal from "./DamageInvoiceModal";
 
 export default function InvoiceModal(props) {
-  const { selectedInvoice, editingInvoice } = props;
+  const { selectedInvoice, editingInvoice, selectedNowType } = props;
 
   const invoiceType =
-    selectedInvoice?.type || editingInvoice?.type || "";
+    selectedNowType?.type || selectedInvoice?.type || editingInvoice?.type;
 
   switch (invoiceType) {
     case "اضافه":
