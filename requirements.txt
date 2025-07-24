@@ -7,3 +7,5 @@ python-dotenv
 flask_restx
 pandas
 psycopg2-binary
+redis
+flask_caching

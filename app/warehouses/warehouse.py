@@ -81,7 +81,7 @@ class WarehouseExcelUltraFast(Resource):
                     continue
                 try:
                     quantity = int(raw_item['quantity'])
-                    if quantity <= 0:
+                    if quantity < 0:
                         errors.append(f"Row {row_num}: Quantity must be positive")
                         continue
                 except (ValueError, TypeError):

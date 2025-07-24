@@ -956,6 +956,24 @@ class FilterReports(Resource):
                 elif hasattr(inv_item, 'supplier_name') and inv_item.supplier_name:
                     supplier_name = inv_item.supplier_name
                 
+                # Get machine information for this invoice
+                machine_name = None
+                machine_id = None
+                if inv_item.invoice.machine_id:
+                    machine = Machine.query.get(inv_item.invoice.machine_id)
+                    if machine:
+                        machine_name = machine.name
+                        machine_id = machine.id
+                
+                # Get mechanism information for this invoice
+                mechanism_name = None
+                mechanism_id = None
+                if inv_item.invoice.mechanism_id:
+                    mechanism = Mechanism.query.get(inv_item.invoice.mechanism_id)
+                    if mechanism:
+                        mechanism_name = mechanism.name
+                        mechanism_id = mechanism.id
+                
                 # Calculate warranty return info for this specific invoice item
                 returned_quantity = 0
                 if inv_item.invoice.type == 'أمانات':
@@ -975,8 +993,12 @@ class FilterReports(Resource):
                     "unit_price": inv_item.unit_price,
                     "total_price": inv_item.total_price,
                     "status": inv_item.invoice.status,
-                    "supplier_name": supplier_name,  # NEW: supplier per item
-                    "supplier_id": supplier_id,      # NEW: supplier ID per item
+                    "supplier": supplier_name,
+                    "supplier_id": supplier_id,
+                    "machine": machine_name,      # NEW: machine name
+                    "machine_id": machine_id,          # NEW: machine ID
+                    "mechanism": mechanism_name,  # NEW: mechanism name
+                    "mechanism_id": mechanism_id,      # NEW: mechanism ID
                     "returned_quantity": returned_quantity,
                     "remaining_quantity": inv_item.quantity - returned_quantity
                 })

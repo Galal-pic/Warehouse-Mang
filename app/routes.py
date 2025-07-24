@@ -17,7 +17,7 @@ from .models import (
     Employee, Machine, Mechanism, Warehouse, ItemLocations, Invoice, InvoiceItem,
     Supplier, Prices, InvoicePriceDetail, PurchaseRequests, ReturnSales, WarrantyReturn,
 )
-from sqlalchemy import desc, exists
+from sqlalchemy import desc, exists, or_
 from sqlalchemy.exc import SQLAlchemyError
 from .utils import parse_bool
 
@@ -100,6 +100,34 @@ pagination_model = invoice_ns.model('InvoicesPagination', {
 })
 
 
+
+def filter_perms(user_id, query):
+    employee = Employee.query.filter_by(id=user_id).first()
+    
+    # Map permissions to invoice types
+    permission_map = {
+        'view_additions': 'اضافه',
+        'view_withdrawals': 'صرف', 
+        'view_returns': 'مرتجع',
+        'view_damages': 'توالف',
+        'view_deposits': 'امانات',
+        'view_reservations': 'حجز',
+        'view_purchase_requests': 'طلب شراء'
+    }
+    
+    # Build conditions based on permissions
+    conditions = [
+        Invoice.type == invoice_type 
+        for perm, invoice_type in permission_map.items() 
+        if getattr(employee, perm, False)
+    ]
+    
+    # If no permissions, return empty query
+    if not conditions:
+        return query.filter(False)
+    
+    # Apply OR condition
+    return query.filter(or_(*conditions))
 @invoice_ns.route('/<string:type>')
 class invoices_get(Resource):
     @invoice_ns.marshal_list_with(pagination_model)
@@ -107,6 +135,8 @@ class invoices_get(Resource):
     @invoice_ns.expect(pagination_parser)
     def get(self, type):
         """Get invoices by type or status"""
+        
+        current_user_id = get_jwt_identity()
         args = pagination_parser.parse_args()
         page = int(args['page'])
         page_size = int(args['page_size'])
@@ -123,22 +153,26 @@ class invoices_get(Resource):
         if type == "لم تؤكد":
             # Draft status invoices
             query = query.filter_by(status="accreditation")
+            query = filter_perms(current_user_id, query)
         elif type == "لم تراجع":
             # Accreditation status invoices
             query = query.filter_by(status="draft")
+            query = filter_perms(current_user_id, query)
         elif type == "تم":
             # Confirmed status invoices
             query = query.filter_by(status="confirmed")
+            query = filter_perms(current_user_id, query)
         elif type == "صفرية":
             # Zero amount invoices (total_amount = 0)
             query = query.filter(exists().where(
                 (Prices.invoice_id == Invoice.id) & 
                 (Prices.unit_price == 0)
             ))
+            query = filter_perms(current_user_id, query)
         else:
             # Regular invoice type filtering
             query = query.filter_by(type=type)
-        
+            
         # Applying pagination
         if not all_results:
             invoices = query.limit(page_size).offset(offset).all()
@@ -1096,7 +1130,9 @@ class SalesInvoices(Resource):
     @jwt_required()
     def get(self):
         """Get all sales-indexes invoices"""
-        invoices = Invoice.query.filter_by(type='صرف').all()
+        invoices = Invoice.query.filter(
+            or_(Invoice.type == 'صرف', Invoice.type == 'اضافه')
+        ).all()
         indexes = [invoice.id for invoice in invoices]
         return {"sales-invoices": indexes}, 200
        
