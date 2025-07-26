@@ -1,7 +1,9 @@
 from flask_restx import Namespace, Resource, fields
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime
+
 from . import db
+from .operations.transfer import Transfer_Operations, delete_transfer, put_transfer
 from .operations.booking import Booking_Operations, delete_booking, put_booking
 from .operations.returns import Return_Operations, delete_return, put_return
 from .operations.sales import Sales_Operations, delete_sales, put_sales
@@ -454,6 +456,8 @@ class InvoiceList(Resource):
             result = Booking_Operations(data, machine, mechanism, supplier, employee, machine_ns, warehouse_ns, invoice_ns, mechanism_ns, item_location_ns, supplier_ns)
         elif data['type'] == 'طلب شراء':
             result = PurchaseRequest_Operations(data, machine, mechanism, supplier, employee, machine_ns, warehouse_ns, invoice_ns, mechanism_ns, item_location_ns, supplier_ns)
+        elif data['type'] == 'تحويل':
+            result = Transfer_Operations(data, machine, mechanism, supplier, employee, machine_ns, warehouse_ns, invoice_ns, mechanism_ns, item_location_ns, supplier_ns)
         else:
             invoice_ns.abort(400, f"Invalid invoice type: {data['type']}")
             
@@ -597,6 +601,8 @@ class InvoiceDetail(Resource):
             result = put_booking(data, invoice, machine, mechanism, invoice_ns)
         elif invoice.type == 'طلب شراء':
             result = put_purchase_request(data, invoice, machine, mechanism, invoice_ns)
+        elif invoice.type == 'تحويل':
+            result = put_transfer(data, invoice, machine, mechanism, invoice_ns)
             
         if type(result) == dict:
             if result["status"] == "error":
@@ -624,6 +630,8 @@ class InvoiceDetail(Resource):
         elif invoice.type == 'حجز':
             result = delete_booking(invoice, invoice_ns)
         elif invoice.type == 'طلب شراء':
+            result = delete_purchase_request(invoice, invoice_ns)
+        elif invoice.type == 'تحويل':
             result = delete_purchase_request(invoice, invoice_ns)
             
             
