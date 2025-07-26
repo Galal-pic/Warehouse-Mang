@@ -9,6 +9,7 @@ def Booking_Operations(data, machine, mechanism, supplier, employee, machine_ns,
     Create a booking invoice (حجز type).
     Unlike Sales Operations, booking doesn't use FIFO pricing from the Prices table.
     It uses the price provided in the request.
+    FIXED: Now supports location-based pricing.
     """
     
     try:
@@ -85,12 +86,12 @@ def Booking_Operations(data, machine, mechanism, supplier, employee, machine_ns,
             db.session.add(invoice_item)
             total_invoice_amount += total_price
             
-            # Also create a price record for this booking if a price is provided
-            # This allows future sales to reference this booking's price
+            # FIXED: Create a price record for this booking if a price is provided (with location)
             if unit_price > 0:
                 existing_price = Prices.query.filter_by(
                     invoice_id=new_invoice.id,
-                    item_id=warehouse_item.id
+                    item_id=warehouse_item.id,
+                    location=item_data["location"]  # FIXED: Include location
                 ).first()
                 
                 if existing_price:
@@ -104,6 +105,7 @@ def Booking_Operations(data, machine, mechanism, supplier, employee, machine_ns,
                     new_price = Prices(
                         invoice_id=new_invoice.id,
                         item_id=warehouse_item.id,
+                        location=item_data["location"],  # FIXED: Include location
                         quantity=requested_quantity,
                         unit_price=unit_price,
                         created_at=datetime.now()
@@ -150,11 +152,16 @@ def delete_booking(invoice, invoice_ns):
             # Restore the quantity
             item_location.quantity += invoice_item.quantity
         
-        # Also check if we need to update or remove any price entries
-        price_entries = Prices.query.filter_by(invoice_id=invoice.id).all()
-        for price_entry in price_entries:
-            # Delete the price entry since the booking is being deleted
-            db.session.delete(price_entry)
+        # FIXED: Check and remove price entries (location-specific)
+        for invoice_item in invoice.items:
+            price_entry = Prices.query.filter_by(
+                invoice_id=invoice.id,
+                item_id=invoice_item.item_id,
+                location=invoice_item.location  # FIXED: Include location
+            ).first()
+            
+            if price_entry:
+                db.session.delete(price_entry)
 
         # Delete associated invoice items and the invoice
         InvoiceItem.query.filter_by(invoice_id=invoice.id).delete()
@@ -241,10 +248,11 @@ def put_booking(data, invoice, machine, mechanism, invoice_ns):
                 updated_items[key] = item
                 total_invoice_amount += total_price
                 
-                # Update price records if needed
+                # FIXED: Update price records if needed (with location)
                 price_entry = Prices.query.filter_by(
                     invoice_id=invoice.id,
-                    item_id=warehouse_item.id
+                    item_id=warehouse_item.id,
+                    location=location  # FIXED: Include location
                 ).first()
                 
                 if price_entry:
@@ -257,6 +265,7 @@ def put_booking(data, invoice, machine, mechanism, invoice_ns):
                     new_price = Prices(
                         invoice_id=invoice.id,
                         item_id=warehouse_item.id,
+                        location=location,  # FIXED: Include location
                         quantity=new_quantity,
                         unit_price=unit_price,
                         created_at=datetime.now()
@@ -274,11 +283,15 @@ def put_booking(data, invoice, machine, mechanism, invoice_ns):
                     if item_location:
                         item_location.quantity += item.quantity
                     
-                    # Also delete any associated price entries
-                    Prices.query.filter_by(
+                    # FIXED: Delete associated price entries (location-specific)
+                    price_entry = Prices.query.filter_by(
                         invoice_id=invoice.id,
-                        item_id=item.item_id
-                    ).delete()
+                        item_id=item.item_id,
+                        location=item.location  # FIXED: Include location
+                    ).first()
+                    
+                    if price_entry:
+                        db.session.delete(price_entry)
                     
                     db.session.delete(item)
 

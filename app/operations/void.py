@@ -9,6 +9,7 @@ def Void_Operations(data, machine, mechanism, supplier, employee, machine_ns, wa
     Create a void invoice (توالف type).
     Void operations remove inventory from the system due to damage, loss, etc.
     They should follow FIFO pricing to properly account for the cost of voided items.
+    FIXED: Now supports location-based pricing.
     """
     try:
         # Create new invoice
@@ -77,12 +78,15 @@ def Void_Operations(data, machine, mechanism, supplier, employee, machine_ns, wa
             
             # If no price is provided, calculate using FIFO
             if not unit_price or not total_price:
-                # Now handle pricing using FIFO from the Prices table
+                # FIXED: Handle pricing using FIFO from the Prices table (location-specific)
                 remaining_to_void = requested_quantity
                 calculated_total_price = 0
                 
-                # Get all price records for this item ordered by creation date (oldest first for FIFO)
-                price_entries = Prices.query.filter_by(item_id=warehouse_item.id).order_by(Prices.invoice_id.asc()).all()
+                # FIXED: Get all price records for this item and location ordered by creation date (oldest first for FIFO)
+                price_entries = Prices.query.filter_by(
+                    item_id=warehouse_item.id,
+                    location=item_data['location']  # FIXED: Filter by location
+                ).order_by(Prices.invoice_id.asc()).all()
                 
                 if not price_entries:
                     # If no price records, use zero (or a default price)
@@ -103,12 +107,13 @@ def Void_Operations(data, machine, mechanism, supplier, employee, machine_ns, wa
                         # Calculate price for this portion
                         subtotal = quantity_from_this_entry * price_entry.unit_price
                         
-                        # Create a price detail record - FIXED VERSION
+                        # FIXED: Create a price detail record with location
                         price_detail = InvoicePriceDetail(
                             invoice_id=new_invoice.id,
                             item_id=warehouse_item.id,
-                            source_price_invoice_id=price_entry.invoice_id,  # Changed from source_price_id
-                            source_price_item_id=price_entry.item_id,        # Added this
+                            source_price_invoice_id=price_entry.invoice_id,
+                            source_price_item_id=price_entry.item_id,
+                            source_price_location=price_entry.location,  # FIXED: Include location
                             quantity=quantity_from_this_entry,
                             unit_price=price_entry.unit_price,
                             subtotal=subtotal
@@ -139,12 +144,13 @@ def Void_Operations(data, machine, mechanism, supplier, employee, machine_ns, wa
                             remainder_price = remaining_to_void * latest_price
                             calculated_total_price += remainder_price
                             
-                            # Create a price detail for the remainder - FIXED VERSION
+                            # FIXED: Create a price detail for the remainder with location
                             remainder_detail = InvoicePriceDetail(
                                 invoice_id=new_invoice.id,
                                 item_id=warehouse_item.id,
-                                source_price_invoice_id=price_entries[-1].invoice_id,  # Changed from source_price_id
-                                source_price_item_id=price_entries[-1].item_id,        # Added this
+                                source_price_invoice_id=price_entries[-1].invoice_id,
+                                source_price_item_id=price_entries[-1].item_id,
+                                source_price_location=price_entries[-1].location,  # FIXED: Include location
                                 quantity=remaining_to_void,
                                 unit_price=latest_price,
                                 subtotal=remainder_price
@@ -194,31 +200,33 @@ def delete_void(invoice, invoice_ns):
         return operation_result(400, "error", "Can only delete void invoices with this method")
 
     try:
-        # Get price details to restore prices - FIXED VERSION
+        # FIXED: Get price details to restore prices (with location support)
         price_details = InvoicePriceDetail.query.filter_by(invoice_id=invoice.id).all()
         
-        # Dictionary to track price restorations by source
+        # Dictionary to track price restorations by source (including location)
         price_restorations = {}
         
-        # Process each price detail to prepare for restoring - FIXED VERSION
+        # FIXED: Process each price detail to prepare for restoring (with location)
         for detail in price_details:
-            key = (detail.source_price_invoice_id, detail.source_price_item_id)  # Updated field names
+            key = (detail.source_price_invoice_id, detail.source_price_item_id, detail.source_price_location)  # Include location
             if key in price_restorations:
                 price_restorations[key]['quantity'] += detail.quantity
             else:
                 price_restorations[key] = {
-                    'invoice_id': detail.source_price_invoice_id,  # Updated field name
-                    'item_id': detail.source_price_item_id,       # Updated field name
+                    'invoice_id': detail.source_price_invoice_id,
+                    'item_id': detail.source_price_item_id,
+                    'location': detail.source_price_location,  # Include location
                     'quantity': detail.quantity,
                     'unit_price': detail.unit_price
                 }
         
         # Restore prices - either update existing or create new price entries
         for key, restoration in price_restorations.items():
-            # Check if the price entry still exists
+            # FIXED: Check if the price entry still exists (including location)
             price_entry = Prices.query.filter_by(
                 invoice_id=restoration['invoice_id'],
-                item_id=restoration['item_id']
+                item_id=restoration['item_id'],
+                location=restoration['location']  # Include location filter
             ).first()
             
             if price_entry:
@@ -229,6 +237,7 @@ def delete_void(invoice, invoice_ns):
                 new_price = Prices(
                     invoice_id=restoration['invoice_id'],
                     item_id=restoration['item_id'],
+                    location=restoration['location'],  # Include location
                     quantity=restoration['quantity'],
                     unit_price=restoration['unit_price'],
                     created_at=datetime.now()  # Use current time for FIFO ordering
@@ -275,18 +284,19 @@ def put_void(data, invoice, machine, mechanism, invoice_ns):
             # First, restore everything as if we're deleting the invoice
             # But keep the invoice itself
             
-            # 1. Restore prices based on price details - FIXED VERSION
+            # FIXED: 1. Restore prices based on price details (with location support)
             price_details = InvoicePriceDetail.query.filter_by(invoice_id=invoice.id).all()
             price_restorations = {}
             
             for detail in price_details:
-                key = (detail.source_price_invoice_id, detail.source_price_item_id)  # Updated field names
+                key = (detail.source_price_invoice_id, detail.source_price_item_id, detail.source_price_location)  # Include location
                 if key in price_restorations:
                     price_restorations[key]['quantity'] += detail.quantity
                 else:
                     price_restorations[key] = {
-                        'invoice_id': detail.source_price_invoice_id,  # Updated field name
-                        'item_id': detail.source_price_item_id,       # Updated field name
+                        'invoice_id': detail.source_price_invoice_id,
+                        'item_id': detail.source_price_item_id,
+                        'location': detail.source_price_location,  # Include location
                         'quantity': detail.quantity,
                         'unit_price': detail.unit_price
                     }
@@ -294,7 +304,8 @@ def put_void(data, invoice, machine, mechanism, invoice_ns):
             for key, restoration in price_restorations.items():
                 price_entry = Prices.query.filter_by(
                     invoice_id=restoration['invoice_id'],
-                    item_id=restoration['item_id']
+                    item_id=restoration['item_id'],
+                    location=restoration['location']  # Include location filter
                 ).first()
                 
                 if price_entry:
@@ -303,6 +314,7 @@ def put_void(data, invoice, machine, mechanism, invoice_ns):
                     new_price = Prices(
                         invoice_id=restoration['invoice_id'],
                         item_id=restoration['item_id'],
+                        location=restoration['location'],  # Include location
                         quantity=restoration['quantity'],
                         unit_price=restoration['unit_price'],
                         created_at=datetime.now()
@@ -366,12 +378,15 @@ def put_void(data, invoice, machine, mechanism, invoice_ns):
                 
                 # If no price is provided, calculate using FIFO
                 if not unit_price or not total_price:
-                    # Now handle pricing using FIFO from the Prices table
+                    # FIXED: Handle pricing using FIFO from the Prices table (location-specific)
                     remaining_to_void = requested_quantity
                     calculated_total_price = 0
                     
-                    # Get all price records for this item ordered by creation date (oldest first for FIFO)
-                    price_entries = Prices.query.filter_by(item_id=warehouse_item.id).order_by(Prices.invoice_id.asc()).all()
+                    # FIXED: Get all price records for this item and location ordered by creation date (oldest first for FIFO)
+                    price_entries = Prices.query.filter_by(
+                        item_id=warehouse_item.id,
+                        location=item_data['location']  # FIXED: Filter by location
+                    ).order_by(Prices.invoice_id.asc()).all()
                     
                     if not price_entries:
                         # If no price records, use zero (or a default price)
@@ -392,12 +407,13 @@ def put_void(data, invoice, machine, mechanism, invoice_ns):
                             # Calculate price for this portion
                             subtotal = quantity_from_this_entry * price_entry.unit_price
                             
-                            # Create a price detail record - FIXED VERSION
+                            # FIXED: Create a price detail record with location
                             price_detail = InvoicePriceDetail(
                                 invoice_id=invoice.id,
                                 item_id=warehouse_item.id,
-                                source_price_invoice_id=price_entry.invoice_id,  # Changed from source_price_id
-                                source_price_item_id=price_entry.item_id,        # Added this
+                                source_price_invoice_id=price_entry.invoice_id,
+                                source_price_item_id=price_entry.item_id,
+                                source_price_location=price_entry.location,  # FIXED: Include location
                                 quantity=quantity_from_this_entry,
                                 unit_price=price_entry.unit_price,
                                 subtotal=subtotal
@@ -428,12 +444,13 @@ def put_void(data, invoice, machine, mechanism, invoice_ns):
                                 remainder_price = remaining_to_void * latest_price
                                 calculated_total_price += remainder_price
                                 
-                                # Create a price detail for the remainder - FIXED VERSION
+                                # FIXED: Create a price detail for the remainder with location
                                 remainder_detail = InvoicePriceDetail(
                                     invoice_id=invoice.id,
                                     item_id=warehouse_item.id,
-                                    source_price_invoice_id=price_entries[-1].invoice_id,  # Changed from source_price_id
-                                    source_price_item_id=price_entries[-1].item_id,        # Added this
+                                    source_price_invoice_id=price_entries[-1].invoice_id,
+                                    source_price_item_id=price_entries[-1].item_id,
+                                    source_price_location=price_entries[-1].location,  # FIXED: Include location
                                     quantity=remaining_to_void,
                                     unit_price=latest_price,
                                     subtotal=remainder_price

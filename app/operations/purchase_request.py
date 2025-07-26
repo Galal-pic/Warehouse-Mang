@@ -6,9 +6,10 @@ from ..utils import operation_result
 
 def PurchaseRequest_Operations(data, machine, mechanism, supplier, employee, machine_ns, warehouse_ns, invoice_ns, mechanism_ns, item_location_n, supplier_ns):
     """
-    Create a booking invoice (طلب شراء type).
-    Unlike Sales Operations, booking doesn't use FIFO pricing from the Prices table.
-    It uses the price provided in the request.
+    Create a purchase request invoice (طلب شراء type).
+    Unlike Sales Operations, this doesn't use FIFO pricing from the Prices table.
+    It uses the latest price found for each item.
+    FIXED: Now supports location-based pricing.
     """
     try:
         # Create new invoice
@@ -40,7 +41,7 @@ def PurchaseRequest_Operations(data, machine, mechanism, supplier, employee, mac
             warehouse_item = Warehouse.query.filter_by(item_name=item_data["item_name"]).first()
             if not warehouse_item:
                 db.session.rollback()
-                return operation_result(404, "error" ,f"Item '{item_data['item_name']}' not found in warehouse")
+                return operation_result(404, "error", f"Item '{item_data['item_name']}' not found in warehouse")
             
             item_location = ItemLocations.query.filter_by(
                 item_id=warehouse_item.id,
@@ -49,38 +50,40 @@ def PurchaseRequest_Operations(data, machine, mechanism, supplier, employee, mac
             
             if not item_location:
                 db.session.rollback()
-                return operation_result(404, "error" ,f"Item '{item_data['item_name']}' not found in location '{item_data['location']}'")
+                return operation_result(404, "error", f"Item '{item_data['item_name']}' not found in location '{item_data['location']}'")
             
             # Check for duplicate items
             if (warehouse_item.id, item_data['location']) in item_ids:
                 db.session.rollback()
-                return operation_result(400, "error" ,f"Item '{item_data['item_name']}' already added to invoice")
+                return operation_result(400, "error", f"Item '{item_data['item_name']}' already added to invoice")
             
             item_ids.append((warehouse_item.id, item_data['location']))
             
-            
-            last_price_entry = Prices.query.filter_by(item_id=warehouse_item.id).order_by(Prices.invoice_id.desc()).first()
+            # FIXED: Get last price entry for this item and location
+            last_price_entry = Prices.query.filter_by(
+                item_id=warehouse_item.id,
+                location=item_data['location']  # FIXED: Filter by location too
+            ).order_by(Prices.invoice_id.desc()).first()
             
             if not last_price_entry:
                 db.session.rollback()
-                return operation_result(400, "error" ,f"No price information found for item '{item_data['item_name']}'")
-
+                return operation_result(400, "error", f"No price information found for item '{item_data['item_name']}' in location '{item_data['location']}'")
 
             subtotal = item_data["quantity"] * last_price_entry.unit_price
             
-            # Create a price detail record - FIXED VERSION
+            # FIXED: Create a price detail record with location
             price_detail = InvoicePriceDetail(
                 invoice_id=new_invoice.id,
                 item_id=warehouse_item.id,
-                source_price_invoice_id=last_price_entry.invoice_id,  # Changed from source_price_id
-                source_price_item_id=last_price_entry.item_id,        # Added this
+                source_price_invoice_id=last_price_entry.invoice_id,
+                source_price_item_id=last_price_entry.item_id,
+                source_price_location=last_price_entry.location,  # FIXED: Include location
                 quantity=item_data["quantity"],
                 unit_price=last_price_entry.unit_price,
                 subtotal=subtotal
             )
                 
             db.session.add(price_detail)
-                
 
             invoice_item = InvoiceItem(
                 invoice_id=new_invoice.id,
@@ -114,14 +117,14 @@ def PurchaseRequest_Operations(data, machine, mechanism, supplier, employee, mac
         
     except SQLAlchemyError as e:
         db.session.rollback()
-        return operation_result(500, "error" ,f"Database error: {str(e)}")
+        return operation_result(500, "error", f"Database error: {str(e)}")
     
     except Exception as e:
         db.session.rollback()
-        return operation_result(500, "error" ,f"Error processing sale: {str(e)}")
+        return operation_result(500, "error", f"Error processing sale: {str(e)}")
 
 def delete_purchase_request(invoice, invoice_ns):
-    # Check if it's a sales invoice
+    # Check if it's a purchase request invoice
     if invoice.type != 'طلب شراء':
         db.session.rollback()
         return operation_result(400, "error", "Can only delete purchase request invoices with this method")
@@ -185,28 +188,31 @@ def put_purchase_request(data, invoice, machine, mechanism, invoice_ns):
                 
                 item_ids.append((warehouse_item.id, item_data['location']))
                 
-                
-                last_price_entry = Prices.query.filter_by(item_id=warehouse_item.id).order_by(Prices.invoice_id.desc()).first()
+                # FIXED: Get last price entry for this item and location
+                last_price_entry = Prices.query.filter_by(
+                    item_id=warehouse_item.id,
+                    location=item_data['location']  # FIXED: Filter by location too
+                ).order_by(Prices.invoice_id.desc()).first()
                 
                 if not last_price_entry:
                     db.session.rollback()
-                    return operation_result(400, "error", f"No price information found for item '{item_data['item_name']}'")
+                    return operation_result(400, "error", f"No price information found for item '{item_data['item_name']}' in location '{item_data['location']}'")
 
                 subtotal = item_data["quantity"] * last_price_entry.unit_price
                 
-                # Create a price detail record - FIXED VERSION
+                # FIXED: Create a price detail record with location
                 price_detail = InvoicePriceDetail(
                     invoice_id=invoice.id,
                     item_id=warehouse_item.id,
-                    source_price_invoice_id=last_price_entry.invoice_id,  # Changed from source_price_id
-                    source_price_item_id=last_price_entry.item_id,        # Added this
+                    source_price_invoice_id=last_price_entry.invoice_id,
+                    source_price_item_id=last_price_entry.item_id,
+                    source_price_location=last_price_entry.location,  # FIXED: Include location
                     quantity=item_data["quantity"],
                     unit_price=last_price_entry.unit_price,
                     subtotal=subtotal
                 )
                     
                 db.session.add(price_detail)
-                    
 
                 invoice_item = InvoiceItem(
                     invoice_id=invoice.id,

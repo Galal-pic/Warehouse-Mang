@@ -9,6 +9,7 @@ def Warranty_Operations(data, machine, mechanism, supplier, employee, machine_ns
     Create a warranty invoice (أمانات type).
     Warranty operations remove inventory temporarily, similar to sales but with different accounting.
     They should follow FIFO pricing to properly account for the cost.
+    Updated to work with new Prices table schema that includes location.
     """
     try:
         # Create new invoice
@@ -78,19 +79,102 @@ def Warranty_Operations(data, machine, mechanism, supplier, employee, machine_ns
             
             # If no price is provided, calculate using FIFO
             if not unit_price or not total_price:
-                # Now handle pricing using FIFO from the Prices table
+                # Now handle pricing using FIFO from the Prices table (UPDATED: with location support)
                 remaining_to_process = requested_quantity
                 calculated_total_price = 0
                 
-                # Get all price records for this item ordered by creation date (oldest first for FIFO)
-                price_entries = Prices.query.filter_by(item_id=warehouse_item.id).filter(Prices.quantity > 0).order_by(Prices.invoice_id.asc()).all()
+                # Get all price records for this item and location ordered by creation date (oldest first for FIFO)
+                price_entries = Prices.query.filter_by(
+                    item_id=warehouse_item.id,
+                    location=item_data['location']  # NEW: Filter by location
+                ).filter(Prices.quantity > 0).order_by(Prices.invoice_id.asc()).all()
                 
                 if not price_entries:
-                    # If no price records, use zero (or a default price)
-                    unit_price = 0
-                    total_price = 0
+                    # If no price records for this location, try to get from any location for this item
+                    # This is a fallback behavior - you might want to handle this differently
+                    price_entries = Prices.query.filter_by(
+                        item_id=warehouse_item.id
+                    ).filter(Prices.quantity > 0).order_by(Prices.invoice_id.asc()).all()
+                    
+                    if not price_entries:
+                        # If no price records at all, use zero (or a default price)
+                        unit_price = 0
+                        total_price = 0
+                    else:
+                        # Use prices from other locations but track in price details with actual location
+                        price_details = []
+                        entries_to_update = []
+                        
+                        for price_entry in price_entries:
+                            if remaining_to_process <= 0:
+                                break
+                            
+                            # Calculate how much we can take from this price entry
+                            quantity_from_this_entry = min(remaining_to_process, price_entry.quantity)
+                            
+                            # Calculate price for this portion
+                            subtotal = round(quantity_from_this_entry * price_entry.unit_price, 3)
+                            
+                            # Create a price detail record (NEW: with location support)
+                            price_detail = InvoicePriceDetail(
+                                invoice_id=new_invoice.id,
+                                item_id=warehouse_item.id,
+                                source_price_invoice_id=price_entry.invoice_id,
+                                source_price_item_id=price_entry.item_id,
+                                source_price_location=price_entry.location,  # NEW: Track source location
+                                quantity=quantity_from_this_entry,
+                                unit_price=round(price_entry.unit_price, 3),
+                                subtotal=subtotal
+                            )
+                            
+                            db.session.add(price_detail)
+                            price_details.append(price_detail)
+                            
+                            # Update our running totals
+                            calculated_total_price += subtotal
+                            remaining_to_process -= quantity_from_this_entry
+                            
+                            # Update the price entry quantity (but DON'T delete)
+                            price_entry.quantity -= quantity_from_this_entry
+                            entries_to_update.append(price_entry)
+                            
+                            # FIXED: Don't delete empty price entries to avoid foreign key violations
+                            # Keep them with quantity = 0 for referential integrity
+                        
+                        # Check if we've accounted for the entire requested quantity
+                        if remaining_to_process > 0:
+                            # For warranty operations, we might want to use the most recent price for the remainder
+                            if price_details:
+                                # Use the most recent price for the remainder
+                                latest_price = price_entries[-1].unit_price if price_entries else 0
+                                remainder_price = round(remaining_to_process * latest_price, 3)
+                                calculated_total_price += remainder_price
+                                
+                                # Create a price detail for the remainder (NEW: with location support)
+                                remainder_detail = InvoicePriceDetail(
+                                    invoice_id=new_invoice.id,
+                                    item_id=warehouse_item.id,
+                                    source_price_invoice_id=price_entries[-1].invoice_id,
+                                    source_price_item_id=price_entries[-1].item_id,
+                                    source_price_location=price_entries[-1].location,  # NEW: Source location
+                                    quantity=remaining_to_process,
+                                    unit_price=round(latest_price, 3),
+                                    subtotal=remainder_price
+                                )
+                                db.session.add(remainder_detail)
+                            else:
+                                # No price records with quantity, use default or zero
+                                pass
+                        
+                        # Calculate effective unit price
+                        if requested_quantity > 0:
+                            unit_price = round(calculated_total_price / requested_quantity, 3)
+                        else:
+                            unit_price = 0
+                        
+                        total_price = round(calculated_total_price, 3)
                 else:
-                    # Process each price entry using FIFO
+                    # Process price entries from the same location (preferred path)
                     price_details = []
                     entries_to_update = []
                     
@@ -104,12 +188,13 @@ def Warranty_Operations(data, machine, mechanism, supplier, employee, machine_ns
                         # Calculate price for this portion
                         subtotal = round(quantity_from_this_entry * price_entry.unit_price, 3)
                         
-                        # Create a price detail record
+                        # Create a price detail record (NEW: with location support)
                         price_detail = InvoicePriceDetail(
                             invoice_id=new_invoice.id,
                             item_id=warehouse_item.id,
                             source_price_invoice_id=price_entry.invoice_id,
                             source_price_item_id=price_entry.item_id,
+                            source_price_location=price_entry.location,  # NEW: Track source location
                             quantity=quantity_from_this_entry,
                             unit_price=round(price_entry.unit_price, 3),
                             subtotal=subtotal
@@ -138,12 +223,13 @@ def Warranty_Operations(data, machine, mechanism, supplier, employee, machine_ns
                             remainder_price = round(remaining_to_process * latest_price, 3)
                             calculated_total_price += remainder_price
                             
-                            # Create a price detail for the remainder
+                            # Create a price detail for the remainder (NEW: with location support)
                             remainder_detail = InvoicePriceDetail(
                                 invoice_id=new_invoice.id,
                                 item_id=warehouse_item.id,
                                 source_price_invoice_id=price_entries[-1].invoice_id,
                                 source_price_item_id=price_entries[-1].item_id,
+                                source_price_location=price_entries[-1].location,  # NEW: Source location
                                 quantity=remaining_to_process,
                                 unit_price=round(latest_price, 3),
                                 subtotal=remainder_price
@@ -192,46 +278,50 @@ def Warranty_Operations(data, machine, mechanism, supplier, employee, machine_ns
         return operation_result(500, "error", f"Error processing warranty: {str(e)}")
 
 def delete_warranty(invoice, invoice_ns):
+    """Delete a warranty invoice and restore inventory (updated with location support)"""
     # Check if it's a warranty invoice
     if invoice.type != 'أمانات':
         return operation_result(400, "error", "Can only delete warranty invoices with this method")
 
     try:
-        # Get price details to restore prices - FIXED VERSION
+        # Get price details to restore prices - FIXED VERSION with location support
         price_details = InvoicePriceDetail.query.filter_by(invoice_id=invoice.id).all()
         
-        # Dictionary to track price restorations by source
+        # Dictionary to track price restorations by source (including location)
         price_restorations = {}
         
-        # Process each price detail to prepare for restoring - FIXED VERSION
+        # Process each price detail to prepare for restoring - FIXED VERSION with location
         for detail in price_details:
-            key = (detail.source_price_invoice_id, detail.source_price_item_id)  # Updated field names
+            key = (detail.source_price_invoice_id, detail.source_price_item_id, detail.source_price_location)  # NEW: Include location
             if key in price_restorations:
                 price_restorations[key]['quantity'] += detail.quantity
             else:
                 price_restorations[key] = {
-                    'invoice_id': detail.source_price_invoice_id,  # Updated field name
-                    'item_id': detail.source_price_item_id,       # Updated field name
+                    'invoice_id': detail.source_price_invoice_id,
+                    'item_id': detail.source_price_item_id,
+                    'location': detail.source_price_location,  # NEW: Include location
                     'quantity': detail.quantity,
                     'unit_price': detail.unit_price
                 }
         
         # Restore prices - either update existing or create new price entries
         for key, restoration in price_restorations.items():
-            # Check if the price entry still exists
+            # Check if the price entry still exists (NEW: include location)
             price_entry = Prices.query.filter_by(
                 invoice_id=restoration['invoice_id'],
-                item_id=restoration['item_id']
+                item_id=restoration['item_id'],
+                location=restoration['location']  # NEW: Match location
             ).first()
             
             if price_entry:
                 # Update existing price entry
                 price_entry.quantity += restoration['quantity']
             else:
-                # Create a new price entry
+                # Create a new price entry (NEW: include location)
                 new_price = Prices(
                     invoice_id=restoration['invoice_id'],
                     item_id=restoration['item_id'],
+                    location=restoration['location'],  # NEW: Include location
                     quantity=restoration['quantity'],
                     unit_price=restoration['unit_price'],
                     created_at=datetime.now()  # Use current time for FIFO ordering
@@ -273,23 +363,25 @@ def delete_warranty(invoice, invoice_ns):
         return operation_result(500, "error", f"Error deleting warranty invoice: {str(e)}")
 
 def put_warranty(data, invoice, machine, mechanism, invoice_ns):
+    """Update a warranty invoice (updated with location support)"""
     try:
         with db.session.begin_nested():
             # First, restore everything as if we're deleting the invoice
             # But keep the invoice itself
             
-            # 1. Restore prices based on price details - FIXED VERSION
+            # 1. Restore prices based on price details - FIXED VERSION with location
             price_details = InvoicePriceDetail.query.filter_by(invoice_id=invoice.id).all()
             price_restorations = {}
             
             for detail in price_details:
-                key = (detail.source_price_invoice_id, detail.source_price_item_id)  # Updated field names
+                key = (detail.source_price_invoice_id, detail.source_price_item_id, detail.source_price_location)  # NEW: Include location
                 if key in price_restorations:
                     price_restorations[key]['quantity'] += detail.quantity
                 else:
                     price_restorations[key] = {
-                        'invoice_id': detail.source_price_invoice_id,  # Updated field name
-                        'item_id': detail.source_price_item_id,       # Updated field name
+                        'invoice_id': detail.source_price_invoice_id,
+                        'item_id': detail.source_price_item_id,
+                        'location': detail.source_price_location,  # NEW: Include location
                         'quantity': detail.quantity,
                         'unit_price': detail.unit_price
                     }
@@ -297,7 +389,8 @@ def put_warranty(data, invoice, machine, mechanism, invoice_ns):
             for key, restoration in price_restorations.items():
                 price_entry = Prices.query.filter_by(
                     invoice_id=restoration['invoice_id'],
-                    item_id=restoration['item_id']
+                    item_id=restoration['item_id'],
+                    location=restoration['location']  # NEW: Match location
                 ).first()
                 
                 if price_entry:
@@ -306,6 +399,7 @@ def put_warranty(data, invoice, machine, mechanism, invoice_ns):
                     new_price = Prices(
                         invoice_id=restoration['invoice_id'],
                         item_id=restoration['item_id'],
+                        location=restoration['location'],  # NEW: Include location
                         quantity=restoration['quantity'],
                         unit_price=restoration['unit_price'],
                         created_at=datetime.now()
@@ -367,14 +461,23 @@ def put_warranty(data, invoice, machine, mechanism, invoice_ns):
                 unit_price = item_data.get("unit_price")
                 total_price = item_data.get("total_price")
                 
-                # If no price is provided, calculate using FIFO
+                # If no price is provided, calculate using FIFO (similar to create operation)
                 if not unit_price or not total_price:
-                    # Now handle pricing using FIFO from the Prices table
+                    # Handle pricing using FIFO from the Prices table (UPDATED: with location support)
                     remaining_to_process = requested_quantity
                     calculated_total_price = 0
                     
-                    # Get all price records for this item ordered by creation date (oldest first for FIFO)
-                    price_entries = Prices.query.filter_by(item_id=warehouse_item.id).order_by(Prices.invoice_id.asc()).all()
+                    # Get all price records for this item and location ordered by creation date
+                    price_entries = Prices.query.filter_by(
+                        item_id=warehouse_item.id,
+                        location=item_data['location']  # NEW: Filter by location
+                    ).filter(Prices.quantity > 0).order_by(Prices.invoice_id.asc()).all()
+                    
+                    if not price_entries:
+                        # Fallback: try other locations
+                        price_entries = Prices.query.filter_by(
+                            item_id=warehouse_item.id
+                        ).filter(Prices.quantity > 0).order_by(Prices.invoice_id.asc()).all()
                     
                     if not price_entries:
                         # If no price records, use zero (or a default price)
@@ -395,12 +498,13 @@ def put_warranty(data, invoice, machine, mechanism, invoice_ns):
                             # Calculate price for this portion
                             subtotal = quantity_from_this_entry * price_entry.unit_price
                             
-                            # Create a price detail record - FIXED VERSION
+                            # Create a price detail record - FIXED VERSION with location
                             price_detail = InvoicePriceDetail(
                                 invoice_id=invoice.id,
                                 item_id=warehouse_item.id,
-                                source_price_invoice_id=price_entry.invoice_id,  # Changed from source_price_id
-                                source_price_item_id=price_entry.item_id,        # Added this
+                                source_price_invoice_id=price_entry.invoice_id,
+                                source_price_item_id=price_entry.item_id,
+                                source_price_location=price_entry.location,  # NEW: Include source location
                                 quantity=quantity_from_this_entry,
                                 unit_price=price_entry.unit_price,
                                 subtotal=subtotal
@@ -430,12 +534,13 @@ def put_warranty(data, invoice, machine, mechanism, invoice_ns):
                                 remainder_price = remaining_to_process * latest_price
                                 calculated_total_price += remainder_price
                                 
-                                # Create a price detail for the remainder - FIXED VERSION
+                                # Create a price detail for the remainder - FIXED VERSION with location
                                 remainder_detail = InvoicePriceDetail(
                                     invoice_id=invoice.id,
                                     item_id=warehouse_item.id,
-                                    source_price_invoice_id=price_entries[-1].invoice_id,  # Changed from source_price_id
-                                    source_price_item_id=price_entries[-1].item_id,        # Added this
+                                    source_price_invoice_id=price_entries[-1].invoice_id,
+                                    source_price_item_id=price_entries[-1].item_id,
+                                    source_price_location=price_entries[-1].location,  # NEW: Include source location
                                     quantity=remaining_to_process,
                                     unit_price=latest_price,
                                     subtotal=remainder_price

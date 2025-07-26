@@ -9,6 +9,7 @@ def Return_Operations(data, machine, mechanism, supplier, employee, machine_ns, 
     Create a return invoice (مرتجع type).
     Return operations add inventory back to the system and properly restore price records using FIFO order.
     Now supports returning from both sales invoices (صرف) and purchase invoices (اضافه).
+    Updated to work with new Prices table schema that includes location.
     """
     try:
         # Create new invoice
@@ -118,14 +119,14 @@ def Return_Operations(data, machine, mechanism, supplier, employee, machine_ns, 
             price_updated = False
             
             if original_invoice_id and return_type == 'sales':
-                # RETURNING FROM SALES INVOICE (existing logic)
+                # RETURNING FROM SALES INVOICE (updated with location support)
                 price_updated = handle_sales_return(
                     original_invoice_id, warehouse_item, item_data, 
                     new_invoice, quantity, unit_price
                 )
                     
             elif original_invoice_id and return_type == 'purchase':
-                # RETURNING FROM PURCHASE INVOICE (new logic)
+                # RETURNING FROM PURCHASE INVOICE (updated with location support)
                 price_updated = handle_purchase_return(
                     original_invoice_id, warehouse_item, item_data, 
                     new_invoice, quantity, unit_price
@@ -136,6 +137,7 @@ def Return_Operations(data, machine, mechanism, supplier, employee, machine_ns, 
                 new_price = Prices(
                     invoice_id=new_invoice.id,
                     item_id=warehouse_item.id,
+                    location=item_data['location'],  # NEW: Include location
                     quantity=quantity,
                     unit_price=unit_price,
                     created_at=datetime.now()
@@ -167,8 +169,9 @@ def Return_Operations(data, machine, mechanism, supplier, employee, machine_ns, 
         return operation_result(500, "error", f"Error processing return: {str(e)}", None)
 
 
+
 def handle_sales_return(original_invoice_id, warehouse_item, item_data, new_invoice, quantity, unit_price):
-    """Handle returning items from a sales invoice (existing logic)"""
+    """Handle returning items from a sales invoice (updated with location support)"""
     # Get price details for this specific item from the original sales invoice
     original_invoice_details = InvoicePriceDetail.query.filter_by(
         invoice_id=original_invoice_id,
@@ -189,14 +192,15 @@ def handle_sales_return(original_invoice_id, warehouse_item, item_data, new_invo
         for old_invoice in old_return_invoices:
             old_invoice_items = InvoiceItem.query.filter_by(
                 invoice_id=old_invoice.return_invoice_id,
-                item_id=warehouse_item.id
+                item_id=warehouse_item.id,
+                location=item_data['location']  # NEW: Check specific location
             ).all()
             for old_invoice_item in old_invoice_items:
                 total_returned_quantity += old_invoice_item.quantity
     
     if total_returned_quantity + item_data['quantity'] > total_sales_items:
         db.session.rollback()
-        raise Exception(f"Return quantity exceeds the total sales quantity for item '{item_data['item_name']}'")
+        raise Exception(f"Return quantity exceeds the total sales quantity for item '{item_data['item_name']}' in location '{item_data['location']}'")
     
     # Restore quantities proportionally based on FIFO consumption
     remaining_to_return = item_data['quantity']
@@ -205,10 +209,11 @@ def handle_sales_return(original_invoice_id, warehouse_item, item_data, new_invo
         if remaining_to_return <= 0:
             break
             
-        # Find the corresponding price record
+        # Find the corresponding price record (NEW: include location)
         price = Prices.query.filter_by(
             invoice_id=detail.source_price_invoice_id,
-            item_id=detail.source_price_item_id
+            item_id=detail.source_price_item_id,
+            location=detail.source_price_location  # NEW: Match location
         ).first()
         
         if price:
@@ -219,26 +224,27 @@ def handle_sales_return(original_invoice_id, warehouse_item, item_data, new_invo
     
     if remaining_to_return > 0:
         db.session.rollback()
-        raise Exception(f"Cannot properly restore all returned quantities for item '{item_data['item_name']}'")
+        raise Exception(f"Cannot properly restore all returned quantities for item '{item_data['item_name']}' in location '{item_data['location']}'")
     
     return True
 
 
 def handle_purchase_return(original_invoice_id, warehouse_item, item_data, new_invoice, quantity, unit_price):
-    """Handle returning items to a purchase invoice (new logic)"""
-    # Find the original purchase invoice items for this item
+    """Handle returning items to a purchase invoice (updated with location support)"""
+    # Find the original purchase invoice items for this item and location
     original_purchase_items = InvoiceItem.query.filter_by(
         invoice_id=original_invoice_id,
-        item_id=warehouse_item.id
+        item_id=warehouse_item.id,
+        location=item_data['location']  # NEW: Match specific location
     ).all()
     
     if not original_purchase_items:
         return False
     
-    # Calculate total purchased quantity
+    # Calculate total purchased quantity for this location
     total_purchased_quantity = sum([item.quantity for item in original_purchase_items])
     
-    # Check for previous returns from this purchase invoice
+    # Check for previous returns from this purchase invoice for this location
     old_return_invoices = ReturnSales.query.filter_by(
         sales_invoice_id=original_invoice_id
     ).all()
@@ -248,7 +254,8 @@ def handle_purchase_return(original_invoice_id, warehouse_item, item_data, new_i
         for old_invoice in old_return_invoices:
             old_invoice_items = InvoiceItem.query.filter_by(
                 invoice_id=old_invoice.return_invoice_id,
-                item_id=warehouse_item.id
+                item_id=warehouse_item.id,
+                location=item_data['location']  # NEW: Check specific location
             ).all()
             for old_invoice_item in old_invoice_items:
                 total_returned_quantity += old_invoice_item.quantity
@@ -256,12 +263,13 @@ def handle_purchase_return(original_invoice_id, warehouse_item, item_data, new_i
     # Validate return quantity doesn't exceed purchased quantity
     if total_returned_quantity + item_data['quantity'] > total_purchased_quantity:
         db.session.rollback()
-        raise Exception(f"Return quantity exceeds the total purchased quantity for item '{item_data['item_name']}'")
+        raise Exception(f"Return quantity exceeds the total purchased quantity for item '{item_data['item_name']}' in location '{item_data['location']}'")
     
     # For purchase returns, we need to reduce the price record created by the purchase
     price_record = Prices.query.filter_by(
         invoice_id=original_invoice_id,
-        item_id=warehouse_item.id
+        item_id=warehouse_item.id,
+        location=item_data['location']  # NEW: Match location
     ).first()
     
     if price_record:
@@ -272,7 +280,7 @@ def handle_purchase_return(original_invoice_id, warehouse_item, item_data, new_i
             already_sold = (total_purchased_quantity - total_returned_quantity) - available_to_return
             
             db.session.rollback()
-            raise Exception(f"Cannot return {item_data['quantity']} units of '{item_data['item_name']}'. " +
+            raise Exception(f"Cannot return {item_data['quantity']} units of '{item_data['item_name']}' in location '{item_data['location']}'. " +
                           f"Only {available_to_return} units available to return. " +
                           f"{already_sold} units have already been sold.")
         
@@ -284,7 +292,8 @@ def handle_purchase_return(original_invoice_id, warehouse_item, item_data, new_i
         if price_record.quantity <= 0:
             referencing_details = InvoicePriceDetail.query.filter_by(
                 source_price_invoice_id=price_record.invoice_id,
-                source_price_item_id=price_record.item_id
+                source_price_item_id=price_record.item_id,
+                source_price_location=price_record.location  # NEW: Check location
             ).first()
             
             if not referencing_details:
@@ -294,7 +303,7 @@ def handle_purchase_return(original_invoice_id, warehouse_item, item_data, new_i
     
     return False
 def delete_return(invoice, invoice_ns):
-    """Delete a return invoice and restore original state for both sales and purchase returns"""
+    """Delete a return invoice and restore original state for both sales and purchase returns (updated with location support)"""
     # Check if it's a return invoice
     if invoice.type != 'مرتجع':
         db.session.rollback()
@@ -322,7 +331,7 @@ def delete_return(invoice, invoice_ns):
             warehouse_item = invoice_item.warehouse
             
             if return_type == 'sales':
-                # Handle sales return deletion (existing logic)
+                # Handle sales return deletion (updated logic)
                 result = handle_sales_return_deletion(
                     invoice_item, warehouse_item, original_invoice_id
                 )
@@ -331,7 +340,7 @@ def delete_return(invoice, invoice_ns):
                     return result
                     
             elif return_type == 'purchase':
-                # Handle purchase return deletion (new logic)
+                # Handle purchase return deletion (updated logic)
                 result = handle_purchase_return_deletion(
                     invoice_item, warehouse_item, original_invoice_id
                 )
@@ -342,14 +351,16 @@ def delete_return(invoice, invoice_ns):
             # Handle price records created specifically by this return invoice
             return_created_prices = Prices.query.filter_by(
                 invoice_id=invoice.id,
-                item_id=warehouse_item.id
+                item_id=warehouse_item.id,
+                location=invoice_item.location  # NEW: Match location
             ).all()
             
             for price_record in return_created_prices:
                 # Check if any quantity from these price records has been consumed
                 price_details_consuming_this = InvoicePriceDetail.query.filter_by(
                     source_price_invoice_id=price_record.invoice_id,
-                    source_price_item_id=price_record.item_id
+                    source_price_item_id=price_record.item_id,
+                    source_price_location=price_record.location  # NEW: Match location
                 ).all()
                 
                 consumed_from_return_price = sum(detail.quantity for detail in price_details_consuming_this)
@@ -358,7 +369,7 @@ def delete_return(invoice, invoice_ns):
                     db.session.rollback()
                     return operation_result(400, "error", 
                         f"Cannot delete return invoice: {consumed_from_return_price} units of "
-                        f"'{warehouse_item.item_name}' from the returned stock have already been sold again.")
+                        f"'{warehouse_item.item_name}' from location '{invoice_item.location}' have already been sold again.")
             
             # Restore inventory quantities (subtract the returned quantity)
             item_location = ItemLocations.query.filter_by(
@@ -396,14 +407,14 @@ def delete_return(invoice, invoice_ns):
                         f"Cannot delete return invoice: Not enough quantity for item "
                         f"'{warehouse_item.item_name}' in location '{invoice_item.location}'.")
 
-
         # Delete price records created specifically by this return invoice
         return_created_prices = Prices.query.filter_by(invoice_id=invoice.id).all()
         for price_record in return_created_prices:
             # Check if this price record is referenced by any invoice_price_detail records
             referencing_details = InvoicePriceDetail.query.filter_by(
                 source_price_invoice_id=price_record.invoice_id,
-                source_price_item_id=price_record.item_id
+                source_price_item_id=price_record.item_id,
+                source_price_location=price_record.location  # NEW: Check location
             ).first()
             
             # Only delete if no references exist
@@ -437,7 +448,7 @@ def delete_return(invoice, invoice_ns):
 
 
 def handle_sales_return_deletion(invoice_item, warehouse_item, original_invoice_id):
-    """Handle deletion of a sales return - restore price records that were increased"""
+    """Handle deletion of a sales return - restore price records that were increased (updated with location support)"""
     if not original_invoice_id:
         return True
         
@@ -454,10 +465,11 @@ def handle_sales_return_deletion(invoice_item, warehouse_item, original_invoice_
         if remaining_to_revert <= 0:
             break
         
-        # Find the price record that was restored
+        # Find the price record that was restored (NEW: include location)
         price_record = Prices.query.filter_by(
             invoice_id=detail.source_price_invoice_id,
-            item_id=detail.source_price_item_id
+            item_id=detail.source_price_item_id,
+            location=detail.source_price_location  # NEW: Match location
         ).first()
         
         if price_record:
@@ -468,7 +480,7 @@ def handle_sales_return_deletion(invoice_item, warehouse_item, original_invoice_
             if price_record.quantity < quantity_returned_to_this_record:
                 return operation_result(400, "error", 
                     f"Cannot delete return invoice: {quantity_returned_to_this_record - price_record.quantity} units of "
-                    f"'{warehouse_item.item_name}' from the returned stock have already been sold again. "
+                    f"'{warehouse_item.item_name}' from location '{invoice_item.location}' have already been sold again. "
                     f"Available in price record: {price_record.quantity}, trying to remove: {quantity_returned_to_this_record}")
             
             # Subtract the returned quantity back from the price record
@@ -480,7 +492,8 @@ def handle_sales_return_deletion(invoice_item, warehouse_item, original_invoice_
                 # Check if this price record is referenced by any invoice_price_detail records
                 referencing_details = InvoicePriceDetail.query.filter_by(
                     source_price_invoice_id=price_record.invoice_id,
-                    source_price_item_id=price_record.item_id
+                    source_price_item_id=price_record.item_id,
+                    source_price_location=price_record.location  # NEW: Check location
                 ).first()
                 
                 # Only delete if no references exist
@@ -491,14 +504,15 @@ def handle_sales_return_deletion(invoice_item, warehouse_item, original_invoice_
 
 
 def handle_purchase_return_deletion(invoice_item, warehouse_item, original_invoice_id):
-    """Handle deletion of a purchase return - restore price records that were decreased"""
+    """Handle deletion of a purchase return - restore price records that were decreased (updated with location support)"""
     if not original_invoice_id:
         return True
     
-    # Find the price record from the original purchase invoice
+    # Find the price record from the original purchase invoice (NEW: include location)
     price_record = Prices.query.filter_by(
         invoice_id=original_invoice_id,
-        item_id=warehouse_item.id
+        item_id=warehouse_item.id,
+        location=invoice_item.location  # NEW: Match location
     ).first()
     
     if price_record:
@@ -510,14 +524,16 @@ def handle_purchase_return_deletion(invoice_item, warehouse_item, original_invoi
         # Get the original purchase item to get the unit price
         original_purchase_item = InvoiceItem.query.filter_by(
             invoice_id=original_invoice_id,
-            item_id=warehouse_item.id
+            item_id=warehouse_item.id,
+            location=invoice_item.location  # NEW: Match location
         ).first()
         
         if original_purchase_item:
-            # Recreate the price record
+            # Recreate the price record (NEW: include location)
             new_price_record = Prices(
                 invoice_id=original_invoice_id,
                 item_id=warehouse_item.id,
+                location=invoice_item.location,  # NEW: Include location
                 quantity=invoice_item.quantity,
                 unit_price=original_purchase_item.unit_price,
                 created_at=datetime.now()
@@ -528,7 +544,7 @@ def handle_purchase_return_deletion(invoice_item, warehouse_item, original_invoi
 
 
 def put_return(data, invoice, machine, mechanism, invoice_ns):
-    """Update a return invoice - supports both sales and purchase returns"""
+    """Update a return invoice - supports both sales and purchase returns (updated with location support)"""
     try:
         with db.session.begin_nested():
             # Get the original invoice information to determine return type
@@ -629,7 +645,7 @@ def put_return(data, invoice, machine, mechanism, invoice_ns):
                 if return_type == 'sales' and original_invoice_id:
                     result = handle_sales_return_update(
                         key, original_items, warehouse_item, item_data, 
-                        new_quantity, original_invoice_id
+                        new_quantity, original_invoice_id, location  # NEW: Pass location
                     )
                     if result != True:
                         db.session.rollback()
@@ -638,7 +654,7 @@ def put_return(data, invoice, machine, mechanism, invoice_ns):
                 elif return_type == 'purchase' and original_invoice_id:
                     result = handle_purchase_return_update(
                         key, original_items, warehouse_item, item_data,
-                        new_quantity, original_invoice_id
+                        new_quantity, original_invoice_id, location  # NEW: Pass location
                     )
                     if result != True:
                         db.session.rollback()
@@ -667,10 +683,11 @@ def put_return(data, invoice, machine, mechanism, invoice_ns):
                 updated_items[key] = item
                 total_invoice_amount += new_total_price
                 
-                # Update price records created by this return invoice
+                # Update price records created by this return invoice (NEW: with location support)
                 price_record = Prices.query.filter_by(
                     invoice_id=invoice.id,
-                    item_id=warehouse_item.id
+                    item_id=warehouse_item.id,
+                    location=location  # NEW: Match location
                 ).first()
                 
                 if price_record:
@@ -685,7 +702,7 @@ def put_return(data, invoice, machine, mechanism, invoice_ns):
                             db.session.rollback()
                             return operation_result(400, "error", 
                                 f"Cannot update return invoice: {consumed} units of " +
-                                f"'{item_data['item_name']}' have already been sold again. " +
+                                f"'{item_data['item_name']}' in location '{location}' have already been sold again. " +
                                 f"Cannot reduce quantity below {consumed}.")
                         
                         # Update price record with remaining available quantity
@@ -698,10 +715,11 @@ def put_return(data, invoice, machine, mechanism, invoice_ns):
                     if new_unit_price > 0:
                         price_record.unit_price = new_unit_price
                 elif new_unit_price > 0:
-                    # Create a new price record if one doesn't exist and price is provided
+                    # Create a new price record if one doesn't exist and price is provided (NEW: with location)
                     new_price = Prices(
                         invoice_id=invoice.id,
                         item_id=warehouse_item.id,
+                        location=location,  # NEW: Include location
                         quantity=new_quantity,
                         unit_price=new_unit_price,
                         created_at=datetime.now()
@@ -716,7 +734,7 @@ def put_return(data, invoice, machine, mechanism, invoice_ns):
                     # Handle price restoration based on return type
                     if return_type == 'sales' and original_invoice_id:
                         result = handle_sales_return_item_removal(
-                            item, item_id, original_invoice_id
+                            item, item_id, original_invoice_id, location  # NEW: Pass location
                         )
                         if result != True:
                             db.session.rollback()
@@ -724,7 +742,7 @@ def put_return(data, invoice, machine, mechanism, invoice_ns):
                             
                     elif return_type == 'purchase' and original_invoice_id:
                         result = handle_purchase_return_item_removal(
-                            item, item_id, original_invoice_id
+                            item, item_id, original_invoice_id, location  # NEW: Pass location
                         )
                         if result != True:
                             db.session.rollback()
@@ -759,10 +777,11 @@ def put_return(data, invoice, machine, mechanism, invoice_ns):
                                     f"Cannot remove item: Not enough quantity for " +
                                     f"'{item.warehouse.item_name}' in location '{location}'.")
                     
-                    # Delete price records created by this return
+                    # Delete price records created by this return (NEW: with location support)
                     price_record = Prices.query.filter_by(
                         invoice_id=invoice.id,
-                        item_id=item_id
+                        item_id=item_id,
+                        location=location  # NEW: Match location
                     ).first()
                     
                     if price_record:
@@ -811,16 +830,17 @@ def handle_sales_return_update(key, original_items, warehouse_item, item_data, n
     return True
 
 
-def handle_purchase_return_update(key, original_items, warehouse_item, item_data, new_quantity, original_invoice_id):
-    """Handle price adjustments when updating a purchase return"""
+def handle_purchase_return_update(key, original_items, warehouse_item, item_data, new_quantity, original_invoice_id, location):
+    """Handle price adjustments when updating a purchase return (updated with location support)"""
     if key in original_items:
         old_quantity = original_items[key].quantity
         quantity_diff = new_quantity - old_quantity
         
-        # Find the price record from the original purchase
+        # Find the price record from the original purchase (NEW: include location)
         price_record = Prices.query.filter_by(
             invoice_id=original_invoice_id,
-            item_id=warehouse_item.id
+            item_id=warehouse_item.id,
+            location=location  # NEW: Match location
         ).first()
         
         if price_record and quantity_diff != 0:
@@ -831,7 +851,7 @@ def handle_purchase_return_update(key, original_items, warehouse_item, item_data
             
             if price_record.quantity < 0:
                 return operation_result(400, "error", 
-                    f"Cannot update return: would result in negative inventory for original purchase of '{item_data['item_name']}'")
+                    f"Cannot update return: would result in negative inventory for original purchase of '{item_data['item_name']}' in location '{location}'")
             
             db.session.add(price_record)
     
@@ -845,16 +865,37 @@ def handle_sales_return_item_removal(item, item_id, original_invoice_id):
     return True
 
 
-def handle_purchase_return_item_removal(item, item_id, original_invoice_id):
-    """Handle price restoration when removing an item from a purchase return"""
-    # Restore the quantity to the original purchase price record
+def handle_purchase_return_item_removal(item, item_id, original_invoice_id, location):
+    """Handle price restoration when removing an item from a purchase return (updated with location support)"""
+    # Restore the quantity to the original purchase price record (NEW: include location)
     price_record = Prices.query.filter_by(
         invoice_id=original_invoice_id,
-        item_id=item_id
+        item_id=item_id,
+        location=location  # NEW: Match location
     ).first()
     
     if price_record:
         price_record.quantity += item.quantity
         db.session.add(price_record)
+    else:
+        # If the price record was deleted, we need to recreate it
+        # Get the original purchase item to get the unit price
+        original_purchase_item = InvoiceItem.query.filter_by(
+            invoice_id=original_invoice_id,
+            item_id=item_id,
+            location=location  # NEW: Match location
+        ).first()
+        
+        if original_purchase_item:
+            # Recreate the price record (NEW: include location)
+            new_price_record = Prices(
+                invoice_id=original_invoice_id,
+                item_id=item_id,
+                location=location,  # NEW: Include location
+                quantity=item.quantity,
+                unit_price=original_purchase_item.unit_price,
+                created_at=datetime.now()
+            )
+            db.session.add(new_price_record)
     
     return True

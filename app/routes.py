@@ -677,34 +677,61 @@ class ConfirmInvoice(Resource):
 class FifoPriceList(Resource):
     @jwt_required()
     def get(self, item_id):
-        """Get FIFO price records for a specific item"""
+        """Get FIFO price records for a specific item (updated with location support)"""
         # Get the item
         item = Warehouse.query.get_or_404(item_id)
         
         # Get all price records for this item ordered by creation date (oldest first for FIFO)
-        price_entries = Prices.query.filter_by(item_id=item_id).order_by(Prices.invoice_id.asc()).all()
+        # Now grouped by location
+        price_entries = Prices.query.filter_by(item_id=item_id).order_by(
+            Prices.location.asc(), 
+            Prices.invoice_id.asc()
+        ).all()
         
-        result = []
+        # Group results by location
+        locations = {}
+        total_quantity = 0
+        total_value = 0
+        
         for price in price_entries:
             if price.quantity > 0:  # Only include records with positive quantity
                 # Get source invoice information
                 source_invoice = Invoice.query.get(price.invoice_id)
                 
-                result.append({
-                    'price_id': price.invoice_id,  # This is actually a composite primary key
+                if price.location not in locations:
+                    locations[price.location] = {
+                        'location': price.location,
+                        'price_records': [],
+                        'total_quantity': 0,
+                        'total_value': 0
+                    }
+                
+                price_record = {
+                    'price_id': f"{price.invoice_id}-{price.item_id}-{price.location}",  # Composite key
                     'invoice_id': price.invoice_id,
                     'invoice_type': source_invoice.type if source_invoice else 'Unknown',
                     'invoice_date': source_invoice.created_at.strftime('%Y-%m-%d %H:%M:%S') if source_invoice else None,
                     'quantity': price.quantity,
                     'unit_price': price.unit_price,
+                    'value': price.quantity * price.unit_price,
                     'created_at': price.created_at.strftime('%Y-%m-%d %H:%M:%S')
-                })
+                }
+                
+                locations[price.location]['price_records'].append(price_record)
+                locations[price.location]['total_quantity'] += price.quantity
+                locations[price.location]['total_value'] += price_record['value']
+                
+                total_quantity += price.quantity
+                total_value += price_record['value']
         
         return {
             'item_id': item_id,
             'item_name': item.item_name,
             'item_bar': item.item_bar,
-            'price_records': result
+            'total_quantity': total_quantity,
+            'total_value': total_value,
+            'average_unit_price': total_value / total_quantity if total_quantity > 0 else 0,
+            'locations': list(locations.values())
         }, 200
     
 @invoice_ns.route('/<int:invoice_id>/ReturnWarranty')
@@ -1080,7 +1107,7 @@ class InventoryValue(Resource):
     @invoice_ns.expect(pagination_parser)
     @jwt_required()
     def get(self):
-        """Get total inventory value based on FIFO pricing"""
+        """Get total inventory value based on FIFO pricing (updated with location support)"""
         # Calculate inventory value by item
         args = pagination_parser.parse_args()
         page = int(args['page'])
@@ -1099,15 +1126,33 @@ class InventoryValue(Resource):
         item_values = []
         
         for item in items:
-            # Get all price records for this item
+            # Get all price records for this item (now with locations)
             price_entries = Prices.query.filter_by(item_id=item.id).all()
             
-            # Calculate value for this item
+            # Calculate value for this item across all locations
             item_value = sum(price.quantity * price.unit_price for price in price_entries if price.quantity > 0)
             inventory_value += item_value
             
-            # Get total quantity for this item
+            # Get total quantity for this item across all locations
             total_quantity = sum(loc.quantity for loc in item.item_locations)
+            
+            # Get location breakdown with pricing
+            location_breakdown = []
+            for loc in item.item_locations:
+                if loc.quantity > 0:
+                    # Get price records for this specific location
+                    location_prices = [p for p in price_entries if p.location == loc.location and p.quantity > 0]
+                    location_value = sum(p.quantity * p.unit_price for p in location_prices)
+                    priced_quantity = sum(p.quantity for p in location_prices)
+                    
+                    location_breakdown.append({
+                        'location': loc.location,
+                        'physical_quantity': loc.quantity,
+                        'priced_quantity': priced_quantity,
+                        'value': location_value,
+                        'average_unit_price': location_value / priced_quantity if priced_quantity > 0 else 0,
+                        'quantity_discrepancy': loc.quantity - priced_quantity
+                    })
             
             # Add item details to the result
             if total_quantity > 0:
@@ -1115,10 +1160,13 @@ class InventoryValue(Resource):
                     'item_id': item.id,
                     'item_name': item.item_name,
                     'item_bar': item.item_bar,
-                    'total_quantity': total_quantity,
+                    'total_physical_quantity': total_quantity,
+                    'total_priced_quantity': sum(p.quantity for p in price_entries if p.quantity > 0),
                     'value': item_value,
-                    'average_unit_value': item_value / total_quantity if total_quantity > 0 else 0
+                    'average_unit_value': item_value / total_quantity if total_quantity > 0 else 0,
+                    'location_breakdown': location_breakdown
                 })
+        
         result = {
             'total_inventory_value': inventory_value,
             'items': sorted(item_values, key=lambda x: x['value'], reverse=True)
@@ -1132,7 +1180,6 @@ class InventoryValue(Resource):
             'total_pages': (total_count + page_size - 1) // page_size,
             'all': all_results 
             }, 200
-
 @invoice_ns.route('/sales-invoices')
 class SalesInvoices(Resource):
     @jwt_required()
@@ -1352,7 +1399,7 @@ class FifoInventoryReport(Resource):
     @invoice_ns.expect(pagination_parser)
     @jwt_required()
     def get(self):
-        """Get comprehensive FIFO inventory report with price tracking"""
+        """Get comprehensive FIFO inventory report with price tracking (updated with location support)"""
         # Get all warehouse items
         args = pagination_parser.parse_args()
         page = int(args['page'])
@@ -1375,15 +1422,18 @@ class FifoInventoryReport(Resource):
         total_inventory_quantity = 0
         
         for item in items:
-            # Get price records for this item
-            price_entries = Prices.query.filter_by(item_id=item.id).order_by(Prices.invoice_id.asc()).all()
+            # Get price records for this item (now includes location)
+            price_entries = Prices.query.filter_by(item_id=item.id).order_by(
+                Prices.location.asc(), 
+                Prices.invoice_id.asc()
+            ).all()
             
             # Get physical inventory
             locations = ItemLocations.query.filter_by(item_id=item.id).all()
             physical_inventory = sum(loc.quantity for loc in locations)
             
-            # Calculate priced inventory and value
-            price_layers = []
+            # Calculate priced inventory and value by location
+            location_price_layers = {}
             priced_inventory = 0
             item_value = 0
             
@@ -1392,21 +1442,54 @@ class FifoInventoryReport(Resource):
                     source_invoice = Invoice.query.get(price.invoice_id)
                     layer_value = price.quantity * price.unit_price
                     
+                    if price.location not in location_price_layers:
+                        location_price_layers[price.location] = {
+                            'location': price.location,
+                            'price_layers': [],
+                            'total_priced_quantity': 0,
+                            'total_value': 0,
+                            'physical_quantity': 0
+                        }
+                    
                     layer = {
                         'invoice_id': price.invoice_id,
                         'invoice_type': source_invoice.type if source_invoice else 'Unknown',
                         'date': price.created_at.strftime('%Y-%m-%d %H:%M:%S'),
                         'quantity': price.quantity,
                         'unit_price': price.unit_price,
-                        'layer_value': layer_value,
-                        'percentage_of_item': round((price.quantity / physical_inventory) * 100, 2) if physical_inventory > 0 else 0
+                        'layer_value': layer_value
                     }
-                    price_layers.append(layer)
+                    
+                    location_price_layers[price.location]['price_layers'].append(layer)
+                    location_price_layers[price.location]['total_priced_quantity'] += price.quantity
+                    location_price_layers[price.location]['total_value'] += layer_value
                     
                     priced_inventory += price.quantity
                     item_value += layer_value
             
-            # Calculate discrepancies
+            # Add physical quantities to location data
+            for location_obj in locations:
+                if location_obj.location in location_price_layers:
+                    location_price_layers[location_obj.location]['physical_quantity'] = location_obj.quantity
+                elif location_obj.quantity > 0:
+                    # Location has physical inventory but no price records
+                    location_price_layers[location_obj.location] = {
+                        'location': location_obj.location,
+                        'price_layers': [],
+                        'total_priced_quantity': 0,
+                        'total_value': 0,
+                        'physical_quantity': location_obj.quantity
+                    }
+            
+            # Calculate discrepancies per location
+            for loc_data in location_price_layers.values():
+                loc_data['quantity_discrepancy'] = loc_data['physical_quantity'] - loc_data['total_priced_quantity']
+                loc_data['average_unit_price'] = (
+                    loc_data['total_value'] / loc_data['total_priced_quantity'] 
+                    if loc_data['total_priced_quantity'] > 0 else 0
+                )
+            
+            # Calculate overall discrepancies
             inventory_discrepancy = physical_inventory - priced_inventory
             
             # Skip items with no inventory
@@ -1423,15 +1506,7 @@ class FifoInventoryReport(Resource):
                 'inventory_discrepancy': inventory_discrepancy,
                 'total_value': item_value,
                 'average_unit_price': item_value / priced_inventory if priced_inventory > 0 else 0,
-                'location_breakdown': [
-                    {
-                        'location': loc.location,
-                        'quantity': loc.quantity,
-                        'percentage': round((loc.quantity / physical_inventory) * 100, 2) if physical_inventory > 0 else 0
-                    }
-                    for loc in locations if loc.quantity > 0
-                ],
-                'price_layers': price_layers
+                'location_breakdown': list(location_price_layers.values())
             }
             
             item_reports.append(item_report)
@@ -1465,8 +1540,8 @@ class FifoInventoryReport(Resource):
 class UpdateInvoicePrice(Resource):
     def get(self, invoice_id):
         """
-        Update prices for items in an invoice where price is zero.
-        Uses the latest available price for each item.
+        Update prices for items in an invoice where price is zero (updated with location support).
+        Uses the latest available price for each item-location combination.
         
         Parameters:
         invoice_id (int): ID of the invoice to update
@@ -1485,15 +1560,26 @@ class UpdateInvoicePrice(Resource):
             total_price_change = 0
             
             # Find items with zero price
-            zero_price_items = InvoiceItem.query.filter_by(invoice_id=invoice_id).filter(InvoiceItem.unit_price == 0).all()
+            zero_price_items = InvoiceItem.query.filter_by(
+                invoice_id=invoice_id
+            ).filter(InvoiceItem.unit_price == 0).all()
             
             if not zero_price_items:
                 return {"message": "No items with zero price found in this invoice"}, 200
             
             # Process each zero-price item
             for item in zero_price_items:
-                # Get the latest price for this item - use desc() to get the most recent price
-                latest_price = Prices.query.filter_by(item_id=item.item_id).order_by(Prices.invoice_id).first()
+                # Get the latest price for this item-location combination
+                latest_price = Prices.query.filter_by(
+                    item_id=item.item_id,
+                    location=item.location  # NEW: Match specific location
+                ).filter(Prices.quantity > 0).order_by(Prices.invoice_id.desc()).first()
+                
+                # If no price found for specific location, try any location for this item
+                if not latest_price:
+                    latest_price = Prices.query.filter_by(
+                        item_id=item.item_id
+                    ).filter(Prices.quantity > 0).order_by(Prices.invoice_id.desc()).first()
                 
                 if not latest_price:
                     continue  # Skip if no price found
@@ -1510,12 +1596,13 @@ class UpdateInvoicePrice(Resource):
                 price_change = item.total_price - old_total
                 total_price_change += price_change
                 
-                # Create a price detail record
+                # Create a price detail record (NEW: with location support)
                 price_detail = InvoicePriceDetail(
                     invoice_id=invoice.id,
                     item_id=item.item_id,
                     source_price_invoice_id=latest_price.invoice_id,
                     source_price_item_id=latest_price.item_id,
+                    source_price_location=latest_price.location,  # NEW: Include source location
                     quantity=item.quantity,
                     unit_price=latest_price.unit_price,
                     subtotal=item.total_price
@@ -1526,6 +1613,8 @@ class UpdateInvoicePrice(Resource):
                 # Track the update
                 updated_items.append({
                     "item_id": item.item_id,
+                    "location": item.location,  # NEW: Include location in response
+                    "source_location": latest_price.location,  # NEW: Show where price came from
                     "old_price": old_price,
                     "new_price": latest_price.unit_price,
                     "quantity": item.quantity,
