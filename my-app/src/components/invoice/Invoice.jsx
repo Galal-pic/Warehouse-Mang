@@ -392,12 +392,38 @@ export default function InvoiceModal({
             warehouseItem?.locations?.find(
               (loc) => loc.location === item.location
             )?.quantity || 0;
+          // إضافة شرط isCreate
+          if (!isCreate && selectedInvoice?.items) {
+            const selectedInvoiceItem = selectedInvoice.items.find(
+              (si) =>
+                si.item_name.trim().toLowerCase() ===
+                  item.item_name?.trim()?.toLowerCase() &&
+                si.location === item.location &&
+                si.barcode === item.barcode
+            );
+            if (selectedInvoiceItem) {
+              maxquantity += selectedInvoiceItem.quantity || 0;
+            }
+          }
         }
         if (isTransferType && item.location) {
           const selectedLocation = availableLocations.find(
             (loc) => loc.location === item.location
           );
           maxquantity = selectedLocation ? selectedLocation.quantity : 0;
+
+          if (!isCreate && selectedInvoice?.items) {
+            const selectedInvoiceItem = selectedInvoice.items.find(
+              (si) =>
+                si.item_name.trim().toLowerCase() ===
+                  item.item_name?.trim()?.toLowerCase() &&
+                si.location === item.location &&
+                si.barcode === item.barcode
+            );
+            if (selectedInvoiceItem) {
+              maxquantity += selectedInvoiceItem.quantity || 0;
+            }
+          }
         }
 
         return {
@@ -433,6 +459,8 @@ export default function InvoiceModal({
     setEditingInvoice,
     isEditingInvoice,
     isTransferType,
+    isCreate, // إضافة isCreate إلى الـ dependencies
+    selectedInvoice, // إضافة selectedInvoice إلى الـ dependencies
   ]);
 
   // Snackbar
@@ -915,9 +943,8 @@ export default function InvoiceModal({
                             e.target.value = 0;
                           }
                           if (
-                            (isTransferType ||
-                              selectedNowType?.type === "مرتجع" ||
-                              editingInvoice?.type === "مرتجع") &&
+                            selectedInvoice.type !== "طلب شراء" &&
+                            selectedInvoice.type !== "اضافه" &&
                             e.target.value > row.maxquantity
                           ) {
                             e.target.value = row.maxquantity;
@@ -926,15 +953,6 @@ export default function InvoiceModal({
                             );
                             setSnackBarType("warning");
                             setOpenSnackbar(true);
-                          } else if (
-                            selectedInvoice?.type !== "مرتجع" &&
-                            editingInvoice?.type !== "مرتجع" &&
-                            (selectedNowType?.type === "operation" ||
-                              (!isPurchasesType && isCreate)) &&
-                            e.target.value > row.maxquantity &&
-                            selectedInvoice.type !== "طلب شراء"
-                          ) {
-                            e.target.value = row.maxquantity;
                           }
                         }}
                         onClick={(event) => {
