@@ -262,7 +262,8 @@ class WarehouseExcelUltraFast(Resource):
 
             # Create invoices and invoice items
             invoice_item_rows = []
-            price_tracking = {}  # Track (invoice_id, item_id) -> price info to avoid duplicates
+            # FIXED: Track prices per location (invoice_id, item_id, location)
+            price_tracking = {}
 
             # Convert item_location_map values to a list for chunking
             location_entries = list(item_location_map.items())
@@ -311,25 +312,27 @@ class WarehouseExcelUltraFast(Resource):
                         description=""
                     ))
 
-                    # Track price info for deduplication
-                    price_key = (invoice.id, item_id)
+                    # FIXED: Track price info per location for location-based pricing
+                    price_key = (invoice.id, item_id, location)
                     if price_key not in price_tracking:
                         price_tracking[price_key] = {
-                            'total_quantity': 0,
+                            'quantity': 0,
                             'unit_price': unit_price,
+                            'location': location,
                             'created_at': current_time
                         }
-                    price_tracking[price_key]['total_quantity'] += quantity
+                    price_tracking[price_key]['quantity'] += quantity
 
                     success_count += 1
 
-            # Create deduplicated price rows
+            # FIXED: Create location-specific price rows for the new schema
             price_rows = []
-            for (invoice_id, item_id), price_info in price_tracking.items():
+            for (invoice_id, item_id, location), price_info in price_tracking.items():
                 price_rows.append(Prices(
                     invoice_id=invoice_id,
                     item_id=item_id,
-                    quantity=price_info['total_quantity'],
+                    location=location,  # FIXED: Include location for new schema
+                    quantity=price_info['quantity'],
                     unit_price=price_info['unit_price'],
                     created_at=price_info['created_at']
                 ))
