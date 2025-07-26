@@ -185,6 +185,7 @@ class Prices(db.Model):
     __tablename__ = 'prices'
     invoice_id = db.Column(db.Integer, db.ForeignKey('invoice.id'), primary_key=True)
     item_id = db.Column(db.Integer, db.ForeignKey('warehouse.id'), primary_key=True)
+    location = db.Column(db.String(255), primary_key=True)  # NEW: Add location to make it part of primary key
     quantity = db.Column(db.Integer, nullable=False)
     unit_price = db.Column(db.Float, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.now, index=True)
@@ -194,7 +195,8 @@ class Prices(db.Model):
     warehouse = db.relationship('Warehouse', back_populates='prices')
     price_details = db.relationship('InvoicePriceDetail', 
                                    primaryjoin="and_(Prices.invoice_id==InvoicePriceDetail.source_price_invoice_id, "
-                                               "Prices.item_id==InvoicePriceDetail.source_price_item_id)",
+                                               "Prices.item_id==InvoicePriceDetail.source_price_item_id, "
+                                               "Prices.location==InvoicePriceDetail.source_price_location)",
                                    backref="source_price", viewonly=True)
 
 # New model to store price breakdown details
@@ -203,10 +205,9 @@ class InvoicePriceDetail(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     invoice_id = db.Column(db.Integer, db.ForeignKey('invoice.id'), nullable=False)
     item_id = db.Column(db.Integer, db.ForeignKey('warehouse.id'), nullable=False)
-    # Remove this line - it's causing the error
-    # source_price_id = db.Column(db.Integer, db.ForeignKey('prices.invoice_id'), nullable=False)
     source_price_invoice_id = db.Column(db.Integer, nullable=False)
     source_price_item_id = db.Column(db.Integer, nullable=False)
+    source_price_location = db.Column(db.String(255), nullable=False)  # NEW: Add location reference
     quantity = db.Column(db.Integer, nullable=False)
     unit_price = db.Column(db.Float, nullable=False)
     subtotal = db.Column(db.Float, nullable=False)
@@ -215,11 +216,11 @@ class InvoicePriceDetail(db.Model):
     # Relationships
     invoice = db.relationship('Invoice', back_populates='price_details')
     
-    # Composite foreign key constraints
+    # Updated composite foreign key constraints to include location
     __table_args__ = (
         db.ForeignKeyConstraint(
-            ['source_price_invoice_id', 'source_price_item_id'],
-            ['prices.invoice_id', 'prices.item_id']
+            ['source_price_invoice_id', 'source_price_item_id', 'source_price_location'],
+            ['prices.invoice_id', 'prices.item_id', 'prices.location']
         ),
     )
     

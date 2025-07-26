@@ -1,4 +1,6 @@
 from datetime import datetime
+
+from sqlalchemy import func
 from ..models import Invoice, Warehouse, ItemLocations, InvoiceItem, Prices, InvoicePriceDetail, Supplier
 from .. import db
 from sqlalchemy.exc import SQLAlchemyError
@@ -9,7 +11,7 @@ def Purchase_Operations(data, machine, mechanism, supplier, employee, machine_ns
     """
     Create a purchase invoice (اضافه type).
     Purchase operations add inventory and create price records for FIFO consumption.
-    Now supports individual supplier names per item instead of per invoice.
+    Now supports individual supplier names per item and location-based pricing.
     """
     try:
         # Create new invoice (no longer uses invoice-level supplier)
@@ -22,8 +24,7 @@ def Purchase_Operations(data, machine, mechanism, supplier, employee, machine_ns
             paid=data.get("paid", 0),
             residual=data.get("residual", 0),
             comment=data.get("comment"),
-            status=data.get("status", "draft"),  # Default to draft if not provided
-            # Remove supplier_id since suppliers are now per item
+            status=data.get("status", "draft"),
             supplier_id=None,
             employee_name=data.get('employee_name'),
             employee_id=employee.id,
@@ -39,10 +40,6 @@ def Purchase_Operations(data, machine, mechanism, supplier, employee, machine_ns
         item_ids = []
         total_invoice_amount = 0
         
-        # Track items and their suppliers
-        item_price_aggregation = {}  # Track total quantity per item for price records
-        item_suppliers = {}  # Track supplier information per item
-        
         for item_data in data["items"]:
             # Look up the warehouse item by name
             warehouse_item = Warehouse.query.filter_by(item_name=item_data["item_name"]).first()
@@ -54,25 +51,17 @@ def Purchase_Operations(data, machine, mechanism, supplier, employee, machine_ns
             item_supplier_name = item_data.get("supplier_name", "").strip()
             item_supplier_id = None
             
-            if item_supplier_name:  # Only process if supplier name is provided and not empty
-                # Find or create supplier for this item
+            if item_supplier_name:
                 item_supplier = Supplier.query.filter_by(name=item_supplier_name).first()
                 if not item_supplier:
-                    # Create new supplier if it doesn't exist
                     item_supplier = Supplier(
                         name=item_supplier_name,
                         description=f"Auto-created supplier for item {item_data['item_name']}"
                     )
                     db.session.add(item_supplier)
-                    db.session.flush()  # Get the supplier ID
+                    db.session.flush()
                 
                 item_supplier_id = item_supplier.id
-                
-                # Store supplier info for this item
-                item_suppliers[warehouse_item.id] = {
-                    'supplier_id': item_supplier_id,
-                    'supplier_name': item_supplier_name
-                }
             
             # Verify the location exists
             item_location = ItemLocations.query.filter_by(
@@ -81,7 +70,6 @@ def Purchase_Operations(data, machine, mechanism, supplier, employee, machine_ns
             ).first()
             
             if not item_location:
-                # For purchases, create a new location if it doesn't exist
                 item_location = ItemLocations(
                     item_id=warehouse_item.id,
                     location=item_data['location'],
@@ -114,43 +102,28 @@ def Purchase_Operations(data, machine, mechanism, supplier, employee, machine_ns
                 unit_price=unit_price,
                 total_price=total_price,
                 description=item_data.get("description", ""),
-                supplier_id=item_supplier_id,  # Will be None if no supplier provided
-                supplier_name=item_supplier_name if item_supplier_name else None  # Will be None if empty
+                supplier_id=item_supplier_id,
+                supplier_name=item_supplier_name if item_supplier_name else None
             )
             db.session.add(invoice_item)
             
-            # Aggregate quantities and prices for the same item across different locations
-            item_key = warehouse_item.id
-            if item_key not in item_price_aggregation:
-                item_price_aggregation[item_key] = {
-                    'total_quantity': 0,
-                    'weighted_unit_price': 0,
-                    'total_value': 0
-                }
+            # FIXED: Create separate price record for each item-location combination
+            # Use a unique identifier that includes location information
+            price_record_id = f"{new_invoice.id}_{warehouse_item.id}_{item_data['location']}"
             
-            # Accumulate quantities and calculate weighted average price
-            item_price_aggregation[item_key]['total_quantity'] += quantity
-            item_price_aggregation[item_key]['total_value'] += total_price
-            
-            total_invoice_amount += total_price
-        
-        # Create ONE price record per unique item (not per location)
-        for item_id, price_data in item_price_aggregation.items():
-            # Calculate weighted average unit price
-            if price_data['total_quantity'] > 0:
-                weighted_unit_price = price_data['total_value'] / price_data['total_quantity']
-            else:
-                weighted_unit_price = 0
-            
-            # Create a single price record for FIFO inventory valuation
+            # Create a price record for FIFO inventory valuation per location
             price = Prices(
                 invoice_id=new_invoice.id,
-                item_id=item_id,
-                quantity=price_data['total_quantity'],  # Total quantity across all locations
-                unit_price=weighted_unit_price,  # Weighted average price
-                created_at=datetime.now()  # Explicitly set creation time for FIFO ordering
+                item_id=warehouse_item.id,
+                quantity=quantity,
+                unit_price=unit_price,
+                created_at=datetime.now(),
+                # Add location identifier to distinguish price records
+                location=item_data['location']  # This field needs to be added to Prices model
             )
             db.session.add(price)
+            
+            total_invoice_amount += total_price
         
         # Update invoice totals
         new_invoice.total_amount = total_invoice_amount
@@ -166,6 +139,7 @@ def Purchase_Operations(data, machine, mechanism, supplier, employee, machine_ns
     except Exception as e:
         db.session.rollback()
         return operation_result(500, "error", f"Error processing purchase: {str(e)}")
+
 
 def delete_purchase(invoice, invoice_ns):
     # Check if it's a purchase invoice
@@ -233,9 +207,8 @@ def delete_purchase(invoice, invoice_ns):
 
 def put_purchase(data, invoice, machine, mechanism, invoice_ns):
     """
-    Enhanced purchase update that properly handles price changes and 
-    recalculates affected sales invoices with detailed tracking.
-    Updated to handle supplier information per item.
+    FIXED: Enhanced purchase update that properly handles location-based pricing.
+    Each item-location combination maintains its own price record.
     """
     try:
         with db.session.begin_nested():
@@ -260,10 +233,9 @@ def put_purchase(data, invoice, machine, mechanism, invoice_ns):
                 item_supplier_id = None
                 item_supplier_name = item_data.get("supplier_name", "").strip()
                 
-                if item_supplier_name:  # Only process if supplier name is provided and not empty
+                if item_supplier_name:
                     item_supplier = Supplier.query.filter_by(name=item_supplier_name).first()
                     if not item_supplier:
-                        # Create new supplier if it doesn't exist
                         item_supplier = Supplier(
                             name=item_supplier_name,
                             description=f"Auto-created supplier for item {item_data['item_name']}"
@@ -309,11 +281,9 @@ def put_purchase(data, invoice, machine, mechanism, invoice_ns):
                     item.unit_price = new_unit_price
                     item.total_price = new_total_price
                     item.description = item_data.get("description", item.description)
-                    # Update supplier information
                     item.supplier_id = item_supplier_id
                     item.supplier_name = item_supplier_name if item_supplier_name else None
                     
-                    # Track if price changed
                     price_changed = old_unit_price != new_unit_price
                 else:
                     item = InvoiceItem(
@@ -333,20 +303,23 @@ def put_purchase(data, invoice, machine, mechanism, invoice_ns):
                 updated_items[key] = item
                 total_invoice_amount += new_total_price
                 
-                # Handle price record updates (same logic as before)
+                # FIXED: Handle price record updates per location
+                # Find the specific price record for this item-location combination
                 price_record = Prices.query.filter_by(
                     invoice_id=invoice.id,
-                    item_id=warehouse_item.id
+                    item_id=warehouse_item.id,
+                    location=location  # This makes it location-specific
                 ).first()
                 
                 if price_record:
                     original_price_quantity = original_items[key].quantity if key in original_items else 0
                     old_unit_price = price_record.unit_price
                     
-                    # Get all price details that reference this price record
+                    # Get all price details that reference this specific price record (item + location)
                     price_details = InvoicePriceDetail.query.filter_by(
                         source_price_invoice_id=invoice.id,
-                        source_price_item_id=warehouse_item.id
+                        source_price_item_id=warehouse_item.id,
+                        source_price_location=location  # Add location filter
                     ).all()
                     
                     consumed_quantity = sum(detail.quantity for detail in price_details)
@@ -354,7 +327,7 @@ def put_purchase(data, invoice, machine, mechanism, invoice_ns):
                     if consumed_quantity > 0:
                         if new_quantity < consumed_quantity:
                             db.session.rollback()
-                            return operation_result(400, "error", f"Cannot update purchase invoice: {consumed_quantity} units of '{item_data['item_name']}' have already been sold. Cannot reduce quantity below {consumed_quantity}.")
+                            return operation_result(400, "error", f"Cannot update purchase invoice: {consumed_quantity} units of '{item_data['item_name']}' in location '{location}' have already been sold. Cannot reduce quantity below {consumed_quantity}.")
                         
                         price_record.quantity = new_quantity - consumed_quantity
                     else:
@@ -364,7 +337,7 @@ def put_purchase(data, invoice, machine, mechanism, invoice_ns):
                     if old_unit_price != new_unit_price:
                         price_record.unit_price = new_unit_price
                         
-                        # Update all price details that use this price record
+                        # Update all price details that use this specific price record
                         for detail in price_details:
                             detail.unit_price = new_unit_price
                             detail.subtotal = detail.quantity * new_unit_price
@@ -372,32 +345,34 @@ def put_purchase(data, invoice, machine, mechanism, invoice_ns):
                             # Track the sales invoice for recalculation
                             affected_sales_invoices.add(detail.invoice_id)
                 else:
-                    # Create new price record
+                    # Create new price record for this specific location
                     price_record = Prices(
                         invoice_id=invoice.id,
                         item_id=warehouse_item.id,
                         quantity=new_quantity,
                         unit_price=new_unit_price,
+                        location=location,  # Include location
                         created_at=datetime.now()
                     )
                     db.session.add(price_record)
 
-            # Handle removed items (same logic as before but with supplier cleanup)
+            # Handle removed items
             for key, item in original_items.items():
                 if key not in updated_items:
                     item_id, location = key
                     
-                    # Check for consumption before allowing removal
+                    # Check for consumption before allowing removal (location-specific)
                     price_details = InvoicePriceDetail.query.filter_by(
                         source_price_invoice_id=invoice.id,
-                        source_price_item_id=item_id
+                        source_price_item_id=item_id,
+                        source_price_location=location  # Add location filter
                     ).all()
                     
                     consumed_quantity = sum(detail.quantity for detail in price_details) if price_details else 0
                     
                     if consumed_quantity > 0:
                         db.session.rollback()
-                        return operation_result(400, "error", f"Cannot remove item: {consumed_quantity} units of '{item.warehouse.item_name}' have already been sold using FIFO pricing.")
+                        return operation_result(400, "error", f"Cannot remove item: {consumed_quantity} units of '{item.warehouse.item_name}' in location '{location}' have already been sold using FIFO pricing.")
                     
                     # Restore inventory
                     item_location = ItemLocations.query.filter_by(
@@ -412,10 +387,11 @@ def put_purchase(data, invoice, machine, mechanism, invoice_ns):
                             db.session.rollback()
                             return operation_result(400, "error", f"Cannot remove item: Not enough quantity for '{item.warehouse.item_name}' in location '{location}'.")
                     
-                    # Delete price record
+                    # Delete the specific price record for this location
                     price_record = Prices.query.filter_by(
                         invoice_id=invoice.id,
-                        item_id=item_id
+                        item_id=item_id,
+                        location=location  # Location-specific deletion
                     ).first()
                     
                     if price_record:
@@ -429,7 +405,7 @@ def put_purchase(data, invoice, machine, mechanism, invoice_ns):
                 if sales_invoice:
                     recalculate_sales_invoice_total(sales_invoice)
 
-            # Update main invoice fields (remove supplier_id since it's now per item)
+            # Update main invoice fields
             invoice.type = data["type"]
             invoice.client_name = data.get("client_name", invoice.client_name)
             invoice.warehouse_manager = data.get("warehouse_manager", invoice.warehouse_manager)
@@ -442,8 +418,6 @@ def put_purchase(data, invoice, machine, mechanism, invoice_ns):
             invoice.employee_name = data.get("employee_name", invoice.employee_name)
             invoice.payment_method = data.get("payment_method", invoice.payment_method)
             invoice.custody_person = data.get("custody_person", invoice.custody_person)
-            
-            # Remove invoice-level supplier since suppliers are now per item
             invoice.supplier_id = None
             
             if machine:
@@ -470,37 +444,64 @@ def put_purchase(data, invoice, machine, mechanism, invoice_ns):
 
 def recalculate_sales_invoice_total(sales_invoice):
     """
-    Recalculate the total amount for a sales invoice based on updated price details.
+    SIMPLE AND DIRECT: No complex JOINs, just map FIFO details to locations
     """
     try:
-        total_amount = 0
         
-        # Get all invoice items for this sales invoice
-        for invoice_item in sales_invoice.items:
-            # Recalculate item total based on updated price details
-            price_details = InvoicePriceDetail.query.filter_by(
-                invoice_id=sales_invoice.id,
-                item_id=invoice_item.item_id
-            ).all()
+        # Step 1: Get all FIFO price details for this invoice
+        price_details = InvoicePriceDetail.query.filter_by(
+            invoice_id=sales_invoice.id
+        ).all()
+        
+        if not price_details:
+            return
+        
+        # Step 2: Group FIFO details by source location
+        location_totals = {}
+        
+        for detail in price_details:
+            location = detail.source_price_location
             
-            if price_details:
-                # Calculate new total from price details
-                item_total = sum(detail.subtotal for detail in price_details)
-                new_unit_price = item_total / invoice_item.quantity if invoice_item.quantity > 0 else 0
-                
-                # Update the invoice item
-                invoice_item.unit_price = round(new_unit_price, 3)
-                invoice_item.total_price = round(item_total, 3)
-                
-                total_amount += item_total
-            else:
-                total_amount += invoice_item.total_price
+            if location not in location_totals:
+                location_totals[location] = {
+                    'total_subtotal': 0,
+                    'total_quantity': 0
+                }
+            
+            location_totals[location]['total_subtotal'] += detail.subtotal
+            location_totals[location]['total_quantity'] += detail.quantity
         
-        # Update the sales invoice totals
-        sales_invoice.total_amount = round(total_amount, 3)
+        
+        # Step 3: Update each invoice item with its location's FIFO total
+        total_invoice_amount = 0
+        
+        for invoice_item in sales_invoice.items:
+            location = invoice_item.location
+            
+            if location in location_totals:
+                # Use the exact FIFO total for this location
+                fifo_data = location_totals[location]
+                fifo_subtotal = fifo_data['total_subtotal']
+                fifo_quantity = fifo_data['total_quantity']
+                
+                # Calculate unit price from FIFO
+                fifo_unit_price = round(fifo_subtotal / fifo_quantity, 3) if fifo_quantity > 0 else 0
+                
+                # Update invoice item
+                invoice_item.unit_price = fifo_unit_price
+                invoice_item.total_price = round(fifo_subtotal, 3)
+                
+                total_invoice_amount += fifo_subtotal
+                
+            else:
+                total_invoice_amount += invoice_item.total_price
+        
+        # Step 4: Update invoice totals
+        sales_invoice.total_amount = round(total_invoice_amount, 3)
         sales_invoice.residual = round(sales_invoice.total_amount - sales_invoice.paid, 3)
         
         db.session.add(sales_invoice)
+        
         
     except Exception as e:
         raise Exception(f"Error recalculating sales invoice {sales_invoice.id}: {str(e)}")
