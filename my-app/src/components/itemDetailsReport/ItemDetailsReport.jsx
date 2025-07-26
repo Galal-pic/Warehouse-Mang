@@ -605,7 +605,8 @@ const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
             headerName: "سعر الوحدة",
             flex: 1,
             renderCell: (params) =>
-              params.row.invoice_type === "طلب شراء"
+              params.row.invoice_type === "طلب شراء" ||
+              params.row.invoice_type === "تحويل"
                 ? "-"
                 : params.value || "0",
           },
@@ -613,7 +614,16 @@ const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
       : []),
 
     { field: "quantity", headerName: "الكمية", flex: 1 },
-    { field: "location", headerName: "الموقع", flex: 1 },
+    {
+      field: "location",
+      headerName: "الموقع",
+      flex: 1,
+      renderCell: (params) => {
+        const field =
+          params.row.invoice_type === "تحويل" ? "new_location" : "location";
+        return params.row[field];
+      },
+    },
     {
       field: "machine",
       headerName: "الماكينة",

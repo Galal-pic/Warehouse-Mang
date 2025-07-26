@@ -840,7 +840,6 @@ export default function InvoiceModal({
                       row.item_name
                     )}
                   </TableCell>
-                  {/* بقية الخلايا كما هي */}
                   <TableCell className={styles.tableCellRow}>
                     {row.barcode}
                   </TableCell>
@@ -1083,18 +1082,7 @@ export default function InvoiceModal({
                     </TableCell>
                   )}
                   {canEsterdad && isAmanatType && (
-                    <TableCell
-                      className={styles.tableCellRow}
-                      sx={{
-                        position: "relative",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        minWidth: "80px",
-                        padding: "8px",
-                        transition: "all 0.3s ease",
-                      }}
-                    >
+                    <TableCell className={styles.tableCellRow}>
                       {((isInitialLoading || loadingItems[index]) &&
                         !isFetchError) ||
                       selectedInvoice?.items[index]?.is_fully_returned ===

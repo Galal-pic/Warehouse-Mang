@@ -126,9 +126,11 @@ export default function Invoices() {
         itemsNames: invoice.items.map((item) => item.item_name).join(", "),
         date: invoice.created_at.split(" ")[0],
         time: formatTime(invoice.created_at),
-        classname: invoice.items.some((item) => item.total_price === 0)
-          ? "zero-total-price"
-          : "",
+        classname:
+          invoice.items.some((item) => item.total_price === 0) &&
+          invoice?.type !== "تحويل"
+            ? "zero-total-price"
+            : "",
       };
     });
   }, [invoicesData.invoices]);
@@ -692,7 +694,14 @@ export default function Invoices() {
 
         if (type === "طلب شراء" && rawStatus === "draft") {
           return (
-            <div style={{ display: "flex", gap: "8px" }}>
+            <div
+              style={{
+                display: "flex",
+                gap: "8px",
+                justifyContent: "center",
+                marginTop: "4px",
+              }}
+            >
               <Button
                 variant="contained"
                 color="success"
@@ -1078,7 +1087,8 @@ export default function Invoices() {
                     </div>
                   )}
                   {(user?.view_prices || user?.username === "admin") &&
-                    selectedInvoice?.type !== "طلب شراء" && (
+                    selectedInvoice?.type !== "طلب شراء" &&
+                    selectedInvoice?.type !== "تحويل" && (
                       <button
                         onClick={() => setShow(!show)}
                         className={styles.iconBtn}
@@ -1190,18 +1200,23 @@ export default function Invoices() {
           >
             <DialogTitle>سبب رفض الفاتورة</DialogTitle>
             <DialogContent>
-              <TextField
+              <textarea
                 autoFocus
-                margin="dense"
-                label="سبب الرفض"
-                fullWidth
-                multiline
+                style={{
+                  margin: "dense",
+                  width: "250px",
+                  textAlign: "right",
+                  padding: "10px 10px",
+                }}
+                placeholder="سبب الرفض"
                 rows={4}
                 value={rejectReason}
                 onChange={(e) => setRejectReason(e.target.value)}
               />
             </DialogContent>
-            <DialogActions>
+            <DialogActions
+              sx={{ display: "flex", justifyContent: "space-around" }}
+            >
               <Button
                 onClick={() => setRejectDialogOpen(false)}
                 color="primary"

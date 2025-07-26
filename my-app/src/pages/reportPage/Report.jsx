@@ -826,8 +826,8 @@ export default function Report() {
               params?.row?.type !== "اضافه" &&
               params?.row?.type !== "مرتجع" &&
               params?.row?.type !== "طلب شراء" &&
-              params.row.type !== "اضافه" &&
-              params.row.type !== "طلب شراء" && (
+              params?.row?.type !== "اضافه" &&
+              params?.row?.type !== "تحويل" && (
                 <button
                   onClick={() => showInvoiceDetails(params.row)}
                   style={{
@@ -861,7 +861,8 @@ export default function Report() {
             headerName: "الإجمالى",
             flex: 1,
             renderCell: (params) =>
-              params.row.invoice_type === "طلب شراء"
+              params.row.invoice_type === "طلب شراء" ||
+              params.row.invoice_type === "تحويل"
                 ? "-"
                 : params.value || "0",
           },
@@ -971,6 +972,7 @@ export default function Report() {
         "توالف",
         "حجز",
         "طلب شراء",
+        "تحويل",
         "الكل",
       ].map((name) => ({ name })),
       "اسم الموظف":
@@ -2036,7 +2038,8 @@ export default function Report() {
               {selectedInvoice ? (
                 <>
                   {(user?.view_prices || user?.username === "admin") &&
-                    selectedInvoice?.type !== "طلب شراء" && (
+                    selectedInvoice?.type !== "طلب شراء" &&
+                    selectedInvoice?.type !== "تحويل" && (
                       <Button
                         onClick={() => setShow(!show)}
                         sx={{

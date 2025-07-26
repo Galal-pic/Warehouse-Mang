@@ -74,6 +74,11 @@ export const filtersTypes = (user) => {
       type: "operation",
       url: "/invoice/طلب شراء",
     },
+    (user?.username === "admin") && {
+      label: "تحويل",
+      type: "operation",
+      url: "/invoice/تحويل",
+    },
     // user?.username === "admin" &&
     {
       label: "لم تراجع",
