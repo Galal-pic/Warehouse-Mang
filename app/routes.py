@@ -673,65 +673,40 @@ class ConfirmInvoice(Resource):
         db.session.commit()
         return {"message": f"Invoice status updated to '{invoice.status}'"}, 200
 
+
 @invoice_ns.route('/fifo-prices/<int:item_id>')
 class FifoPriceList(Resource):
     @jwt_required()
     def get(self, item_id):
-        """Get FIFO price records for a specific item (updated with location support)"""
+        """Get FIFO price records for a specific item"""
         # Get the item
         item = Warehouse.query.get_or_404(item_id)
         
         # Get all price records for this item ordered by creation date (oldest first for FIFO)
-        # Now grouped by location
-        price_entries = Prices.query.filter_by(item_id=item_id).order_by(
-            Prices.location.asc(), 
-            Prices.invoice_id.asc()
-        ).all()
+        price_entries = Prices.query.filter_by(item_id=item_id).order_by(Prices.invoice_id.asc()).all()
         
-        # Group results by location
-        locations = {}
-        total_quantity = 0
-        total_value = 0
-        
+        result = []
         for price in price_entries:
             if price.quantity > 0:  # Only include records with positive quantity
                 # Get source invoice information
                 source_invoice = Invoice.query.get(price.invoice_id)
                 
-                if price.location not in locations:
-                    locations[price.location] = {
-                        'location': price.location,
-                        'price_records': [],
-                        'total_quantity': 0,
-                        'total_value': 0
-                    }
-                
-                price_record = {
-                    'price_id': f"{price.invoice_id}-{price.item_id}-{price.location}",  # Composite key
+                result.append({
+                    'price_id': price.invoice_id,  # This is actually a composite primary key
                     'invoice_id': price.invoice_id,
                     'invoice_type': source_invoice.type if source_invoice else 'Unknown',
                     'invoice_date': source_invoice.created_at.strftime('%Y-%m-%d %H:%M:%S') if source_invoice else None,
                     'quantity': price.quantity,
                     'unit_price': price.unit_price,
-                    'value': price.quantity * price.unit_price,
-                    'created_at': price.created_at.strftime('%Y-%m-%d %H:%M:%S')
-                }
-                
-                locations[price.location]['price_records'].append(price_record)
-                locations[price.location]['total_quantity'] += price.quantity
-                locations[price.location]['total_value'] += price_record['value']
-                
-                total_quantity += price.quantity
-                total_value += price_record['value']
+                    'created_at': price.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                    'location': price.location
+                })
         
         return {
             'item_id': item_id,
             'item_name': item.item_name,
             'item_bar': item.item_bar,
-            'total_quantity': total_quantity,
-            'total_value': total_value,
-            'average_unit_price': total_value / total_quantity if total_quantity > 0 else 0,
-            'locations': list(locations.values())
+            'price_records': result
         }, 200
     
 @invoice_ns.route('/<int:invoice_id>/ReturnWarranty')
