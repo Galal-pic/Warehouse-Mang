@@ -1,5 +1,5 @@
 from datetime import datetime
-from ..models import Invoice, Warehouse, ItemLocations, InvoiceItem, Prices
+from ..models import Invoice, Warehouse, ItemLocations, InvoiceItem, Prices, InvoicePriceDetail
 from .. import db
 from sqlalchemy.exc import SQLAlchemyError
 from ..utils import operation_result
@@ -10,7 +10,7 @@ def Transfer_Operations(data, machine, mechanism, supplier, employee, machine_ns
     Create a transfer invoice (تحويل type).
     Transfer operations move inventory from one location to another without changing quantities or prices.
     They maintain the same total inventory but change the distribution across locations.
-    ENHANCED: Updates both price records AND invoice items in the original purchase invoices.
+    FIXED: Properly handles foreign key constraints with InvoicePriceDetail records.
     """
     try:
         # Create new invoice
@@ -137,6 +137,13 @@ def Transfer_Operations(data, machine, mechanism, supplier, employee, machine_ns
                     affected_purchase_invoices[purchase_invoice_id]['transferred_quantities'][new_location] = 0
                 affected_purchase_invoices[purchase_invoice_id]['transferred_quantities'][new_location] += quantity_to_transfer
                 
+                # FIXED: Check if this price record is referenced by InvoicePriceDetail before modifying
+                price_detail_references = InvoicePriceDetail.query.filter_by(
+                    source_price_invoice_id=source_price.invoice_id,
+                    source_price_item_id=source_price.item_id,
+                    source_price_location=source_price.location
+                ).first()
+                
                 # Reduce the source price record quantity
                 source_price.quantity -= quantity_to_transfer
                 
@@ -164,16 +171,22 @@ def Transfer_Operations(data, machine, mechanism, supplier, employee, machine_ns
                 
                 remaining_to_transfer -= quantity_to_transfer
                 
-                # If source price record is empty, delete it
+                # FIXED: Only delete source price record if it's empty AND not referenced by InvoicePriceDetail
                 if source_price.quantity <= 0:
-                    db.session.delete(source_price)
+                    if not price_detail_references:
+                        # Safe to delete - no foreign key references
+                        db.session.delete(source_price)
+                    else:
+                        # Keep the record with zero quantity to maintain foreign key integrity
+                        # The price record will remain but with 0 quantity
+                        pass
             
             # Check if we transferred all requested quantity
             if remaining_to_transfer > 0:
                 db.session.rollback()
                 return operation_result(400, "error", f"Insufficient price records for transferring {requested_quantity} units of '{item_data['item_name']}' from '{item_data['location']}'. Missing price data for {remaining_to_transfer} units.")
             
-            # ENHANCED: Update the original purchase invoice items
+            # Update the original purchase invoice items
             for purchase_invoice_id, transfer_data in affected_purchase_invoices.items():
                 unit_price = transfer_data['unit_price']
                 
@@ -189,9 +202,19 @@ def Transfer_Operations(data, machine, mechanism, supplier, employee, machine_ns
                         source_invoice_item.quantity -= transferred_qty
                         source_invoice_item.total_price = source_invoice_item.quantity * source_invoice_item.unit_price
                         
-                        # If source invoice item is empty, delete it
+                        # FIXED: Only delete invoice item if it's empty AND the corresponding price record was deleted
                         if source_invoice_item.quantity <= 0:
-                            db.session.delete(source_invoice_item)
+                            # Check if there's still a price record (even with 0 quantity)
+                            remaining_price = Prices.query.filter_by(
+                                invoice_id=purchase_invoice_id,
+                                item_id=warehouse_item.id,
+                                location=item_data['location']
+                            ).first()
+                            
+                            if not remaining_price:
+                                # Safe to delete invoice item since price record was also deleted
+                                db.session.delete(source_invoice_item)
+                            # If price record still exists (with 0 quantity), keep invoice item with 0 quantity too
                     
                     # Create or update destination invoice item in the same purchase invoice
                     dest_invoice_item = InvoiceItem.query.filter_by(
