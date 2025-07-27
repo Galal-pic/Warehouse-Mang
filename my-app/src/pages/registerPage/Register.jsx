@@ -118,6 +118,7 @@ export default function Register() {
         // can_update_prices: false,
         can_recover_deposits: false,
         view_purchase_requests: false,
+        view_transfers: false,
         view_reports: false,
       },
       items: {},

@@ -74,7 +74,7 @@ export const filtersTypes = (user) => {
       type: "operation",
       url: "/invoice/طلب شراء",
     },
-    (user?.username === "admin") && {
+    (hasPermission("view_transfers") || user?.username === "admin") && {
       label: "تحويل",
       type: "operation",
       url: "/invoice/تحويل",
@@ -114,7 +114,7 @@ export default function FilterTabs({
   setPaginationModel,
 }) {
   const { data: user = {} } = useGetUserQuery();
-  const [value, setValue] = React.useState(10);
+  const [value, setValue] = React.useState(11);
   const filters = React.useMemo(() => filtersTypes(user), [user]);
 
   // Create a theme with RTL support
@@ -125,7 +125,7 @@ export default function FilterTabs({
   React.useEffect(() => {
     // Reset to first tab if current value is out of bounds
     if (value >= filters.length) {
-      setValue(10);
+      setValue(11);
     }
   }, [filters, value]);
 

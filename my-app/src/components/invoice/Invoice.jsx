@@ -359,21 +359,22 @@ export default function InvoiceModal({
           );
           if (originalItem) {
             // Filter locations to only those in the original invoice
-            availableLocations = availableLocations.filter((loc) =>
-              originalInvoice.items.some(
-                (oi) =>
-                  oi.item_name.trim().toLowerCase() ===
-                    item.item_name?.trim()?.toLowerCase() &&
-                  oi.location === loc.location
-              )
-            );
+            // availableLocations = availableLocations.filter((loc) =>
+            //   originalInvoice.items.some(
+            //     (oi) =>
+            //       oi.item_name.trim().toLowerCase() ===
+            //         item.item_name?.trim()?.toLowerCase() &&
+            //       oi.location === loc.location
+            //   )
+            // );
             // Set maxquantity, unit_price, and total_price based on the original invoice
             if (item.location) {
               const originalLocationItem = originalInvoice.items.find(
                 (oi) =>
                   oi.item_name.trim().toLowerCase() ===
-                    item.item_name?.trim()?.toLowerCase() &&
-                  oi.location === item.location
+                    item.item_name?.trim()?.toLowerCase()
+                    // && oi.location === item.location
+                  
               );
               maxquantity = originalLocationItem
                 ? originalLocationItem.quantity
@@ -392,7 +393,6 @@ export default function InvoiceModal({
             warehouseItem?.locations?.find(
               (loc) => loc.location === item.location
             )?.quantity || 0;
-          // إضافة شرط isCreate
           if (!isCreate && selectedInvoice?.items) {
             const selectedInvoiceItem = selectedInvoice.items.find(
               (si) =>
@@ -880,16 +880,16 @@ export default function InvoiceModal({
                               editingInvoice?.type === "مرتجع") &&
                             originalInvoice?.items
                           ) {
-                            const originalLocationItem =
-                              originalInvoice.items.find(
-                                (oi) =>
-                                  oi.item_name.trim().toLowerCase() ===
-                                    row.item_name?.trim()?.toLowerCase() &&
-                                  oi.location === newItem.location
-                              );
-                            maxquantity = originalLocationItem
-                              ? originalLocationItem.quantity
-                              : 0;
+                            // const originalLocationItem =
+                            //   originalInvoice.items.find(
+                            //     (oi) =>
+                            //       oi.item_name.trim().toLowerCase() ===
+                            //         row.item_name?.trim()?.toLowerCase() &&
+                            //       oi.location === newItem.location
+                            //   );
+                            // maxquantity = originalLocationItem
+                            //   ? originalLocationItem.quantity
+                            //   : 0;
                           } else {
                             maxquantity = newItem?.quantity || 0;
                           }

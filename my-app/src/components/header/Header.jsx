@@ -169,6 +169,7 @@ export default function Header() {
         user?.view_returns ||
         user?.view_damages ||
         user?.view_reservations ||
+        user?.view_transfers ||
         user?.view_purchase_requests
       );
     if (link.text === "تقارير")

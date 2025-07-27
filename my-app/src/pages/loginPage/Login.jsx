@@ -89,11 +89,13 @@ const Login = () => {
         updatedUser?.view_deposits ||
         updatedUser?.view_returns ||
         updatedUser?.view_damages ||
-        updatedUser?.view_reservations
+        updatedUser?.view_reservations ||
+        updatedUser?.view_transfers ||
+        updatedUser?.view_purchase_requests
       ) {
         navigate("/invoices");
       } else if (updatedUser?.view_reports) {
-        navigate("/others/supliers");
+        navigate("/others/reports");
       } else if (
         updatedUser?.items_can_edit ||
         updatedUser?.items_can_delete ||

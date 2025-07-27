@@ -361,11 +361,13 @@ export default function CreateInvoice() {
         }));
       }
     } catch (error) {
-      const m = error?.data?.message?.includes("exceeds")
-        ? "الكمية التى يتم ارجاعها تفوق الحد المسموح"
-        : error?.status === "FETCH_ERROR"
-        ? "خطأ في الوصول إلى قاعدة البيانات"
-        : "حدث خطأ، الرجاء المحاولة مرة أخرى أو إعادة تحميل الصفحة";
+      const m =
+        error?.data?.message?.includes("exceeds") ||
+        error?.data?.message?.includes("enough")
+          ? "الكمية التى يتم ارجاعها تفوق الحد المسموح"
+          : error?.status === "FETCH_ERROR"
+          ? "خطأ في الوصول إلى قاعدة البيانات"
+          : "حدث خطأ، الرجاء المحاولة مرة أخرى أو إعادة تحميل الصفحة";
       setSnackbar({
         open: true,
         message: m,

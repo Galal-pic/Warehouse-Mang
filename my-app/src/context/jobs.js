@@ -23,6 +23,7 @@ export const InvoicesPageOptions = {
   view_reservations: "عرض الحجوزات",
   view_prices: "عرض الأسعار",
   view_purchase_requests: "عرض طلبات الشراء",
+  view_transfers: "عرض التحويلات",
   view_reports: "إمكانية عمل تقرير",
   can_edit: "التعديل",
   can_delete: "الحذف",

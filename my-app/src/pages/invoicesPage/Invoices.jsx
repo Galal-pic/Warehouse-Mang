@@ -298,7 +298,10 @@ export default function Invoices() {
         setOpenSnackbar(true);
         setSnackbarMessage("خطأ في الوصول إلى قاعدة البيانات");
         setSnackBarType("error");
-      } else if (error?.data?.message?.includes("exceeds")) {
+      } else if (
+        error?.data?.message?.includes("exceeds") ||
+        error?.data?.message?.includes("enough")
+      ) {
         setOpenSnackbar(true);
         setSnackbarMessage("الكمية التى يتم ارجاعها تفوق الحد المسموح");
         setSnackBarType("error");
@@ -395,6 +398,7 @@ export default function Invoices() {
     setIsModalOpen(true);
   };
   const closeModal = () => {
+    setShow(false);
     setSelectedInvoice(null);
     setIsModalOpen(false);
     setEditingInvoice(null);
@@ -951,6 +955,8 @@ export default function Invoices() {
       user?.view_returns ||
       user?.view_damages ||
       user?.view_reservations ||
+      user?.view_purchase_requests ||
+      user?.view_transfers ||
       user?.username === "admin"
     ) {
       return (

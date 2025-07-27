@@ -43,6 +43,7 @@ const EditUser = ({ open, onClose, user: initialUser }) => {
           view_reports: user.view_reports,
           can_recover_deposits: user.can_recover_deposits,
           view_purchase_requests: user.view_purchase_requests,
+          view_transfers: user.view_transfers,
         },
         items: {
           items_can_edit: user.items_can_edit,
@@ -214,6 +215,7 @@ const EditUser = ({ open, onClose, user: initialUser }) => {
       view_prices: edittingUser.permissions.manageOperations.view_prices,
       view_purchase_requests:
         edittingUser.permissions.manageOperations.view_purchase_requests,
+      view_transfers: edittingUser.permissions.manageOperations.view_transfers,
       can_edit: edittingUser.permissions.manageOperations.can_edit,
       can_delete: edittingUser.permissions.manageOperations.can_delete,
       can_confirm_withdrawal:
@@ -280,6 +282,8 @@ const EditUser = ({ open, onClose, user: initialUser }) => {
         view_reports: edittingUser.permissions.manageOperations.view_reports,
         view_purchase_requests:
           edittingUser.permissions.manageOperations.view_purchase_requests,
+        view_transfers:
+          edittingUser.permissions.manageOperations.view_transfers,
         can_recover_deposits:
           edittingUser.permissions.manageOperations.can_recover_deposits,
         items_can_edit: edittingUser.permissions.items.items_can_edit,
