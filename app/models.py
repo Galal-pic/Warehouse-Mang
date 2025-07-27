@@ -23,6 +23,8 @@ class Employee(db.Model):
     view_prices = db.Column(db.Boolean, default=False)
     view_purchase_requests = db.Column(db.Boolean, default=False)
     view_reports = db.Column(db.Boolean, default=False)
+    view_transfers = db.Column(db.Boolean, default=False)
+    
     
     view_zero_valued = db.Column(db.Boolean, default=False)
     view_confirmed = db.Column(db.Boolean, default=False)
@@ -141,6 +143,7 @@ class InvoiceItem(db.Model):
     total_price = db.Column(db.Float, nullable=True)
     unit_price = db.Column(db.Float, nullable=True)
     description = db.Column(db.Text)
+    new_location = db.Column(db.String(255), nullable=True)
     
     # NEW: Add supplier information per item
     supplier_id = db.Column(db.Integer, db.ForeignKey('supplier.id'), nullable=True)

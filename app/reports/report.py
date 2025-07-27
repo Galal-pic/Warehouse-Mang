@@ -672,6 +672,212 @@ class FilterReports(Resource):
             "results": result
         }, 200
     
+    def _serialize_invoices(self, invoices):
+        """Serialize invoices data with warranty return information and supplier per item"""
+        serialized_invoices = []
+        for invoice in invoices:
+            invoice_data = {
+                "id": invoice.id,
+                "type": invoice.type,
+                "created_at": serialize_value(invoice.created_at),
+                "client_name": invoice.client_name,
+                "warehouse_manager": invoice.warehouse_manager,
+                "accreditation_manager": invoice.accreditation_manager,
+                "total_amount": invoice.total_amount,
+                "paid": invoice.paid,
+                "residual": invoice.residual,
+                "comment": invoice.comment,
+                "status": invoice.status,
+                "employee_name": invoice.employee_name,
+                "machine": invoice.machine.name if invoice.machine else None,
+                "mechanism": invoice.mechanism.name if invoice.mechanism else None,
+                # Remove invoice-level supplier since it's now per item
+            }
+            
+            # Enhanced items with warranty return information and supplier info
+            items_with_return_info = []
+            suppliers_used = set()  # Track unique suppliers for summary
+            
+            for item in invoice.items:
+                # Get supplier information for this item
+                supplier_name = None
+                supplier_id = None
+                if hasattr(item, 'supplier_id') and item.supplier_id:
+                    supplier = Supplier.query.get(item.supplier_id)
+                    if supplier:
+                        supplier_name = supplier.name
+                        supplier_id = supplier.id
+                        suppliers_used.add(supplier_name)
+                elif hasattr(item, 'supplier_name') and item.supplier_name:
+                    supplier_name = item.supplier_name
+                    suppliers_used.add(supplier_name)
+                
+                # Get return history for warranty invoices
+                returned_quantity = 0
+                return_history = []
+                
+                if invoice.type == 'أمانات':
+                    item_returns = WarrantyReturn.query.filter_by(
+                        warranty_invoice_id=invoice.id,
+                        item_id=item.item_id,
+                        location=item.location
+                    ).all()
+                    
+                    returned_quantity = sum(wr.returned_quantity for wr in item_returns)
+                    return_history = [{
+                        "returned_quantity": wr.returned_quantity,
+                        "return_date": serialize_value(wr.return_date),
+                        "returned_by": wr.returned_by.username,
+                        "notes": wr.notes
+                    } for wr in item_returns]
+                
+                # NEW: Add transfer information for transfer invoices
+                transfer_info = None
+                if invoice.type == 'تحويل' and hasattr(item, 'new_location') and item.new_location:
+                    transfer_info = {
+                        "from_location": item.location,
+                        "to_location": item.new_location,
+                        "is_transfer": True,
+                        "affected_purchase_invoices": []
+                    }
+                    
+                    # Find which purchase invoices were affected by this transfer
+                    affected_prices = Prices.query.filter_by(
+                        item_id=item.item_id,
+                        location=item.new_location
+                    ).all()
+                    
+                    for price in affected_prices:
+                        if price.invoice_id not in transfer_info["affected_purchase_invoices"]:
+                            transfer_info["affected_purchase_invoices"].append(price.invoice_id)
+                
+                # NEW: For purchase invoices, show location distribution
+                location_distribution = None
+                if invoice.type == 'اضافه':
+                    # Check if this item has been split across multiple locations
+                    all_price_records = Prices.query.filter_by(
+                        invoice_id=invoice.id,
+                        item_id=item.item_id
+                    ).all()
+                    
+                    if len(all_price_records) > 1:
+                        location_distribution = {
+                            "total_locations": len(all_price_records),
+                            "locations": [{
+                                "location": pr.location,
+                                "quantity": pr.quantity,
+                                "unit_price": pr.unit_price
+                            } for pr in all_price_records],
+                            "is_split": True
+                        }
+                    elif len(all_price_records) == 1:
+                        location_distribution = {
+                            "total_locations": 1,
+                            "locations": [{
+                                "location": all_price_records[0].location,
+                                "quantity": all_price_records[0].quantity,
+                                "unit_price": all_price_records[0].unit_price
+                            }],
+                            "is_split": False
+                        }
+                
+                items_with_return_info.append({
+                    "item_name": item.warehouse.item_name,
+                    "item_bar": item.warehouse.item_bar,
+                    "location": item.location,
+                    "quantity": item.quantity,
+                    "unit_price": item.unit_price,
+                    "total_price": item.total_price,
+                    "description": item.description,
+                    "supplier_name": supplier_name,  # NEW: supplier per item
+                    "supplier_id": supplier_id,      # NEW: supplier ID per item
+                    "returned_quantity": returned_quantity,
+                    "remaining_quantity": item.quantity - returned_quantity,
+                    "return_history": return_history,
+                    "transfer_info": transfer_info,  # NEW: transfer information
+                    "location_distribution": location_distribution,  # NEW: location distribution for purchases
+                    "new_location": getattr(item, 'new_location', None)  # NEW: destination for transfers
+                })
+            
+            invoice_data["items"] = items_with_return_info
+            invoice_data["suppliers_summary"] = list(suppliers_used)  # NEW: Summary of suppliers used
+            
+            # Add warranty return summary for warranty invoices
+            if invoice.type == 'أمانات':
+                all_warranty_returns = WarrantyReturn.query.filter_by(warranty_invoice_id=invoice.id).all()
+                invoice_data["warranty_return_summary"] = {
+                    "total_returns": len(all_warranty_returns),
+                    "total_returned_items": sum(wr.returned_quantity for wr in all_warranty_returns)
+                }
+            
+            # NEW: Add transfer summary for transfer invoices
+            if invoice.type == 'تحويل':
+                total_transferred_items = len(invoice.items)
+                total_transferred_quantity = sum(item.quantity for item in invoice.items)
+                unique_source_locations = set(item.location for item in invoice.items)
+                unique_dest_locations = set(getattr(item, 'new_location', None) for item in invoice.items if hasattr(item, 'new_location'))
+                
+                # Find affected purchase invoices
+                affected_purchase_invoices = set()
+                for item in invoice.items:
+                    item_prices = Prices.query.filter_by(item_id=item.item_id).all()
+                    for price in item_prices:
+                        affected_purchase_invoices.add(price.invoice_id)
+                
+                invoice_data["transfer_summary"] = {
+                    "total_transferred_items": total_transferred_items,
+                    "total_transferred_quantity": total_transferred_quantity,
+                    "unique_source_locations": list(unique_source_locations),
+                    "unique_destination_locations": list(unique_dest_locations),
+                    "affected_purchase_invoices": list(affected_purchase_invoices)
+                }
+            
+            # NEW: Add purchase summary for purchase invoices showing location distribution
+            if invoice.type == 'اضافه':
+                location_summary = {}
+                total_split_items = 0
+                
+                for item in invoice.items:
+                    # Check how many locations this item exists in for this purchase
+                    price_records = Prices.query.filter_by(
+                        invoice_id=invoice.id,
+                        item_id=item.item_id
+                    ).all()
+                    
+                    if len(price_records) > 1:
+                        total_split_items += 1
+                    
+                    for price_record in price_records:
+                        if price_record.location not in location_summary:
+                            location_summary[price_record.location] = {
+                                "total_items": 0,
+                                "total_quantity": 0,
+                                "total_value": 0
+                            }
+                        
+                        location_summary[price_record.location]["total_items"] += 1
+                        location_summary[price_record.location]["total_quantity"] += price_record.quantity
+                        location_summary[price_record.location]["total_value"] += price_record.quantity * price_record.unit_price
+                
+            
+            # Add ReturnSales information if invoice type is "مرتجع"
+            if invoice.type == "مرتجع":
+                return_sales_record = ReturnSales.query.filter_by(return_invoice_id=invoice.id).first()
+                if return_sales_record:
+                    original_invoice = return_sales_record.sales_invoice
+                    invoice_data['return_sales_info'] = {
+                        'original_invoice_id': return_sales_record.sales_invoice_id,
+                        'original_invoice_type': original_invoice.type if original_invoice else None,
+                        'original_invoice_date': serialize_value(original_invoice.created_at) if original_invoice else None,
+                        'original_client_name': original_invoice.client_name if original_invoice else None,
+                        'original_total_amount': original_invoice.total_amount if original_invoice else None
+                    }
+                else:
+                    invoice_data['return_sales_info'] = None
+            
+            serialized_invoices.append(invoice_data)
+        return serialized_invoices
+    
     def _filter_invoices(self, args, start_date, end_date, page_size, offset, all_results):
         """Filter invoices based on provided parameters"""
         # Start with base query with DESC ordering
@@ -791,6 +997,53 @@ class FilterReports(Resource):
                         "notes": wr.notes
                     } for wr in item_returns]
                 
+                # NEW: Add transfer history for transferred items
+                transfer_history = []
+                if hasattr(item, 'new_location') and item.new_location:
+                    # This item was transferred to a new location
+                    transfer_history.append({
+                        "transfer_type": "outgoing",
+                        "from_location": item.location,
+                        "to_location": item.new_location,
+                        "quantity": item.quantity,
+                        "transfer_date": serialize_value(invoice.created_at)
+                    })
+                
+                # Check if this item was transferred FROM other locations (for transfer invoices)
+                if invoice.type == 'تحويل':
+                    # Look for items in purchase invoices that were split due to this transfer
+                    original_items = InvoiceItem.query.join(Invoice).filter(
+                        and_(
+                            Invoice.type == 'اضافه',  # Purchase invoices
+                            InvoiceItem.item_id == item.item_id,
+                            InvoiceItem.location == item.new_location if hasattr(item, 'new_location') else None
+                        )
+                    ).all()
+                    
+                    for orig_item in original_items:
+                        # Check if this purchase invoice has matching price records in both locations
+                        source_prices = Prices.query.filter_by(
+                            invoice_id=orig_item.invoice_id,
+                            item_id=item.item_id,
+                            location=item.location
+                        ).first()
+                        
+                        dest_prices = Prices.query.filter_by(
+                            invoice_id=orig_item.invoice_id,
+                            item_id=item.item_id,
+                            location=item.new_location if hasattr(item, 'new_location') else None
+                        ).first()
+                        
+                        if source_prices and dest_prices:
+                            transfer_history.append({
+                                "transfer_type": "incoming",
+                                "from_location": item.location,
+                                "to_location": item.new_location if hasattr(item, 'new_location') else None,
+                                "quantity": orig_item.quantity,
+                                "original_purchase_invoice": orig_item.invoice_id,
+                                "transfer_date": serialize_value(invoice.created_at)
+                            })
+                
                 item_data = {
                     "item_name": item.warehouse.item_name,
                     "item_bar": item.warehouse.item_bar,
@@ -803,7 +1056,9 @@ class FilterReports(Resource):
                     "supplier_id": supplier_id,      # NEW: supplier ID per item
                     "returned_quantity": returned_quantity,
                     "remaining_quantity": item.quantity - returned_quantity,
-                    "return_history": return_history
+                    "return_history": return_history,
+                    "transfer_history": transfer_history,  # NEW: transfer information
+                    "new_location": getattr(item, 'new_location', None)  # NEW: destination location for transfers
                 }
                 items_with_return_info.append(item_data)
             
@@ -837,6 +1092,24 @@ class FilterReports(Resource):
                     "partially_returned_items": partially_returned_items
                 }
             
+            # NEW: Add transfer summary for transfer invoices
+            if invoice.type == 'تحويل':
+                total_transferred_items = len(invoice.items)
+                total_transferred_quantity = sum(item.quantity for item in invoice.items)
+                unique_source_locations = set(item.location for item in invoice.items)
+                unique_dest_locations = set(getattr(item, 'new_location', None) for item in invoice.items if hasattr(item, 'new_location'))
+                
+                invoice_data["transfer_summary"] = {
+                    "total_transferred_items": total_transferred_items,
+                    "total_transferred_quantity": total_transferred_quantity,
+                    "unique_source_locations": list(unique_source_locations),
+                    "unique_destination_locations": list(unique_dest_locations),
+                    "affected_purchase_invoices": list(set(
+                        price.invoice_id for item in invoice.items 
+                        for price in Prices.query.filter_by(item_id=item.item_id).all()
+                    ))
+                }
+            
             # Add ReturnSales information if invoice type is "مرتجع"
             if invoice.type == "مرتجع":
                 return_sales_record = ReturnSales.query.filter_by(return_invoice_id=invoice.id).first()
@@ -864,7 +1137,6 @@ class FilterReports(Resource):
             "pages": (total_count + page_size - 1) // page_size,
             "results": result
         }, 200
-        
     def _filter_items(self, args, start_date, end_date, page_size, offset, all_results):
         """Filter warehouse items based on provided parameters"""
         # Start with base query with DESC ordering
@@ -916,7 +1188,7 @@ class FilterReports(Resource):
             
             invoice_items = invoice_items_query.all()
             
-            # Get pricing history (filter by invoice_id if provided) with DESC ordering
+            # UPDATED: Get pricing history with location information (filter by invoice_id if provided) with DESC ordering
             if args["invoice_id"]:
                 prices = [price for price in item.prices if price.invoice_id == args["invoice_id"]]
             else:
@@ -924,6 +1196,7 @@ class FilterReports(Resource):
             
             prices_serialized = [{
                 "invoice_id": price.invoice_id,
+                "location": price.location,  # NEW: Include location in price history
                 "quantity": price.quantity,
                 "unit_price": price.unit_price,
                 "created_at": serialize_value(price.created_at)
@@ -941,6 +1214,55 @@ class FilterReports(Resource):
                 warranty_returns_query = warranty_returns_query.filter(WarrantyReturn.location.ilike(f"%{args['location']}%"))
                 
             warranty_returns = warranty_returns_query.all()
+            
+            # NEW: Get transfer history for this item
+            transfer_history = []
+            
+            # Find all transfer invoices that involved this item
+            transfer_invoice_items = InvoiceItem.query.join(Invoice).filter(
+                and_(
+                    Invoice.type == 'تحويل',
+                    InvoiceItem.item_id == item.id
+                )
+            ).order_by(desc(Invoice.created_at)).all()
+            
+            for transfer_item in transfer_invoice_items:
+                if hasattr(transfer_item, 'new_location') and transfer_item.new_location:
+                    transfer_history.append({
+                        "transfer_invoice_id": transfer_item.invoice_id,
+                        "transfer_date": serialize_value(transfer_item.invoice.created_at),
+                        "from_location": transfer_item.location,
+                        "to_location": transfer_item.new_location,
+                        "quantity": transfer_item.quantity,
+                        "employee_name": transfer_item.invoice.employee_name,
+                        "status": transfer_item.invoice.status
+                    })
+            
+            # NEW: Analyze price record splits due to transfers
+            price_splits = []
+            
+            # Group prices by invoice_id to see splits
+            price_groups = {}
+            for price in item.prices:
+                if price.invoice_id not in price_groups:
+                    price_groups[price.invoice_id] = []
+                price_groups[price.invoice_id].append(price)
+            
+            for invoice_id, price_records in price_groups.items():
+                if len(price_records) > 1:  # This purchase invoice has been split
+                    purchase_invoice = Invoice.query.get(invoice_id)
+                    if purchase_invoice and purchase_invoice.type == 'اضافه':
+                        price_splits.append({
+                            "purchase_invoice_id": invoice_id,
+                            "purchase_date": serialize_value(purchase_invoice.created_at),
+                            "total_locations": len(price_records),
+                            "locations": [{
+                                "location": pr.location,
+                                "quantity": pr.quantity,
+                                "unit_price": pr.unit_price
+                            } for pr in price_records],
+                            "total_quantity": sum(pr.quantity for pr in price_records)
+                        })
             
             # Build enhanced invoice history with warranty return information and supplier info
             invoice_history = []
@@ -984,6 +1306,15 @@ class FilterReports(Resource):
                     ).all()
                     returned_quantity = sum(wr.returned_quantity for wr in item_returns)
                 
+                # NEW: Add transfer information for this invoice item
+                transfer_info = None
+                if inv_item.invoice.type == 'تحويل' and hasattr(inv_item, 'new_location'):
+                    transfer_info = {
+                        "from_location": inv_item.location,
+                        "to_location": inv_item.new_location,
+                        "is_transfer": True
+                    }
+                
                 invoice_history.append({
                     "invoice_id": inv_item.invoice_id,
                     "invoice_type": inv_item.invoice.type,
@@ -1000,10 +1331,12 @@ class FilterReports(Resource):
                     "mechanism": mechanism_name,  # NEW: mechanism name
                     "mechanism_id": mechanism_id,      # NEW: mechanism ID
                     "returned_quantity": returned_quantity,
-                    "remaining_quantity": inv_item.quantity - returned_quantity
+                    "remaining_quantity": inv_item.quantity - returned_quantity,
+                    "transfer_info": transfer_info,  # NEW: transfer information
+                    "new_location": getattr(inv_item, 'new_location', None)  # NEW: destination for transfers
                 })
             
-            # Build item data with all relevant information including warranty returns
+            # Build item data with all relevant information including warranty returns and transfer data
             item_data = {
                 "id": item.id,
                 "item_name": item.item_name,
@@ -1011,8 +1344,10 @@ class FilterReports(Resource):
                 "created_at": serialize_value(item.created_at),
                 "updated_at": serialize_value(item.updated_at),
                 "locations": locations,
-                "prices": prices_serialized,
+                "prices": prices_serialized,  # Updated with location info
                 "invoice_history": invoice_history,
+                "transfer_history": transfer_history,  # NEW: transfer history
+                "price_splits": price_splits,  # NEW: price split information
                 "warranty_returns": [{
                     "id": wr.id,
                     "warranty_invoice_id": wr.warranty_invoice_id,
@@ -1206,7 +1541,7 @@ class FilterReports(Resource):
             
             invoice_items = invoice_items_query.all()
             
-            # Get pricing history (filter by invoice_id if provided)
+            # UPDATED: Get pricing history with location information (filter by invoice_id if provided)
             prices_query = item.prices
             if args["invoice_id"]:
                 prices = [price for price in prices_query if price.invoice_id == args["invoice_id"]]
@@ -1215,10 +1550,120 @@ class FilterReports(Resource):
             
             prices_serialized = [{
                 "invoice_id": price.invoice_id,
+                "location": price.location,  # NEW: Include location in price history
                 "quantity": price.quantity,
                 "unit_price": price.unit_price,
                 "created_at": serialize_value(price.created_at)
             } for price in prices]
+            
+            # NEW: Get transfer history for this item related to this machine
+            transfer_history = []
+            
+            # Find transfer invoices involving this item and this machine
+            transfer_invoice_items = InvoiceItem.query.join(Invoice).filter(
+                and_(
+                    Invoice.type == 'تحويل',
+                    Invoice.machine_id == machine.id,
+                    InvoiceItem.item_id == item.id
+                )
+            ).order_by(desc(Invoice.created_at)).all()
+            
+            for transfer_item in transfer_invoice_items:
+                if hasattr(transfer_item, 'new_location') and transfer_item.new_location:
+                    transfer_history.append({
+                        "transfer_invoice_id": transfer_item.invoice_id,
+                        "transfer_date": serialize_value(transfer_item.invoice.created_at),
+                        "from_location": transfer_item.location,
+                        "to_location": transfer_item.new_location,
+                        "quantity": transfer_item.quantity,
+                        "employee_name": transfer_item.invoice.employee_name,
+                        "status": transfer_item.invoice.status
+                    })
+            
+            # NEW: Analyze price record splits for this machine's operations
+            machine_price_splits = []
+            
+            # Find purchase invoices made by this machine that have been split
+            machine_purchase_invoices = Invoice.query.filter(
+                and_(
+                    Invoice.machine_id == machine.id,
+                    Invoice.type == 'اضافه'
+                )
+            ).all()
+            
+            for purchase_invoice in machine_purchase_invoices:
+                item_prices = [p for p in item.prices if p.invoice_id == purchase_invoice.id]
+                if len(item_prices) > 1:  # This purchase has been split
+                    machine_price_splits.append({
+                        "purchase_invoice_id": purchase_invoice.id,
+                        "purchase_date": serialize_value(purchase_invoice.created_at),
+                        "total_locations": len(item_prices),
+                        "locations": [{
+                            "location": pr.location,
+                            "quantity": pr.quantity,
+                            "unit_price": pr.unit_price
+                        } for pr in item_prices],
+                        "total_quantity": sum(pr.quantity for pr in item_prices)
+                    })
+            
+            # Build enhanced invoice history with supplier and transfer information
+            enhanced_invoice_history = []
+            for inv_item in invoice_items:
+                # Get supplier information for this item
+                supplier_name = None
+                supplier_id = None
+                if hasattr(inv_item, 'supplier_id') and inv_item.supplier_id:
+                    supplier = Supplier.query.get(inv_item.supplier_id)
+                    if supplier:
+                        supplier_name = supplier.name
+                        supplier_id = supplier.id
+                elif hasattr(inv_item, 'supplier_name') and inv_item.supplier_name:
+                    supplier_name = inv_item.supplier_name
+                
+                # NEW: Add transfer information for this invoice item
+                transfer_info = None
+                if inv_item.invoice.type == 'تحويل' and hasattr(inv_item, 'new_location'):
+                    transfer_info = {
+                        "from_location": inv_item.location,
+                        "to_location": inv_item.new_location,
+                        "is_transfer": True
+                    }
+                
+                # NEW: For purchase invoices, check current location distribution
+                location_distribution = None
+                if inv_item.invoice.type == 'اضافه':
+                    current_price_records = Prices.query.filter_by(
+                        invoice_id=inv_item.invoice_id,
+                        item_id=item.id
+                    ).all()
+                    
+                    if len(current_price_records) > 1:
+                        location_distribution = {
+                            "total_locations": len(current_price_records),
+                            "current_locations": [{
+                                "location": pr.location,
+                                "quantity": pr.quantity,
+                                "unit_price": pr.unit_price
+                            } for pr in current_price_records],
+                            "is_split": True,
+                            "original_location": inv_item.location
+                        }
+                
+                enhanced_invoice_history.append({
+                    "invoice_id": inv_item.invoice_id,
+                    "invoice_type": inv_item.invoice.type,
+                    "invoice_date": serialize_value(inv_item.invoice.created_at),
+                    "location": inv_item.location,
+                    "quantity": inv_item.quantity,
+                    "unit_price": inv_item.unit_price,
+                    "total_price": inv_item.total_price,
+                    "status": inv_item.invoice.status,
+                    "supplier_name": supplier_name,  # NEW: supplier information
+                    "supplier_id": supplier_id,      # NEW: supplier ID
+                    "transfer_info": transfer_info,  # NEW: transfer information
+                    "location_distribution": location_distribution,  # NEW: location distribution
+                    "new_location": getattr(inv_item, 'new_location', None)  # NEW: destination for transfers
+                })
             
             # Build item data
             item_data = {
@@ -1228,17 +1673,10 @@ class FilterReports(Resource):
                 "created_at": serialize_value(item.created_at),
                 "updated_at": serialize_value(item.updated_at),
                 "locations": locations,
-                "prices": prices_serialized,
-                "invoice_history": [{
-                    "invoice_id": inv_item.invoice_id,
-                    "invoice_type": inv_item.invoice.type,
-                    "invoice_date": serialize_value(inv_item.invoice.created_at),
-                    "location": inv_item.location,
-                    "quantity": inv_item.quantity,
-                    "unit_price": inv_item.unit_price,
-                    "total_price": inv_item.total_price,
-                    "status": inv_item.invoice.status
-                } for inv_item in invoice_items],
+                "prices": prices_serialized,  # Updated with location info
+                "invoice_history": enhanced_invoice_history,  # Enhanced with transfer and supplier info
+                "transfer_history": transfer_history,  # NEW: transfer history for this machine
+                "machine_price_splits": machine_price_splits,  # NEW: price splits from this machine's purchases
                 "purchase_requests": [{
                     "id": pr.id,
                     "status": pr.status,
@@ -1281,7 +1719,7 @@ class FilterReports(Resource):
             
             invoice_items = invoice_items_query.all()
             
-            # Get pricing history (filter by invoice_id if provided)
+            # UPDATED: Get pricing history with location information (filter by invoice_id if provided)
             prices_query = item.prices
             if args["invoice_id"]:
                 prices = [price for price in prices_query if price.invoice_id == args["invoice_id"]]
@@ -1290,10 +1728,120 @@ class FilterReports(Resource):
             
             prices_serialized = [{
                 "invoice_id": price.invoice_id,
+                "location": price.location,  # NEW: Include location in price history
                 "quantity": price.quantity,
                 "unit_price": price.unit_price,
                 "created_at": serialize_value(price.created_at)
             } for price in prices]
+            
+            # NEW: Get transfer history for this item related to this mechanism
+            transfer_history = []
+            
+            # Find transfer invoices involving this item and this mechanism
+            transfer_invoice_items = InvoiceItem.query.join(Invoice).filter(
+                and_(
+                    Invoice.type == 'تحويل',
+                    Invoice.mechanism_id == mechanism.id,
+                    InvoiceItem.item_id == item.id
+                )
+            ).order_by(desc(Invoice.created_at)).all()
+            
+            for transfer_item in transfer_invoice_items:
+                if hasattr(transfer_item, 'new_location') and transfer_item.new_location:
+                    transfer_history.append({
+                        "transfer_invoice_id": transfer_item.invoice_id,
+                        "transfer_date": serialize_value(transfer_item.invoice.created_at),
+                        "from_location": transfer_item.location,
+                        "to_location": transfer_item.new_location,
+                        "quantity": transfer_item.quantity,
+                        "employee_name": transfer_item.invoice.employee_name,
+                        "status": transfer_item.invoice.status
+                    })
+            
+            # NEW: Analyze price record splits for this mechanism's operations
+            mechanism_price_splits = []
+            
+            # Find purchase invoices made by this mechanism that have been split
+            mechanism_purchase_invoices = Invoice.query.filter(
+                and_(
+                    Invoice.mechanism_id == mechanism.id,
+                    Invoice.type == 'اضافه'
+                )
+            ).all()
+            
+            for purchase_invoice in mechanism_purchase_invoices:
+                item_prices = [p for p in item.prices if p.invoice_id == purchase_invoice.id]
+                if len(item_prices) > 1:  # This purchase has been split
+                    mechanism_price_splits.append({
+                        "purchase_invoice_id": purchase_invoice.id,
+                        "purchase_date": serialize_value(purchase_invoice.created_at),
+                        "total_locations": len(item_prices),
+                        "locations": [{
+                            "location": pr.location,
+                            "quantity": pr.quantity,
+                            "unit_price": pr.unit_price
+                        } for pr in item_prices],
+                        "total_quantity": sum(pr.quantity for pr in item_prices)
+                    })
+            
+            # Build enhanced invoice history with supplier and transfer information
+            enhanced_invoice_history = []
+            for inv_item in invoice_items:
+                # Get supplier information for this item
+                supplier_name = None
+                supplier_id = None
+                if hasattr(inv_item, 'supplier_id') and inv_item.supplier_id:
+                    supplier = Supplier.query.get(inv_item.supplier_id)
+                    if supplier:
+                        supplier_name = supplier.name
+                        supplier_id = supplier.id
+                elif hasattr(inv_item, 'supplier_name') and inv_item.supplier_name:
+                    supplier_name = inv_item.supplier_name
+                
+                # NEW: Add transfer information for this invoice item
+                transfer_info = None
+                if inv_item.invoice.type == 'تحويل' and hasattr(inv_item, 'new_location'):
+                    transfer_info = {
+                        "from_location": inv_item.location,
+                        "to_location": inv_item.new_location,
+                        "is_transfer": True
+                    }
+                
+                # NEW: For purchase invoices, check current location distribution
+                location_distribution = None
+                if inv_item.invoice.type == 'اضافه':
+                    current_price_records = Prices.query.filter_by(
+                        invoice_id=inv_item.invoice_id,
+                        item_id=item.id
+                    ).all()
+                    
+                    if len(current_price_records) > 1:
+                        location_distribution = {
+                            "total_locations": len(current_price_records),
+                            "current_locations": [{
+                                "location": pr.location,
+                                "quantity": pr.quantity,
+                                "unit_price": pr.unit_price
+                            } for pr in current_price_records],
+                            "is_split": True,
+                            "original_location": inv_item.location
+                        }
+                
+                enhanced_invoice_history.append({
+                    "invoice_id": inv_item.invoice_id,
+                    "invoice_type": inv_item.invoice.type,
+                    "invoice_date": serialize_value(inv_item.invoice.created_at),
+                    "location": inv_item.location,
+                    "quantity": inv_item.quantity,
+                    "unit_price": inv_item.unit_price,
+                    "total_price": inv_item.total_price,
+                    "status": inv_item.invoice.status,
+                    "supplier_name": supplier_name,  # NEW: supplier information
+                    "supplier_id": supplier_id,      # NEW: supplier ID
+                    "transfer_info": transfer_info,  # NEW: transfer information
+                    "location_distribution": location_distribution,  # NEW: location distribution
+                    "new_location": getattr(inv_item, 'new_location', None)  # NEW: destination for transfers
+                })
             
             # Build item data
             item_data = {
@@ -1303,17 +1851,10 @@ class FilterReports(Resource):
                 "created_at": serialize_value(item.created_at),
                 "updated_at": serialize_value(item.updated_at),
                 "locations": locations,
-                "prices": prices_serialized,
-                "invoice_history": [{
-                    "invoice_id": inv_item.invoice_id,
-                    "invoice_type": inv_item.invoice.type,
-                    "invoice_date": serialize_value(inv_item.invoice.created_at),
-                    "location": inv_item.location,
-                    "quantity": inv_item.quantity,
-                    "unit_price": inv_item.unit_price,
-                    "total_price": inv_item.total_price,
-                    "status": inv_item.invoice.status
-                } for inv_item in invoice_items],
+                "prices": prices_serialized,  # Updated with location info
+                "invoice_history": enhanced_invoice_history,  # Enhanced with transfer and supplier info
+                "transfer_history": transfer_history,  # NEW: transfer history for this mechanism
+                "mechanism_price_splits": mechanism_price_splits,  # NEW: price splits from this mechanism's purchases
                 "purchase_requests": [{
                     "id": pr.id,
                     "status": pr.status,

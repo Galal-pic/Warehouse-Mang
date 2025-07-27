@@ -64,7 +64,8 @@ invoice_item_model = invoice_ns.model('InvoiceItem', {
     'description': fields.String(required=False),
     'supplier_name': fields.String(required=False),  # NEW: supplier per item
     'supplier_id': fields.Integer(required=False),   # NEW: supplier ID per item
-    'price_details': fields.List(fields.Nested(price_detail_model), description='FIFO price breakdown')
+    'price_details': fields.List(fields.Nested(price_detail_model), description='FIFO price breakdown'),
+    'new_location': fields.String(required=False)
 })
 
 # Invoice Model
@@ -114,7 +115,8 @@ def filter_perms(user_id, query):
         'view_damages': 'توالف',
         'view_deposits': 'امانات',
         'view_reservations': 'حجز',
-        'view_purchase_requests': 'طلب شراء'
+        'view_purchase_requests': 'طلب شراء',
+        'view_transfers': 'تحويل',
     }
     
     # Build conditions based on permissions
@@ -239,6 +241,7 @@ class invoices_get(Resource):
                     "description": item.description,
                     "supplier_name": supplier_name,  # NEW: supplier per item
                     "supplier_id": supplier_id,      # NEW: supplier ID per item
+                    "new_location": item.new_location
                 }
                 
                 # Add price details if they exist
@@ -367,7 +370,8 @@ class InvoiceList(Resource):
                     'unit_price': item.unit_price,
                     "description": item.description,
                     "supplier_name": supplier_name,  # NEW: supplier per item
-                    "supplier_id": supplier_id,      # NEW: supplier ID per item
+                    "supplier_id": supplier_id,      # NEW: supplier ID per item\
+                    "new_location": item.new_location
                 }
                 
                 # Add price details if they exist
@@ -418,7 +422,7 @@ class InvoiceList(Resource):
         # Get the employee ID from the JWT token
         employee_id = get_jwt_identity()
         employee = Employee.query.filter_by(id=employee_id).first()  # Get the Employee object
-        if data['type'] != 'اضافه':
+        if data['type'] not in ['اضافه', 'تحويل']:
         # Get the machine and mechanism by name
             machine = Machine.query.filter_by(name=data['machine_name']).first()  # Get the Machine object
             mechanism = Mechanism.query.filter_by(name=data['mechanism_name']).first()  # Get the Mechanism object

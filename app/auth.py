@@ -44,6 +44,7 @@ manage_operations_model = auth_ns.model('ManageOperationsPermissions', {
     'view_prices': fields.Boolean(default=False, description='Permission to view prices'),
     'view_purchase_requests': fields.Boolean(default=False, description='Permission to view purchase requests'),
     'view_reports': fields.Boolean(default=False, description='Permission to view reports'),
+    'view_transfers': fields.Boolean(default=False, description='Permission to view transfers'),
     
     # NEW: Status-based view permissions
     'view_zero_valued': fields.Boolean(default=False, description='Permission to view zero-valued invoices'),
@@ -137,6 +138,7 @@ user_model = auth_ns.model('User', {
     'view_prices': fields.Boolean(description='Permission to view prices'),
     'view_purchase_requests': fields.Boolean(description='Permission to view purchase requests'),
     'view_reports': fields.Boolean(description='Permission to view reports'),
+    'view_transfers': fields.Boolean(description='Permission to view transfers'),
     
     # NEW: Status-based view permissions
     'view_zero_valued': fields.Boolean(description='Permission to view zero-valued invoices'),
@@ -227,6 +229,7 @@ class Register(Resource):
         view_prices = manage_operations.get('view_prices', False)
         view_purchase_requests = manage_operations.get('view_purchase_requests', False)
         view_reports = manage_operations.get('view_reports', False)
+        view_transfers = manage_operations.get('view_transfers', False)
         
         # NEW: Status-based view permissions
         view_zero_valued = manage_operations.get('view_zero_valued', False)
@@ -291,6 +294,7 @@ class Register(Resource):
             view_prices=view_prices,
             view_purchase_requests=view_purchase_requests,
             view_reports=view_reports,
+            view_transfers=view_transfers,
             
             # NEW: Status-based view permissions
             view_zero_valued=view_zero_valued,
@@ -411,7 +415,8 @@ class UserManagement(Resource):
             employee.view_purchase_requests = data['view_purchase_requests']
         if 'view_reports' in data:
             employee.view_reports = data['view_reports']
-            
+        if 'view_transfers' in data:
+            employee.view_transfers = data['view_transfers']
         # NEW: Status-based view permissions
         if 'view_zero_valued' in data:
             employee.view_zero_valued = data['view_zero_valued']
