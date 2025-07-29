@@ -314,6 +314,32 @@ export default function CreateInvoice() {
       time,
     };
     console.log(invoiceData);
+    if (
+      invoiceData?.type != "اضافه" &&
+      invoiceData?.type != "تحويل" &&
+      invoiceData?.type != "مرتجع"
+    ) {
+      if (!invoiceData.machine_name || !invoiceData.mechanism_name) {
+        setSnackbar({
+          open: true,
+          message: "يجب إدخال اسم الماكينة واسم الميكانيزم",
+          type: "error",
+        });
+        return;
+      }
+    } else if (newInvoice?.type === "اضافه") {
+      const missingSupplier = newInvoice.items.some(
+        (item) => !item.supplier_name || item.supplier_name.trim() === ""
+      );
+      if (missingSupplier) {
+        setSnackbar({
+          open: true,
+          message: "يجب إدخال اسم المورد لكل عنصر",
+          type: "error",
+        });
+        return;
+      }
+    }
 
     try {
       await createInvoice(invoiceData).unwrap();

@@ -585,7 +585,7 @@ export default function InvoiceModal({
               )}
               {selectedNowType?.type !== "اضافه" &&
                 selectedInvoice?.type !== "اضافه" &&
-                editingInvoice?.type !== "اضافه" && (
+                editingInvoice?.type !== "اضافه" && !isTransferType && (
                   <>
                     <TableRow className={styles.tableRow}>
                       <TableCell className={styles.tableCell} colSpan={2}>
@@ -1042,19 +1042,6 @@ export default function InvoiceModal({
                           editingItem={row}
                           setEditingItem={(newItem) => {
                             if (!newItem.new_location) return;
-                            const matchedItem = editingInvoice?.items?.find(
-                              (row11) =>
-                                row11.barcode === row.barcode &&
-                                row11.new_location === newItem.new_location
-                            );
-                            if (matchedItem) {
-                              setSnackbarMessage(
-                                "هذا الموقع الجديد موجود بالفعل"
-                              );
-                              setSnackBarType("info");
-                              setOpenSnackbar(true);
-                              return;
-                            }
                             if (newItem.new_location === row.location) {
                               setSnackbarMessage(
                                 "لا يمكن تحويل الكمية إلى نفس الموقع"
