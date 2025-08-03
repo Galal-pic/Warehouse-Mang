@@ -10,7 +10,7 @@ def Transfer_Operations(data, machine, mechanism, supplier, employee, machine_ns
     Create a transfer invoice (تحويل type).
     Transfer operations move inventory from one location to another without changing quantities or prices.
     They maintain the same total inventory but change the distribution across locations.
-    FIXED: Properly handles foreign key constraints with InvoicePriceDetail records.
+    FIXED: Properly handles foreign key constraints with InvoicePriceDetail records and supplier names.
     """
     try:
         # Create new invoice
@@ -124,12 +124,22 @@ def Transfer_Operations(data, machine, mechanism, supplier, employee, machine_ns
                 # Calculate how much to transfer from this price record
                 quantity_to_transfer = min(remaining_to_transfer, source_price.quantity)
                 
+                # Get the source invoice item to preserve supplier information
+                source_invoice_item = InvoiceItem.query.filter_by(
+                    invoice_id=source_price.invoice_id,
+                    item_id=warehouse_item.id,
+                    location=item_data['location']
+                ).first()
+                
                 # Track the affected purchase invoice
                 purchase_invoice_id = source_price.invoice_id
                 if purchase_invoice_id not in affected_purchase_invoices:
                     affected_purchase_invoices[purchase_invoice_id] = {
                         'transferred_quantities': {},
-                        'unit_price': source_price.unit_price
+                        'unit_price': source_price.unit_price,
+                        'supplier_id': source_invoice_item.supplier_id if source_invoice_item else None,
+                        'supplier_name': source_invoice_item.supplier_name if source_invoice_item else None,
+                        'description': source_invoice_item.description if source_invoice_item else None
                     }
                 
                 # Track transferred quantity for this purchase invoice by location
@@ -189,6 +199,9 @@ def Transfer_Operations(data, machine, mechanism, supplier, employee, machine_ns
             # Update the original purchase invoice items
             for purchase_invoice_id, transfer_data in affected_purchase_invoices.items():
                 unit_price = transfer_data['unit_price']
+                supplier_id = transfer_data['supplier_id']
+                supplier_name = transfer_data['supplier_name']
+                original_description = transfer_data['description']
                 
                 for dest_location, transferred_qty in transfer_data['transferred_quantities'].items():
                     # Update the source invoice item (reduce quantity)
@@ -224,9 +237,25 @@ def Transfer_Operations(data, machine, mechanism, supplier, employee, machine_ns
                     ).first()
                     
                     if dest_invoice_item:
-                        # Update existing destination invoice item
+                        # FIXED: Update existing destination invoice item and append supplier names
                         dest_invoice_item.quantity += transferred_qty
                         dest_invoice_item.total_price = dest_invoice_item.quantity * dest_invoice_item.unit_price
+                        
+                        # Append supplier name if different and not already included
+                        if supplier_name and supplier_name.strip():
+                            existing_supplier_name = dest_invoice_item.supplier_name or ""
+                            supplier_names = [name.strip() for name in existing_supplier_name.split(',') if name.strip()]
+                            
+                            if supplier_name not in supplier_names:
+                                supplier_names.append(supplier_name)
+                                dest_invoice_item.supplier_name = ', '.join(supplier_names)
+                        
+                        # Update description to reflect transfer
+                        if original_description:
+                            if dest_invoice_item.description and "Transferred from" not in dest_invoice_item.description:
+                                dest_invoice_item.description = f"{dest_invoice_item.description}; Transferred from {item_data['location']}"
+                            elif not dest_invoice_item.description:
+                                dest_invoice_item.description = f"{original_description}; Transferred from {item_data['location']}"
                     else:
                         # Create new invoice item in destination location
                         dest_invoice_item = InvoiceItem(
@@ -236,9 +265,9 @@ def Transfer_Operations(data, machine, mechanism, supplier, employee, machine_ns
                             location=dest_location,
                             unit_price=unit_price,
                             total_price=transferred_qty * unit_price,
-                            description=source_invoice_item.description if source_invoice_item else f"Transferred from {item_data['location']}",
-                            supplier_id=source_invoice_item.supplier_id if source_invoice_item else None,
-                            supplier_name=source_invoice_item.supplier_name if source_invoice_item else None
+                            description=f"{original_description}; Transferred from {item_data['location']}" if original_description else f"Transferred from {item_data['location']}",
+                            supplier_id=supplier_id,
+                            supplier_name=supplier_name
                         )
                         db.session.add(dest_invoice_item)
             
@@ -279,7 +308,7 @@ def Transfer_Operations(data, machine, mechanism, supplier, employee, machine_ns
 def delete_transfer(invoice, invoice_ns):
     """
     Delete a transfer invoice and reverse all location changes.
-    ENHANCED: Also reverses the invoice item changes in original purchase invoices.
+    ENHANCED: Also reverses the invoice item changes in original purchase invoices and handles supplier names properly.
     """
     # Check if it's a transfer invoice
     if invoice.type != 'تحويل':
@@ -350,11 +379,21 @@ def delete_transfer(invoice, invoice_ns):
                 quantity_to_reverse = min(remaining_to_reverse, dest_price.quantity)
                 purchase_invoice_id = dest_price.invoice_id
                 
+                # Get supplier information from the destination invoice item before reversing
+                dest_invoice_item = InvoiceItem.query.filter_by(
+                    invoice_id=purchase_invoice_id,
+                    item_id=invoice_item.item_id,
+                    location=new_location
+                ).first()
+                
                 # Track affected purchase invoice
                 if purchase_invoice_id not in affected_purchase_invoices:
                     affected_purchase_invoices[purchase_invoice_id] = {
                         'reversed_quantities': {},
-                        'unit_price': dest_price.unit_price
+                        'unit_price': dest_price.unit_price,
+                        'supplier_id': dest_invoice_item.supplier_id if dest_invoice_item else None,
+                        'supplier_name': dest_invoice_item.supplier_name if dest_invoice_item else None,
+                        'description': dest_invoice_item.description if dest_invoice_item else None
                     }
                 
                 if new_location not in affected_purchase_invoices[purchase_invoice_id]['reversed_quantities']:
@@ -395,9 +434,12 @@ def delete_transfer(invoice, invoice_ns):
             if destination_location.quantity == 0:
                 db.session.delete(destination_location)
         
-        # ENHANCED: Reverse the invoice item changes in original purchase invoices
+        # ENHANCED: Reverse the invoice item changes in original purchase invoices with proper supplier name handling
         for purchase_invoice_id, reversal_data in affected_purchase_invoices.items():
             unit_price = reversal_data['unit_price']
+            supplier_id = reversal_data['supplier_id']
+            supplier_name = reversal_data['supplier_name']
+            original_description = reversal_data['description']
             
             for dest_location, reversed_qty in reversal_data['reversed_quantities'].items():
                 # Remove or update destination invoice item
@@ -426,8 +468,22 @@ def delete_transfer(invoice, invoice_ns):
                     # Update existing source invoice item
                     source_invoice_item.quantity += reversed_qty
                     source_invoice_item.total_price = source_invoice_item.quantity * source_invoice_item.unit_price
+                    
+                    # FIXED: Restore supplier name if it was part of the original item
+                    if supplier_name and supplier_name.strip():
+                        existing_supplier_name = source_invoice_item.supplier_name or ""
+                        supplier_names = [name.strip() for name in existing_supplier_name.split(',') if name.strip()]
+                        
+                        if supplier_name not in supplier_names:
+                            supplier_names.append(supplier_name)
+                            source_invoice_item.supplier_name = ', '.join(supplier_names)
                 else:
-                    # Recreate source invoice item
+                    # Recreate source invoice item with original supplier information
+                    # Clean description to remove transfer references
+                    clean_description = original_description
+                    if original_description and "Transferred from" in original_description:
+                        clean_description = original_description.split(";")[0].strip()
+                    
                     source_invoice_item = InvoiceItem(
                         invoice_id=purchase_invoice_id,
                         item_id=invoice_item.item_id,
@@ -435,9 +491,9 @@ def delete_transfer(invoice, invoice_ns):
                         location=source_location_name,
                         unit_price=unit_price,
                         total_price=reversed_qty * unit_price,
-                        description=f"Restored from transfer reversal",
-                        supplier_id=dest_invoice_item.supplier_id if dest_invoice_item else None,
-                        supplier_name=dest_invoice_item.supplier_name if dest_invoice_item else None
+                        description=clean_description,
+                        supplier_id=supplier_id,
+                        supplier_name=supplier_name
                     )
                     db.session.add(source_invoice_item)
         
@@ -455,23 +511,14 @@ def delete_transfer(invoice, invoice_ns):
 def put_transfer(data, invoice, machine, mechanism, invoice_ns):
     """
     Update a transfer invoice by reversing previous transfers and applying new ones.
+    FIXED: Properly handles supplier names during updates.
     """
     try:
         with db.session.begin_nested():
             # First, reverse all existing transfers
             for item in invoice.items:
                 # Extract destination location from description
-                description = item.description or ""
-                destination_location_name = None
-                
-                if "Transfer from" in description and " to " in description:
-                    try:
-                        start_idx = description.find(" to '") + 5
-                        end_idx = description.find("'", start_idx)
-                        if start_idx > 4 and end_idx > start_idx:
-                            destination_location_name = description[start_idx:end_idx]
-                    except:
-                        pass
+                destination_location_name = item.new_location
                 
                 if destination_location_name:
                     # Find locations

@@ -63,22 +63,21 @@ def Sales_Operations(data, machine, mechanism, supplier, employee, machine_ns, w
             # Update physical inventory in ItemLocations
             item_location.quantity -= requested_quantity
             
-            # Handle pricing using FIFO from the Prices table (location-aware)
+            # Handle pricing using FIFO from the Prices table (across all locations)
             remaining_to_sell = requested_quantity
-            location_fifo_total = 0  # Track FIFO total for this specific location
+            fifo_total = 0  # Track FIFO total across all locations
             price_breakdown = []
             
-            # Get all price records for this specific item and location ordered by creation date (oldest first for FIFO)
+            # Get all price records for this item across ALL locations ordered by creation date (oldest first for FIFO)
             price_entries = Prices.query.filter_by(
-                item_id=warehouse_item.id,
-                location=item_data['location']
+                item_id=warehouse_item.id
             ).order_by(Prices.invoice_id.asc()).all()
             
             if not price_entries:
                 db.session.rollback()
-                return operation_result(400, "error", f"No price information found for item '{item_data['item_name']}' in location '{item_data['location']}'")
+                return operation_result(400, "error", f"No price information found for item '{item_data['item_name']}'")
             
-            # Process each price entry using FIFO
+            # Process each price entry using FIFO across all locations
             for price_entry in price_entries:
                 if remaining_to_sell <= 0:
                     break
@@ -112,8 +111,8 @@ def Sales_Operations(data, machine, mechanism, supplier, employee, machine_ns, w
                 
                 db.session.add(price_detail)
                 
-                # Update our running totals for this location
-                location_fifo_total += subtotal
+                # Update our running totals
+                fifo_total += subtotal
                 remaining_to_sell -= quantity_from_this_entry
                 
                 # Update the price entry quantity
@@ -122,27 +121,27 @@ def Sales_Operations(data, machine, mechanism, supplier, employee, machine_ns, w
             # Check if we've fulfilled the entire requested quantity
             if remaining_to_sell > 0:
                 db.session.rollback()
-                return operation_result(400, "error", f"Insufficient priced inventory for '{item_data['item_name']}' in location '{item_data['location']}'. Missing price data for {remaining_to_sell} units.")
+                return operation_result(400, "error", f"Insufficient priced inventory for '{item_data['item_name']}'. Missing price data for {remaining_to_sell} units.")
             
-            # FIXED: Use the actual FIFO total for this location only
-            location_fifo_total = round(location_fifo_total, 3)
-            effective_unit_price = round(location_fifo_total / requested_quantity, 3) if requested_quantity > 0 else 0
+            # Calculate effective unit price based on FIFO total
+            fifo_total = round(fifo_total, 3)
+            effective_unit_price = round(fifo_total / requested_quantity, 3) if requested_quantity > 0 else 0
             
-            # Create the invoice item with ACTUAL FIFO prices for this location
+            # Create the invoice item with FIFO prices from all locations
             invoice_item = InvoiceItem(
                 invoice_id=new_invoice.id,
                 item_id=warehouse_item.id,
                 quantity=requested_quantity,
                 location=item_data['location'],
-                unit_price=effective_unit_price,  # Average unit price for this location
-                total_price=location_fifo_total,  # Actual FIFO total for this location
-                description=item_data.get('description', f"FIFO pricing from location {item_data['location']}: {len(price_breakdown)} price levels")
+                unit_price=effective_unit_price,  # Average unit price across all locations
+                total_price=fifo_total,  # Actual FIFO total across all locations
+                description=item_data.get('description', f"FIFO pricing across all locations: {len(price_breakdown)} price levels")
             )
             
             db.session.add(invoice_item)
             
-            # Add this location's FIFO total to the overall invoice amount
-            total_invoice_amount += location_fifo_total
+            # Add this item's FIFO total to the overall invoice amount
+            total_invoice_amount += fifo_total
         
         # Update invoice totals with the actual FIFO totals
         total_invoice_amount = round(total_invoice_amount, 3)
