@@ -4,7 +4,7 @@ import ArrowBackOutlinedIcon from "@mui/icons-material/ArrowBackOutlined";
 import styles from "./Register.module.css";
 import { useNavigate } from "react-router-dom";
 import SnackBar from "../../components/snackBar/SnackBar";
-import { useAddUserMutation } from "../services/userApi";
+import { useAddUserMutation } from "../../services/userApi";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import {
@@ -15,7 +15,7 @@ import {
   MachinesOptions,
   MechanismOptions,
   SuppliersOptions,
-} from "../../context/jobs";
+} from "../../components/jobs";
 
 const CustomCheckboxField = ({
   label,

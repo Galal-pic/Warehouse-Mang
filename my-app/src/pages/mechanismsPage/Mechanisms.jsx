@@ -21,8 +21,8 @@ import {
   useAddMechanismMutation,
   useUpdateMechanismMutation,
   useDeleteMechanismMutation,
-} from "../services/mechanismApi";
-import { useGetUserQuery } from "../services/userApi";
+} from "../../services/mechanismApi";
+import { useGetUserQuery } from "../../services/userApi";
 
 export default function Mechanisms() {
   // RTK Query Hooks

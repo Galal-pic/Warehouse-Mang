@@ -9,7 +9,7 @@ import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import SnackBar from "../../components/snackBar/SnackBar";
 import { CustomTextField } from "../../components/customTextField/CustomTextField";
 import CircularProgress from "@mui/material/CircularProgress";
-import { useGetUserQuery } from "../services/userApi";
+import { useGetUserQuery } from "../../services/userApi";
 
 const Login = () => {
   const { isLoading: isLoadingUser, refetch } = useGetUserQuery();

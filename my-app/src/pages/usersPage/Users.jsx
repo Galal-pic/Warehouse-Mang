@@ -14,7 +14,7 @@ import {
   useGetUsersQuery,
   useDeleteUserMutation,
   useGetUserQuery,
-} from "../services/userApi";
+} from "../../services/userApi";
 import LaunchIcon from "@mui/icons-material/Launch";
 import EditUser from "../../components/editUser/EditUser";
 import ChangePassword from "../../components/changePassword/ChangePassword";

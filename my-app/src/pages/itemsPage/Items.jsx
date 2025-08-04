@@ -28,8 +28,8 @@ import {
   useAddWarehouseMutation,
   useUpdateWarehouseMutation,
   useDeleteWarehouseMutation,
-} from "../services/invoice&warehouseApi";
-import { useGetUserQuery } from "../services/userApi";
+} from "../../services/invoice&warehouseApi";
+import { useGetUserQuery } from "../../services/userApi";
 import ArticleIcon from "@mui/icons-material/Article";
 import ItemeDetails from "../../components/itemDetails/ItemeDetails";
 

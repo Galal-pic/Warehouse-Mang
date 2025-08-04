@@ -21,8 +21,8 @@ import {
   useAddSupplierMutation,
   useUpdateSupplierMutation,
   useDeleteSupplierMutation,
-} from "../services/supplierApi";
-import { useGetUserQuery } from "../services/userApi";
+} from "../../services/supplierApi";
+import { useGetUserQuery } from "../../services/userApi";
 
 export default function Suppliers() {
   // RTK Query Hooks

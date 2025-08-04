@@ -23,7 +23,7 @@ import SettingsIcon from "@mui/icons-material/Settings";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import GroupsIcon from "@mui/icons-material/Groups";
 import CircularProgress from "@mui/material/CircularProgress";
-import { useGetUserQuery } from "../../pages/services/userApi";
+import { useGetUserQuery } from "../../services/userApi";
 
 // liks
 const resourceManagementLinks = [

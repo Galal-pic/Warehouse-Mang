@@ -17,7 +17,7 @@ import { GridToolbarContainer } from "@mui/x-data-grid";
 import { useState } from "react";
 import logo from "../header/logo.png";
 import { TextField } from "@mui/material";
-import { useGetUserQuery } from "../../pages/services/userApi";
+import { useGetUserQuery } from "../../services/userApi";
 
 const ItemDetailsDialog = ({ item, open, onClose, renderAsDialog = true }) => {
   const { data: user, isLoading: isLoadingUser } = useGetUserQuery();

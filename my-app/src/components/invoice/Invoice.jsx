@@ -19,16 +19,16 @@ import NumberInput from "../../components/number/NumberInput";
 import styles from "./Invoices.module.css";
 import logo from "./logo.png";
 import SnackBar from "../snackBar/SnackBar";
-import { useGetSuppliersQuery } from "../../pages/services/supplierApi";
-import { useGetMachinesQuery } from "../../pages/services/machineApi";
-import { useGetMechanismsQuery } from "../../pages/services/mechanismApi";
+import { useGetSuppliersQuery } from "../../services/supplierApi";
+import { useGetMachinesQuery } from "../../services/machineApi";
+import { useGetMechanismsQuery } from "../../services/mechanismApi";
 import {
   useGetInvoiceQuery,
   useGetInvoicesNumbersQuery,
   useReturnWarrantyInvoicePartiallyMutation,
   useGetWarehousesQuery,
   useReturnWarrantyInvoiceMutation,
-} from "../../pages/services/invoice&warehouseApi";
+} from "../../services/invoice&warehouseApi";
 import KeyboardReturnIcon from "@mui/icons-material/KeyboardReturn";
 
 export default function InvoiceModal({

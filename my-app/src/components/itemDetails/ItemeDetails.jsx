@@ -1,5 +1,5 @@
 import { Button } from "@mui/material";
-import { useDetailsReportQuery } from "../../pages/services/invoice&warehouseApi";
+import { useDetailsReportQuery } from "../../services/invoice&warehouseApi";
 import { useEffect } from "react";
 
 // Reusable component for info fields

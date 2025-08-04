@@ -3,7 +3,7 @@ import PropTypes from "prop-types";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
 import Box from "@mui/material/Box";
-import { useGetUserQuery } from "../../pages/services/userApi";
+import { useGetUserQuery } from "../../services/userApi";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 
 function CustomTabPanel(props) {

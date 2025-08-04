@@ -11,17 +11,17 @@ import AddCircleIcon from "@mui/icons-material/AddCircle";
 import ImportExportIcon from "@mui/icons-material/ImportExport";
 import * as XLSX from "xlsx";
 import SnackBar from "../../components/snackBar/SnackBar";
-import { useImportMachinesMutation } from "../../pages/services/machineApi";
-import { useImportMechanismMutation } from "../../pages/services/mechanismApi";
-import { useImportSupplierMutation } from "../../pages/services/supplierApi";
+import { useImportMachinesMutation } from "../../services/machineApi";
+import { useImportMechanismMutation } from "../../services/mechanismApi";
+import { useImportSupplierMutation } from "../../services/supplierApi";
 import {
   useImportWarehouseMutation,
   useGetReportsQuery,
   api,
-} from "../../pages/services/invoice&warehouseApi";
-import { supplierApi } from "../../pages/services/supplierApi";
-import { machineApi } from "../../pages/services/machineApi";
-import { mechanismApi } from "../../pages/services/mechanismApi";
+} from "../../services/invoice&warehouseApi";
+import { supplierApi } from "../../services/supplierApi";
+import { machineApi } from "../../services/machineApi";
+import { mechanismApi } from "../../services/mechanismApi";
 import { useDispatch } from "react-redux";
 
 const CustomToolbar = ({

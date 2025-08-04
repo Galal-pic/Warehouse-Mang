@@ -21,8 +21,8 @@ import {
   useAddMachineMutation,
   useUpdateMachineMutation,
   useDeleteMachineMutation,
-} from "../services/machineApi";
-import { useGetUserQuery } from "../services/userApi";
+} from "../../services/machineApi";
+import { useGetUserQuery } from "../../services/userApi";
 
 export default function Machines() {
   const { data: user, isLoading: isLoadingUser } = useGetUserQuery();

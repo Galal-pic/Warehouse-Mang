@@ -22,21 +22,21 @@ import CustomAutoCompleteField from "../../components/customAutoCompleteField/Cu
 import SnackBar from "../../components/snackBar/SnackBar";
 import CustomDataGrid from "../../components/dataGrid/CustomDataGrid";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import { useGetMachinesQuery } from "../services/machineApi";
-import { useGetMechanismsQuery } from "../services/mechanismApi";
-import { useGetSuppliersQuery } from "../services/supplierApi";
-import { useGetUsersQuery } from "../services/userApi";
+import { useGetMachinesQuery } from "../../services/machineApi";
+import { useGetMechanismsQuery } from "../../services/mechanismApi";
+import { useGetSuppliersQuery } from "../../services/supplierApi";
+import { useGetUsersQuery } from "../../services/userApi";
 import {
   useGetWarehousesQuery,
   useGetFilteredReportsQuery,
-} from "../services/invoice&warehouseApi";
+} from "../../services/invoice&warehouseApi";
 import LaunchIcon from "@mui/icons-material/Launch";
 import InvoiceModal from "../../components/invoice/Invoice";
 import ItemDetailsDialog from "../../components/itemDetailsReport/ItemDetailsReport";
 import { GridToolbarContainer } from "@mui/x-data-grid";
 import logo from "../../components/header/logo.png";
 import NumberInput from "../../components/number/NumberInput";
-import { useGetUserQuery } from "../services/userApi";
+import { useGetUserQuery } from "../../services/userApi";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import ArticleIcon from "@mui/icons-material/Article";

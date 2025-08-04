@@ -25,7 +25,7 @@ import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import CustomDataGrid from "../../components/dataGrid/CustomDataGrid";
 import FilterTabs from "../../components/filter/Filter";
 import { filtersTypes } from "../../components/filter/Filter";
-import { useGetUserQuery } from "../services/userApi";
+import { useGetUserQuery } from "../../services/userApi";
 import {
   useGetInvoicesQuery,
   useDeleteInvoiceMutation,
@@ -33,7 +33,7 @@ import {
   useConfirmInvoiceMutation,
   useReturnWarrantyInvoiceMutation,
   useConfirmTalabSheraaInvoiceMutation,
-} from "../services/invoice&warehouseApi";
+} from "../../services/invoice&warehouseApi";
 import PrintableTable from "../../components/printableTable/PrintableTable ";
 import PrintIcon from "@mui/icons-material/Print";
 import ArticleIcon from "@mui/icons-material/Article";
@@ -1074,7 +1074,8 @@ export default function Invoices() {
                     <div>
                       {(user?.can_edit || user?.username === "admin") &&
                         selectedInvoice?.rawStatus !== "confirmed" &&
-                        selectedInvoice?.status !== "تم" && (
+                        selectedInvoice?.status !== "تم" &&
+                        selectedInvoice?.type !== "تحويل" && (
                           <button
                             onClick={() => {
                               handleEditInfo(selectedInvoice);
