@@ -789,7 +789,7 @@ class FilterReports(Resource):
                     "unit_price": item.unit_price,
                     "total_price": item.total_price,
                     "description": item.description,
-                    "supplier_name": supplier_name,  # NEW: supplier per item
+                    "supplier_name": item.supplier_name,  # NEW: supplier per item
                     "supplier_id": supplier_id,      # NEW: supplier ID per item
                     "returned_quantity": returned_quantity,
                     "remaining_quantity": item.quantity - returned_quantity,
@@ -1052,7 +1052,7 @@ class FilterReports(Resource):
                     "unit_price": item.unit_price,
                     "total_price": item.total_price,
                     "description": item.description,
-                    "supplier_name": supplier_name,  # NEW: supplier per item
+                    "supplier_name": item.supplier_name,  # NEW: supplier per item
                     "supplier_id": supplier_id,      # NEW: supplier ID per item
                     "returned_quantity": returned_quantity,
                     "remaining_quantity": item.quantity - returned_quantity,
@@ -1324,7 +1324,7 @@ class FilterReports(Resource):
                     "unit_price": inv_item.unit_price,
                     "total_price": inv_item.total_price,
                     "status": inv_item.invoice.status,
-                    "supplier": supplier_name,
+                    "supplier": item.supplier_name,
                     "supplier_id": supplier_id,
                     "machine": machine_name,      # NEW: machine name
                     "machine_id": machine_id,          # NEW: machine ID
@@ -1464,7 +1464,7 @@ class FilterReports(Resource):
                     "unit_price": item.unit_price,
                     "total_price": item.total_price,
                     "description": item.description,
-                    "supplier_name": supplier_name,  # NEW: supplier per item
+                    "supplier_name": item.supplier_name,  # NEW: supplier per item
                     "supplier_id": supplier_id,      # NEW: supplier ID per item
                     "returned_quantity": returned_quantity,
                     "remaining_quantity": item.quantity - returned_quantity,
@@ -1658,7 +1658,7 @@ class FilterReports(Resource):
                     "unit_price": inv_item.unit_price,
                     "total_price": inv_item.total_price,
                     "status": inv_item.invoice.status,
-                    "supplier_name": supplier_name,  # NEW: supplier information
+                    "supplier_name": item.supplier_name,  # NEW: supplier information
                     "supplier_id": supplier_id,      # NEW: supplier ID
                     "transfer_info": transfer_info,  # NEW: transfer information
                     "location_distribution": location_distribution,  # NEW: location distribution
@@ -1836,7 +1836,7 @@ class FilterReports(Resource):
                     "unit_price": inv_item.unit_price,
                     "total_price": inv_item.total_price,
                     "status": inv_item.invoice.status,
-                    "supplier_name": supplier_name,  # NEW: supplier information
+                    "supplier_name": item.supplier_name,  # NEW: supplier information
                     "supplier_id": supplier_id,      # NEW: supplier ID
                     "transfer_info": transfer_info,  # NEW: transfer information
                     "location_distribution": location_distribution,  # NEW: location distribution

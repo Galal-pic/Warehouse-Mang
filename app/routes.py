@@ -239,7 +239,7 @@ class invoices_get(Resource):
                     "total_price": item.total_price,
                     'unit_price': item.unit_price,
                     "description": item.description,
-                    "supplier_name": supplier_name,  # NEW: supplier per item
+                    "supplier_name": item.supplier_name,  # NEW: supplier per item
                     "supplier_id": supplier_id,      # NEW: supplier ID per item
                     "new_location": item.new_location
                 }
@@ -369,7 +369,7 @@ class InvoiceList(Resource):
                     "total_price": item.total_price,
                     'unit_price': item.unit_price,
                     "description": item.description,
-                    "supplier_name": supplier_name,  # NEW: supplier per item
+                    "supplier_name": item.supplier_name,  # NEW: supplier per item
                     "supplier_id": supplier_id,      # NEW: supplier ID per item\
                     "new_location": item.new_location
                 }
@@ -533,7 +533,7 @@ class InvoiceDetail(Resource):
                 "total_price": item.total_price,
                 'unit_price': item.unit_price,
                 "description": item.description,
-                "supplier_name": supplier_name,  # NEW: supplier per item
+                "supplier_name": item.supplier_name,  # NEW: supplier per item
                 "supplier_id": supplier_id,      # NEW: supplier ID per item
             }
             
@@ -636,7 +636,7 @@ class InvoiceDetail(Resource):
         elif invoice.type == 'طلب شراء':
             result = delete_purchase_request(invoice, invoice_ns)
         elif invoice.type == 'تحويل':
-            result = delete_purchase_request(invoice, invoice_ns)
+            result = delete_transfer(invoice, invoice_ns)
             
             
         if type(result) == dict:

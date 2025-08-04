@@ -229,7 +229,7 @@ def Transfer_Operations(data, machine, mechanism, supplier, employee, machine_ns
                                 db.session.delete(source_invoice_item)
                             # If price record still exists (with 0 quantity), keep invoice item with 0 quantity too
                     
-                    # Create or update destination invoice item in the same purchase invoice
+                    # FIXED: Handle multiple suppliers within the same purchase invoice
                     dest_invoice_item = InvoiceItem.query.filter_by(
                         invoice_id=purchase_invoice_id,
                         item_id=warehouse_item.id,
@@ -237,27 +237,31 @@ def Transfer_Operations(data, machine, mechanism, supplier, employee, machine_ns
                     ).first()
                     
                     if dest_invoice_item:
-                        # FIXED: Update existing destination invoice item and append supplier names
+                        # This invoice item already exists for this purchase invoice in the destination location
+                        # Add the transferred quantity
                         dest_invoice_item.quantity += transferred_qty
                         dest_invoice_item.total_price = dest_invoice_item.quantity * dest_invoice_item.unit_price
                         
-                        # Append supplier name if different and not already included
+                        # FIXED: Properly append supplier names without overriding
                         if supplier_name and supplier_name.strip():
                             existing_supplier_name = dest_invoice_item.supplier_name or ""
-                            supplier_names = [name.strip() for name in existing_supplier_name.split(',') if name.strip()]
                             
-                            if supplier_name not in supplier_names:
-                                supplier_names.append(supplier_name)
-                                dest_invoice_item.supplier_name = ', '.join(supplier_names)
+                            # Split existing supplier names and clean them
+                            existing_suppliers = [name.strip() for name in existing_supplier_name.split(',') if name.strip()]
+                            
+                            # Only add if not already present
+                            if supplier_name.strip() not in existing_suppliers:
+                                existing_suppliers.append(supplier_name.strip())
+                                dest_invoice_item.supplier_name = ', '.join(existing_suppliers)
                         
-                        # Update description to reflect transfer
-                        if original_description:
-                            if dest_invoice_item.description and "Transferred from" not in dest_invoice_item.description:
-                                dest_invoice_item.description = f"{dest_invoice_item.description}; Transferred from {item_data['location']}"
-                            elif not dest_invoice_item.description:
-                                dest_invoice_item.description = f"{original_description}; Transferred from {item_data['location']}"
+                        # Update description to reflect additional transfer
+                        if original_description and "Transferred from" not in dest_invoice_item.description:
+                            if dest_invoice_item.description:
+                                dest_invoice_item.description = f"{dest_invoice_item.description}; Additional transfer from {item_data['location']}"
+                            else:
+                                dest_invoice_item.description = f"Additional transfer from {item_data['location']}"
                     else:
-                        # Create new invoice item in destination location
+                        # Create new invoice item in destination location for this specific purchase invoice
                         dest_invoice_item = InvoiceItem(
                             invoice_id=purchase_invoice_id,
                             item_id=warehouse_item.id,
@@ -363,13 +367,16 @@ def delete_transfer(invoice, invoice_ns):
             
             source_location.quantity += invoice_item.quantity
             
-            # Reverse the price record splits and track affected purchase invoices
+            # Reverse the price record splits and track affected purchase invoices with detailed supplier mapping
             dest_price_records = Prices.query.filter_by(
                 item_id=invoice_item.item_id,
                 location=new_location
             ).order_by(Prices.invoice_id.asc()).all()
             
             remaining_to_reverse = invoice_item.quantity
+            
+            # ENHANCED: Track exactly which suppliers and quantities are being reversed
+            supplier_reversal_map = {}  # Maps purchase_invoice_id to supplier details
             
             for dest_price in dest_price_records:
                 if remaining_to_reverse <= 0:
@@ -379,26 +386,44 @@ def delete_transfer(invoice, invoice_ns):
                 quantity_to_reverse = min(remaining_to_reverse, dest_price.quantity)
                 purchase_invoice_id = dest_price.invoice_id
                 
-                # Get supplier information from the destination invoice item before reversing
+                # Get the SPECIFIC supplier information from the destination invoice item for this price record
                 dest_invoice_item = InvoiceItem.query.filter_by(
                     invoice_id=purchase_invoice_id,
                     item_id=invoice_item.item_id,
                     location=new_location
                 ).first()
                 
-                # Track affected purchase invoice
-                if purchase_invoice_id not in affected_purchase_invoices:
-                    affected_purchase_invoices[purchase_invoice_id] = {
+                # Get the source invoice item to determine the original supplier for this specific price record
+                source_invoice_item_for_mapping = InvoiceItem.query.filter_by(
+                    invoice_id=purchase_invoice_id,
+                    item_id=invoice_item.item_id,
+                    location=source_location_name
+                ).first()
+                
+                # Track the exact supplier being reversed for this quantity
+                if purchase_invoice_id not in supplier_reversal_map:
+                    # Try to determine the specific supplier for this price record
+                    # This is challenging without better tracking, so we'll use the original source item supplier
+                    original_supplier = None
+                    if source_invoice_item_for_mapping and source_invoice_item_for_mapping.supplier_name:
+                        # If source still exists, get its supplier
+                        original_supplier = source_invoice_item_for_mapping.supplier_name
+                    elif dest_invoice_item and dest_invoice_item.supplier_name:
+                        # Otherwise, we'll have to work with the consolidated supplier names
+                        # This is not ideal but better than duplicating everything
+                        supplier_list = [s.strip() for s in dest_invoice_item.supplier_name.split(',') if s.strip()]
+                        original_supplier = supplier_list[0] if supplier_list else None  # Take first supplier as approximation
+                    
+                    supplier_reversal_map[purchase_invoice_id] = {
                         'reversed_quantities': {},
                         'unit_price': dest_price.unit_price,
                         'supplier_id': dest_invoice_item.supplier_id if dest_invoice_item else None,
-                        'supplier_name': dest_invoice_item.supplier_name if dest_invoice_item else None,
+                        'supplier_name': original_supplier,
                         'description': dest_invoice_item.description if dest_invoice_item else None
                     }
                 
-                if new_location not in affected_purchase_invoices[purchase_invoice_id]['reversed_quantities']:
-                    affected_purchase_invoices[purchase_invoice_id]['reversed_quantities'][new_location] = 0
-                affected_purchase_invoices[purchase_invoice_id]['reversed_quantities'][new_location] += quantity_to_reverse
+                supplier_reversal_map[purchase_invoice_id]['reversed_quantities'][new_location] = \
+                    supplier_reversal_map[purchase_invoice_id]['reversed_quantities'].get(new_location, 0) + quantity_to_reverse
                 
                 # Find or recreate the corresponding source price record
                 source_price = Prices.query.filter_by(
@@ -434,15 +459,15 @@ def delete_transfer(invoice, invoice_ns):
             if destination_location.quantity == 0:
                 db.session.delete(destination_location)
         
-        # ENHANCED: Reverse the invoice item changes in original purchase invoices with proper supplier name handling
-        for purchase_invoice_id, reversal_data in affected_purchase_invoices.items():
+        # ENHANCED: Use the detailed supplier reversal mapping
+        for purchase_invoice_id, reversal_data in supplier_reversal_map.items():
             unit_price = reversal_data['unit_price']
             supplier_id = reversal_data['supplier_id']
             supplier_name = reversal_data['supplier_name']
             original_description = reversal_data['description']
             
             for dest_location, reversed_qty in reversal_data['reversed_quantities'].items():
-                # Remove or update destination invoice item
+                # FIXED: Handle removal of supplier names properly when reversing transfers
                 dest_invoice_item = InvoiceItem.query.filter_by(
                     invoice_id=purchase_invoice_id,
                     item_id=invoice_item.item_id,
@@ -453,11 +478,25 @@ def delete_transfer(invoice, invoice_ns):
                     dest_invoice_item.quantity -= reversed_qty
                     dest_invoice_item.total_price = dest_invoice_item.quantity * dest_invoice_item.unit_price
                     
-                    # If destination invoice item is empty, delete it
+                    # FIXED: Remove the specific supplier name being reversed from the consolidated list
+                    if supplier_name and supplier_name.strip() and dest_invoice_item.supplier_name:
+                        existing_suppliers = [name.strip() for name in dest_invoice_item.supplier_name.split(',') if name.strip()]
+                        
+                        # Remove the supplier being transferred back (only one occurrence)
+                        if supplier_name.strip() in existing_suppliers:
+                            existing_suppliers.remove(supplier_name.strip())
+                        
+                        # Update the supplier name list
+                        if existing_suppliers:
+                            dest_invoice_item.supplier_name = ', '.join(existing_suppliers)
+                        else:
+                            dest_invoice_item.supplier_name = None
+                    
+                    # If this specific invoice item is empty, delete it
                     if dest_invoice_item.quantity <= 0:
                         db.session.delete(dest_invoice_item)
                 
-                # Restore or create source invoice item
+                # FIXED: Restore source invoice item with ONLY its original supplier (no duplication)
                 source_invoice_item = InvoiceItem.query.filter_by(
                     invoice_id=purchase_invoice_id,
                     item_id=invoice_item.item_id,
@@ -469,17 +508,17 @@ def delete_transfer(invoice, invoice_ns):
                     source_invoice_item.quantity += reversed_qty
                     source_invoice_item.total_price = source_invoice_item.quantity * source_invoice_item.unit_price
                     
-                    # FIXED: Restore supplier name if it was part of the original item
+                    # FIXED: Only add supplier name if it's not already present (avoid duplication)
                     if supplier_name and supplier_name.strip():
                         existing_supplier_name = source_invoice_item.supplier_name or ""
-                        supplier_names = [name.strip() for name in existing_supplier_name.split(',') if name.strip()]
+                        existing_suppliers = [name.strip() for name in existing_supplier_name.split(',') if name.strip()]
                         
-                        if supplier_name not in supplier_names:
-                            supplier_names.append(supplier_name)
-                            source_invoice_item.supplier_name = ', '.join(supplier_names)
+                        # Only add if not already present
+                        if supplier_name.strip() not in existing_suppliers:
+                            existing_suppliers.append(supplier_name.strip())
+                            source_invoice_item.supplier_name = ', '.join(existing_suppliers)
                 else:
-                    # Recreate source invoice item with original supplier information
-                    # Clean description to remove transfer references
+                    # Recreate source invoice item with ONLY its original supplier information
                     clean_description = original_description
                     if original_description and "Transferred from" in original_description:
                         clean_description = original_description.split(";")[0].strip()
@@ -493,7 +532,7 @@ def delete_transfer(invoice, invoice_ns):
                         total_price=reversed_qty * unit_price,
                         description=clean_description,
                         supplier_id=supplier_id,
-                        supplier_name=supplier_name
+                        supplier_name=supplier_name  # Only the original supplier for this specific item
                     )
                     db.session.add(source_invoice_item)
         
