@@ -5,7 +5,7 @@ This is a React application built with Vite. The project includes various pages,
 
 ## Project Structure
 - `src/`: Main source directory with:
-  - `services/`: Includes API-related files like `invoice&warehouseApi.js`, `invoiceApi.js`, `mechanismApi.js`, etc.
+  - `services/`: Includes API-related files like `invoice&warehouseApi.js`, `machineApi.js`, `mechanismApi.js`, etc.
   - `assets/`: Contains static assets like `react.svg`.
   - `components/`: Includes reusable components like `changePassword`, `customAutoCompleteField`, `dataGrid`, etc.
   - `context/`: Contains context files like `AuthContext.js`.

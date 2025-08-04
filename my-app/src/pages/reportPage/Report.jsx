@@ -1625,6 +1625,7 @@ export default function Report() {
                       inputProps={{
                         max: filters.toDate || undefined,
                       }}
+                      onClick={(e) => e.target.showPicker()} // Trigger date picker on click
                       sx={{
                         direction: "rtl",
                         "& .MuiInputBase-root": {
@@ -1674,6 +1675,7 @@ export default function Report() {
                       inputProps={{
                         min: filters.fromDate || undefined,
                       }}
+                      onClick={(e) => e.target.showPicker()}
                       sx={{
                         direction: "rtl",
                         "& .MuiInputBase-root": {
