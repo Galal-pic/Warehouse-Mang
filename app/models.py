@@ -288,3 +288,69 @@ class WarrantyReturn(db.Model):
     __table_args__ = (
         db.Index('idx_warranty_return_invoice_item', 'warranty_invoice_id', 'item_id', 'location'),
     )
+
+
+# Rental Items Model - tracks items in rental warehouse with status
+class RentedItems(db.Model):
+    __tablename__ = 'rented_items'
+    id = db.Column(db.Integer, primary_key=True)
+    rental_invoice_id = db.Column(db.Integer, db.ForeignKey('invoice.id'), nullable=False)
+    item_id = db.Column(db.Integer, db.ForeignKey('warehouse.id'), nullable=False)
+    quantity = db.Column(db.Integer, nullable=False)
+    unit_price = db.Column(db.Float, nullable=False)
+    total_price = db.Column(db.Float, nullable=False)
+    
+    # Rental status tracking
+    status = db.Column(db.String(50), nullable=False, default='reserved')  # reserved, given, returned, borrowed_to_main
+    given_date = db.Column(db.DateTime, nullable=True)  # When item was given to customer
+    expected_return_date = db.Column(db.DateTime, nullable=True)
+    actual_return_date = db.Column(db.DateTime, nullable=True)
+    
+    # Customer information
+    customer_name = db.Column(db.String(255), nullable=False)
+    customer_phone = db.Column(db.String(20), nullable=True)
+    customer_id_number = db.Column(db.String(50), nullable=True)
+    
+    # Borrowing to main warehouse tracking
+    borrowed_to_main_quantity = db.Column(db.Integer, nullable=False, default=0)
+    borrowed_date = db.Column(db.DateTime, nullable=True)
+    
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+    
+    # Notes and comments
+    notes = db.Column(db.Text)
+    
+    # Relationships
+    rental_invoice = db.relationship('Invoice', backref='rented_items')
+    item = db.relationship('Warehouse', backref='rented_items')
+    
+    # Composite index for faster queries
+    __table_args__ = (
+        db.Index('idx_rented_items_invoice_item', 'rental_invoice_id', 'item_id'),
+        db.Index('idx_rented_items_status', 'status'),
+        db.Index('idx_rented_items_customer', 'customer_name'),
+    )
+
+
+# Rental Warehouse Locations - separate from main warehouse
+class RentalWarehouseLocations(db.Model):
+    __tablename__ = 'rental_warehouse_locations'
+    item_id = db.Column(db.Integer, db.ForeignKey('warehouse.id'), primary_key=True)
+    location = db.Column(db.String(255), nullable=False, primary_key=True, default='RENTAL_WAREHOUSE')
+    quantity = db.Column(db.Integer, nullable=False, default=0)
+    reserved_quantity = db.Column(db.Integer, nullable=False, default=0)  # Items reserved but not yet given
+    available_quantity = db.Column(db.Integer, nullable=False, default=0)  # Available for borrowing to main warehouse
+    
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+    
+    # Relationships
+    warehouse = db.relationship('Warehouse', backref='rental_locations')
+    
+    # Composite index for faster queries
+    __table_args__ = (
+        db.Index('idx_rental_warehouse_item_location', 'item_id', 'location'),
+    )

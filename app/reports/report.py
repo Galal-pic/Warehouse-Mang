@@ -15,6 +15,8 @@ from ..models import (
     PurchaseRequests,
     ReturnSales,
     WarrantyReturn,
+    RentedItems,
+    RentalWarehouseLocations,
 )
 from datetime import datetime
 from ..utils import parse_bool
@@ -177,6 +179,8 @@ class Reports(Resource):
             Prices,
             InvoicePriceDetail,
             PurchaseRequests,
+            RentedItems,
+            RentalWarehouseLocations,
         ]
         
         full_report = {}

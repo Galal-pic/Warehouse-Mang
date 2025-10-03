@@ -1,5 +1,5 @@
 from datetime import datetime
-from ..models import Invoice, Warehouse, ItemLocations, InvoiceItem, Prices, InvoicePriceDetail
+from ..models import Invoice, Warehouse, ItemLocations, InvoiceItem, Prices, InvoicePriceDetail, RentedItems, RentalWarehouseLocations
 from .. import db
 from sqlalchemy.exc import SQLAlchemyError
 from ..utils import operation_result
@@ -56,12 +56,69 @@ def Sales_Operations(data, machine, mechanism, supplier, employee, machine_ns, w
             
             # Check if enough quantity available in location
             requested_quantity = item_data["quantity"]
-            if item_location.quantity < requested_quantity:
-                db.session.rollback()
-                return operation_result(400, "error", f"Not enough quantity for item '{item_data['item_name']}' in location '{item_data['location']}'. Available: {item_location.quantity}, Requested: {requested_quantity}")
+            main_available = item_location.quantity
+            borrowed_from_rental = 0
             
-            # Update physical inventory in ItemLocations
-            item_location.quantity -= requested_quantity
+            if main_available < requested_quantity:
+                # Check if we can borrow from rental warehouse
+                shortage = requested_quantity - main_available
+                
+                # Check rental warehouse availability
+                rental_location = RentalWarehouseLocations.query.filter_by(
+                    item_id=warehouse_item.id
+                ).filter(
+                    RentalWarehouseLocations.available_quantity > 0
+                ).first()
+                
+                if rental_location:
+                    # Use the available_quantity from rental warehouse location
+                    # This represents items that can be borrowed (not reserved for confirmed rentals)
+                    available_from_rental = min(shortage, rental_location.available_quantity)
+                    
+                    # Also check for unconfirmed rental items that can be borrowed
+                    unconfirmed_rentals = RentedItems.query.filter(
+                        RentedItems.item_id == warehouse_item.id,
+                        RentedItems.status.in_(['reserved', 'given'])  # Items not yet confirmed/returned
+                    ).all()
+                    
+                    # Use the maximum available from either source
+                    unconfirmed_quantity = sum(item.quantity for item in unconfirmed_rentals)
+                    available_from_rental = min(shortage, max(rental_location.available_quantity, unconfirmed_quantity))
+                    
+                    if available_from_rental > 0:
+                        borrowed_from_rental = available_from_rental
+                        
+                        # Update rental items to mark them as borrowed for sales
+                        remaining_to_borrow = borrowed_from_rental
+                        for rental_item in unconfirmed_rentals:
+                            if remaining_to_borrow <= 0:
+                                break
+                            
+                            borrow_qty = min(remaining_to_borrow, rental_item.quantity)
+                            rental_item.borrowed_to_main_quantity += borrow_qty
+                            rental_item.borrowed_date = datetime.now()
+                            rental_item.status = 'borrowed_for_sale'
+                            rental_item.notes = f"{rental_item.notes or ''} | Borrowed {borrow_qty} for sales invoice"
+                            remaining_to_borrow -= borrow_qty
+                        
+                        # Update rental warehouse location - decrease available quantity
+                        rental_location.available_quantity -= borrowed_from_rental
+                        rental_location.updated_at = datetime.now()
+                
+                # Check if we still have shortage after borrowing from rental
+                total_available = main_available + borrowed_from_rental
+                if total_available < requested_quantity:
+                    db.session.rollback()
+                    return operation_result(400, "error", f"Not enough quantity for item '{item_data['item_name']}' in location '{item_data['location']}'. Available: {main_available}, From Rental: {borrowed_from_rental}, Total: {total_available}, Requested: {requested_quantity}")
+            
+            # Update physical inventory in ItemLocations (use all available from main warehouse)
+            actual_from_main = min(requested_quantity, main_available)
+            item_location.quantity -= actual_from_main
+            
+            # If we borrowed from rental, add it to main warehouse location temporarily
+            if borrowed_from_rental > 0:
+                item_location.quantity += borrowed_from_rental
+                item_location.quantity -= borrowed_from_rental  # Then subtract it for the sale
             
             # Handle pricing using FIFO from the Prices table (across all locations)
             remaining_to_sell = requested_quantity
@@ -128,7 +185,11 @@ def Sales_Operations(data, machine, mechanism, supplier, employee, machine_ns, w
             fifo_total = round(fifo_total, 3)
             effective_unit_price = round(fifo_total / requested_quantity, 3) if requested_quantity > 0 else 0
             
-            # Create the invoice item with FIFO prices from all locations
+            # Create the invoice item with FIFO prices and rental tracking
+            description_parts = [item_data.get('description', f"FIFO pricing across all locations: {len(price_breakdown)} price levels")]
+            if borrowed_from_rental > 0:
+                description_parts.append(f"Borrowed {borrowed_from_rental} from rental warehouse")
+            
             invoice_item = InvoiceItem(
                 invoice_id=new_invoice.id,
                 item_id=warehouse_item.id,
@@ -136,7 +197,7 @@ def Sales_Operations(data, machine, mechanism, supplier, employee, machine_ns, w
                 location=item_data['location'],
                 unit_price=effective_unit_price,  # Average unit price across all locations
                 total_price=fifo_total,  # Actual FIFO total across all locations
-                description=item_data.get('description', f"FIFO pricing across all locations: {len(price_breakdown)} price levels")
+                description=" | ".join(description_parts)
             )
             
             db.session.add(invoice_item)

@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from sqlalchemy import func
-from ..models import Invoice, Warehouse, ItemLocations, InvoiceItem, Prices, InvoicePriceDetail, Supplier
+from ..models import Invoice, Warehouse, ItemLocations, InvoiceItem, Prices, InvoicePriceDetail, Supplier, RentedItems, RentalWarehouseLocations
 from .. import db
 from sqlalchemy.exc import SQLAlchemyError
 from ..utils import operation_result
@@ -102,6 +102,9 @@ def Purchase_Operations(data, machine, mechanism, supplier, employee, machine_ns
             
             # Update the quantity in the warehouse (increase for purchase)
             item_location.quantity += quantity
+            
+            # Handle rental warehouse restocking if items were borrowed
+            restock_rental_warehouse(warehouse_item.id, quantity)
             
             # Create the invoice item (one per location)
             invoice_item = InvoiceItem(
@@ -514,6 +517,104 @@ def recalculate_sales_invoice_total(sales_invoice):
         sales_invoice.residual = round(sales_invoice.total_amount - sales_invoice.paid, 3)
         
         db.session.add(sales_invoice)
+        
+    except Exception as e:
+        # Log error but don't fail the operation
+        print(f"Error recalculating sales invoice total for invoice {sales_invoice.id}: {str(e)}")
+        # Continue without failing the parent operation
+
+
+def restock_rental_warehouse(item_id, purchased_quantity):
+    """
+    When new items are purchased, return borrowed items back to rental warehouse
+    This ensures rental warehouse gets restocked when main warehouse is replenished
+    Priority: First replenish main warehouse, then rental warehouse
+    """
+    try:
+        # Find rented items that were borrowed for sales (borrowed_for_sale status)
+        borrowed_for_sale_items = RentedItems.query.filter_by(
+            item_id=item_id,
+            status='borrowed_for_sale'
+        ).all()
+        
+        # Also find items borrowed to main warehouse
+        borrowed_to_main_items = RentedItems.query.filter_by(
+            item_id=item_id,
+            status='borrowed_to_main'
+        ).all()
+        
+        all_borrowed_items = borrowed_for_sale_items + borrowed_to_main_items
+        
+        if not all_borrowed_items:
+            return  # No borrowed items to restock
+        
+        # Calculate total borrowed quantity
+        total_borrowed_for_sale = sum(item.quantity for item in borrowed_for_sale_items)
+        total_borrowed_to_main = sum(item.borrowed_to_main_quantity for item in borrowed_to_main_items)
+        total_borrowed = total_borrowed_for_sale + total_borrowed_to_main
+        
+        # Determine how much we can return (limited by purchased quantity)
+        quantity_to_return = min(purchased_quantity, total_borrowed)
+        
+        if quantity_to_return <= 0:
+            return
+        
+        # Update rental warehouse location - increase available quantity
+        rental_location = RentalWarehouseLocations.query.filter_by(
+            item_id=item_id,
+            location='RENTAL_WAREHOUSE'
+        ).first()
+        
+        if rental_location:
+            # Increase available quantity (return to rental warehouse)
+            rental_location.available_quantity += quantity_to_return
+            rental_location.updated_at = datetime.now()
+        
+        # Process borrowed_for_sale items first (these were sold)
+        remaining_to_return = quantity_to_return
+        
+        for rented_item in borrowed_for_sale_items:
+            if remaining_to_return <= 0:
+                break
+                
+            # Calculate how much to return from this rented item
+            return_from_this_item = min(remaining_to_return, rented_item.quantity)
+            
+            # Update the rented item - mark as returned to rental
+            rented_item.status = 'reserved'
+            rented_item.notes = f"{rented_item.notes or ''} | Replenished to rental warehouse after purchase"
+            rented_item.updated_at = datetime.now()
+            
+            remaining_to_return -= return_from_this_item
+        
+        # Process borrowed_to_main items
+        for rented_item in borrowed_to_main_items:
+            if remaining_to_return <= 0:
+                break
+                
+            # Calculate how much to return from this rented item
+            return_from_this_item = min(remaining_to_return, rented_item.borrowed_to_main_quantity)
+            
+            # Update the rented item
+            rented_item.borrowed_to_main_quantity -= return_from_this_item
+            
+            # If fully returned, change status back to reserved
+            if rented_item.borrowed_to_main_quantity <= 0:
+                rented_item.status = 'reserved'
+                rented_item.borrowed_date = None
+                rented_item.notes = f"{rented_item.notes or ''} | Returned to rental warehouse after purchase restock"
+            
+            remaining_to_return -= return_from_this_item
+        
+        # Decrease main warehouse quantity by the amount returned to rental
+        main_location = ItemLocations.query.filter_by(item_id=item_id).first()
+        if main_location and main_location.quantity >= quantity_to_return:
+            main_location.quantity -= quantity_to_return
+        
+    except Exception as e:
+        # Log error but don't fail the purchase operation
+        print(f"Error restocking rental warehouse for item {item_id}: {str(e)}")
+        # Continue with purchase operation even if rental restocking fails
         
         
     except Exception as e:

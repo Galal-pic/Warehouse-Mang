@@ -9,6 +9,7 @@ from .operations.returns import Return_Operations, delete_return, put_return
 from .operations.sales import Sales_Operations, delete_sales, put_sales
 from .operations.warranty import Warranty_Operations, delete_warranty, put_warranty
 from .operations.void import Void_Operations, delete_void, put_void
+from .operations.rent import Rent_Operations, update_rental_status, borrow_from_rental_to_main, return_to_main_warehouse, delete_rental_invoice
 from .purchases.purchase import Purchase_Operations, delete_purchase, put_purchase
 from .operations.purchase_request import PurchaseRequest_Operations, put_purchase_request, delete_purchase_request
 from .warehouses.warehouse import warehouse_ns, item_location_ns
@@ -18,6 +19,7 @@ from .suppliers.supplier import supplier_ns
 from .models import (
     Employee, Machine, Mechanism, Warehouse, ItemLocations, Invoice, InvoiceItem,
     Supplier, Prices, InvoicePriceDetail, PurchaseRequests, ReturnSales, WarrantyReturn,
+    RentedItems, RentalWarehouseLocations,
 )
 from sqlalchemy import desc, exists, or_
 from sqlalchemy.exc import SQLAlchemyError
@@ -458,6 +460,8 @@ class InvoiceList(Resource):
             result = Void_Operations(data, machine, mechanism, supplier, employee, machine_ns, warehouse_ns, invoice_ns, mechanism_ns, item_location_ns, supplier_ns)
         elif data['type'] == 'حجز':
             result = Booking_Operations(data, machine, mechanism, supplier, employee, machine_ns, warehouse_ns, invoice_ns, mechanism_ns, item_location_ns, supplier_ns)
+        elif data['type'] == 'إيجار':
+            result = Rent_Operations(data, machine, mechanism, supplier, employee, machine_ns, warehouse_ns, invoice_ns, mechanism_ns, item_location_ns, supplier_ns)
         elif data['type'] == 'طلب شراء':
             result = PurchaseRequest_Operations(data, machine, mechanism, supplier, employee, machine_ns, warehouse_ns, invoice_ns, mechanism_ns, item_location_ns, supplier_ns)
         elif data['type'] == 'تحويل':
@@ -1622,6 +1626,162 @@ class UpdateInvoicePrice(Resource):
         except Exception as e:
             db.session.rollback()
             return {"error": f"Error updating prices: {str(e)}"}, 500
+
+
+# Rental Management Namespace
+rental_ns = Namespace('rental', description='Rental management operations')
+
+# Rental Status Update Model
+rental_status_model = rental_ns.model('RentalStatusUpdate', {
+    'rental_invoice_id': fields.Integer(required=True, description='Rental invoice ID'),
+    'item_id': fields.Integer(required=True, description='Item ID'),
+    'new_status': fields.String(required=True, description='New rental status (reserved, given, returned)'),
+    'notes': fields.String(required=False, description='Optional notes')
+})
+
+# Borrow Request Model
+borrow_request_model = rental_ns.model('BorrowRequest', {
+    'item_id': fields.Integer(required=True, description='Item ID'),
+    'quantity': fields.Integer(required=True, description='Quantity to borrow'),
+    'location': fields.String(required=True, description='Target location in main warehouse'),
+    'notes': fields.String(required=False, description='Optional notes')
+})
+
+# Return Request Model
+return_request_model = rental_ns.model('ReturnRequest', {
+    'item_id': fields.Integer(required=True, description='Item ID'),
+    'quantity': fields.Integer(required=True, description='Quantity to return')
+})
+
+@rental_ns.route('/status')
+class RentalStatusUpdate(Resource):
+    @rental_ns.expect(rental_status_model)
+    @jwt_required()
+    def put(self):
+        """Update rental item status"""
+        data = rental_ns.payload
+        employee_id = get_jwt_identity()
+        
+        result = update_rental_status(
+            rental_invoice_id=data['rental_invoice_id'],
+            item_id=data['item_id'],
+            new_status=data['new_status'],
+            employee_id=employee_id,
+            notes=data.get('notes')
+        )
+        
+        if result["status"] == "error":
+            rental_ns.abort(result["status_code"], result["message"])
+        else:
+            return {"message": result["message"]}, result["status_code"]
+
+@rental_ns.route('/borrow')
+class RentalBorrow(Resource):
+    @rental_ns.expect(borrow_request_model)
+    @jwt_required()
+    def post(self):
+        """Borrow items from rental warehouse to main warehouse"""
+        data = rental_ns.payload
+        employee_id = get_jwt_identity()
+        
+        result = borrow_from_rental_to_main(
+            item_id=data['item_id'],
+            quantity=data['quantity'],
+            location=data['location'],
+            employee_id=employee_id,
+            notes=data.get('notes')
+        )
+        
+        if result["status"] == "error":
+            rental_ns.abort(result["status_code"], result["message"])
+        else:
+            return {"message": result["message"]}, result["status_code"]
+
+@rental_ns.route('/return')
+class RentalReturn(Resource):
+    @rental_ns.expect(return_request_model)
+    @jwt_required()
+    def post(self):
+        """Return items from rental warehouse to main warehouse"""
+        data = rental_ns.payload
+        employee_id = get_jwt_identity()
+        
+        result = return_to_main_warehouse(
+            item_id=data['item_id'],
+            quantity=data['quantity']
+        )
+        
+        if result["status"] == "error":
+            rental_ns.abort(result["status_code"], result["message"])
+        else:
+            return {"message": result["message"]}, result["status_code"]
+
+@rental_ns.route('/items')
+class RentalItems(Resource):
+    @jwt_required()
+    def get(self):
+        """Get all rented items with their status"""
+        try:
+            rented_items = RentedItems.query.all()
+            result = []
+            
+            for item in rented_items:
+                warehouse_item = Warehouse.query.get(item.item_id)
+                invoice = Invoice.query.get(item.rental_invoice_id)
+                
+                result.append({
+                    'id': item.id,
+                    'rental_invoice_id': item.rental_invoice_id,
+                    'item_id': item.item_id,
+                    'item_name': warehouse_item.item_name if warehouse_item else None,
+                    'item_barcode': warehouse_item.item_bar if warehouse_item else None,
+                    'quantity': item.quantity,
+                    'status': item.status,
+                    'customer_name': item.customer_name,
+                    'expected_return_date': item.expected_return_date.isoformat() if item.expected_return_date else None,
+                    'actual_return_date': item.actual_return_date.isoformat() if item.actual_return_date else None,
+                    'given_date': item.given_date.isoformat() if item.given_date else None,
+                    'borrowed_to_main_quantity': item.borrowed_to_main_quantity,
+                    'borrowed_date': item.borrowed_date.isoformat() if item.borrowed_date else None,
+                    'notes': item.notes,
+                    'created_at': item.created_at.isoformat() if item.created_at else None,
+                    'updated_at': item.updated_at.isoformat() if item.updated_at else None,
+                    'invoice_client_name': invoice.client_name if invoice else None
+                })
+            
+            return {'rented_items': result}, 200
+            
+        except Exception as e:
+            return {"error": f"Error fetching rented items: {str(e)}"}, 500
+
+@rental_ns.route('/warehouse')
+class RentalWarehouse(Resource):
+    @jwt_required()
+    def get(self):
+        """Get rental warehouse inventory"""
+        try:
+            rental_locations = RentalWarehouseLocations.query.all()
+            result = []
+            
+            for location in rental_locations:
+                warehouse_item = Warehouse.query.get(location.item_id)
+                
+                result.append({
+                    'item_id': location.item_id,
+                    'item_name': warehouse_item.item_name if warehouse_item else None,
+                    'item_barcode': warehouse_item.item_bar if warehouse_item else None,
+                    'location': location.location,
+                    'quantity': location.quantity,
+                    'reserved_quantity': location.reserved_quantity,
+                    'available_quantity': location.available_quantity,
+                    'created_at': location.created_at.isoformat() if location.created_at else None,
+                    'updated_at': location.updated_at.isoformat() if location.updated_at else None
+                })
+            
+            return {'rental_warehouse': result}, 200
+            
+        except Exception as e:
+            return {"error": f"Error fetching rental warehouse: {str(e)}"}, 500
         
         
     
