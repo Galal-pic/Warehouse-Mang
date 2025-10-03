@@ -122,6 +122,7 @@ def Warranty_Operations(data, machine, mechanism, supplier, employee, machine_ns
                                 source_price_invoice_id=price_entry.invoice_id,
                                 source_price_item_id=price_entry.item_id,
                                 source_price_location=price_entry.location,  # NEW: Track source location
+                                source_price_supplier_id=price_entry.supplier_id,  # FIXED: Include supplier_id
                                 quantity=quantity_from_this_entry,
                                 unit_price=round(price_entry.unit_price, 3),
                                 subtotal=subtotal
@@ -157,6 +158,7 @@ def Warranty_Operations(data, machine, mechanism, supplier, employee, machine_ns
                                     source_price_invoice_id=price_entries[-1].invoice_id,
                                     source_price_item_id=price_entries[-1].item_id,
                                     source_price_location=price_entries[-1].location,  # NEW: Source location
+                                    source_price_supplier_id=price_entries[-1].supplier_id,  # FIXED: Include supplier_id
                                     quantity=remaining_to_process,
                                     unit_price=round(latest_price, 3),
                                     subtotal=remainder_price
@@ -195,6 +197,7 @@ def Warranty_Operations(data, machine, mechanism, supplier, employee, machine_ns
                             source_price_invoice_id=price_entry.invoice_id,
                             source_price_item_id=price_entry.item_id,
                             source_price_location=price_entry.location,  # NEW: Track source location
+                            source_price_supplier_id=price_entry.supplier_id,  # FIXED: Include supplier_id
                             quantity=quantity_from_this_entry,
                             unit_price=round(price_entry.unit_price, 3),
                             subtotal=subtotal
@@ -230,6 +233,7 @@ def Warranty_Operations(data, machine, mechanism, supplier, employee, machine_ns
                                 source_price_invoice_id=price_entries[-1].invoice_id,
                                 source_price_item_id=price_entries[-1].item_id,
                                 source_price_location=price_entries[-1].location,  # NEW: Source location
+                                source_price_supplier_id=price_entries[-1].supplier_id,  # FIXED: Include supplier_id
                                 quantity=remaining_to_process,
                                 unit_price=round(latest_price, 3),
                                 subtotal=remainder_price
@@ -505,6 +509,7 @@ def put_warranty(data, invoice, machine, mechanism, invoice_ns):
                                 source_price_invoice_id=price_entry.invoice_id,
                                 source_price_item_id=price_entry.item_id,
                                 source_price_location=price_entry.location,  # NEW: Include source location
+                                source_price_supplier_id=price_entry.supplier_id,  # FIXED: Include supplier_id
                                 quantity=quantity_from_this_entry,
                                 unit_price=price_entry.unit_price,
                                 subtotal=subtotal
@@ -541,6 +546,7 @@ def put_warranty(data, invoice, machine, mechanism, invoice_ns):
                                     source_price_invoice_id=price_entries[-1].invoice_id,
                                     source_price_item_id=price_entries[-1].item_id,
                                     source_price_location=price_entries[-1].location,  # NEW: Include source location
+                                    source_price_supplier_id=price_entries[-1].supplier_id,  # FIXED: Include supplier_id
                                     quantity=remaining_to_process,
                                     unit_price=latest_price,
                                     subtotal=remainder_price

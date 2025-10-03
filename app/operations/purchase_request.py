@@ -78,6 +78,7 @@ def PurchaseRequest_Operations(data, machine, mechanism, supplier, employee, mac
                 source_price_invoice_id=last_price_entry.invoice_id,
                 source_price_item_id=last_price_entry.item_id,
                 source_price_location=last_price_entry.location,  # FIXED: Include location
+                source_price_supplier_id=last_price_entry.supplier_id,  # FIXED: Include supplier_id
                 quantity=item_data["quantity"],
                 unit_price=last_price_entry.unit_price,
                 subtotal=subtotal
@@ -90,6 +91,7 @@ def PurchaseRequest_Operations(data, machine, mechanism, supplier, employee, mac
                 item_id=warehouse_item.id,
                 quantity=item_data["quantity"],
                 location=item_data['location'],
+                supplier_id=supplier.id if supplier else last_price_entry.supplier_id,
                 unit_price=last_price_entry.unit_price,
                 total_price=subtotal,
                 description=item_data.get('description', "")
@@ -207,6 +209,7 @@ def put_purchase_request(data, invoice, machine, mechanism, invoice_ns):
                     source_price_invoice_id=last_price_entry.invoice_id,
                     source_price_item_id=last_price_entry.item_id,
                     source_price_location=last_price_entry.location,  # FIXED: Include location
+                    source_price_supplier_id=last_price_entry.supplier_id,  # FIXED: Include supplier_id
                     quantity=item_data["quantity"],
                     unit_price=last_price_entry.unit_price,
                     subtotal=subtotal

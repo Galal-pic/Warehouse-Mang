@@ -179,7 +179,7 @@ class SupplierList(Resource):
         if page < 1 or page_size < 1:
             supplier_ns.abort(400, "Page and page_size must be positive integers")
         
-        query = Supplier.query.with_entities(Supplier.id, Supplier.name, Supplier.description)
+        query = Supplier.query.with_entities(Supplier.id, Supplier.name, Supplier.description).filter(Supplier.name != 'Default Supplier')
         if all_results:
             suppliers = query.all()
             total_count = len(suppliers)

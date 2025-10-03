@@ -114,6 +114,7 @@ def Void_Operations(data, machine, mechanism, supplier, employee, machine_ns, wa
                             source_price_invoice_id=price_entry.invoice_id,
                             source_price_item_id=price_entry.item_id,
                             source_price_location=price_entry.location,  # FIXED: Include location
+                            source_price_supplier_id=price_entry.supplier_id,  # FIXED: Include supplier_id
                             quantity=quantity_from_this_entry,
                             unit_price=price_entry.unit_price,
                             subtotal=subtotal
@@ -151,6 +152,7 @@ def Void_Operations(data, machine, mechanism, supplier, employee, machine_ns, wa
                                 source_price_invoice_id=price_entries[-1].invoice_id,
                                 source_price_item_id=price_entries[-1].item_id,
                                 source_price_location=price_entries[-1].location,  # FIXED: Include location
+                                source_price_supplier_id=price_entries[-1].supplier_id,  # FIXED: Include supplier_id
                                 quantity=remaining_to_void,
                                 unit_price=latest_price,
                                 subtotal=remainder_price
@@ -414,6 +416,7 @@ def put_void(data, invoice, machine, mechanism, invoice_ns):
                                 source_price_invoice_id=price_entry.invoice_id,
                                 source_price_item_id=price_entry.item_id,
                                 source_price_location=price_entry.location,  # FIXED: Include location
+                                source_price_supplier_id=price_entry.supplier_id,  # FIXED: Include supplier_id
                                 quantity=quantity_from_this_entry,
                                 unit_price=price_entry.unit_price,
                                 subtotal=subtotal
@@ -451,6 +454,7 @@ def put_void(data, invoice, machine, mechanism, invoice_ns):
                                     source_price_invoice_id=price_entries[-1].invoice_id,
                                     source_price_item_id=price_entries[-1].item_id,
                                     source_price_location=price_entries[-1].location,  # FIXED: Include location
+                                    source_price_supplier_id=price_entries[-1].supplier_id,  # FIXED: Include supplier_id
                                     quantity=remaining_to_void,
                                     unit_price=latest_price,
                                     subtotal=remainder_price

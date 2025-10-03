@@ -265,6 +265,19 @@ class WarehouseExcelUltraFast(Resource):
             # FIXED: Track prices per location (invoice_id, item_id, location)
             price_tracking = {}
 
+            # Get or create default supplier for bulk imports
+            from ..models import Supplier
+            default_supplier = Supplier.query.filter_by(name="Default Supplier").first()
+            if not default_supplier:
+                default_supplier = Supplier(
+                    name="Default Supplier",
+                    description="Default supplier for bulk imports and operations without specific supplier"
+                )
+                db.session.add(default_supplier)
+                db.session.flush()
+            
+            default_supplier_id = default_supplier.id
+
             # Convert item_location_map values to a list for chunking
             location_entries = list(item_location_map.items())
             
@@ -307,6 +320,7 @@ class WarehouseExcelUltraFast(Resource):
                         item_id=item_id,
                         quantity=quantity,
                         location=location,
+                        supplier_id=default_supplier_id,  # Use default supplier for bulk imports
                         unit_price=unit_price,
                         total_price=total_price,
                         description=""
@@ -325,6 +339,8 @@ class WarehouseExcelUltraFast(Resource):
 
                     success_count += 1
 
+
+
             # FIXED: Create location-specific price rows for the new schema
             price_rows = []
             for (invoice_id, item_id, location), price_info in price_tracking.items():
@@ -334,7 +350,7 @@ class WarehouseExcelUltraFast(Resource):
                     location=location,  # FIXED: Include location for new schema
                     quantity=price_info['quantity'],
                     unit_price=price_info['unit_price'],
-                    supplier_id=0,  # Use default supplier for bulk imports
+                    supplier_id=default_supplier_id,  # Use default supplier for bulk imports
                     created_at=price_info['created_at']
                 ))
 
