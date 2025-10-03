@@ -14,6 +14,16 @@ def Purchase_Operations(data, machine, mechanism, supplier, employee, machine_ns
     Now supports individual supplier names per item and location-based pricing.
     """
     try:
+        # Ensure default supplier exists (id=0 for items without supplier)
+        default_supplier = Supplier.query.filter_by(id=0).first()
+        if not default_supplier:
+            default_supplier = Supplier(
+                id=0,
+                name="No Supplier",
+                description="Default supplier for items without specified supplier"
+            )
+            db.session.add(default_supplier)
+            db.session.flush()
         # Create new invoice (no longer uses invoice-level supplier)
         new_invoice = Invoice(
             type=data["type"],
@@ -49,7 +59,7 @@ def Purchase_Operations(data, machine, mechanism, supplier, employee, machine_ns
             
             # Handle supplier for this specific item
             item_supplier_name = item_data.get("supplier_name", "").strip()
-            item_supplier_id = None
+            item_supplier_id = 0  # Default supplier_id for items without supplier
             
             if item_supplier_name:
                 item_supplier = Supplier.query.filter_by(name=item_supplier_name).first()
@@ -77,11 +87,11 @@ def Purchase_Operations(data, machine, mechanism, supplier, employee, machine_ns
                 )
                 db.session.add(item_location)
             
-            # Check for duplicate items IN THE SAME LOCATION
-            location_key = (warehouse_item.id, item_data['location'])
+            # Check for duplicate items IN THE SAME LOCATION WITH SAME SUPPLIER
+            location_key = (warehouse_item.id, item_data['location'], item_supplier_id)
             if location_key in item_ids:
                 db.session.rollback()
-                return operation_result(400, "error", f"Item '{item_data['item_name']}' already added to location '{item_data['location']}' in this invoice")
+                return operation_result(400, "error", f"Item '{item_data['item_name']}' with supplier '{item_supplier_name}' already added to location '{item_data['location']}' in this invoice")
             
             item_ids.append(location_key)
             
@@ -119,7 +129,8 @@ def Purchase_Operations(data, machine, mechanism, supplier, employee, machine_ns
                 unit_price=unit_price,
                 created_at=datetime.now(),
                 # Add location identifier to distinguish price records
-                location=item_data['location']  # This field needs to be added to Prices model
+                location=item_data['location'],  # This field needs to be added to Prices model
+                supplier_id=item_supplier_id  # Include supplier_id for the new primary key
             )
             db.session.add(price)
             
@@ -215,8 +226,8 @@ def put_purchase(data, invoice, machine, mechanism, invoice_ns):
             # Track all affected sales invoices for recalculation
             affected_sales_invoices = set()
             
-            # Get original items for comparison
-            original_items = {(item.item_id, item.location): item for item in invoice.items}
+            # Get original items for comparison (now includes supplier_id in key)
+            original_items = {(item.item_id, item.location, item.supplier_id): item for item in invoice.items}
             updated_items = {}
             total_invoice_amount = 0
 
@@ -227,10 +238,9 @@ def put_purchase(data, invoice, machine, mechanism, invoice_ns):
                     return operation_result(404, "error", f"Item '{item_data['item_name']}' not found in warehouse")
                     
                 location = item_data["location"]
-                key = (warehouse_item.id, location)
                 
                 # Handle supplier for this specific item
-                item_supplier_id = None
+                item_supplier_id = 0  # Default supplier_id for items without supplier
                 item_supplier_name = item_data.get("supplier_name", "").strip()
                 
                 if item_supplier_name:
@@ -243,6 +253,8 @@ def put_purchase(data, invoice, machine, mechanism, invoice_ns):
                         db.session.add(item_supplier)
                         db.session.flush()
                     item_supplier_id = item_supplier.id
+                
+                key = (warehouse_item.id, location, item_supplier_id)
                 
                 item_location = ItemLocations.query.filter_by(
                     item_id=warehouse_item.id,
@@ -352,6 +364,7 @@ def put_purchase(data, invoice, machine, mechanism, invoice_ns):
                         quantity=new_quantity,
                         unit_price=new_unit_price,
                         location=location,  # Include location
+                        supplier_id=supplier_id,  # Include supplier_id for the new primary key
                         created_at=datetime.now()
                     )
                     db.session.add(price_record)
@@ -359,7 +372,7 @@ def put_purchase(data, invoice, machine, mechanism, invoice_ns):
             # Handle removed items
             for key, item in original_items.items():
                 if key not in updated_items:
-                    item_id, location = key
+                    item_id, location, supplier_id = key
                     
                     # Check for consumption before allowing removal (location-specific)
                     price_details = InvoicePriceDetail.query.filter_by(

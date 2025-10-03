@@ -139,15 +139,15 @@ class InvoiceItem(db.Model):
     invoice_id = db.Column(db.Integer, db.ForeignKey('invoice.id'), primary_key=True)
     item_id = db.Column(db.Integer, db.ForeignKey('warehouse.id'), primary_key=True)
     location = db.Column(db.String(255), primary_key=True)
+    supplier_id = db.Column(db.Integer, db.ForeignKey('supplier.id'), primary_key=True, nullable=False, default=0)
     quantity = db.Column(db.Integer, nullable=True)
     total_price = db.Column(db.Float, nullable=True)
     unit_price = db.Column(db.Float, nullable=True)
     description = db.Column(db.Text)
     new_location = db.Column(db.String(255), nullable=True)
     
-    # NEW: Add supplier information per item
-    supplier_id = db.Column(db.Integer, db.ForeignKey('supplier.id'), nullable=True)
-    supplier_name = db.Column(db.String(255), nullable=True)  # Store name for reference
+    # Store supplier name for reference
+    supplier_name = db.Column(db.String(255), nullable=True)
 
     # Relationships
     invoice = db.relationship('Invoice', back_populates='items')
@@ -189,6 +189,7 @@ class Prices(db.Model):
     invoice_id = db.Column(db.Integer, db.ForeignKey('invoice.id'), primary_key=True)
     item_id = db.Column(db.Integer, db.ForeignKey('warehouse.id'), primary_key=True)
     location = db.Column(db.String(255), primary_key=True)  # NEW: Add location to make it part of primary key
+    supplier_id = db.Column(db.Integer, db.ForeignKey('supplier.id'), primary_key=True, nullable=False, default=0)
     quantity = db.Column(db.Integer, nullable=False)
     unit_price = db.Column(db.Float, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.now, index=True)
@@ -196,10 +197,12 @@ class Prices(db.Model):
     # Relationships
     invoice = db.relationship('Invoice', back_populates='prices')
     warehouse = db.relationship('Warehouse', back_populates='prices')
+    supplier = db.relationship('Supplier', backref='prices')
     price_details = db.relationship('InvoicePriceDetail', 
                                    primaryjoin="and_(Prices.invoice_id==InvoicePriceDetail.source_price_invoice_id, "
                                                "Prices.item_id==InvoicePriceDetail.source_price_item_id, "
-                                               "Prices.location==InvoicePriceDetail.source_price_location)",
+                                               "Prices.location==InvoicePriceDetail.source_price_location, "
+                                               "Prices.supplier_id==InvoicePriceDetail.source_price_supplier_id)",
                                    backref="source_price", viewonly=True)
 
 # New model to store price breakdown details
@@ -211,6 +214,7 @@ class InvoicePriceDetail(db.Model):
     source_price_invoice_id = db.Column(db.Integer, nullable=False)
     source_price_item_id = db.Column(db.Integer, nullable=False)
     source_price_location = db.Column(db.String(255), nullable=False)  # NEW: Add location reference
+    source_price_supplier_id = db.Column(db.Integer, nullable=False, default=0)  # NEW: Add supplier_id reference
     quantity = db.Column(db.Integer, nullable=False)
     unit_price = db.Column(db.Float, nullable=False)
     subtotal = db.Column(db.Float, nullable=False)
@@ -219,11 +223,11 @@ class InvoicePriceDetail(db.Model):
     # Relationships
     invoice = db.relationship('Invoice', back_populates='price_details')
     
-    # Updated composite foreign key constraints to include location
+    # Updated composite foreign key constraints to include location and supplier_id
     __table_args__ = (
         db.ForeignKeyConstraint(
-            ['source_price_invoice_id', 'source_price_item_id', 'source_price_location'],
-            ['prices.invoice_id', 'prices.item_id', 'prices.location']
+            ['source_price_invoice_id', 'source_price_item_id', 'source_price_location', 'source_price_supplier_id'],
+            ['prices.invoice_id', 'prices.item_id', 'prices.location', 'prices.supplier_id']
         ),
     )
     

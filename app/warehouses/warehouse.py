@@ -334,6 +334,7 @@ class WarehouseExcelUltraFast(Resource):
                     location=location,  # FIXED: Include location for new schema
                     quantity=price_info['quantity'],
                     unit_price=price_info['unit_price'],
+                    supplier_id=0,  # Use default supplier for bulk imports
                     created_at=price_info['created_at']
                 ))
 

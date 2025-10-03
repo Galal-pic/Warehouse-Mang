@@ -104,6 +104,7 @@ def Sales_Operations(data, machine, mechanism, supplier, employee, machine_ns, w
                     source_price_invoice_id=price_entry.invoice_id,
                     source_price_item_id=price_entry.item_id,
                     source_price_location=price_entry.location,
+                    source_price_supplier_id=price_entry.supplier_id,
                     quantity=quantity_from_this_entry,
                     unit_price=round(price_entry.unit_price, 3),
                     subtotal=subtotal
@@ -205,7 +206,8 @@ def delete_sales(invoice, invoice_ns):
                     item_id=restoration['item_id'],
                     location=restoration['location'],  # Include location
                     quantity=restoration['quantity'],
-                    unit_price=restoration['unit_price']
+                    unit_price=restoration['unit_price'],
+                    supplier_id=0  # Use default supplier for sales operations
                 )
                 db.session.add(new_price)
         
@@ -368,6 +370,7 @@ def put_sales(data, invoice, machine, mechanism, invoice_ns):
                         source_price_invoice_id=price_entry.invoice_id,
                         source_price_item_id=price_entry.item_id,
                         source_price_location=price_entry.location,  # Include location
+                        source_price_supplier_id=price_entry.supplier_id,  # Include supplier
                         quantity=quantity_from_this_entry,
                         unit_price=price_entry.unit_price,
                         subtotal=subtotal

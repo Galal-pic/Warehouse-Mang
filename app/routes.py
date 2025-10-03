@@ -1582,6 +1582,7 @@ class UpdateInvoicePrice(Resource):
                     source_price_invoice_id=latest_price.invoice_id,
                     source_price_item_id=latest_price.item_id,
                     source_price_location=latest_price.location,  # NEW: Include source location
+                    source_price_supplier_id=latest_price.supplier_id,  # NEW: Include source supplier
                     quantity=item.quantity,
                     unit_price=latest_price.unit_price,
                     subtotal=item.total_price

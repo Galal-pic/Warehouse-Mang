@@ -103,6 +103,17 @@ def Return_Operations(data, machine, mechanism, supplier, employee, machine_ns, 
                 # No original invoice - default behavior (increase inventory)
                 item_location.quantity += quantity
             
+            # Get supplier_id from original invoice item if available
+            supplier_id = 0  # Default supplier_id
+            if original_invoice_id:
+                original_item = InvoiceItem.query.filter_by(
+                    invoice_id=original_invoice_id,
+                    item_id=warehouse_item.id,
+                    location=item_data["location"]
+                ).first()
+                if original_item and hasattr(original_item, 'supplier_id'):
+                    supplier_id = original_item.supplier_id
+            
             # Create the invoice item
             invoice_item = InvoiceItem(
                 invoice_id=new_invoice.id,
@@ -111,7 +122,8 @@ def Return_Operations(data, machine, mechanism, supplier, employee, machine_ns, 
                 location=item_data["location"],
                 unit_price=unit_price,
                 total_price=total_price,
-                description=item_data.get("description", "")
+                description=item_data.get("description", ""),
+                supplier_id=supplier_id
             )
             db.session.add(invoice_item)
             
@@ -722,6 +734,7 @@ def put_return(data, invoice, machine, mechanism, invoice_ns):
                         location=location,  # NEW: Include location
                         quantity=new_quantity,
                         unit_price=new_unit_price,
+                        supplier_id=0,  # Use default supplier for return operations
                         created_at=datetime.now()
                     )
                     db.session.add(new_price)
