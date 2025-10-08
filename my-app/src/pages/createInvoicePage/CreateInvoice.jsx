@@ -157,9 +157,28 @@ export default function CreateInvoice() {
     if (isPurchase) {
       setPurchasesType(type);
       setOperationType("");
+      setNewInvoice((prev) => ({
+        ...prev,
+        type,
+        original_invoice_id: null,
+      }));
+      setPurchaseOrderInvoice((prev) => ({
+        ...prev,
+        original_invoice_id: null,
+      }));
     } else {
       setOperationType(type);
       setPurchasesType("");
+
+      setNewInvoice((prev) => ({
+        ...prev,
+        type,
+        original_invoice_id: null,
+      }));
+      setPurchaseOrderInvoice((prev) => ({
+        ...prev,
+        original_invoice_id: null,
+      }));
     }
   }, []);
 
@@ -167,6 +186,7 @@ export default function CreateInvoice() {
     setNewInvoice((prev) => ({
       ...prev,
       type: operationType || purchasesType,
+      original_invoice_id: null,
     }));
   }, [operationType, purchasesType]);
 
@@ -248,8 +268,8 @@ export default function CreateInvoice() {
     const requiredFields = isPurchaseOrder
       ? ["machine_name", "mechanism_name"]
       : invoice.type === "مرتجع"
-      ? ["machine_name", "mechanism_name", "original_invoice_id"]
-      : ["machine_name", "mechanism_name"];
+        ? ["machine_name", "mechanism_name", "original_invoice_id"]
+        : ["machine_name", "mechanism_name"];
 
     const missingFields = requiredFields.filter((field) => !invoice[field]);
 
@@ -293,7 +313,6 @@ export default function CreateInvoice() {
 
     const invoiceData = {
       ...newInvoice,
-      original_invoice_id: Number(newInvoice.original_invoice_id || 0),
       items: newInvoice.items
         .filter((item) => Number(item.quantity) > 0)
         .map((item) => ({
@@ -313,6 +332,14 @@ export default function CreateInvoice() {
       date,
       time,
     };
+
+    delete invoiceData.original_invoice_id;
+    if (["صرف", "أمانات", "مرتجع"].includes(newInvoice.type)) {
+      invoiceData.original_invoice_id = newInvoice.original_invoice_id
+        ? Number(newInvoice.original_invoice_id)
+        : 0;
+    }
+
     console.log(invoiceData);
     if (
       invoiceData?.type != "اضافه" &&
@@ -390,7 +417,7 @@ export default function CreateInvoice() {
       const m =
         error?.data?.message?.includes("exceeds") ||
         error?.data?.message?.includes("enough")
-          ? "الكمية التى يتم ارجاعها تفوق الحد المسموح"
+          ? "الكمية تفوق الحد المسموح"
           : error?.status === "FETCH_ERROR"
           ? "خطأ في الوصول إلى قاعدة البيانات"
           : "حدث خطأ، الرجاء المحاولة مرة أخرى أو إعادة تحميل الصفحة";
@@ -432,6 +459,8 @@ export default function CreateInvoice() {
       date,
       time,
     };
+
+    delete purchaseOrderData.original_invoice_id;
 
     try {
       await createInvoice(purchaseOrderData).unwrap();

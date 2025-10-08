@@ -28,6 +28,7 @@ import {
   useReturnWarrantyInvoicePartiallyMutation,
   useGetWarehousesQuery,
   useReturnWarrantyInvoiceMutation,
+  useGetInvoicesQuery,
 } from "../../services/invoice&warehouseApi";
 import KeyboardReturnIcon from "@mui/icons-material/KeyboardReturn";
 
@@ -146,6 +147,34 @@ export default function InvoiceModal({
   const invoiceNumbers = invoicesData?.["sales-invoices"]?.map((number) =>
     number.toString()
   );
+
+  // Add new state for booking invoice numbers
+  const {
+    data: bookingInvoicesData,
+    isLoading: isBookingInvoicesLoading,
+    isError: isBookingInvoicesError,
+  } = useGetInvoicesQuery(
+    { type: "حجز", all: true },
+    {
+      pollingInterval: 300000,
+      skip:
+        !isEditingInvoice ||
+        !["صرف", "أمانات"].includes(editingInvoice?.type) ||
+        justEditUnitPrice,
+    }
+  );
+  const bookingInvoiceNumbers =
+    bookingInvoicesData?.invoices?.map((invoice) => invoice.id.toString()) ||
+    [];
+
+  // Add error handling for booking invoices
+  useEffect(() => {
+    if (isBookingInvoicesError) {
+      setSnackBarType("error");
+      setSnackbarMessage("فشل تحميل أرقام فواتير الحجز");
+      setOpenSnackbar(true);
+    }
+  }, [isBookingInvoicesError]);
 
   useEffect(() => {
     if (isInvoiceNumbersError) {
@@ -372,9 +401,8 @@ export default function InvoiceModal({
               const originalLocationItem = originalInvoice.items.find(
                 (oi) =>
                   oi.item_name.trim().toLowerCase() ===
-                    item.item_name?.trim()?.toLowerCase()
-                    // && oi.location === item.location
-                  
+                  item.item_name?.trim()?.toLowerCase()
+                // && oi.location === item.location
               );
               maxquantity = originalLocationItem
                 ? originalLocationItem.quantity
@@ -385,6 +413,34 @@ export default function InvoiceModal({
               price_details = originalLocationItem
                 ? originalLocationItem.price_details
                 : [];
+            }
+          }
+        } else if (
+          ["صرف", "أمانات"].includes(editingInvoice?.type) &&
+          editingInvoice.original_invoice_id &&
+          originalInvoice?.items
+        ) {
+          // For صرف and أمانات invoices with a selected booking invoice
+          const bookingItem = originalInvoice.items.find(
+            (oi) =>
+              oi.item_name.trim().toLowerCase() ===
+                item.item_name?.trim()?.toLowerCase() &&
+              oi.location === item.location
+          );
+          maxquantity =
+            (warehouseItem?.locations?.find(
+              (loc) => loc.location === item.location
+            )?.quantity || 0) + (bookingItem?.quantity || 0);
+          if (!isCreate && selectedInvoice?.items) {
+            const selectedInvoiceItem = selectedInvoice.items.find(
+              (si) =>
+                si.item_name.trim().toLowerCase() ===
+                  item.item_name?.trim()?.toLowerCase() &&
+                si.location === item.location &&
+                si.barcode === item.barcode
+            );
+            if (selectedInvoiceItem) {
+              maxquantity += selectedInvoiceItem.quantity || 0;
             }
           }
         } else if (selectedNowType?.type !== "اضافه") {
@@ -536,9 +592,9 @@ export default function InvoiceModal({
           >
             <TableBody>
               {/* Inputs for Machine, Mechanism Names, and Invoice Number */}
-              {(selectedNowType?.type === "مرتجع" ||
-                selectedInvoice?.type === "مرتجع" ||
-                editingInvoice?.type === "مرتجع") && (
+              {(["مرتجع", "صرف", "أمانات"].includes(selectedNowType?.type) ||
+                ["مرتجع", "صرف", "أمانات"].includes(selectedInvoice?.type) ||
+                ["مرتجع", "صرف", "أمانات"].includes(editingInvoice?.type)) && (
                 <TableRow className={styles.tableRow}>
                   <TableCell className={styles.tableCell} colSpan={2}>
                     رقم الفاتورة
@@ -553,12 +609,21 @@ export default function InvoiceModal({
                     {isEditingInvoice && !justEditUnitPrice ? (
                       <>
                         <CustomAutoCompleteField
-                          loading={isInvoiceNumbersLoading}
-                          values={invoiceNumbers}
+                          loading={
+                            ["صرف", "أمانات"].includes(editingInvoice?.type)
+                              ? isBookingInvoicesLoading
+                              : isInvoiceNumbersLoading
+                          }
+                          values={
+                            ["صرف", "أمانات"].includes(editingInvoice?.type)
+                              ? bookingInvoiceNumbers
+                              : invoiceNumbers
+                          }
                           editingItem={editingInvoice}
                           setEditingItem={setEditingInvoice}
                           fieldName="original_invoice_id"
                           placeholder="رقم الفاتورة"
+                          required={true} // Make the field required
                         />
                         <IconButton
                           onClick={() =>
@@ -585,7 +650,8 @@ export default function InvoiceModal({
               )}
               {selectedNowType?.type !== "اضافه" &&
                 selectedInvoice?.type !== "اضافه" &&
-                editingInvoice?.type !== "اضافه" && !isTransferType && (
+                editingInvoice?.type !== "اضافه" &&
+                !isTransferType && (
                   <>
                     <TableRow className={styles.tableRow}>
                       <TableCell className={styles.tableCell} colSpan={2}>
