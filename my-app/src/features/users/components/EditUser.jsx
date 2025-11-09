@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { Button, IconButton } from "@mui/material";
-import { useUpdateUserMutation } from "../../services/userApi";
+import { useUpdateUserMutation } from "../../../services/userApi";
 import SaveIcon from "@mui/icons-material/Save";
 import CancelIcon from "@mui/icons-material/Close";
 import EditIcon from "@mui/icons-material/Edit";
-import SnackBar from "../snackBar/SnackBar";
+import SnackBar from "../../../components/snackBar/SnackBar";
 import {
   Jobs,
   CreateInvoiceOptions,
@@ -13,7 +13,7 @@ import {
   MachinesOptions,
   MechanismOptions,
   SuppliersOptions,
-} from "../jobs";
+} from "../../../components/jobs";
 
 const EditUser = ({ open, onClose, user: initialUser }) => {
   const transformUserData = (user) => {
