@@ -1,4 +1,4 @@
-// src/components/protectPages/ProtectedRoute.jsx
+// src/route/guards/ProtectedRoute.jsx
 import React from "react";
 import { Outlet, Navigate } from "react-router-dom";
 import CircularProgress from "@mui/material/CircularProgress";

@@ -9,7 +9,7 @@ import {
   IconButton,
 } from "@mui/material";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
-import { useChangePassMutation } from "../../services/userApi"; // Import the mutation hook
+import { useChangePassMutation } from "../../../services/userApi"; // Import the mutation hook
 
 const ChangePassword = ({ open, onClose, userId, onSuccess }) => {
   const [newPassword, setNewPassword] = useState("");

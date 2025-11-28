@@ -1,3 +1,4 @@
+/* src/features/users/Users.module.css */
 @import url('../../colors.css');
 
 :root {
@@ -50,7 +51,7 @@
     padding: 10px 30px;
     transition: 0.2s;
     border: 2px solid var(--secondary-color);
-    background-color: var(--blue-color);
+    background-color: var(--blue_color);
     color: #fff;
     margin: 10px 0;
 }
@@ -75,4 +76,12 @@
     .container {
         width: 100%;
     }
+}
+
+.actionsColumn {
+  text-align: center;
+}
+
+.iconBtnContainer {
+  gap: 6px;
 }
