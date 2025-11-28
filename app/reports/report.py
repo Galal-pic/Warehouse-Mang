@@ -1148,7 +1148,53 @@ class FilterReports(Resource):
                     }
                 else:
                     invoice_data['return_sales_info'] = None
-            
+
+            # NEW: Add rental information for rental invoices (حجز)
+            if invoice.type == 'حجز':
+                rented_items_records = RentedItems.query.filter_by(rental_invoice_id=invoice.id).all()
+
+                rental_summary = {
+                    'total_rented_items': len(rented_items_records),
+                    'total_rented_quantity': sum(ri.quantity for ri in rented_items_records),
+                    'total_given_quantity': sum(ri.quantity for ri in rented_items_records if ri.status == 'given'),
+                    'total_returned_quantity': sum(ri.quantity for ri in rented_items_records if ri.status == 'returned'),
+                    'total_borrowed_to_main': sum(ri.borrowed_to_main_quantity for ri in rented_items_records),
+                    'status_breakdown': {
+                        'reserved': sum(1 for ri in rented_items_records if ri.status == 'reserved'),
+                        'given': sum(1 for ri in rented_items_records if ri.status == 'given'),
+                        'returned': sum(1 for ri in rented_items_records if ri.status == 'returned'),
+                        'borrowed_to_main': sum(1 for ri in rented_items_records if ri.status == 'borrowed_to_main')
+                    }
+                }
+
+                rental_items_detail = []
+                for ri in rented_items_records:
+                    rental_items_detail.append({
+                        'item_id': ri.item_id,
+                        'item_name': ri.item.item_name if ri.item else None,
+                        'item_bar': ri.item.item_bar if ri.item else None,
+                        'quantity': ri.quantity,
+                        'unit_price': ri.unit_price,
+                        'total_price': ri.total_price,
+                        'status': ri.status,
+                        'customer_name': ri.customer_name,
+                        'customer_phone': ri.customer_phone,
+                        'customer_id_number': ri.customer_id_number,
+                        'expected_return_date': serialize_value(ri.expected_return_date) if ri.expected_return_date else None,
+                        'actual_return_date': serialize_value(ri.actual_return_date) if ri.actual_return_date else None,
+                        'given_date': serialize_value(ri.given_date) if ri.given_date else None,
+                        'borrowed_to_main_quantity': ri.borrowed_to_main_quantity,
+                        'borrowed_date': serialize_value(ri.borrowed_date) if ri.borrowed_date else None,
+                        'notes': ri.notes,
+                        'created_at': serialize_value(ri.created_at),
+                        'updated_at': serialize_value(ri.updated_at)
+                    })
+
+                invoice_data['rental_info'] = {
+                    'summary': rental_summary,
+                    'items': rental_items_detail
+                }
+
             result.append(invoice_data)
         
         return {
@@ -1401,7 +1447,62 @@ class FilterReports(Resource):
                     "new_location": getattr(inv_item, 'new_location', None)  # NEW: destination for transfers
                 })
             
-            # Build item data with all relevant information including warranty returns and transfer data
+            # NEW: Get rental history for this item
+            rental_records = RentedItems.query.filter_by(item_id=item.id).order_by(desc(RentedItems.id)).all()
+
+            # Apply date filters to rental records
+            if start_date or end_date:
+                filtered_rental_records = []
+                for rr in rental_records:
+                    rental_invoice = Invoice.query.get(rr.rental_invoice_id)
+                    if rental_invoice:
+                        if start_date and rental_invoice.created_at < start_date:
+                            continue
+                        if end_date and rental_invoice.created_at > end_date:
+                            continue
+                        filtered_rental_records.append(rr)
+                rental_records = filtered_rental_records
+
+            rental_history = []
+            for rr in rental_records:
+                rental_invoice = Invoice.query.get(rr.rental_invoice_id)
+                rental_history.append({
+                    'rental_invoice_id': rr.rental_invoice_id,
+                    'rental_invoice_date': serialize_value(rental_invoice.created_at) if rental_invoice else None,
+                    'quantity': rr.quantity,
+                    'unit_price': rr.unit_price,
+                    'total_price': rr.total_price,
+                    'status': rr.status,
+                    'customer_name': rr.customer_name,
+                    'customer_phone': rr.customer_phone,
+                    'customer_id_number': rr.customer_id_number,
+                    'expected_return_date': serialize_value(rr.expected_return_date) if rr.expected_return_date else None,
+                    'actual_return_date': serialize_value(rr.actual_return_date) if rr.actual_return_date else None,
+                    'given_date': serialize_value(rr.given_date) if rr.given_date else None,
+                    'borrowed_to_main_quantity': rr.borrowed_to_main_quantity,
+                    'borrowed_date': serialize_value(rr.borrowed_date) if rr.borrowed_date else None,
+                    'notes': rr.notes,
+                    'employee_name': rental_invoice.employee_name if rental_invoice else None
+                })
+
+            # NEW: Get rental warehouse information for this item
+            rental_warehouse_location = RentalWarehouseLocations.query.filter_by(
+                item_id=item.id,
+                location='RENTAL_WAREHOUSE'
+            ).first()
+
+            rental_warehouse_info = None
+            if rental_warehouse_location:
+                rental_warehouse_info = {
+                    'quantity': rental_warehouse_location.quantity,
+                    'reserved_quantity': rental_warehouse_location.reserved_quantity,
+                    'available_quantity': rental_warehouse_location.available_quantity,
+                    'available_for_borrowing': rental_warehouse_location.quantity - rental_warehouse_location.reserved_quantity,
+                    'created_at': serialize_value(rental_warehouse_location.created_at),
+                    'updated_at': serialize_value(rental_warehouse_location.updated_at)
+                }
+
+            # Build item data with all relevant information including warranty returns, transfer data, and rental info
             item_data = {
                 "id": item.id,
                 "item_name": item.item_name,
@@ -1425,6 +1526,8 @@ class FilterReports(Resource):
                     "warranty_invoice_type": wr.warranty_invoice.type,
                     "warranty_invoice_client": wr.warranty_invoice.client_name
                 } for wr in warranty_returns],
+                "rental_history": rental_history,  # NEW: rental history
+                "rental_warehouse_info": rental_warehouse_info,  # NEW: rental warehouse status
                 "purchase_requests": [{
                     "id": req.id,
                     "status": req.status,
@@ -1437,7 +1540,7 @@ class FilterReports(Resource):
                     "employee": req.employee.username if req.employee else None
                 } for req in sorted(item.purchase_requests, key=lambda x: x.id, reverse=True)]
             }
-            
+
             result.append(item_data)
         
         return {
@@ -1659,7 +1762,7 @@ class FilterReports(Resource):
                     "total_split_items": total_split_items,
                     "location_breakdown": location_summary
                 }
-            
+
             # Add ReturnSales information if invoice type is "مرتجع"
             if invoice.type == "مرتجع":
                 return_sales_record = ReturnSales.query.filter_by(return_invoice_id=invoice.id).first()
@@ -1674,7 +1777,53 @@ class FilterReports(Resource):
                     }
                 else:
                     invoice_data['return_sales_info'] = None
-            
+
+            # NEW: Add rental information for rental invoices (حجز) in _serialize_invoices
+            if invoice.type == 'حجز':
+                rented_items_records = RentedItems.query.filter_by(rental_invoice_id=invoice.id).all()
+
+                rental_summary = {
+                    'total_rented_items': len(rented_items_records),
+                    'total_rented_quantity': sum(ri.quantity for ri in rented_items_records),
+                    'total_given_quantity': sum(ri.quantity for ri in rented_items_records if ri.status == 'given'),
+                    'total_returned_quantity': sum(ri.quantity for ri in rented_items_records if ri.status == 'returned'),
+                    'total_borrowed_to_main': sum(ri.borrowed_to_main_quantity for ri in rented_items_records),
+                    'status_breakdown': {
+                        'reserved': sum(1 for ri in rented_items_records if ri.status == 'reserved'),
+                        'given': sum(1 for ri in rented_items_records if ri.status == 'given'),
+                        'returned': sum(1 for ri in rented_items_records if ri.status == 'returned'),
+                        'borrowed_to_main': sum(1 for ri in rented_items_records if ri.status == 'borrowed_to_main')
+                    }
+                }
+
+                rental_items_detail = []
+                for ri in rented_items_records:
+                    rental_items_detail.append({
+                        'item_id': ri.item_id,
+                        'item_name': ri.item.item_name if ri.item else None,
+                        'item_bar': ri.item.item_bar if ri.item else None,
+                        'quantity': ri.quantity,
+                        'unit_price': ri.unit_price,
+                        'total_price': ri.total_price,
+                        'status': ri.status,
+                        'customer_name': ri.customer_name,
+                        'customer_phone': ri.customer_phone,
+                        'customer_id_number': ri.customer_id_number,
+                        'expected_return_date': serialize_value(ri.expected_return_date) if ri.expected_return_date else None,
+                        'actual_return_date': serialize_value(ri.actual_return_date) if ri.actual_return_date else None,
+                        'given_date': serialize_value(ri.given_date) if ri.given_date else None,
+                        'borrowed_to_main_quantity': ri.borrowed_to_main_quantity,
+                        'borrowed_date': serialize_value(ri.borrowed_date) if ri.borrowed_date else None,
+                        'notes': ri.notes,
+                        'created_at': serialize_value(ri.created_at),
+                        'updated_at': serialize_value(ri.updated_at)
+                    })
+
+                invoice_data['rental_info'] = {
+                    'summary': rental_summary,
+                    'items': rental_items_detail
+                }
+
             serialized_invoices.append(invoice_data)
         return serialized_invoices
 

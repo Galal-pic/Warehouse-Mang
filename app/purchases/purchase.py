@@ -618,4 +618,4 @@ def restock_rental_warehouse(item_id, purchased_quantity):
         
         
     except Exception as e:
-        raise Exception(f"Error recalculating sales invoice {sales_invoice.id}: {str(e)}")
+        raise Exception(f"Error recalculating sales invoice: {str(e)}")

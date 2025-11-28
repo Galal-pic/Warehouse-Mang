@@ -9,7 +9,7 @@ from .operations.returns import Return_Operations, delete_return, put_return
 from .operations.sales import Sales_Operations, delete_sales, put_sales
 from .operations.warranty import Warranty_Operations, delete_warranty, put_warranty
 from .operations.void import Void_Operations, delete_void, put_void
-from .operations.rent import Rent_Operations, update_rental_status, borrow_from_rental_to_main, return_to_main_warehouse, delete_rental_invoice
+from .operations.rent import Rent_Operations, update_rental_status, borrow_from_rental_to_main, return_to_main_warehouse, delete_rental_invoice, put_rental
 from .purchases.purchase import Purchase_Operations, delete_purchase, put_purchase
 from .operations.purchase_request import PurchaseRequest_Operations, put_purchase_request, delete_purchase_request
 from .warehouses.warehouse import warehouse_ns, item_location_ns
@@ -458,9 +458,9 @@ class InvoiceList(Resource):
             result = Return_Operations(data, machine, mechanism, supplier, employee, machine_ns, warehouse_ns, invoice_ns, mechanism_ns, item_location_ns, supplier_ns)
         elif data['type'] == 'توالف':
             result = Void_Operations(data, machine, mechanism, supplier, employee, machine_ns, warehouse_ns, invoice_ns, mechanism_ns, item_location_ns, supplier_ns)
-        elif data['type'] == 'حجز':
-            result = Booking_Operations(data, machine, mechanism, supplier, employee, machine_ns, warehouse_ns, invoice_ns, mechanism_ns, item_location_ns, supplier_ns)
         elif data['type'] == 'إيجار':
+            result = Rent_Operations(data, machine, mechanism, supplier, employee, machine_ns, warehouse_ns, invoice_ns, mechanism_ns, item_location_ns, supplier_ns)
+        elif data['type'] == 'حجز':
             result = Rent_Operations(data, machine, mechanism, supplier, employee, machine_ns, warehouse_ns, invoice_ns, mechanism_ns, item_location_ns, supplier_ns)
         elif data['type'] == 'طلب شراء':
             result = PurchaseRequest_Operations(data, machine, mechanism, supplier, employee, machine_ns, warehouse_ns, invoice_ns, mechanism_ns, item_location_ns, supplier_ns)
@@ -605,8 +605,10 @@ class InvoiceDetail(Resource):
             result = put_return(data, invoice, machine, mechanism, invoice_ns)
         elif invoice.type == 'توالف':
             result = put_void(data, invoice, machine, mechanism, invoice_ns)
+        elif invoice.type == 'إيجار':
+            result = put_rental(data, invoice, machine, mechanism, invoice_ns)
         elif invoice.type == 'حجز':
-            result = put_booking(data, invoice, machine, mechanism, invoice_ns)
+            result = put_rental(data, invoice, machine, mechanism, invoice_ns)
         elif invoice.type == 'طلب شراء':
             result = put_purchase_request(data, invoice, machine, mechanism, invoice_ns)
         elif invoice.type == 'تحويل':
@@ -635,8 +637,10 @@ class InvoiceDetail(Resource):
             result = delete_return(invoice, invoice_ns)
         elif invoice.type == "توالف":
             result = delete_void(invoice, invoice_ns)
+        elif invoice.type == 'إيجار':
+            result = delete_rental_invoice(invoice, invoice_ns)
         elif invoice.type == 'حجز':
-            result = delete_booking(invoice, invoice_ns)
+            result = delete_rental_invoice(invoice, invoice_ns)
         elif invoice.type == 'طلب شراء':
             result = delete_purchase_request(invoice, invoice_ns)
         elif invoice.type == 'تحويل':

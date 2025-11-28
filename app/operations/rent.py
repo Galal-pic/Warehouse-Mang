@@ -278,26 +278,27 @@ def borrow_from_rental_to_main(item_id, quantity, location, employee_id, notes=N
             item_id=item_id,
             location='RENTAL_WAREHOUSE'
         ).first()
-        
+
         if not rental_location:
             return operation_result(404, "error", "Item not found in rental warehouse")
-        
-        # Calculate available quantity (total - reserved - already borrowed)
-        available_for_borrowing = rental_location.quantity - rental_location.reserved_quantity - rental_location.available_quantity
-        
+
+        # Calculate available quantity (total - reserved)
+        # available_quantity tracks items already borrowed, so actual available = quantity - reserved
+        available_for_borrowing = rental_location.quantity - rental_location.reserved_quantity
+
         if available_for_borrowing < quantity:
             return operation_result(400, "error", f"Not enough available quantity in rental warehouse. Available: {available_for_borrowing}, Requested: {quantity}")
-        
-        # Update rental warehouse
+
+        # Update rental warehouse - track borrowed items
         rental_location.available_quantity += quantity
         rental_location.updated_at = datetime.now()
-        
+
         # Add to main warehouse location
         main_location = ItemLocations.query.filter_by(
             item_id=item_id,
             location=location
         ).first()
-        
+
         if main_location:
             main_location.quantity += quantity
         else:
@@ -307,26 +308,35 @@ def borrow_from_rental_to_main(item_id, quantity, location, employee_id, notes=N
                 quantity=quantity
             )
             db.session.add(main_location)
-        
+
         # Update rented items to track borrowing
+        # Find reserved items and mark them as borrowed
+        remaining_to_borrow = quantity
         rented_items = RentedItems.query.filter_by(
             item_id=item_id,
             status='reserved'
-        ).limit(quantity).all()
-        
+        ).order_by(RentedItems.created_at.asc()).all()
+
         for rented_item in rented_items:
-            rented_item.borrowed_to_main_quantity += min(quantity, rented_item.quantity)
-            rented_item.borrowed_date = datetime.now()
-            rented_item.status = 'borrowed_to_main'
-            if notes:
-                rented_item.notes = f"{rented_item.notes or ''} | Borrowed to main: {notes}"
-            quantity -= rented_item.quantity
-            if quantity <= 0:
+            if remaining_to_borrow <= 0:
                 break
-        
+
+            # Calculate how much we can borrow from this rental record
+            available_in_record = rented_item.quantity - rented_item.borrowed_to_main_quantity
+            quantity_to_borrow = min(remaining_to_borrow, available_in_record)
+
+            if quantity_to_borrow > 0:
+                rented_item.borrowed_to_main_quantity += quantity_to_borrow
+                rented_item.borrowed_date = datetime.now()
+                rented_item.status = 'borrowed_to_main'
+                if notes:
+                    rented_item.notes = f"{rented_item.notes or ''} | Borrowed to main: {notes}"
+                remaining_to_borrow -= quantity_to_borrow
+
         db.session.commit()
-        return operation_result(200, "success", message=f"Successfully borrowed {quantity} items from rental to main warehouse")
-        
+        borrowed_amount = quantity - remaining_to_borrow
+        return operation_result(200, "success", message=f"Successfully borrowed {borrowed_amount} items from rental to main warehouse")
+
     except SQLAlchemyError as e:
         db.session.rollback()
         return operation_result(500, "error", message=f"Database error: {str(e)}")
@@ -371,6 +381,271 @@ def return_to_main_warehouse(item_id, quantity, employee_id):
         return False
 
 
+def put_rental(data, invoice, machine, mechanism, invoice_ns):
+    """
+    Update a rental invoice
+    """
+    try:
+        # Check if it's a rental invoice
+        if invoice.type != 'حجز':
+            db.session.rollback()
+            return operation_result(400, "error", "Can only update rental invoices with this method")
+
+        # Check if any items have been given to customers
+        rented_items = RentedItems.query.filter_by(rental_invoice_id=invoice.id).all()
+        for rented_item in rented_items:
+            if rented_item.status == 'given':
+                db.session.rollback()
+                return operation_result(400, "error", "Cannot update rental invoice after items have been given to customer")
+
+        with db.session.begin_nested():
+            # Create a dictionary of original items for easy lookup
+            original_items = {(item.item_id, item.location): item for item in invoice.items}
+            updated_items = {}
+
+            # Track the total amount for the updated invoice
+            total_invoice_amount = 0
+
+            # Customer information from the invoice data
+            customer_name = data.get("client_name", data.get("customer_name", ""))
+            customer_phone = data.get("customer_phone")
+            customer_id_number = data.get("customer_id_number")
+            expected_return_date = None
+            if data.get("expected_return_date"):
+                try:
+                    expected_return_date = datetime.fromisoformat(data["expected_return_date"].replace('Z', '+00:00'))
+                except:
+                    expected_return_date = None
+
+            # Process updates and new items
+            for item_data in data["items"]:
+                warehouse_item = Warehouse.query.filter_by(item_name=item_data["item_name"]).first()
+                if not warehouse_item:
+                    db.session.rollback()
+                    return operation_result(404, "error", f"Item '{item_data['item_name']}' not found in warehouse")
+
+                location = item_data["location"]
+                key = (warehouse_item.id, location)
+
+                item_location = ItemLocations.query.filter_by(
+                    item_id=warehouse_item.id,
+                    location=location
+                ).first()
+
+                if not item_location:
+                    db.session.rollback()
+                    return operation_result(404, "error", f"Item location not found")
+
+                # Calculate quantity difference
+                if key in original_items:
+                    old_quantity = original_items[key].quantity
+                    new_quantity = item_data["quantity"]
+                    quantity_diff = new_quantity - old_quantity
+                else:
+                    old_quantity = 0
+                    new_quantity = item_data["quantity"]
+                    quantity_diff = new_quantity
+
+                # Check stock availability for increases
+                if quantity_diff > 0 and item_location.quantity < quantity_diff:
+                    db.session.rollback()
+                    return operation_result(400, "error", f"Insufficient stock for {item_data['item_name']}")
+
+                # Update main warehouse inventory
+                item_location.quantity -= quantity_diff
+
+                # Handle pricing using FIFO
+                # First, restore old price quantities if this is an update
+                if key in original_items:
+                    old_price_details = InvoicePriceDetail.query.filter_by(
+                        invoice_id=invoice.id,
+                        item_id=warehouse_item.id
+                    ).all()
+                    for detail in old_price_details:
+                        price_entry = Prices.query.filter_by(
+                            invoice_id=detail.source_price_invoice_id,
+                            item_id=detail.source_price_item_id,
+                            location=detail.source_price_location,
+                            supplier_id=detail.source_price_supplier_id
+                        ).first()
+                        if price_entry:
+                            price_entry.quantity += detail.quantity
+
+                    # Delete old price details for this item
+                    InvoicePriceDetail.query.filter_by(
+                        invoice_id=invoice.id,
+                        item_id=warehouse_item.id
+                    ).delete()
+
+                # Apply new FIFO pricing
+                remaining_to_rent = new_quantity
+                fifo_total = 0
+
+                price_entries = Prices.query.filter_by(
+                    item_id=warehouse_item.id
+                ).order_by(Prices.invoice_id.asc()).all()
+
+                if not price_entries:
+                    db.session.rollback()
+                    return operation_result(400, "error", f"No price information found for item '{item_data['item_name']}'")
+
+                for price_entry in price_entries:
+                    if remaining_to_rent <= 0:
+                        break
+
+                    quantity_from_this_entry = min(remaining_to_rent, price_entry.quantity)
+                    subtotal = round(quantity_from_this_entry * price_entry.unit_price, 3)
+
+                    price_detail = InvoicePriceDetail(
+                        invoice_id=invoice.id,
+                        item_id=warehouse_item.id,
+                        source_price_invoice_id=price_entry.invoice_id,
+                        source_price_item_id=price_entry.item_id,
+                        source_price_location=price_entry.location,
+                        source_price_supplier_id=price_entry.supplier_id,
+                        quantity=quantity_from_this_entry,
+                        unit_price=round(price_entry.unit_price, 3),
+                        subtotal=subtotal
+                    )
+
+                    db.session.add(price_detail)
+                    fifo_total += subtotal
+                    remaining_to_rent -= quantity_from_this_entry
+                    price_entry.quantity -= quantity_from_this_entry
+
+                if remaining_to_rent > 0:
+                    db.session.rollback()
+                    return operation_result(400, "error", f"Insufficient priced inventory for '{item_data['item_name']}'")
+
+                fifo_total = round(fifo_total, 3)
+                effective_unit_price = round(fifo_total / new_quantity, 3) if new_quantity > 0 else 0
+
+                # Update or create invoice item
+                if key in original_items:
+                    item = original_items[key]
+                    item.quantity = new_quantity
+                    item.unit_price = effective_unit_price
+                    item.total_price = fifo_total
+                    if "description" in item_data:
+                        item.description = item_data["description"]
+                else:
+                    item = InvoiceItem(
+                        invoice_id=invoice.id,
+                        item_id=warehouse_item.id,
+                        quantity=new_quantity,
+                        location=location,
+                        unit_price=effective_unit_price,
+                        total_price=fifo_total,
+                        description=item_data.get("description", ""),
+                        supplier_id=0
+                    )
+                    db.session.add(item)
+
+                updated_items[key] = item
+                total_invoice_amount += fifo_total
+
+                # Update or create rental warehouse location
+                rental_location = RentalWarehouseLocations.query.filter_by(
+                    item_id=warehouse_item.id,
+                    location='RENTAL_WAREHOUSE'
+                ).first()
+
+                if rental_location:
+                    rental_location.quantity += quantity_diff
+                    rental_location.reserved_quantity += quantity_diff
+                    rental_location.updated_at = datetime.now()
+                else:
+                    rental_location = RentalWarehouseLocations(
+                        item_id=warehouse_item.id,
+                        location='RENTAL_WAREHOUSE',
+                        quantity=new_quantity,
+                        reserved_quantity=new_quantity,
+                        available_quantity=0
+                    )
+                    db.session.add(rental_location)
+
+                # Update rented item record
+                rented_item = RentedItems.query.filter_by(
+                    rental_invoice_id=invoice.id,
+                    item_id=warehouse_item.id
+                ).first()
+
+                if rented_item:
+                    rented_item.quantity = new_quantity
+                    rented_item.unit_price = effective_unit_price
+                    rented_item.total_price = fifo_total
+                    rented_item.customer_name = customer_name
+                    rented_item.customer_phone = customer_phone
+                    rented_item.customer_id_number = customer_id_number
+                    rented_item.expected_return_date = expected_return_date
+                    rented_item.notes = item_data.get('notes', '')
+                    rented_item.updated_at = datetime.now()
+
+            # Restore removed items
+            for key, item in original_items.items():
+                if key not in updated_items:
+                    item_location = ItemLocations.query.filter_by(
+                        item_id=item.item_id,
+                        location=item.location
+                    ).first()
+
+                    if item_location:
+                        item_location.quantity += item.quantity
+
+                    # Remove from rental warehouse
+                    rental_location = RentalWarehouseLocations.query.filter_by(
+                        item_id=item.item_id,
+                        location='RENTAL_WAREHOUSE'
+                    ).first()
+
+                    if rental_location:
+                        rental_location.quantity -= item.quantity
+                        rental_location.reserved_quantity -= item.quantity
+                        if rental_location.quantity <= 0:
+                            db.session.delete(rental_location)
+
+                    # Delete price details
+                    InvoicePriceDetail.query.filter_by(
+                        invoice_id=invoice.id,
+                        item_id=item.item_id
+                    ).delete()
+
+                    # Delete rented item record
+                    RentedItems.query.filter_by(
+                        rental_invoice_id=invoice.id,
+                        item_id=item.item_id
+                    ).delete()
+
+                    db.session.delete(item)
+
+            # Update invoice fields
+            invoice.client_name = customer_name
+            invoice.warehouse_manager = data.get("warehouse_manager", invoice.warehouse_manager)
+            invoice.accreditation_manager = data.get("accreditation_manager", invoice.accreditation_manager)
+            invoice.total_amount = total_invoice_amount
+            invoice.paid = data.get("paid", invoice.paid)
+            invoice.residual = total_invoice_amount - invoice.paid
+            invoice.comment = data.get("comment", invoice.comment)
+            invoice.status = data.get("status", invoice.status)
+
+            # Update machine and mechanism if provided
+            if machine:
+                invoice.machine_id = machine.id
+            if mechanism:
+                invoice.mechanism_id = mechanism.id
+
+            db.session.commit()
+
+        return {"message": "Rental invoice updated successfully"}, 200
+
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        return operation_result(500, "error", f"Database error: {str(e)}")
+    except Exception as e:
+        db.session.rollback()
+        return operation_result(500, "error", f"Error updating rental invoice: {str(e)}")
+
+
 def delete_rental_invoice(invoice, invoice_ns):
     """
     Delete a rental invoice and restore inventory
@@ -383,36 +658,55 @@ def delete_rental_invoice(invoice, invoice_ns):
     try:
         # Get all rented items for this invoice
         rented_items = RentedItems.query.filter_by(rental_invoice_id=invoice.id).all()
-        
+
         for rented_item in rented_items:
             # If item was given to customer, we can't delete the invoice
             if rented_item.status == 'given':
                 db.session.rollback()
                 return operation_result(400, "error", f"Cannot delete rental invoice. Item {rented_item.item.item_name} has been given to customer.")
-            
-            # Restore main warehouse inventory
-            main_location = ItemLocations.query.filter_by(
+
+            # Get the original invoice item to find the correct location
+            invoice_item = InvoiceItem.query.filter_by(
+                invoice_id=invoice.id,
                 item_id=rented_item.item_id
             ).first()
-            
+
+            if not invoice_item:
+                db.session.rollback()
+                return operation_result(500, "error", f"Invoice item not found for item {rented_item.item_id}")
+
+            # Restore main warehouse inventory to the original location
+            main_location = ItemLocations.query.filter_by(
+                item_id=rented_item.item_id,
+                location=invoice_item.location
+            ).first()
+
             if main_location:
                 main_location.quantity += rented_item.quantity
-            
+            else:
+                # Create the location if it doesn't exist
+                main_location = ItemLocations(
+                    item_id=rented_item.item_id,
+                    location=invoice_item.location,
+                    quantity=rented_item.quantity
+                )
+                db.session.add(main_location)
+
             # Remove from rental warehouse
             rental_location = RentalWarehouseLocations.query.filter_by(
                 item_id=rented_item.item_id,
                 location='RENTAL_WAREHOUSE'
             ).first()
-            
+
             if rental_location:
                 rental_location.quantity -= rented_item.quantity
                 rental_location.reserved_quantity -= rented_item.quantity
                 if rental_location.quantity <= 0:
                     db.session.delete(rental_location)
-        
+
         # Restore price entries
         price_details = InvoicePriceDetail.query.filter_by(invoice_id=invoice.id).all()
-        
+
         for detail in price_details:
             price_entry = Prices.query.filter_by(
                 invoice_id=detail.source_price_invoice_id,
@@ -420,21 +714,21 @@ def delete_rental_invoice(invoice, invoice_ns):
                 location=detail.source_price_location,
                 supplier_id=detail.source_price_supplier_id
             ).first()
-            
+
             if price_entry:
                 price_entry.quantity += detail.quantity
-        
+
         # Delete related records
         RentedItems.query.filter_by(rental_invoice_id=invoice.id).delete()
         InvoicePriceDetail.query.filter_by(invoice_id=invoice.id).delete()
         InvoiceItem.query.filter_by(invoice_id=invoice.id).delete()
-        
+
         # Delete the invoice
         db.session.delete(invoice)
-        
+
         db.session.commit()
         return operation_result(200, "success", message="Rental invoice deleted successfully")
-        
+
     except SQLAlchemyError as e:
         db.session.rollback()
         return operation_result(500, "error", message=f"Database error: {str(e)}")
