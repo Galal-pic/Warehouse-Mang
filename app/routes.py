@@ -458,8 +458,6 @@ class InvoiceList(Resource):
             result = Return_Operations(data, machine, mechanism, supplier, employee, machine_ns, warehouse_ns, invoice_ns, mechanism_ns, item_location_ns, supplier_ns)
         elif data['type'] == 'توالف':
             result = Void_Operations(data, machine, mechanism, supplier, employee, machine_ns, warehouse_ns, invoice_ns, mechanism_ns, item_location_ns, supplier_ns)
-        elif data['type'] == 'إيجار':
-            result = Rent_Operations(data, machine, mechanism, supplier, employee, machine_ns, warehouse_ns, invoice_ns, mechanism_ns, item_location_ns, supplier_ns)
         elif data['type'] == 'حجز':
             result = Rent_Operations(data, machine, mechanism, supplier, employee, machine_ns, warehouse_ns, invoice_ns, mechanism_ns, item_location_ns, supplier_ns)
         elif data['type'] == 'طلب شراء':
@@ -605,8 +603,6 @@ class InvoiceDetail(Resource):
             result = put_return(data, invoice, machine, mechanism, invoice_ns)
         elif invoice.type == 'توالف':
             result = put_void(data, invoice, machine, mechanism, invoice_ns)
-        elif invoice.type == 'إيجار':
-            result = put_rental(data, invoice, machine, mechanism, invoice_ns)
         elif invoice.type == 'حجز':
             result = put_rental(data, invoice, machine, mechanism, invoice_ns)
         elif invoice.type == 'طلب شراء':
@@ -637,8 +633,6 @@ class InvoiceDetail(Resource):
             result = delete_return(invoice, invoice_ns)
         elif invoice.type == "توالف":
             result = delete_void(invoice, invoice_ns)
-        elif invoice.type == 'إيجار':
-            result = delete_rental_invoice(invoice, invoice_ns)
         elif invoice.type == 'حجز':
             result = delete_rental_invoice(invoice, invoice_ns)
         elif invoice.type == 'طلب شراء':
