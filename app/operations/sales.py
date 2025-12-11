@@ -1,8 +1,121 @@
 from datetime import datetime
-from ..models import Invoice, Warehouse, ItemLocations, InvoiceItem, Prices, InvoicePriceDetail, RentedItems, RentalWarehouseLocations
+from ..models import Invoice, Warehouse, ItemLocations, InvoiceItem, Prices, InvoicePriceDetail, RentedItems, RentalWarehouseLocations, BookingDeductions
 from .. import db
 from sqlalchemy.exc import SQLAlchemyError
 from ..utils import operation_result
+
+
+def deduct_from_booking_invoices(item_id, shortage_quantity, deducted_invoice_id, warehouse_item):
+    """
+    Deduct from booking invoices when main warehouse is insufficient
+
+    Args:
+        item_id: The warehouse item ID
+        shortage_quantity: Amount needed from bookings
+        deducted_invoice_id: The sales/warranty invoice ID that's deducting
+        warehouse_item: The Warehouse object (for item name in errors)
+
+    Returns:
+        dict with status, deductions list, total_deducted, and price_total
+    """
+    try:
+        # 1. Find available booking invoices (FIFO - oldest first)
+        rental_items = db.session.query(RentedItems).join(
+            Invoice, RentedItems.rental_invoice_id == Invoice.id
+        ).filter(
+            RentedItems.item_id == item_id,
+            RentedItems.status == 'reserved',  # Only reserved, NOT given
+            Invoice.type == 'حجز',
+            Invoice.status.in_(['draft', 'accreditation'])  # NOT confirmed
+        ).order_by(Invoice.created_at.asc()).all()  # FIFO
+
+        if not rental_items:
+            return {
+                "status": "error",
+                "message": f"No available booking invoices found for item '{warehouse_item.item_name}'"
+            }
+
+        # 2. Deduct from each invoice
+        deductions = []
+        remaining_shortage = shortage_quantity
+        price_total = 0
+
+        for rented_item in rental_items:
+            if remaining_shortage <= 0:
+                break
+
+            # Calculate available in this rental
+            available = rented_item.quantity - rented_item.borrowed_to_main_quantity
+
+            if available <= 0:
+                continue
+
+            # Deduct
+            qty_to_deduct = min(remaining_shortage, available)
+
+            # Update RentedItems
+            rented_item.borrowed_to_main_quantity += qty_to_deduct
+
+            # Update Invoice deduction_status
+            booking_invoice = Invoice.query.get(rented_item.rental_invoice_id)
+            if booking_invoice.deduction_status is None:
+                booking_invoice.deduction_status = 'minus'
+
+            # Get price from booking invoice
+            booking_invoice_item = InvoiceItem.query.filter_by(
+                invoice_id=rented_item.rental_invoice_id,
+                item_id=item_id
+            ).first()
+
+            if not booking_invoice_item:
+                db.session.rollback()
+                return {
+                    "status": "error",
+                    "message": f"No price found for item in booking invoice #{rented_item.rental_invoice_id}"
+                }
+
+            price_from_booking = booking_invoice_item.unit_price
+
+            # Record deduction
+            deduction = BookingDeductions(
+                booking_invoice_id=rented_item.rental_invoice_id,
+                deducted_invoice_id=deducted_invoice_id,
+                item_id=item_id,
+                quantity_deducted=qty_to_deduct,
+                price_used=price_from_booking,
+                deducted_at=datetime.now()
+            )
+            db.session.add(deduction)
+            deductions.append({
+                'booking_invoice_id': rented_item.rental_invoice_id,
+                'quantity': qty_to_deduct,
+                'unit_price': price_from_booking,
+                'subtotal': qty_to_deduct * price_from_booking
+            })
+
+            price_total += qty_to_deduct * price_from_booking
+            remaining_shortage -= qty_to_deduct
+
+        # 3. Check if still shortage
+        if remaining_shortage > 0:
+            return {
+                "status": "error",
+                "message": f"Insufficient stock for '{warehouse_item.item_name}'. Still need {remaining_shortage} more units even after checking bookings."
+            }
+
+        return {
+            "status": "success",
+            "deductions": deductions,
+            "total_deducted": shortage_quantity,
+            "price_total": price_total
+        }
+
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Error deducting from bookings: {str(e)}"
+        }
+
 
 def Sales_Operations(data, machine, mechanism, supplier, employee, machine_ns, warehouse_ns, invoice_ns, mechanism_ns, item_location_n, supplier_ns):
     try:
@@ -57,138 +170,127 @@ def Sales_Operations(data, machine, mechanism, supplier, employee, machine_ns, w
             # Check if enough quantity available in location
             requested_quantity = item_data["quantity"]
             main_available = item_location.quantity
-            borrowed_from_rental = 0
-            
+            borrowed_from_bookings = 0
+            booking_deduction_info = None
+
             if main_available < requested_quantity:
-                # Check if we can borrow from rental warehouse
+                # Not enough in main warehouse - try to deduct from booking invoices
                 shortage = requested_quantity - main_available
-                
-                # Check rental warehouse availability
-                rental_location = RentalWarehouseLocations.query.filter_by(
-                    item_id=warehouse_item.id
-                ).filter(
-                    RentalWarehouseLocations.available_quantity > 0
-                ).first()
-                
-                if rental_location:
-                    # Use the available_quantity from rental warehouse location
-                    # This represents items that can be borrowed (not reserved for confirmed rentals)
-                    available_from_rental = min(shortage, rental_location.available_quantity)
-                    
-                    # Also check for unconfirmed rental items that can be borrowed
-                    unconfirmed_rentals = RentedItems.query.filter(
-                        RentedItems.item_id == warehouse_item.id,
-                        RentedItems.status.in_(['reserved', 'given'])  # Items not yet confirmed/returned
-                    ).all()
-                    
-                    # Use the maximum available from either source
-                    unconfirmed_quantity = sum(item.quantity for item in unconfirmed_rentals)
-                    available_from_rental = min(shortage, max(rental_location.available_quantity, unconfirmed_quantity))
-                    
-                    if available_from_rental > 0:
-                        borrowed_from_rental = available_from_rental
-                        
-                        # Update rental items to mark them as borrowed for sales
-                        remaining_to_borrow = borrowed_from_rental
-                        for rental_item in unconfirmed_rentals:
-                            if remaining_to_borrow <= 0:
-                                break
-                            
-                            borrow_qty = min(remaining_to_borrow, rental_item.quantity)
-                            rental_item.borrowed_to_main_quantity += borrow_qty
-                            rental_item.borrowed_date = datetime.now()
-                            rental_item.status = 'borrowed_for_sale'
-                            rental_item.notes = f"{rental_item.notes or ''} | Borrowed {borrow_qty} for sales invoice"
-                            remaining_to_borrow -= borrow_qty
-                        
-                        # Update rental warehouse location - decrease available quantity
-                        rental_location.available_quantity -= borrowed_from_rental
-                        rental_location.updated_at = datetime.now()
-                
-                # Check if we still have shortage after borrowing from rental
-                total_available = main_available + borrowed_from_rental
+
+                # Use the new deduct_from_booking_invoices function
+                deduction_result = deduct_from_booking_invoices(
+                    item_id=warehouse_item.id,
+                    shortage_quantity=shortage,
+                    deducted_invoice_id=new_invoice.id,
+                    warehouse_item=warehouse_item
+                )
+
+                if deduction_result["status"] == "error":
+                    db.session.rollback()
+                    return operation_result(400, "error", deduction_result["message"])
+
+                # Successfully deducted from bookings
+                borrowed_from_bookings = deduction_result["total_deducted"]
+                booking_deduction_info = deduction_result["deductions"]
+
+                # Check if we have enough now
+                total_available = main_available + borrowed_from_bookings
                 if total_available < requested_quantity:
                     db.session.rollback()
-                    return operation_result(400, "error", f"Not enough quantity for item '{item_data['item_name']}' in location '{item_data['location']}'. Available: {main_available}, From Rental: {borrowed_from_rental}, Total: {total_available}, Requested: {requested_quantity}")
+                    return operation_result(400, "error", f"Not enough quantity for item '{item_data['item_name']}' in location '{item_data['location']}'. Available: {main_available}, From Bookings: {borrowed_from_bookings}, Total: {total_available}, Requested: {requested_quantity}")
             
-            # Update physical inventory in ItemLocations (use all available from main warehouse)
+            # Update physical inventory in ItemLocations (deduct from main warehouse)
             actual_from_main = min(requested_quantity, main_available)
             item_location.quantity -= actual_from_main
-            
-            # If we borrowed from rental, add it to main warehouse location temporarily
-            if borrowed_from_rental > 0:
-                item_location.quantity += borrowed_from_rental
-                item_location.quantity -= borrowed_from_rental  # Then subtract it for the sale
-            
-            # Handle pricing using FIFO from the Prices table (across all locations)
+
+            # Handle pricing - combination of FIFO from Prices table + booking invoice prices
             remaining_to_sell = requested_quantity
-            fifo_total = 0  # Track FIFO total across all locations
+            fifo_total = 0
             price_breakdown = []
-            
-            # Get all price records for this item across ALL locations ordered by creation date (oldest first for FIFO)
-            price_entries = Prices.query.filter_by(
-                item_id=warehouse_item.id
-            ).order_by(Prices.invoice_id.asc()).all()
-            
-            if not price_entries:
-                db.session.rollback()
-                return operation_result(400, "error", f"No price information found for item '{item_data['item_name']}'")
-            
-            # Process each price entry using FIFO across all locations
-            for price_entry in price_entries:
-                if remaining_to_sell <= 0:
-                    break
-                
-                # Calculate how much we can take from this price entry
-                quantity_from_this_entry = min(remaining_to_sell, price_entry.quantity)
-                
-                # Calculate price for this portion
-                subtotal = round(quantity_from_this_entry * price_entry.unit_price, 3)
-                
-                # Track this price breakdown for reference
-                price_breakdown.append({
-                    'quantity': quantity_from_this_entry,
-                    'unit_price': round(price_entry.unit_price, 3),
-                    'subtotal': subtotal,
-                    'source_invoice_id': price_entry.invoice_id,
-                    'source_location': price_entry.location
-                })
-                
-                # Create a price detail record
-                price_detail = InvoicePriceDetail(
-                    invoice_id=new_invoice.id,
-                    item_id=warehouse_item.id,
-                    source_price_invoice_id=price_entry.invoice_id,
-                    source_price_item_id=price_entry.item_id,
-                    source_price_location=price_entry.location,
-                    source_price_supplier_id=price_entry.supplier_id,
-                    quantity=quantity_from_this_entry,
-                    unit_price=round(price_entry.unit_price, 3),
-                    subtotal=subtotal
-                )
-                
-                db.session.add(price_detail)
-                
-                # Update our running totals
-                fifo_total += subtotal
-                remaining_to_sell -= quantity_from_this_entry
-                
-                # Update the price entry quantity
-                price_entry.quantity -= quantity_from_this_entry
-            
+
+            # First, price the quantity from main warehouse using FIFO
+            if actual_from_main > 0:
+                # Get all price records for this item across ALL locations ordered by creation date (oldest first for FIFO)
+                price_entries = Prices.query.filter_by(
+                    item_id=warehouse_item.id
+                ).order_by(Prices.invoice_id.asc()).all()
+
+                if not price_entries:
+                    db.session.rollback()
+                    return operation_result(400, "error", f"No price information found for item '{item_data['item_name']}'")
+
+                # Process FIFO pricing for main warehouse quantity
+                remaining_from_main = actual_from_main
+                for price_entry in price_entries:
+                    if remaining_from_main <= 0:
+                        break
+
+                    # Calculate how much we can take from this price entry
+                    quantity_from_this_entry = min(remaining_from_main, price_entry.quantity)
+
+                    # Calculate price for this portion
+                    subtotal = round(quantity_from_this_entry * price_entry.unit_price, 3)
+
+                    # Track this price breakdown for reference
+                    price_breakdown.append({
+                        'quantity': quantity_from_this_entry,
+                        'unit_price': round(price_entry.unit_price, 3),
+                        'subtotal': subtotal,
+                        'source_invoice_id': price_entry.invoice_id,
+                        'source_location': price_entry.location
+                    })
+
+                    # Create a price detail record
+                    price_detail = InvoicePriceDetail(
+                        invoice_id=new_invoice.id,
+                        item_id=warehouse_item.id,
+                        source_price_invoice_id=price_entry.invoice_id,
+                        source_price_item_id=price_entry.item_id,
+                        source_price_location=price_entry.location,
+                        source_price_supplier_id=price_entry.supplier_id,
+                        quantity=quantity_from_this_entry,
+                        unit_price=round(price_entry.unit_price, 3),
+                        subtotal=subtotal
+                    )
+
+                    db.session.add(price_detail)
+
+                    # Update our running totals
+                    fifo_total += subtotal
+                    remaining_from_main -= quantity_from_this_entry
+                    remaining_to_sell -= quantity_from_this_entry
+
+                    # Update the price entry quantity
+                    price_entry.quantity -= quantity_from_this_entry
+
+            # Second, add prices from booking invoices (if any)
+            if borrowed_from_bookings > 0 and booking_deduction_info:
+                for deduction in booking_deduction_info:
+                    subtotal = deduction['subtotal']
+                    fifo_total += subtotal
+                    remaining_to_sell -= deduction['quantity']
+
+                    price_breakdown.append({
+                        'quantity': deduction['quantity'],
+                        'unit_price': deduction['unit_price'],
+                        'subtotal': subtotal,
+                        'source_invoice_id': deduction['booking_invoice_id'],
+                        'source_location': 'BOOKING_DEDUCTION'
+                    })
+
             # Check if we've fulfilled the entire requested quantity
             if remaining_to_sell > 0:
                 db.session.rollback()
                 return operation_result(400, "error", f"Insufficient priced inventory for '{item_data['item_name']}'. Missing price data for {remaining_to_sell} units.")
-            
-            # Calculate effective unit price based on FIFO total
+
+            # Calculate effective unit price based on total
             fifo_total = round(fifo_total, 3)
             effective_unit_price = round(fifo_total / requested_quantity, 3) if requested_quantity > 0 else 0
-            
-            # Create the invoice item with FIFO prices and rental tracking
-            description_parts = [item_data.get('description', f"FIFO pricing across all locations: {len(price_breakdown)} price levels")]
-            if borrowed_from_rental > 0:
-                description_parts.append(f"Borrowed {borrowed_from_rental} from rental warehouse")
+
+            # Create the invoice item with pricing info
+            description_parts = [item_data.get('description', f"Pricing: {len(price_breakdown)} source(s)")]
+            if borrowed_from_bookings > 0:
+                description_parts.append(f"Deducted {borrowed_from_bookings} from booking invoices")
             
             invoice_item = InvoiceItem(
                 invoice_id=new_invoice.id,
@@ -228,12 +330,42 @@ def delete_sales(invoice, invoice_ns):
         return operation_result(400, "error", "Can only delete sales invoices with this method")
 
     try:
-        # Start by collecting information about the price details to restore prices
+        # FIRST: Check and restore booking deductions
+        booking_deductions = BookingDeductions.query.filter_by(
+            deducted_invoice_id=invoice.id
+        ).all()
+
+        for deduction in booking_deductions:
+            # Restore RentedItems.borrowed_to_main_quantity
+            rented_item = RentedItems.query.filter_by(
+                rental_invoice_id=deduction.booking_invoice_id,
+                item_id=deduction.item_id
+            ).first()
+
+            if rented_item:
+                rented_item.borrowed_to_main_quantity -= deduction.quantity_deducted
+
+            # Check if booking invoice still has any deductions after this restore
+            remaining_deductions = BookingDeductions.query.filter(
+                BookingDeductions.booking_invoice_id == deduction.booking_invoice_id,
+                BookingDeductions.id != deduction.id  # Exclude current deduction
+            ).count()
+
+            # If no more deductions, reset deduction_status
+            if remaining_deductions == 0:
+                booking_invoice = Invoice.query.get(deduction.booking_invoice_id)
+                if booking_invoice:
+                    booking_invoice.deduction_status = None
+
+            # Delete the deduction record
+            db.session.delete(deduction)
+
+        # SECOND: Restore price details from main warehouse
         price_details = InvoicePriceDetail.query.filter_by(invoice_id=invoice.id).all()
-        
+
         # Dictionary to track price restorations by source (including location)
         price_restorations = {}
-        
+
         # Process each price detail to prepare for restoring
         for detail in price_details:
             key = (detail.source_price_invoice_id, detail.source_price_item_id, detail.source_price_location)  # Include location

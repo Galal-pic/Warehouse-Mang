@@ -1,8 +1,122 @@
 from datetime import datetime
-from ..models import Invoice, Warehouse, ItemLocations, InvoiceItem, Prices, InvoicePriceDetail
+from ..models import Invoice, Warehouse, ItemLocations, InvoiceItem, Prices, InvoicePriceDetail, RentedItems, BookingDeductions
 from .. import db
 from sqlalchemy.exc import SQLAlchemyError
 from ..utils import operation_result
+
+
+def deduct_from_booking_invoices(item_id, shortage_quantity, deducted_invoice_id, warehouse_item):
+    """
+    Deduct from booking invoices when main warehouse is insufficient
+    (Same function as in sales.py - for warranty invoices)
+
+    Args:
+        item_id: The warehouse item ID
+        shortage_quantity: Amount needed from bookings
+        deducted_invoice_id: The warranty invoice ID that's deducting
+        warehouse_item: The Warehouse object (for item name in errors)
+
+    Returns:
+        dict with status, deductions list, total_deducted, and price_total
+    """
+    try:
+        # 1. Find available booking invoices (FIFO - oldest first)
+        rental_items = db.session.query(RentedItems).join(
+            Invoice, RentedItems.rental_invoice_id == Invoice.id
+        ).filter(
+            RentedItems.item_id == item_id,
+            RentedItems.status == 'reserved',  # Only reserved, NOT given
+            Invoice.type == 'حجز',
+            Invoice.status.in_(['draft', 'accreditation'])  # NOT confirmed
+        ).order_by(Invoice.created_at.asc()).all()  # FIFO
+
+        if not rental_items:
+            return {
+                "status": "error",
+                "message": f"No available booking invoices found for item '{warehouse_item.item_name}'"
+            }
+
+        # 2. Deduct from each invoice
+        deductions = []
+        remaining_shortage = shortage_quantity
+        price_total = 0
+
+        for rented_item in rental_items:
+            if remaining_shortage <= 0:
+                break
+
+            # Calculate available in this rental
+            available = rented_item.quantity - rented_item.borrowed_to_main_quantity
+
+            if available <= 0:
+                continue
+
+            # Deduct
+            qty_to_deduct = min(remaining_shortage, available)
+
+            # Update RentedItems
+            rented_item.borrowed_to_main_quantity += qty_to_deduct
+
+            # Update Invoice deduction_status
+            booking_invoice = Invoice.query.get(rented_item.rental_invoice_id)
+            if booking_invoice.deduction_status is None:
+                booking_invoice.deduction_status = 'minus'
+
+            # Get price from booking invoice
+            booking_invoice_item = InvoiceItem.query.filter_by(
+                invoice_id=rented_item.rental_invoice_id,
+                item_id=item_id
+            ).first()
+
+            if not booking_invoice_item:
+                db.session.rollback()
+                return {
+                    "status": "error",
+                    "message": f"No price found for item in booking invoice #{rented_item.rental_invoice_id}"
+                }
+
+            price_from_booking = booking_invoice_item.unit_price
+
+            # Record deduction
+            deduction = BookingDeductions(
+                booking_invoice_id=rented_item.rental_invoice_id,
+                deducted_invoice_id=deducted_invoice_id,
+                item_id=item_id,
+                quantity_deducted=qty_to_deduct,
+                price_used=price_from_booking,
+                deducted_at=datetime.now()
+            )
+            db.session.add(deduction)
+            deductions.append({
+                'booking_invoice_id': rented_item.rental_invoice_id,
+                'quantity': qty_to_deduct,
+                'unit_price': price_from_booking,
+                'subtotal': qty_to_deduct * price_from_booking
+            })
+
+            price_total += qty_to_deduct * price_from_booking
+            remaining_shortage -= qty_to_deduct
+
+        # 3. Check if still shortage
+        if remaining_shortage > 0:
+            return {
+                "status": "error",
+                "message": f"Insufficient stock for '{warehouse_item.item_name}'. Still need {remaining_shortage} more units even after checking bookings."
+            }
+
+        return {
+            "status": "success",
+            "deductions": deductions,
+            "total_deducted": shortage_quantity,
+            "price_total": price_total
+        }
+
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Error deducting from bookings: {str(e)}"
+        }
+
 
 def Warranty_Operations(data, machine, mechanism, supplier, employee, machine_ns, warehouse_ns, invoice_ns, mechanism_ns, item_location_n, supplier_ns):
     """
@@ -62,12 +176,39 @@ def Warranty_Operations(data, machine, mechanism, supplier, employee, machine_ns
             
             # Check if enough quantity available in location
             requested_quantity = item_data["quantity"]
-            if item_location.quantity < requested_quantity:
-                db.session.rollback()
-                return operation_result(400, "error", f"Not enough quantity for item '{item_data['item_name']}' in location '{item_data['location']}'. Available: {item_location.quantity}, Requested: {requested_quantity}")
-            
-            # Update physical inventory in ItemLocations
-            item_location.quantity -= requested_quantity
+            main_available = item_location.quantity
+            borrowed_from_bookings = 0
+            booking_deduction_info = None
+
+            if main_available < requested_quantity:
+                # Not enough in main warehouse - try to deduct from booking invoices
+                shortage = requested_quantity - main_available
+
+                # Use the deduct_from_booking_invoices function
+                deduction_result = deduct_from_booking_invoices(
+                    item_id=warehouse_item.id,
+                    shortage_quantity=shortage,
+                    deducted_invoice_id=new_invoice.id,
+                    warehouse_item=warehouse_item
+                )
+
+                if deduction_result["status"] == "error":
+                    db.session.rollback()
+                    return operation_result(400, "error", deduction_result["message"])
+
+                # Successfully deducted from bookings
+                borrowed_from_bookings = deduction_result["total_deducted"]
+                booking_deduction_info = deduction_result["deductions"]
+
+                # Check if we have enough now
+                total_available = main_available + borrowed_from_bookings
+                if total_available < requested_quantity:
+                    db.session.rollback()
+                    return operation_result(400, "error", f"Not enough quantity for item '{item_data['item_name']}' in location '{item_data['location']}'. Available: {main_available}, From Bookings: {borrowed_from_bookings}, Total: {total_available}, Requested: {requested_quantity}")
+
+            # Update physical inventory in ItemLocations (deduct from main warehouse)
+            actual_from_main = min(requested_quantity, main_available)
+            item_location.quantity -= actual_from_main
             
             # For warranty invoices, we can either:
             # 1. Use the price provided in the request (if available)
@@ -77,17 +218,19 @@ def Warranty_Operations(data, machine, mechanism, supplier, employee, machine_ns
             unit_price = item_data.get("unit_price")
             total_price = item_data.get("total_price")
             
-            # If no price is provided, calculate using FIFO
+            # If no price is provided, calculate using FIFO + booking prices
             if not unit_price or not total_price:
-                # Now handle pricing using FIFO from the Prices table (UPDATED: with location support)
+                # Handle pricing - combination of FIFO from Prices table + booking invoice prices
                 remaining_to_process = requested_quantity
                 calculated_total_price = 0
-                
-                # Get all price records for this item and location ordered by creation date (oldest first for FIFO)
-                price_entries = Prices.query.filter_by(
-                    item_id=warehouse_item.id,
-                    location=item_data['location']  # NEW: Filter by location
-                ).filter(Prices.quantity > 0).order_by(Prices.invoice_id.asc()).all()
+
+                # First, price the quantity from main warehouse using FIFO
+                if actual_from_main > 0:
+                    # Get all price records for this item and location ordered by creation date (oldest first for FIFO)
+                    price_entries = Prices.query.filter_by(
+                        item_id=warehouse_item.id,
+                        location=item_data['location']  # NEW: Filter by location
+                    ).filter(Prices.quantity > 0).order_by(Prices.invoice_id.asc()).all()
                 
                 if not price_entries:
                     # If no price records for this location, try to get from any location for this item
@@ -168,12 +311,18 @@ def Warranty_Operations(data, machine, mechanism, supplier, employee, machine_ns
                                 # No price records with quantity, use default or zero
                                 pass
                         
+                        # Add prices from booking invoices (if any)
+                        if borrowed_from_bookings > 0 and booking_deduction_info:
+                            for deduction in booking_deduction_info:
+                                calculated_total_price += deduction['subtotal']
+                                remaining_to_process -= deduction['quantity']
+
                         # Calculate effective unit price
                         if requested_quantity > 0:
                             unit_price = round(calculated_total_price / requested_quantity, 3)
                         else:
                             unit_price = 0
-                        
+
                         total_price = round(calculated_total_price, 3)
                 else:
                     # Process price entries from the same location (preferred path)
@@ -243,12 +392,18 @@ def Warranty_Operations(data, machine, mechanism, supplier, employee, machine_ns
                             # No price records with quantity, use default or zero
                             pass
                     
+                    # Add prices from booking invoices (if any)
+                    if borrowed_from_bookings > 0 and booking_deduction_info:
+                        for deduction in booking_deduction_info:
+                            calculated_total_price += deduction['subtotal']
+                            remaining_to_process -= deduction['quantity']
+
                     # Calculate effective unit price
                     if requested_quantity > 0:
                         unit_price = round(calculated_total_price / requested_quantity, 3)
                     else:
                         unit_price = 0
-                    
+
                     total_price = round(calculated_total_price, 3)
             
             # Create the invoice item
@@ -288,12 +443,42 @@ def delete_warranty(invoice, invoice_ns):
         return operation_result(400, "error", "Can only delete warranty invoices with this method")
 
     try:
-        # Get price details to restore prices - FIXED VERSION with location support
+        # FIRST: Check and restore booking deductions
+        booking_deductions = BookingDeductions.query.filter_by(
+            deducted_invoice_id=invoice.id
+        ).all()
+
+        for deduction in booking_deductions:
+            # Restore RentedItems.borrowed_to_main_quantity
+            rented_item = RentedItems.query.filter_by(
+                rental_invoice_id=deduction.booking_invoice_id,
+                item_id=deduction.item_id
+            ).first()
+
+            if rented_item:
+                rented_item.borrowed_to_main_quantity -= deduction.quantity_deducted
+
+            # Check if booking invoice still has any deductions after this restore
+            remaining_deductions = BookingDeductions.query.filter(
+                BookingDeductions.booking_invoice_id == deduction.booking_invoice_id,
+                BookingDeductions.id != deduction.id  # Exclude current deduction
+            ).count()
+
+            # If no more deductions, reset deduction_status
+            if remaining_deductions == 0:
+                booking_invoice = Invoice.query.get(deduction.booking_invoice_id)
+                if booking_invoice:
+                    booking_invoice.deduction_status = None
+
+            # Delete the deduction record
+            db.session.delete(deduction)
+
+        # SECOND: Get price details to restore prices - FIXED VERSION with location support
         price_details = InvoicePriceDetail.query.filter_by(invoice_id=invoice.id).all()
-        
+
         # Dictionary to track price restorations by source (including location)
         price_restorations = {}
-        
+
         # Process each price detail to prepare for restoring - FIXED VERSION with location
         for detail in price_details:
             key = (detail.source_price_invoice_id, detail.source_price_item_id, detail.source_price_location)  # NEW: Include location

@@ -116,6 +116,7 @@ class Invoice(db.Model):
     payment_method = db.Column(db.String(255))
     custody_person = db.Column(db.String(255))
     status = db.Column(db.String(50), default="draft")
+    deduction_status = db.Column(db.String(50), nullable=True, default=None)  # NEW: Track if booking items deducted (None or 'minus')
     employee_name = db.Column(db.String(50), nullable=False)
     employee_id = db.Column(db.Integer, db.ForeignKey('employee.id'), nullable=False)
     machine_id = db.Column(db.Integer, db.ForeignKey('machine.id'), nullable=True)
@@ -353,4 +354,27 @@ class RentalWarehouseLocations(db.Model):
     # Composite index for faster queries
     __table_args__ = (
         db.Index('idx_rental_warehouse_item_location', 'item_id', 'location'),
+    )
+
+
+# NEW: Booking Deductions - tracks when sales/warranty invoices deduct from booking invoices
+class BookingDeductions(db.Model):
+    __tablename__ = 'booking_deductions'
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    booking_invoice_id = db.Column(db.Integer, db.ForeignKey('invoice.id'), nullable=False)
+    deducted_invoice_id = db.Column(db.Integer, db.ForeignKey('invoice.id'), nullable=False)
+    item_id = db.Column(db.Integer, db.ForeignKey('warehouse.id'), nullable=False)
+    quantity_deducted = db.Column(db.Integer, nullable=False)
+    price_used = db.Column(db.Float, nullable=False)  # Price from booking invoice
+    deducted_at = db.Column(db.DateTime, nullable=False, default=datetime.now)
+
+    # Relationships
+    booking_invoice = db.relationship('Invoice', foreign_keys=[booking_invoice_id], backref='booking_deductions_as_source')
+    deducted_invoice = db.relationship('Invoice', foreign_keys=[deducted_invoice_id], backref='booking_deductions_used')
+    item = db.relationship('Warehouse', backref='booking_deductions')
+
+    # Composite index for faster queries
+    __table_args__ = (
+        db.Index('idx_booking_deductions_booking', 'booking_invoice_id', 'item_id'),
+        db.Index('idx_booking_deductions_deducted', 'deducted_invoice_id'),
     )

@@ -9,7 +9,7 @@ from .operations.returns import Return_Operations, delete_return, put_return
 from .operations.sales import Sales_Operations, delete_sales, put_sales
 from .operations.warranty import Warranty_Operations, delete_warranty, put_warranty
 from .operations.void import Void_Operations, delete_void, put_void
-from .operations.rent import Rent_Operations, update_rental_status, borrow_from_rental_to_main, return_to_main_warehouse, delete_rental_invoice, put_rental
+from .operations.rent import Rent_Operations, update_rental_status, borrow_from_rental_to_main, return_to_main_warehouse, delete_rental_invoice, put_rental, get_booking_deductions
 from .purchases.purchase import Purchase_Operations, delete_purchase, put_purchase
 from .operations.purchase_request import PurchaseRequest_Operations, put_purchase_request, delete_purchase_request
 from .warehouses.warehouse import warehouse_ns, item_location_ns
@@ -1777,9 +1777,21 @@ class RentalWarehouse(Resource):
                 })
             
             return {'rental_warehouse': result}, 200
-            
+
         except Exception as e:
             return {"error": f"Error fetching rental warehouse: {str(e)}"}, 500
-        
-        
-    
+
+
+@rental_ns.route('/missing-qty/<int:invoice_id>')
+class BookingDeductions(Resource):
+    @jwt_required()
+    def get(self, invoice_id):
+        """Get detailed deduction information for a booking invoice (حجز)"""
+        result = get_booking_deductions(invoice_id)
+
+        if result["status"] == "error":
+            rental_ns.abort(result["status_code"], result["message"])
+        else:
+            return result["data"], result["status_code"]
+
+

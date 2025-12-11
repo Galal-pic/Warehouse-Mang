@@ -1,5 +1,5 @@
 from datetime import datetime
-from ..models import Invoice, Warehouse, ItemLocations, InvoiceItem, Prices, InvoicePriceDetail, RentedItems, RentalWarehouseLocations
+from ..models import Invoice, Warehouse, ItemLocations, InvoiceItem, Prices, InvoicePriceDetail, RentedItems, RentalWarehouseLocations, BookingDeductions
 from .. import db
 from sqlalchemy.exc import SQLAlchemyError
 from ..utils import operation_result
@@ -735,3 +735,101 @@ def delete_rental_invoice(invoice, invoice_ns):
     except Exception as e:
         db.session.rollback()
         return operation_result(500, "error", message=f"Error deleting rental invoice: {str(e)}")
+
+
+def get_booking_deductions(invoice_id):
+    """
+    Get detailed deduction information for a booking invoice
+
+    Args:
+        invoice_id: The booking invoice ID
+
+    Returns:
+        dict: Detailed JSON response with:
+            - invoice_id, invoice_type, client_name, status, deduction_status
+            - total_original_quantity, total_deducted_quantity, total_remaining_quantity
+            - items: list of items with deduction details
+    """
+    try:
+        # Validate invoice exists and type is 'حجز'
+        invoice = Invoice.query.get(invoice_id)
+        if not invoice:
+            return operation_result(404, "error", message="Invoice not found")
+
+        if invoice.type != 'حجز':
+            return operation_result(400, "error", message="Invoice is not a booking invoice (حجز)")
+
+        # Get all invoice items
+        invoice_items = InvoiceItem.query.filter_by(invoice_id=invoice_id).all()
+
+        if not invoice_items:
+            return operation_result(404, "error", message="No items found in this invoice")
+
+        # Build response
+        items_details = []
+        total_original = 0
+        total_deducted = 0
+
+        for invoice_item in invoice_items:
+            # Get RentedItems record
+            rented_item = RentedItems.query.filter_by(
+                rental_invoice_id=invoice_id,
+                item_id=invoice_item.item_id
+            ).first()
+
+            original_qty = invoice_item.quantity
+            deducted_qty = rented_item.borrowed_to_main_quantity if rented_item else 0
+            remaining_qty = original_qty - deducted_qty
+
+            total_original += original_qty
+            total_deducted += deducted_qty
+
+            # Get deduction details (which invoices deducted from this booking)
+            deduction_records = BookingDeductions.query.filter_by(
+                booking_invoice_id=invoice_id,
+                item_id=invoice_item.item_id
+            ).order_by(BookingDeductions.deducted_at.asc()).all()
+
+            deductions_details = []
+            for deduction in deduction_records:
+                deducted_invoice = Invoice.query.get(deduction.deducted_invoice_id)
+                deductions_details.append({
+                    "deducted_for_invoice_id": deduction.deducted_invoice_id,
+                    "deducted_for_invoice_type": deducted_invoice.type if deducted_invoice else "Unknown",
+                    "quantity": deduction.quantity_deducted,
+                    "price_used": deduction.price_used,
+                    "deducted_at": deduction.deducted_at.strftime('%Y-%m-%d %H:%M:%S')
+                })
+
+            # Get warehouse item
+            warehouse_item = Warehouse.query.get(invoice_item.item_id)
+
+            items_details.append({
+                "item_id": invoice_item.item_id,
+                "item_name": warehouse_item.item_name if warehouse_item else "Unknown",
+                "barcode": warehouse_item.item_bar if warehouse_item else "N/A",
+                "original_quantity": original_qty,
+                "deducted_quantity": deducted_qty,
+                "remaining_quantity": remaining_qty,
+                "deductions_details": deductions_details
+            })
+
+        # Build final response
+        response_data = {
+            "invoice_id": invoice_id,
+            "invoice_type": invoice.type,
+            "client_name": invoice.client_name,
+            "status": invoice.status,
+            "deduction_status": invoice.deduction_status,
+            "total_original_quantity": total_original,
+            "total_deducted_quantity": total_deducted,
+            "total_remaining_quantity": total_original - total_deducted,
+            "items": items_details
+        }
+
+        return operation_result(200, "success", data=response_data)
+
+    except SQLAlchemyError as e:
+        return operation_result(500, "error", message=f"Database error: {str(e)}")
+    except Exception as e:
+        return operation_result(500, "error", message=f"Error retrieving booking deductions: {str(e)}")
