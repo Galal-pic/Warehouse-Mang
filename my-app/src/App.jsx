@@ -1,11 +1,8 @@
 // src/App.jsx
-import "./App.css";
-import AppRoutes from "./route/AppRoutes";
+import AppRouter from "./router/AppRouter";
 
-export default function App() {
-  return (
-    <div className="App">
-      <AppRoutes />
-    </div>
-  );
+function App() {
+  return <AppRouter />;
 }
+
+export default App;
