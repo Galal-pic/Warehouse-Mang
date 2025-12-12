@@ -10,6 +10,7 @@ import InvoicesTable from "../components/InvoicesTable";
 import InvoiceModal from "../components/InvoiceModal";
 import InvoiceDetailsDialog from "../components/InvoiceDetailsDialog";
 import InvoicesToolbar from "../components/InvoicesToolbar";
+import SnackBar from "../../../components/common/SnackBar";
 
 const ManageInvoicesPage = () => {
   const { user, isUserLoading, fetchCurrentUser } = useAuthStore();
@@ -19,6 +20,23 @@ const ManageInvoicesPage = () => {
   }, [fetchCurrentUser]);
 
   const [alert, setAlert] = useState(null);
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: "",
+    type: "info",
+  });
+
+  useEffect(() => {
+    if (!alert) return;
+
+    setSnackbar({
+      open: true,
+      message: alert.message,
+      type: alert.type || "info",
+    });
+
+    setAlert(null);
+  }, [alert]);
 
   // pagination
   const [page, setPage] = useState(0);
@@ -213,29 +231,6 @@ const ManageInvoicesPage = () => {
         </h1>
       </div>
 
-      {/* Alert */}
-      {alert && (
-        <div
-          className={`border px-4 py-2 rounded-md text-right ${
-            alert.type === "success"
-              ? "bg-green-50 border-green-400 text-green-700"
-              : alert.type === "warning"
-              ? "bg-yellow-50 border-yellow-400 text-yellow-700"
-              : "bg-red-50 border-red-400 text-red-700"
-          }`}
-        >
-          <div className="flex justify-between items-center">
-            <span className="flex-1">{alert.message}</span>
-            <button
-              onClick={() => setAlert(null)}
-              className="ml-4 text-sm underline"
-            >
-              إغلاق
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Filters */}
       <InvoicesFilterTabs
         filters={filters}
@@ -376,9 +371,7 @@ const ManageInvoicesPage = () => {
             <h2 className="text-lg font-semibold mb-2 text-slate-800">
               {promptState.title}
             </h2>
-            <p className="text-sm text-slate-600 mb-3">
-              {promptState.message}
-            </p>
+            <p className="text-sm text-slate-600 mb-3">{promptState.message}</p>
             <textarea
               className="w-full border rounded-md px-2 py-1.5 text-sm mb-4 focus:outline-none focus:ring-1 focus:ring-blue-600"
               rows={3}
@@ -415,6 +408,12 @@ const ManageInvoicesPage = () => {
           </div>
         </div>
       )}
+      <SnackBar
+        open={snackbar.open}
+        message={snackbar.message}
+        type={snackbar.type}
+        onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
+      />
     </div>
   );
 };

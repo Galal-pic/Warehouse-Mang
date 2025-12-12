@@ -101,7 +101,7 @@ export default function InvoiceMetaInfo({
           <tbody>
             {isReturnType && (
               <tr className="bg-gray-50">
-                <td className="border border-gray-300 px-2 py-2 w-40 text-center font-semibold">
+                <td className="border border-gray-300 px-2 py-2 w-40 text-center font-semibold bg-[#dddddd]">
                   رقم الفاتورة الأصلية
                 </td>
                 <td className="border border-gray-300 px-2 py-2">

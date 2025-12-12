@@ -86,24 +86,23 @@ export default function InvoiceMoneySummary({
       </div>
 
       {/* المدفوع */}
-      <div className="flex-1 min-w-[160px] border border-gray-300  bg-white px-3 py-2 flex flex-col items-center gap-1 text-center">
+      <div className="flex-1 min-w-[160px] border border-gray-300 bg-white px-3 py-2 flex flex-col items-center gap-1 text-center">
         <span className="font-semibold">المدفوع</span>
         <div className="w-full">
           {isEditing ? (
             <NumberInput
-              value={editingInvoice.paid || 0}
-              className="w-full h-9 text-center text-sm border border-gray-300 "
-              onChange={(e) =>
+              value={editingInvoice.paid ?? ""}
+              className="w-full h-9 text-center text-sm border border-gray-300"
+              onChange={(e) => {
+                const v = e.target.value;
                 setEditingInvoice({
                   ...editingInvoice,
-                  paid: Number(e.target.value) || 0,
-                })
-              }
+                  paid: v === "" ? "" : Math.max(0, Number(v) || 0),
+                });
+              }}
             />
           ) : (
-            <span className="text-blue-600">
-              {selectedInvoice.paid || 0}
-            </span>
+            <span className="text-blue-600">{selectedInvoice.paid || 0}</span>
           )}
         </div>
       </div>
@@ -112,10 +111,12 @@ export default function InvoiceMoneySummary({
       <div className="flex-1 min-w-[160px] border border-gray-300  bg-white px-3 py-2 flex flex-col items-center gap-1">
         <span className="font-semibold">المتبقي</span>
         <span className="text-blue-600 font-medium">
-          {(editingInvoice?.paid || selectedInvoice.paid || 0) -
-            (editingInvoice?.total_amount ||
-              selectedInvoice.total_amount ||
-              0)}
+          {(editingInvoice?.paid === ""
+            ? 0
+            : Number(editingInvoice?.paid ?? selectedInvoice.paid ?? 0)) -
+            Number(
+              editingInvoice?.total_amount ?? selectedInvoice.total_amount ?? 0
+            )}
         </span>
       </div>
     </div>

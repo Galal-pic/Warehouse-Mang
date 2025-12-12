@@ -5,7 +5,7 @@ import NumberInput from "../../../components/common/NumberInput";
 import SnackBar from "../../../components/common/SnackBar";
 import { getSuppliers } from "../../../api/modules/suppliersApi";
 import { getWarehouses } from "../../../api/modules/warehousesApi";
-
+import { getInvoice } from "../../../api/modules/invoicesApi";
 import ReturnQuantityDialog from "./ReturnQuantityDialog";
 
 export default function InvoiceItemsTable({
@@ -55,6 +55,52 @@ export default function InvoiceItemsTable({
     selectedNowType?.type === "حجز" ||
     selectedInvoice?.type === "حجز" ||
     editingInvoice?.type === "حجز";
+  const isReturnType =
+    selectedNowType?.type === "مرتجع" ||
+    selectedInvoice?.type === "مرتجع" ||
+    editingInvoice?.type === "مرتجع";
+
+  const [returnSourceInvoice, setReturnSourceInvoice] = useState(null);
+  const [isReturnSourceLoading, setIsReturnSourceLoading] = useState(false);
+
+  useEffect(() => {
+    if (!isReturnType || !isEditing) {
+      setReturnSourceInvoice(null);
+      return;
+    }
+
+    const originalId = editingInvoice?.original_invoice_id;
+    if (!originalId) {
+      setReturnSourceInvoice(null);
+      return;
+    }
+
+    let mounted = true;
+    setIsReturnSourceLoading(true);
+
+    (async () => {
+      try {
+        const res = await getInvoice(originalId);
+        if (!mounted) return;
+        setReturnSourceInvoice(res.data || null);
+      } catch (err) {
+        console.error("getInvoice original invoice error", err);
+        if (!mounted) return;
+        setReturnSourceInvoice(null);
+        setSnackbar({
+          open: true,
+          message: "فشل تحميل أصناف الفاتورة الأصلية",
+          type: "error",
+        });
+      } finally {
+        mounted && setIsReturnSourceLoading(false);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, [isReturnType, isEditing, editingInvoice?.original_invoice_id]);
 
   const showReturnedQtyColumn = isAmanatType && canEsterdad;
 
@@ -148,6 +194,29 @@ export default function InvoiceItemsTable({
     }));
   }, [warehouse]);
 
+  const returnItemOptions = useMemo(() => {
+    const srcItems = returnSourceInvoice?.items || [];
+    return srcItems
+      .map((it) => {
+        const barcode = it.barcode || it.item_bar || "";
+        const location = it.location || "";
+        return {
+          label: `${it.item_name} - ${barcode}`,
+          item_name: it.item_name,
+          barcode,
+          locations: location ? [{ location, unit_price: it.unit_price }] : [],
+        };
+      })
+      .filter((opt, idx, arr) => {
+        return (
+          idx ===
+          arr.findIndex(
+            (x) => x.item_name === opt.item_name && x.barcode === opt.barcode
+          )
+        );
+      });
+  }, [returnSourceInvoice]);
+
   const handleChangeItem = (rowIndex, option) => {
     const updatedItems = [...editingInvoice.items];
 
@@ -214,12 +283,15 @@ export default function InvoiceItemsTable({
     const updatedItems = [...editingInvoice.items];
     const row = updatedItems[rowIndex];
 
-    let q = Math.max(0, Number(value) || 0);
+    const quantityValue = value === "" ? "" : Math.max(0, Number(value) || 0);
+
+    const qNum = quantityValue === "" ? 0 : Number(quantityValue);
+    const unitNum = Number(row.unit_price || 0);
 
     updatedItems[rowIndex] = {
       ...row,
-      quantity: q,
-      total_price: q * Number(row.unit_price || 0),
+      quantity: quantityValue,
+      total_price: qNum * unitNum,
     };
 
     const total_amount = updatedItems.reduce(
@@ -415,14 +487,22 @@ export default function InvoiceItemsTable({
                   <td className="border border-gray-300 px-2 py-1 min-w-[220px]">
                     {isEditing && !justEditUnitPrice ? (
                       <CustomAutoCompleteField
-                        isLoading={isWarehousesLoading}
-                        values={itemOptions}
+                        isLoading={
+                          isReturnType
+                            ? isReturnSourceLoading
+                            : isWarehousesLoading
+                        }
+                        values={isReturnType ? returnItemOptions : itemOptions}
                         editingItem={{
                           ...row,
                           item_name: `${row.item_name || ""}${row.barcode ? ` - ${row.barcode}` : ""}`,
                         }}
                         fieldName="item_name"
-                        placeholder="الصنف (اسم - باركود)"
+                        placeholder={
+                          isReturnType
+                            ? "اختر صنف من الفاتورة الأصلية فقط"
+                            : "الصنف (اسم - باركود)"
+                        }
                         isBig
                         setEditingItem={(_, option) => {
                           handleChangeItem(index, option || null);
