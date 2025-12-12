@@ -245,7 +245,7 @@ export default function InvoiceModal({
                     ...it,
                     borrowed_to_main_quantity: match?.deducted_quantity ?? 0,
                     booking_remaining_quantity:
-                      match?.remaining_quantity ?? null,
+                      match?.deducted_quantity ?? null,
                   };
                 }),
               };

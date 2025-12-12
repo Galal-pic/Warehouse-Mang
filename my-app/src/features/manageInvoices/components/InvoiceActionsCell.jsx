@@ -5,6 +5,7 @@ import ArticleIcon from "@mui/icons-material/Article";
 // ==== أيقونات MUI ====
 import LaunchIcon from "@mui/icons-material/Launch"; // فتح الفاتورة
 import ClearOutlinedIcon from "@mui/icons-material/ClearOutlined"; // حذف
+import RemoveCircleOutlineIcon from "@mui/icons-material/RemoveCircleOutline"; // خصومات الحجز
 
 const InvoiceActionsCell = ({
   invoice,
@@ -13,10 +14,12 @@ const InvoiceActionsCell = ({
   onDeleteOne,
   onShowDetails,
   onRecoverDeposit,
+  onOpenBookingDeductions,
   recoverLoading,
   singleDeleteLoading,
 }) => {
   const isAdmin = user?.username === "admin";
+
   const canDelete = user?.can_delete || isAdmin;
   const canViewPrices = user?.view_prices || isAdmin;
   const canRecoverDeposits = user?.can_recover_deposits || isAdmin;
@@ -32,6 +35,10 @@ const InvoiceActionsCell = ({
   const isReturned =
     invoice.status === "تم الاسترداد" || invoice.status === "استرداد جزئي";
 
+  // ✅ هل الفاتورة عليها خصومات حجز
+  const hasBookingDeductions =
+    invoice.type === "حجز" || invoice.deduction_status === "minus";
+
   return (
     <div className="flex items-center justify-center gap-2">
       {/* === زر فتح الفاتورة === */}
@@ -39,6 +46,7 @@ const InvoiceActionsCell = ({
         type="button"
         onClick={() => onOpenInvoice(invoice)}
         className="px-2 py-1 text-xs rounded bg-white hover:bg-slate-100 flex items-center gap-1"
+        title="فتح الفاتورة"
       >
         <LaunchIcon fontSize="small" />
       </button>
@@ -50,6 +58,7 @@ const InvoiceActionsCell = ({
           onClick={() => onDeleteOne(invoice)}
           disabled={singleDeleteLoading}
           className="px-2 py-1 text-xs rounded text-red-600 bg-white disabled:opacity-60 flex items-center gap-1"
+          title="حذف"
         >
           <ClearOutlinedIcon fontSize="small" />
         </button>
@@ -61,8 +70,21 @@ const InvoiceActionsCell = ({
           type="button"
           onClick={() => onShowDetails(invoice)}
           className="px-2 py-1 text-xs rounded border bg-white flex items-center gap-1"
+          title="تفاصيل الأسعار"
         >
           <ArticleIcon sx={{ color: "#001473" }} />
+        </button>
+      )}
+
+      {/* === خصومات الحجز === */}
+      {hasBookingDeductions && onOpenBookingDeductions && (
+        <button
+          type="button"
+          onClick={() => onOpenBookingDeductions(invoice)}
+          className="px-2 py-1 text-xs rounded text-red-600 bg-white disabled:opacity-60 flex items-center gap-1"
+          title="عرض خصومات الحجز"
+        >
+          <RemoveCircleOutlineIcon fontSize="small" />
         </button>
       )}
 

@@ -9,6 +9,7 @@ import InvoicesFilterTabs from "../components/InvoicesFilterTabs";
 import InvoicesTable from "../components/InvoicesTable";
 import InvoiceModal from "../components/InvoiceModal";
 import InvoiceDetailsDialog from "../components/InvoiceDetailsDialog";
+import BookingDeductionsDialog from "../components/BookingDeductionsDialog";
 import InvoicesToolbar from "../components/InvoicesToolbar";
 import SnackBar from "../../../components/common/SnackBar";
 
@@ -205,6 +206,20 @@ const ManageInvoicesPage = () => {
     refetch();
   }, [refetch]);
 
+  // Booking deductions dialog
+  const [isBookingDeductionsOpen, setIsBookingDeductionsOpen] = useState(false);
+  const [bookingInvoiceId, setBookingInvoiceId] = useState(null);
+
+  const openBookingDeductions = (invoice) => {
+    setBookingInvoiceId(invoice.id);
+    setIsBookingDeductionsOpen(true);
+  };
+
+  const closeBookingDeductions = () => {
+    setIsBookingDeductionsOpen(false);
+    setBookingInvoiceId(null);
+  };
+
   if (isUserLoading) {
     return (
       <div className="flex items-center justify-center min-h-[70vh]">
@@ -264,6 +279,7 @@ const ManageInvoicesPage = () => {
         confirmLoadingMap={confirmLoadingMap}
         recoverLoadingMap={recoverLoadingMap}
         singleDeleteLoading={singleDeleteLoading}
+        onOpenBookingDeductions={openBookingDeductions}
       />
 
       {/* Pagination */}
@@ -408,6 +424,16 @@ const ManageInvoicesPage = () => {
           </div>
         </div>
       )}
+
+      {/* Booking deductions dialog */}
+      {isBookingDeductionsOpen && bookingInvoiceId && (
+        <BookingDeductionsDialog
+          open={isBookingDeductionsOpen}
+          onClose={closeBookingDeductions}
+          invoiceId={bookingInvoiceId}
+        />
+      )}
+
       <SnackBar
         open={snackbar.open}
         message={snackbar.message}

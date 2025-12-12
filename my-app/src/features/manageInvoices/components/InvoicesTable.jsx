@@ -16,6 +16,7 @@ const InvoicesTable = ({
   onConfirmStatus,
   onAcceptPurchaseRequest,
   onRejectPurchaseRequest,
+  onOpenBookingDeductions,
   confirmLoadingMap,
   recoverLoadingMap,
   singleDeleteLoading,
@@ -25,11 +26,11 @@ const InvoicesTable = ({
     invoices.every((inv) => selectedRowIds.includes(inv.id));
 
   return (
-<div className="mt-4 shadow-md bg-white overflow-x-auto w-full">
-  <table
-    className="min-w-full text-[13px] text-right border border-slate-300 table-auto"
-    dir="rtl"
-  >
+    <div className="mt-4 shadow-md bg-white overflow-x-auto w-full">
+      <table
+        className="min-w-full text-[13px] text-right border border-slate-300 table-auto"
+        dir="rtl"
+      >
 
         {/* ===================== هيدر الجدول ===================== */}
         <thead className="bg-[#032766] text-xs font-semibold text-white">
@@ -99,10 +100,7 @@ const InvoicesTable = ({
         <tbody>
           {loading && (
             <tr>
-              <td
-                colSpan={14}
-                className="px-4 py-6 text-center text-slate-500"
-              >
+              <td colSpan={14} className="px-4 py-6 text-center text-slate-500">
                 جاري تحميل الفواتير...
               </td>
             </tr>
@@ -110,10 +108,7 @@ const InvoicesTable = ({
 
           {!loading && invoices.length === 0 && (
             <tr>
-              <td
-                colSpan={14}
-                className="px-4 py-6 text-center text-slate-500"
-              >
+              <td colSpan={14} className="px-4 py-6 text-center text-slate-500">
                 لا توجد فواتير لعرضها
               </td>
             </tr>
@@ -212,6 +207,7 @@ const InvoicesTable = ({
                       onDeleteOne={onDeleteOne}
                       onShowDetails={onShowDetails}
                       onRecoverDeposit={onRecoverDeposit}
+                      onOpenBookingDeductions={onOpenBookingDeductions}
                       recoverLoading={recoverLoading}
                       singleDeleteLoading={singleDeleteLoading}
                     />
