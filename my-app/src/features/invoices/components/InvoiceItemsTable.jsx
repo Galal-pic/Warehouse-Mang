@@ -51,7 +51,7 @@ export default function InvoiceItemsTable({
     selectedInvoice?.type === "أمانات" ||
     editingInvoice?.type === "أمانات";
 
-      const isBookingType =
+  const isBookingType =
     selectedNowType?.type === "حجز" ||
     selectedInvoice?.type === "حجز" ||
     editingInvoice?.type === "حجز";
@@ -302,7 +302,7 @@ export default function InvoiceItemsTable({
 
               {isBookingType && !isCreate && (
                 <th className="border border-gray-300 px-2 py-1">
-                  الكمية المحوّلة للمخزن
+                  الكمية المسحوبه
                 </th>
               )}
 
@@ -419,9 +419,7 @@ export default function InvoiceItemsTable({
                         values={itemOptions}
                         editingItem={{
                           ...row,
-                          item_name: `${row.item_name || ""}${
-                            row.barcode ? ` - ${row.barcode}` : ""
-                          }`,
+                          item_name: `${row.item_name || ""}${row.barcode ? ` - ${row.barcode}` : ""}`,
                         }}
                         fieldName="item_name"
                         placeholder="الصنف (اسم - باركود)"
@@ -497,7 +495,9 @@ export default function InvoiceItemsTable({
 
                   {isBookingType && !isCreate && (
                     <td className="border border-gray-300 px-2 py-1 text-center">
-                      {Number(row.borrowed_to_main_quantity || 0)}
+                      {row.booking_remaining_quantity == null
+                        ? "-"
+                        : Number(row.booking_remaining_quantity)}
                     </td>
                   )}
 
