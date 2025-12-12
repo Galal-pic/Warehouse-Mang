@@ -156,11 +156,11 @@ class invoices_get(Resource):
         query = Invoice.query.order_by(desc(Invoice.id))
         
         # Handle different types
-        if type == "لم تؤكد":
+        if type == "لم-تؤكد":
             # Draft status invoices
             query = query.filter_by(status="accreditation")
             query = filter_perms(current_user_id, query)
-        elif type == "لم تراجع":
+        elif type == "لم-تراجع":
             # Accreditation status invoices
             query = query.filter_by(status="draft")
             query = filter_perms(current_user_id, query)
@@ -1792,6 +1792,6 @@ class BookingDeductions(Resource):
         if result["status"] == "error":
             rental_ns.abort(result["status_code"], result["message"])
         else:
-            return result["data"], result["status_code"]
+            return result["invoice"], result["status_code"]
 
 

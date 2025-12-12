@@ -827,7 +827,7 @@ def get_booking_deductions(invoice_id):
             "items": items_details
         }
 
-        return operation_result(200, "success", data=response_data)
+        return operation_result(200, "success", invoice=response_data)
 
     except SQLAlchemyError as e:
         return operation_result(500, "error", message=f"Database error: {str(e)}")
