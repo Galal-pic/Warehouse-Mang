@@ -7,7 +7,8 @@ import {
 } from "../../../api/modules/invoicesApi";
 import InvoiceLayout from "../components/InvoiceLayout";
 import { useAuthStore } from "../../../store/useAuthStore";
-import { mapInvoiceFromApi } from "../utils/invoiceHelpers"; // ✅ جديد
+import { mapInvoiceFromApi } from "../utils/invoiceHelpers";
+import SnackBar from "../../../components/common/SnackBar";
 
 export default function ViewInvoicePage() {
   const { id } = useParams();
@@ -15,6 +16,43 @@ export default function ViewInvoicePage() {
   const [isLoading, setIsLoading] = useState(true);
 
   const { user, isUserLoading, fetchCurrentUser } = useAuthStore();
+
+  // ✅ NEW: snackbar state
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: "",
+    type: "success",
+  });
+
+  const showMessage = (message, type = "success") => {
+    setSnackbar({ open: true, message, type });
+  };
+
+  // ✅ NEW: نفس helper بتاع الباك إيرور
+  const getBackendErrorMessage = (err) => {
+    const data = err?.response?.data;
+
+    if (!data) return err?.message || "حدث خطأ غير متوقع";
+    if (typeof data === "string") return data;
+
+    if (data.message) return data.message;
+    if (data.detail) return data.detail;
+
+    if (data.errors) {
+      if (typeof data.errors === "string") return data.errors;
+      try {
+        return JSON.stringify(data.errors);
+      } catch {
+        return "حدث خطأ";
+      }
+    }
+
+    try {
+      return JSON.stringify(data);
+    } catch {
+      return "حدث خطأ";
+    }
+  };
 
   useEffect(() => {
     fetchCurrentUser();
@@ -43,6 +81,7 @@ export default function ViewInvoicePage() {
         setInvoice(mapInvoiceFromApi(data, status));
       } catch (err) {
         console.error("getInvoice error", err);
+        showMessage(getBackendErrorMessage(err), "error");
       } finally {
         mounted && setIsLoading(false);
       }
@@ -100,9 +139,10 @@ export default function ViewInvoicePage() {
           };
         });
       })
-      .catch((err) =>
-        console.error("returnWarrantyInvoicePartially error", err)
-      );
+      .catch((err) => {
+        console.error("returnWarrantyInvoicePartially error", err);
+        showMessage(getBackendErrorMessage(err), "error");
+      });
 
     return () => {
       mounted = false;
@@ -124,6 +164,14 @@ export default function ViewInvoicePage() {
 
   return (
     <div className="w-[90%] mx-auto mt-10 mb-10" dir="rtl">
+      <SnackBar
+        open={snackbar.open}
+        message={snackbar.message}
+        type={snackbar.type}
+        autoHideDuration={2500}
+        onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
+      />
+
       <InvoiceLayout
         selectedInvoice={invoice}
         isEditing={false}

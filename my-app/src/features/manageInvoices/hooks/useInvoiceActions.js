@@ -11,7 +11,7 @@ import {
 /**
  * هُوك لكل أكشنات الفواتير
  * onRefresh: دالة لإعادة تحميل البيانات
- * setAlert: دالة لعرض رسالة (هتستخدميها لو حابة تفضلي على البانر أو تخليها مودال برضه)
+ * setAlert: دالة لعرض رسالة
  * showConfirm: دالة تفتح مودال تأكيد وترجع Promise<boolean>
  * showPrompt: دالة تفتح مودال إدخال نص وترجع Promise<string | null>
  */
@@ -29,6 +29,32 @@ export function useInvoiceActions({ onRefresh, setAlert, showConfirm, showPrompt
     setRecoverLoadingMap((prev) => ({ ...prev, [id]: value }));
   };
 
+  const getBackendErrorMessage = (err) => {
+    const data = err?.response?.data;
+
+    if (!data) return err?.message || "حدث خطأ غير متوقع";
+
+    if (typeof data === "string") return data;
+
+    if (data.message) return data.message;
+    if (data.detail) return data.detail;
+
+    if (data.errors) {
+      if (typeof data.errors === "string") return data.errors;
+      try {
+        return JSON.stringify(data.errors);
+      } catch {
+        return "حدث خطأ";
+      }
+    }
+
+    try {
+      return JSON.stringify(data);
+    } catch {
+      return "حدث خطأ";
+    }
+  };
+
   // تأكيد / تغيير حالة الفاتورة
   const handleConfirmStatus = async (invoice) => {
     const id = invoice.id;
@@ -44,7 +70,7 @@ export function useInvoiceActions({ onRefresh, setAlert, showConfirm, showPrompt
       console.error(error);
       setAlert?.({
         type: "error",
-        message: "حدث خطأ أثناء تحديث الحالة",
+        message: getBackendErrorMessage(error), // ✅ CHANGED
       });
     } finally {
       setConfirmLoading(id, false);
@@ -66,7 +92,7 @@ export function useInvoiceActions({ onRefresh, setAlert, showConfirm, showPrompt
       console.error(error);
       setAlert?.({
         type: "error",
-        message: "حدث خطأ أثناء الاسترداد",
+        message: getBackendErrorMessage(error), // ✅ CHANGED
       });
     } finally {
       setRecoverLoading(id, false);
@@ -96,7 +122,6 @@ export function useInvoiceActions({ onRefresh, setAlert, showConfirm, showPrompt
         message: "هل أنت متأكد من رغبتك في حذف هذه الفاتورة؟",
       });
     } else {
-      // Fallback لو لسه ما ربطتيش المودال
       confirmed = window.confirm("هل أنت متأكد من رغبتك في حذف هذه الفاتورة؟");
     }
 
@@ -114,8 +139,7 @@ export function useInvoiceActions({ onRefresh, setAlert, showConfirm, showPrompt
       console.error(error);
       setAlert?.({
         type: "error",
-        message:
-          "خطأ في الحذف، قد يكون هناك بيانات متعلقة بها أو أنها غير موجودة",
+        message: getBackendErrorMessage(error), // ✅ CHANGED
       });
     } finally {
       setSingleDeleteLoading(false);
@@ -171,8 +195,7 @@ export function useInvoiceActions({ onRefresh, setAlert, showConfirm, showPrompt
       console.error(error);
       setAlert?.({
         type: "error",
-        message:
-          "خطأ في حذف بعض الفواتير، قد يكون هناك بيانات متعلقة بها أو أنها غير موجودة",
+        message: getBackendErrorMessage(error), // ✅ CHANGED
       });
     } finally {
       setBulkDeleteLoading(false);
@@ -197,7 +220,7 @@ export function useInvoiceActions({ onRefresh, setAlert, showConfirm, showPrompt
       console.error(error);
       setAlert?.({
         type: "error",
-        message: "حدث خطأ أثناء قبول طلب الشراء",
+        message: getBackendErrorMessage(error), // ✅ CHANGED
       });
     } finally {
       setConfirmLoading(id, false);
@@ -249,7 +272,7 @@ export function useInvoiceActions({ onRefresh, setAlert, showConfirm, showPrompt
       console.error(error);
       setAlert?.({
         type: "error",
-        message: "خطأ في رفض طلب الشراء أو حفظ السبب",
+        message: getBackendErrorMessage(error), // ✅ CHANGED
       });
     } finally {
       setConfirmLoading(id, false);

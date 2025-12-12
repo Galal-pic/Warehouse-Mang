@@ -34,11 +34,37 @@ function formatTime(datetime) {
   return `${hoursIn12}:${minutes} ${ampm}`;
 }
 
-export function useInvoicesList({ selectedFilter, page, pageSize }) {
+export function useInvoicesList({ selectedFilter, page, pageSize, setAlert }) {
   const [invoices, setInvoices] = useState([]);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [loading, setLoading] = useState(false);
+
+  const getBackendErrorMessage = (err) => {
+    const data = err?.response?.data;
+
+    if (!data) return err?.message || "حدث خطأ غير متوقع";
+
+    if (typeof data === "string") return data;
+
+    if (data.message) return data.message;
+    if (data.detail) return data.detail;
+
+    if (data.errors) {
+      if (typeof data.errors === "string") return data.errors;
+      try {
+        return JSON.stringify(data.errors);
+      } catch {
+        return "حدث خطأ";
+      }
+    }
+
+    try {
+      return JSON.stringify(data);
+    } catch {
+      return "حدث خطأ";
+    }
+  };
 
   const fetchInvoices = useCallback(async () => {
     if (!selectedFilter) {
@@ -84,10 +110,15 @@ export function useInvoicesList({ selectedFilter, page, pageSize }) {
       setTotalItems(data.total_items || transformed.length);
     } catch (error) {
       console.error("Error fetching invoices", error);
+
+      setAlert?.({
+        type: "error",
+        message: getBackendErrorMessage(error),
+      });
     } finally {
       setLoading(false);
     }
-  }, [selectedFilter, page, pageSize]);
+  }, [selectedFilter, page, pageSize, setAlert]);
 
   useEffect(() => {
     fetchInvoices();

@@ -30,6 +30,36 @@ export default function InvoiceModal({
     type: "",
   });
 
+  const getBackendErrorMessage = (err) => {
+    const data = err?.response?.data;
+
+    if (!data) return err?.message || "حدث خطأ غير متوقع";
+
+    if (typeof data === "string") return data;
+
+    if (data.message) return data.message;
+    if (data.detail) return data.detail;
+
+    if (data.errors) {
+      if (typeof data.errors === "string") return data.errors;
+      try {
+        return JSON.stringify(data.errors);
+      } catch {
+        return "حدث خطأ";
+      }
+    }
+
+    try {
+      return JSON.stringify(data);
+    } catch {
+      return "حدث خطأ";
+    }
+  };
+
+  const showMessage = (message, type = "success") => {
+    setSnackbar({ open: true, message, type });
+  };
+
   const { handlePrint } = useInvoicePrint();
 
   const isAdmin = user?.username === "admin";
@@ -74,11 +104,7 @@ export default function InvoiceModal({
         setIsEditing(false);
       } catch (err) {
         console.error("getInvoice error in InvoiceModal", err);
-        setSnackbar({
-          open: true,
-          message: "فشل في تحميل بيانات الفاتورة",
-          type: "error",
-        });
+        showMessage(getBackendErrorMessage(err), "error");
       } finally {
         if (mounted) setLoading(false);
       }
@@ -178,6 +204,7 @@ export default function InvoiceModal({
           "returnWarrantyInvoicePartially error in InvoiceModal",
           err
         );
+        showMessage(getBackendErrorMessage(err), "error");
       }
     };
 
@@ -227,6 +254,7 @@ export default function InvoiceModal({
         setEditingInvoice(enhance);
       } catch (err) {
         console.error("getBookingDeductions error in InvoiceModal", err);
+        showMessage(getBackendErrorMessage(err), "error");
       }
     })();
 
@@ -260,18 +288,10 @@ export default function InvoiceModal({
       setIsEditing(false);
       onInvoiceUpdated?.();
 
-      setSnackbar({
-        open: true,
-        message: "تم حفظ التعديلات بنجاح",
-        type: "success",
-      });
+      showMessage("تم حفظ التعديلات بنجاح", "success");
     } catch (err) {
       console.error("updateInvoice error in InvoiceModal", err);
-      setSnackbar({
-        open: true,
-        message: "حدث خطأ أثناء حفظ التعديلات",
-        type: "error",
-      });
+      showMessage(getBackendErrorMessage(err), "error");
     } finally {
       setSaving(false);
     }
@@ -348,7 +368,7 @@ export default function InvoiceModal({
               >
                 طباعة
               </button>
-              
+
               {canEdit && !isConfirmed && (
                 <>
                   {isEditing ? (

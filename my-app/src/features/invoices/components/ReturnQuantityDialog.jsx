@@ -23,6 +23,31 @@ export default function ReturnQuantityDialog({
   });
   const [loading, setLoading] = useState(false);
 
+  const getBackendErrorMessage = (err) => {
+    const data = err?.response?.data;
+
+    if (!data) return err?.message || "حدث خطأ غير متوقع";
+    if (typeof data === "string") return data;
+
+    if (data.message) return data.message;
+    if (data.detail) return data.detail;
+
+    if (data.errors) {
+      if (typeof data.errors === "string") return data.errors;
+      try {
+        return JSON.stringify(data.errors);
+      } catch {
+        return "حدث خطأ";
+      }
+    }
+
+    try {
+      return JSON.stringify(data);
+    } catch {
+      return "حدث خطأ";
+    }
+  };
+
   useEffect(() => {
     if (open) {
       setQuantity("");
@@ -164,7 +189,7 @@ export default function ReturnQuantityDialog({
       console.log(error);
       setSnackbar({
         open: true,
-        message: "حدث خطأ أثناء الاسترداد",
+        message: getBackendErrorMessage(error), // ✅ CHANGED (رسالة الباك)
         type: "error",
       });
     } finally {

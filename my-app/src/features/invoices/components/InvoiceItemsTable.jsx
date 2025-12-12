@@ -136,6 +136,11 @@ export default function InvoiceItemsTable({
       })
       .catch((err) => {
         console.error("getSuppliers error", err);
+        setSnackbar({
+          open: true,
+          message: "فشل التحميل قائمة الموردين",
+          type: "error",
+        });
       })
       .finally(() => {
         if (mounted) setIsSuppliersLoading(false);
@@ -163,6 +168,11 @@ export default function InvoiceItemsTable({
       })
       .catch((err) => {
         console.error("getWarehouses error", err);
+        setSnackbar({
+          open: true,
+          message: "فشل التحميل قائمة المخازن",
+          type: "error",
+        });
       })
       .finally(() => {
         if (mounted) setIsWarehousesLoading(false);

@@ -28,6 +28,31 @@ export default function EditInvoicePage() {
     fetchCurrentUser();
   }, [fetchCurrentUser]);
 
+  const getBackendErrorMessage = (err) => {
+    const data = err?.response?.data;
+
+    if (!data) return err?.message || "حدث خطأ غير متوقع";
+    if (typeof data === "string") return data;
+
+    if (data.message) return data.message;
+    if (data.detail) return data.detail;
+
+    if (data.errors) {
+      if (typeof data.errors === "string") return data.errors;
+      try {
+        return JSON.stringify(data.errors);
+      } catch {
+        return "حدث خطأ";
+      }
+    }
+
+    try {
+      return JSON.stringify(data);
+    } catch {
+      return "حدث خطأ";
+    }
+  };
+
   useEffect(() => {
     let mounted = true;
     setIsLoading(true);
@@ -51,6 +76,11 @@ export default function EditInvoicePage() {
         setEditingInvoice(mapInvoiceFromApi(data, status));
       } catch (err) {
         console.error("getInvoice error", err);
+        setSnackbar({
+          open: true,
+          message: getBackendErrorMessage(err),
+          type: "error",
+        });
       } finally {
         mounted && setIsLoading(false);
       }
@@ -95,15 +125,15 @@ export default function EditInvoicePage() {
         message: "تم تحديث الفاتورة بنجاح",
         type: "success",
       });
-    } catch {
+    } catch (err) {
       setSnackbar({
         open: true,
-        message: "فشل في تحديث الفاتورة",
+        message: getBackendErrorMessage(err),
         type: "error",
       });
     } finally {
       setIsSaving(false);
-    };
+    }
   };
 
   return (

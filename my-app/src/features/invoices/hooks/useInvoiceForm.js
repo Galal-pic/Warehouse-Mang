@@ -47,6 +47,32 @@ export function useInvoiceForm() {
     fetchCurrentUser();
   }, [fetchCurrentUser]);
 
+  // ✅ NEW: Backend error helper (ضروري عشان الـ SnackBar يعرض رسالة الباك)
+  const getBackendErrorMessage = useCallback((err) => {
+    const data = err?.response?.data;
+
+    if (!data) return err?.message || "حدث خطأ غير متوقع";
+    if (typeof data === "string") return data;
+
+    if (data.message) return data.message;
+    if (data.detail) return data.detail;
+
+    if (data.errors) {
+      if (typeof data.errors === "string") return data.errors;
+      try {
+        return JSON.stringify(data.errors);
+      } catch {
+        return "حدث خطأ";
+      }
+    }
+
+    try {
+      return JSON.stringify(data);
+    } catch {
+      return "حدث خطأ";
+    }
+  }, []);
+
   // ========= last invoice id =========
   const [voucherNumber, setVoucherNumber] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -59,9 +85,9 @@ export function useInvoiceForm() {
       return { data };
     } catch (error) {
       console.error("Failed to fetch last invoice id", error);
-      return { data: null, error };
+      return { data: null, error, message: getBackendErrorMessage(error) };
     }
-  }, []);
+  }, [getBackendErrorMessage]);
 
   useEffect(() => {
     fetchLastId();
@@ -292,23 +318,34 @@ export function useInvoiceForm() {
     return null;
   };
 
+  const toNumber = (v) => {
+    if (v === "" || v === null || v === undefined) return 0;
+    const n = Number(v);
+    return isNaN(n) ? 0 : n;
+  };
+
   const buildInvoicePayload = (inv, total, isPO = false) => {
     return {
       ...inv,
+
       items: inv.items
-        .filter((it) => Number(it.quantity) > 0)
+        .filter((it) => toNumber(it.quantity) > 0)
         .map((it) => ({
           item_name: it.item_name,
           barcode: it.barcode,
           location: it.location,
           new_location: it.new_location || "",
-          quantity: Number(it.quantity),
-          unit_price: Number(it.unit_price),
-          total_price: Number(it.total_price),
+          quantity: toNumber(it.quantity),
+          unit_price: toNumber(it.unit_price),
+          total_price: toNumber(it.total_price),
           description: it.description,
           supplier_name: isPO ? "" : it.supplier_name || "",
         })),
-      total_amount: total,
+
+      total_amount: toNumber(total),
+      paid: toNumber(inv.paid ?? inv.amount_paid),
+      residual: toNumber(inv.residual ?? inv.remain_amount),
+
       employee_name: user?.username,
       id: inv.id ?? voucherNumber?.last_id,
       date,
@@ -351,6 +388,8 @@ export function useInvoiceForm() {
         id: payload.id,
       }));
       return data;
+    } catch (err) {
+      throw new Error(getBackendErrorMessage(err));
     } finally {
       setIsSaving(false);
     }
@@ -383,6 +422,8 @@ export function useInvoiceForm() {
         id: payload.id,
       }));
       return data;
+    } catch (err) {
+      throw new Error(getBackendErrorMessage(err));
     } finally {
       setIsSaving(false);
     }

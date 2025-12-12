@@ -7,6 +7,7 @@ import {
 } from "../../../api/modules/invoicesApi";
 import InvoiceLayout from "./InvoiceLayout";
 import { mapInvoiceFromApi } from "../utils/invoiceHelpers";
+import SnackBar from "../../../components/common/SnackBar"; // ✅ NEW
 
 export default function OriginalInvoiceDialog({
   open,
@@ -18,6 +19,43 @@ export default function OriginalInvoiceDialog({
   const [data, setData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isError, setIsError] = useState(false);
+
+  // ✅ NEW: Snackbar
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: "",
+    type: "success",
+  });
+
+  const showMessage = (message, type = "success") => {
+    setSnackbar({ open: true, message, type });
+  };
+
+  // ✅ NEW: Backend error helper
+  const getBackendErrorMessage = (err) => {
+    const data = err?.response?.data;
+
+    if (!data) return err?.message || "حدث خطأ غير متوقع";
+    if (typeof data === "string") return data;
+
+    if (data.message) return data.message;
+    if (data.detail) return data.detail;
+
+    if (data.errors) {
+      if (typeof data.errors === "string") return data.errors;
+      try {
+        return JSON.stringify(data.errors);
+      } catch {
+        return "حدث خطأ";
+      }
+    }
+
+    try {
+      return JSON.stringify(data);
+    } catch {
+      return "حدث خطأ";
+    }
+  };
 
   useEffect(() => {
     if (!open || !invoiceId) return;
@@ -45,6 +83,7 @@ export default function OriginalInvoiceDialog({
         setData(mapInvoiceFromApi(inv, status));
       } catch (err) {
         console.error("getInvoice error", err);
+        showMessage(getBackendErrorMessage(err), "error"); // ✅ NEW
         if (mounted) setIsError(true);
       } finally {
         mounted && setIsLoading(false);
@@ -96,6 +135,7 @@ export default function OriginalInvoiceDialog({
           "getBookingDeductions error in OriginalInvoiceDialog",
           err
         );
+        showMessage(getBackendErrorMessage(err), "error"); // ✅ NEW
       }
     })();
 
@@ -134,6 +174,15 @@ export default function OriginalInvoiceDialog({
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
       onClick={onClose}
     >
+      {/* ✅ NEW: SnackBar */}
+      <SnackBar
+        open={snackbar.open}
+        message={snackbar.message}
+        type={snackbar.type}
+        autoHideDuration={2500}
+        onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
+      />
+
       <div
         className="bg-white shadow-lg max-w-5xl w-full max-h-[90vh] overflow-auto p-4"
         onClick={(e) => e.stopPropagation()}
