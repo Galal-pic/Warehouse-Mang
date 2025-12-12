@@ -8,6 +8,7 @@ import AddCircleIcon from "@mui/icons-material/AddCircle";
 import ImportExportIcon from "@mui/icons-material/ImportExport";
 import * as XLSX from "xlsx";
 import { importSupplier } from "../../../api/modules/suppliersApi";
+import SnackBar from "../../../components/common/SnackBar";
 
 export default function SuppliersPage() {
   const { user, isUserLoading, fetchCurrentUser } = useAuthStore();
@@ -46,7 +47,6 @@ export default function SuppliersPage() {
 
   const showMessage = (message, type = "success") => {
     setSnackbar({ open: true, message, type });
-    setTimeout(() => setSnackbar((s) => ({ ...s, open: false })), 2000);
   };
 
   // مودال إضافة / تعديل
@@ -81,6 +81,37 @@ export default function SuppliersPage() {
       </div>
     );
   }
+
+  const getBackendErrorMessage = (err) => {
+    // Axios error
+    const data = err?.response?.data;
+
+    if (!data) return err?.message || "حدث خطأ غير متوقع";
+
+    // لو الباك بيرجع string مباشرة
+    if (typeof data === "string") return data;
+
+    // شائع: message / detail
+    if (data.message) return data.message;
+    if (data.detail) return data.detail;
+
+    // لو بيرجع errors object
+    if (data.errors) {
+      if (typeof data.errors === "string") return data.errors;
+      try {
+        return JSON.stringify(data.errors);
+      } catch {
+        return "حدث خطأ";
+      }
+    }
+
+    // fallback: اطبعي الـ data كله زي ما هو
+    try {
+      return JSON.stringify(data);
+    } catch {
+      return "حدث خطأ";
+    }
+  };
 
   const handleAddClick = () => {
     if (!user?.suppliers_can_add && user?.username !== "admin") {
@@ -125,7 +156,7 @@ export default function SuppliersPage() {
       setEditingSupplier(null);
     } catch (err) {
       console.error(err);
-      showMessage("حدث خطأ أثناء الحفظ", "error");
+      showMessage(getBackendErrorMessage(err), "error");
     }
   };
 
@@ -138,10 +169,7 @@ export default function SuppliersPage() {
       showMessage("تم حذف المورد", "success");
     } catch (err) {
       console.error(err);
-      showMessage(
-        "خطأ في حذف المورد، قد يكون هناك بيانات متعلقة به أو أنه غير موجود بالفعل",
-        "error"
-      );
+      showMessage(getBackendErrorMessage(err), "error");
     } finally {
       setDeleteDialogOpen(false);
       setSupplierToDelete(null);
@@ -185,7 +213,7 @@ export default function SuppliersPage() {
       }
     } catch (err) {
       console.error(err);
-      showMessage("البيانات غير متوافقة أو حدث خطأ في الاستيراد", "error");
+      showMessage(getBackendErrorMessage(err), "error");
     } finally {
       setIsImporting(false);
       event.target.value = "";
@@ -195,21 +223,13 @@ export default function SuppliersPage() {
   return (
     <div className="max-w-5xl mx-auto py-8 px-4" dir="rtl">
       {/* Snackbar بسيط */}
-      {snackbar.open && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-40">
-          <div
-            className={`px-4 py-2 rounded-lg shadow-lg text-sm font-semibold text-white ${
-              snackbar.type === "success"
-                ? "bg-emerald-600"
-                : snackbar.type === "error"
-                  ? "bg-red-600"
-                  : "bg-slate-700"
-            }`}
-          >
-            {snackbar.message}
-          </div>
-        </div>
-      )}
+      <SnackBar
+        open={snackbar.open}
+        message={snackbar.message}
+        type={snackbar.type}
+        autoHideDuration={2500}
+        onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
+      />
 
       <h1 className="text-2xl md:text-3xl font-bold text-slate-800 text-center">
         الموردين

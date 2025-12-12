@@ -318,6 +318,10 @@ export default function InvoiceModal({
   }
 
   const isDeposit = selectedInvoice?.type === "أمانات";
+  const isConfirmed =
+    selectedInvoice?.status === "confirmed" ||
+    selectedInvoice?.status === "تم" ||
+    selectedInvoice?.status === "تم الاسترداد";
 
   return (
     <>
@@ -344,8 +348,8 @@ export default function InvoiceModal({
               >
                 طباعة
               </button>
-
-              {canEdit && (
+              
+              {canEdit && !isConfirmed && (
                 <>
                   {isEditing ? (
                     <>

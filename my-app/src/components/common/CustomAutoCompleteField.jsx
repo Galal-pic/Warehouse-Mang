@@ -1,5 +1,11 @@
 // src/components/common/CustomAutoCompleteField.jsx
-import React, { useEffect, useRef, useState, useMemo } from "react";
+import React, {
+  useEffect,
+  useRef,
+  useState,
+  useMemo,
+  useCallback,
+} from "react";
 
 const MAX_OPTIONS = 50;
 
@@ -23,6 +29,7 @@ export default function CustomAutoCompleteField({
   const [dropdownRect, setDropdownRect] = useState(null);
 
   const wrapperRef = useRef(null);
+  const inputRef = useRef(null);
 
   const effectiveLoading = isLoading || loading;
 
@@ -101,6 +108,7 @@ export default function CustomAutoCompleteField({
     );
 
     return result.slice(0, MAX_OPTIONS);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [normalizedValues, inputValue]);
 
   const handleSelect = (option) => {
@@ -119,34 +127,52 @@ export default function CustomAutoCompleteField({
     }
   };
 
-  const openDropdown = () => {
-    if (!wrapperRef.current) {
-      setOpen(true);
-      return;
-    }
+  const updateDropdownRect = useCallback(() => {
+    const el = inputRef.current || wrapperRef.current;
+    if (!el) return;
 
-    const rect = wrapperRef.current.getBoundingClientRect();
+    const rect = el.getBoundingClientRect();
     const viewportHeight = window.innerHeight;
+
     const desiredHeight = 240;
     const spaceAbove = rect.top;
     const spaceBelow = viewportHeight - rect.bottom;
 
-    let top;
-    if (spaceBelow >= desiredHeight || spaceBelow >= spaceAbove) {
-      top = rect.bottom + 4;
-    } else {
-      top = Math.max(8, rect.top - desiredHeight - 4);
-    }
+    const openDown = spaceBelow >= desiredHeight || spaceBelow >= spaceAbove;
+
+    const maxHeight = Math.max(
+      80,
+      Math.min(desiredHeight, (openDown ? spaceBelow : spaceAbove) - 12)
+    );
 
     setDropdownRect({
-      top,
       left: rect.left,
       width: rect.width,
-      maxHeight: desiredHeight,
+      maxHeight,
+      placement: openDown ? "down" : "up",
+      top: openDown ? rect.bottom + 4 : null,
+      bottom: openDown ? null : viewportHeight - rect.top + 4,
     });
+  }, []);
 
+  const openDropdown = () => {
+    updateDropdownRect();
     setOpen(true);
   };
+
+  useEffect(() => {
+    if (!open) return;
+
+    const onScrollOrResize = () => updateDropdownRect();
+
+    window.addEventListener("scroll", onScrollOrResize, true); // capture
+    window.addEventListener("resize", onScrollOrResize);
+
+    return () => {
+      window.removeEventListener("scroll", onScrollOrResize, true);
+      window.removeEventListener("resize", onScrollOrResize);
+    };
+  }, [open, updateDropdownRect]);
 
   const dropdownBaseClasses = `${
     isBig ? "text-sm" : "text-xs"
@@ -159,6 +185,7 @@ export default function CustomAutoCompleteField({
     >
       <div className="relative">
         <input
+          ref={inputRef}
           type="text"
           className={`w-full rounded-md px-3 py-2 text-right focus:outline-none focus:ring-2 focus:ring-blue-500 ${
             isBig ? "text-sm" : "text-xs"
@@ -185,10 +212,13 @@ export default function CustomAutoCompleteField({
         <div
           className={`fixed z-[9999] ${dropdownBaseClasses}`}
           style={{
-            top: dropdownRect.top,
             left: dropdownRect.left,
             width: dropdownRect.width,
             maxHeight: dropdownRect.maxHeight,
+            top:
+              dropdownRect.placement === "down" ? dropdownRect.top : undefined,
+            bottom:
+              dropdownRect.placement === "up" ? dropdownRect.bottom : undefined,
           }}
         >
           {filteredOptions.map((opt, idx) => (
@@ -217,9 +247,16 @@ export default function CustomAutoCompleteField({
           <div
             className="fixed z-[9999] w-full rounded-md border border-gray-200 bg-white px-3 py-1.5 text-center text-xs text-gray-500 shadow"
             style={{
-              top: dropdownRect.top,
               left: dropdownRect.left,
               width: dropdownRect.width,
+              top:
+                dropdownRect.placement === "down"
+                  ? dropdownRect.top
+                  : undefined,
+              bottom:
+                dropdownRect.placement === "up"
+                  ? dropdownRect.bottom
+                  : undefined,
             }}
           >
             لا توجد نتائج

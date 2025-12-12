@@ -130,16 +130,16 @@ export default function ReportsLayout() {
       });
   };
 
-  if (isUserLoading || !user) {
-    return (
-      <div className="flex items-center justify-center min-h-[80vh]">
-        <div className="text-center">
-          <div className="h-12 w-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-700 font-medium">جاري تحميل البيانات...</p>
-        </div>
-      </div>
-    );
-  }
+  // if (isUserLoading || !user) {
+  //   return (
+  //     <div className="flex items-center justify-center min-h-[80vh]">
+  //       <div className="text-center">
+  //         <div className="h-12 w-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+  //         <p className="text-gray-700 font-medium">جاري تحميل البيانات...</p>
+  //       </div>
+  //     </div>
+  //   );
+  // }
 
   const onResultsPage = location.pathname.startsWith("/reports/search");
 

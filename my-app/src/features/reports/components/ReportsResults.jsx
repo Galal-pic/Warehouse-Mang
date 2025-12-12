@@ -399,13 +399,6 @@ export default function ReportsResults({
             لم يتم العثور على نتائج مطابقة لمعايير البحث المحددة. حاول تعديل
             الفلاتر للحصول على نتائج.
           </p>
-          <button
-            type="button"
-            onClick={onBackToFilters}
-            className="px-6 py-3 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
-          >
-            تعديل الفلاتر
-          </button>
         </div>
       ) : reportType === "فواتير" ? (
         // لو التقرير فواتير نعرض جدول الفواتير

@@ -10,6 +10,7 @@ import AddCircleIcon from "@mui/icons-material/AddCircle";
 import ImportExportIcon from "@mui/icons-material/ImportExport";
 import * as XLSX from "xlsx";
 import { importWarehouse } from "../../../api/modules/warehousesApi";
+import SnackBar from "../../../components/common/SnackBar";
 
 export default function ItemsPage() {
   const { user, isUserLoading, fetchCurrentUser } = useAuthStore();
@@ -43,7 +44,6 @@ export default function ItemsPage() {
 
   const showMessage = (message, type = "success") => {
     setSnackbar({ open: true, message, type });
-    setTimeout(() => setSnackbar((s) => ({ ...s, open: false })), 2000);
   };
 
   // Add modal
@@ -91,6 +91,37 @@ export default function ItemsPage() {
     );
   }
 
+  const getBackendErrorMessage = (err) => {
+    // Axios error
+    const data = err?.response?.data;
+
+    if (!data) return err?.message || "حدث خطأ غير متوقع";
+
+    // لو الباك بيرجع string مباشرة
+    if (typeof data === "string") return data;
+
+    // شائع: message / detail
+    if (data.message) return data.message;
+    if (data.detail) return data.detail;
+
+    // لو بيرجع errors object
+    if (data.errors) {
+      if (typeof data.errors === "string") return data.errors;
+      try {
+        return JSON.stringify(data.errors);
+      } catch {
+        return "حدث خطأ";
+      }
+    }
+
+    // fallback: اطبعي الـ data كله زي ما هو
+    try {
+      return JSON.stringify(data);
+    } catch {
+      return "حدث خطأ";
+    }
+  };
+
   const handleAddClick = () => {
     if (!user?.items_can_add && user?.username !== "admin") {
       showMessage("ليس لديك صلاحيات لإضافة عنصر", "info");
@@ -117,7 +148,7 @@ export default function ItemsPage() {
       setAddOpen(false);
     } catch (err) {
       console.error(err);
-      showMessage("اسم العنصر أو الباركود موجود بالفعل", "error");
+      showMessage(getBackendErrorMessage(err), "error");
     }
   };
 
@@ -139,7 +170,7 @@ export default function ItemsPage() {
       setSelectedItem(null);
     } catch (err) {
       console.error(err);
-      showMessage("اسم العنصر أو الباركود موجود بالفعل", "error");
+      showMessage(getBackendErrorMessage(err), "error");
     }
   };
 
@@ -167,10 +198,7 @@ export default function ItemsPage() {
       showMessage("تم حذف المنتج", "success");
     } catch (err) {
       console.error(err);
-      showMessage(
-        "فشل حذف المنتج قد يكون هناك بيانات تتعلق به أو أنه غير موجود بالفعل",
-        "error"
-      );
+      showMessage(getBackendErrorMessage(err), "error");
     } finally {
       setDeleteOpen(false);
       setItemToDelete(null);
@@ -224,7 +252,7 @@ export default function ItemsPage() {
       }
     } catch (err) {
       console.error(err);
-      showMessage("البيانات غير متوافقة أو حدث خطأ في الاستيراد", "error");
+      showMessage(getBackendErrorMessage(err), "error");
     } finally {
       setIsImporting(false);
       event.target.value = "";
@@ -234,21 +262,13 @@ export default function ItemsPage() {
   return (
     <div className="max-w-6xl mx-auto py-8 px-4" dir="rtl">
       {/* Snackbar */}
-      {snackbar.open && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-40">
-          <div
-            className={`px-4 py-2 rounded-lg shadow-lg text-sm font-semibold text-white ${
-              snackbar.type === "success"
-                ? "bg-emerald-600"
-                : snackbar.type === "error"
-                  ? "bg-red-600"
-                  : "bg-slate-700"
-            }`}
-          >
-            {snackbar.message}
-          </div>
-        </div>
-      )}
+      <SnackBar
+        open={snackbar.open}
+        message={snackbar.message}
+        type={snackbar.type}
+        autoHideDuration={2500}
+        onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
+      />
 
       {/* العنوان */}
       <h1 className="text-2xl md:text-3xl font-bold text-slate-800 text-center">

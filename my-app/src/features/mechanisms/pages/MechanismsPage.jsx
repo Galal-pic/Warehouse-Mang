@@ -8,6 +8,7 @@ import AddCircleIcon from "@mui/icons-material/AddCircle";
 import ImportExportIcon from "@mui/icons-material/ImportExport";
 import * as XLSX from "xlsx";
 import { importMechanism } from "../../../api/modules/mechanismsApi";
+import SnackBar from "../../../components/common/SnackBar";
 
 export default function MechanismsPage() {
   const { user, isUserLoading, fetchCurrentUser } = useAuthStore();
@@ -47,6 +48,31 @@ export default function MechanismsPage() {
   const showMessage = (message, type = "success") => {
     setSnackbar({ open: true, message, type });
     setTimeout(() => setSnackbar((s) => ({ ...s, open: false })), 2000);
+  };
+
+  // دالة لمعالجة الأخطاء من الـ API
+  const getBackendErrorMessage = (err) => {
+    const data = err?.response?.data;
+
+    if (!data) return err?.message || "حدث خطأ غير متوقع";
+    if (typeof data === "string") return data;
+    if (data.message) return data.message;
+    if (data.detail) return data.detail;
+
+    if (data.errors) {
+      if (typeof data.errors === "string") return data.errors;
+      try {
+        return JSON.stringify(data.errors);
+      } catch {
+        return "حدث خطأ";
+      }
+    }
+
+    try {
+      return JSON.stringify(data);
+    } catch {
+      return "حدث خطأ";
+    }
   };
 
   // مودال إضافة / تعديل
@@ -127,7 +153,7 @@ export default function MechanismsPage() {
       setEditingMechanism(null);
     } catch (err) {
       console.error(err);
-      showMessage("حدث خطأ أثناء الحفظ", "error");
+      showMessage(getBackendErrorMessage(err), "error");
     }
   };
 
@@ -140,10 +166,7 @@ export default function MechanismsPage() {
       showMessage("تم حذف الميكانيزم", "success");
     } catch (err) {
       console.error(err);
-      showMessage(
-        "خطأ في حذف الميكانيزم قد يكون هناك بيانات متعلقة به أو أنه غير موجود بالفعل",
-        "error"
-      );
+      showMessage(getBackendErrorMessage(err), "error");
     } finally {
       setDeleteDialogOpen(false);
       setMechanismToDelete(null);
@@ -186,7 +209,7 @@ export default function MechanismsPage() {
       }
     } catch (err) {
       console.error(err);
-      showMessage("البيانات غير متوافقة أو حدث خطأ في الاستيراد", "error");
+      showMessage(getBackendErrorMessage(err), "error");
     } finally {
       setIsImporting(false);
       event.target.value = "";
@@ -196,21 +219,13 @@ export default function MechanismsPage() {
   return (
     <div className="max-w-5xl mx-auto py-8 px-4" dir="rtl">
       {/* Snackbar بسيط */}
-      {snackbar.open && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-40">
-          <div
-            className={`px-4 py-2 rounded-lg shadow-lg text-sm font-semibold text-white ${
-              snackbar.type === "success"
-                ? "bg-emerald-600"
-                : snackbar.type === "error"
-                  ? "bg-red-600"
-                  : "bg-slate-700"
-            }`}
-          >
-            {snackbar.message}
-          </div>
-        </div>
-      )}
+      <SnackBar
+        open={snackbar.open}
+        message={snackbar.message}
+        type={snackbar.type}
+        autoHideDuration={2500}
+        onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
+      />
 
       {/* العنوان */}
       <h1 className="text-2xl md:text-3xl font-bold text-slate-800 text-center">
@@ -252,7 +267,7 @@ export default function MechanismsPage() {
             />
           </button>
         </div>
-                {/* زر إضافة على أقصى يمين */}
+        {/* زر إضافة على أقصى يمين */}
         <button
           type="button"
           onClick={handleAddClick}

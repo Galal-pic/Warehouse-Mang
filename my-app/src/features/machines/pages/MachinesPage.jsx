@@ -8,6 +8,7 @@ import AddCircleIcon from "@mui/icons-material/AddCircle";
 import ImportExportIcon from "@mui/icons-material/ImportExport";
 import * as XLSX from "xlsx";
 import { importMachines } from "../../../api/modules/machinesApi";
+import SnackBar from "../../../components/common/SnackBar";
 
 export default function MachinesPage() {
   const { user, isUserLoading, fetchCurrentUser } = useAuthStore();
@@ -45,7 +46,6 @@ export default function MachinesPage() {
 
   const showMessage = (message, type = "success") => {
     setSnackbar({ open: true, message, type });
-    setTimeout(() => setSnackbar((s) => ({ ...s, open: false })), 2000);
   };
 
   // مودال إضافة / تعديل
@@ -112,6 +112,36 @@ export default function MachinesPage() {
     setDeleteDialogOpen(true);
     setDeleteText("");
   };
+  const getBackendErrorMessage = (err) => {
+    // Axios error
+    const data = err?.response?.data;
+
+    if (!data) return err?.message || "حدث خطأ غير متوقع";
+
+    // لو الباك بيرجع string مباشرة
+    if (typeof data === "string") return data;
+
+    // شائع: message / detail
+    if (data.message) return data.message;
+    if (data.detail) return data.detail;
+
+    // لو بيرجع errors object
+    if (data.errors) {
+      if (typeof data.errors === "string") return data.errors;
+      try {
+        return JSON.stringify(data.errors);
+      } catch {
+        return "حدث خطأ";
+      }
+    }
+
+    // fallback: اطبعي الـ data كله زي ما هو
+    try {
+      return JSON.stringify(data);
+    } catch {
+      return "حدث خطأ";
+    }
+  };
 
   const handleSubmitForm = async (values) => {
     try {
@@ -126,7 +156,7 @@ export default function MachinesPage() {
       setEditingMachine(null);
     } catch (err) {
       console.error(err);
-      showMessage("حدث خطأ أثناء الحفظ", "error");
+      showMessage(getBackendErrorMessage(err), "error"); // ✅ هنا
     }
   };
 
@@ -139,10 +169,7 @@ export default function MachinesPage() {
       showMessage("تم حذف الماكينة", "success");
     } catch (err) {
       console.error(err);
-      showMessage(
-        "خطأ في حذف الماكينة، قد يكون هناك بيانات متعلقة بها أو أنها غير موجودة بالفعل",
-        "error"
-      );
+      showMessage(getBackendErrorMessage(err), "error"); // ✅ هنا
     } finally {
       setDeleteDialogOpen(false);
       setMachineToDelete(null);
@@ -185,7 +212,7 @@ export default function MachinesPage() {
       }
     } catch (err) {
       console.error(err);
-      showMessage("البيانات غير متوافقة أو حدث خطأ في الاستيراد", "error");
+      showMessage(getBackendErrorMessage(err), "error"); // ✅ هنا
     } finally {
       setIsImporting(false);
       event.target.value = "";
@@ -195,21 +222,13 @@ export default function MachinesPage() {
   return (
     <div className="max-w-5xl mx-auto py-8 px-4" dir="rtl">
       {/* Snackbar بسيط */}
-      {snackbar.open && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-40">
-          <div
-            className={`px-4 py-2 rounded-lg shadow-lg text-sm font-semibold text-white ${
-              snackbar.type === "success"
-                ? "bg-emerald-600"
-                : snackbar.type === "error"
-                  ? "bg-red-600"
-                  : "bg-slate-700"
-            }`}
-          >
-            {snackbar.message}
-          </div>
-        </div>
-      )}
+      <SnackBar
+        open={snackbar.open}
+        message={snackbar.message}
+        type={snackbar.type}
+        autoHideDuration={2500}
+        onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
+      />
 
       {/* العنوان */}
       <h1 className="text-2xl md:text-3xl font-bold text-slate-800 text-center">
