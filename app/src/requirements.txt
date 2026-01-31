@@ -1,0 +1,38 @@
+# Core
+fastapi
+uvicorn[standard]
+python-multipart
+
+# Database
+sqlalchemy[asyncio]
+asyncpg
+alembic
+greenlet
+psycopg2-binary
+
+# Authentication
+python-jose[cryptography]
+passlib[bcrypt]
+bcrypt==4.0.1
+
+# Validation
+pydantic
+pydantic-settings
+email-validator
+
+# Caching
+redis
+
+# Background Tasks
+celery[redis]
+
+# Excel Processing
+openpyxl
+pandas
+
+# Testing
+pytest
+pytest-asyncio
+pytest-cov
+httpx
+factory-boy
