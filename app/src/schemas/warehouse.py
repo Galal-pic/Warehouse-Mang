@@ -1,0 +1,101 @@
+from pydantic import BaseModel, ConfigDict
+
+
+class ItemLocationBase(BaseModel):
+    """Base item location schema"""
+
+    location: str
+    quantity: int = 0
+
+
+class ItemLocationResponse(ItemLocationBase):
+    """Item location response schema"""
+
+    item_id: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class WarehouseBase(BaseModel):
+    """Base warehouse item schema"""
+
+    item_name: str
+    item_bar: str
+
+
+class WarehouseCreate(WarehouseBase):
+    """Schema for creating a warehouse item"""
+
+    locations: list[ItemLocationBase] = []
+
+
+class WarehouseUpdate(BaseModel):
+    """Schema for updating a warehouse item"""
+
+    item_name: str | None = None
+    item_bar: str | None = None
+
+
+class WarehouseResponse(WarehouseBase):
+    """Warehouse item response schema"""
+
+    id: int
+    created_at: str | None = None
+    updated_at: str | None = None
+    locations: list[ItemLocationResponse] = []
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class WarehouseListResponse(BaseModel):
+    """Warehouse item list response (minimal)"""
+
+    id: int
+    item_name: str
+    item_bar: str
+    created_at: str | None = None
+    updated_at: str | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PriceBase(BaseModel):
+    """Base price schema"""
+
+    invoice_id: int
+    item_id: int
+    location: str
+    supplier_id: int = 0
+    quantity: int
+    unit_price: float
+
+
+class PriceResponse(PriceBase):
+    """Price response schema"""
+
+    created_at: str | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class FifoPriceResponse(BaseModel):
+    """FIFO price response for an item"""
+
+    invoice_id: int
+    item_id: int
+    location: str
+    supplier_id: int
+    quantity: int
+    unit_price: float
+    created_at: str | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CacheStatusResponse(BaseModel):
+    """Cache status response"""
+
+    connected: bool
+    type: str
+    used_memory: str | None = None
+    error: str | None = None
