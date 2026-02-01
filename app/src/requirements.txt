@@ -36,3 +36,4 @@ pytest-asyncio
 pytest-cov
 httpx
 factory-boy
+aiosqlite

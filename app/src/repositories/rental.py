@@ -110,6 +110,22 @@ class RentedItemsRepository(BaseRepository[RentedItems]):
         result = await self.session.scalars(stmt)
         return result.all()
 
+    async def get_available_for_deduction(
+        self,
+        item_id: int,
+    ) -> Sequence[RentedItems]:
+        """Get rented items available for deduction (items with borrowed_to_main_quantity > 0)"""
+        stmt = (
+            select(RentedItems)
+            .where(
+                RentedItems.item_id == item_id,
+                RentedItems.borrowed_to_main_quantity > 0,
+            )
+            .order_by(RentedItems.id.asc())  # FIFO: oldest first
+        )
+        result = await self.session.scalars(stmt)
+        return result.all()
+
 
 class RentalWarehouseLocationsRepository(BaseRepository[RentalWarehouseLocations]):
     """Repository for RentalWarehouseLocations operations"""

@@ -262,7 +262,23 @@ async def get_fifo_report(uow: UOW, current_user: CurrentUser):
     return report
 
 
-@router.get("/{invoice_type}")
+@router.get("/{invoice_id:int}")
+async def get_invoice(
+    invoice_id: int,
+    uow: UOW,
+    current_user: CurrentUser,
+):
+    """GET /invoice/<id> - Get single invoice with items"""
+    invoice = await uow.invoices.get_with_items(invoice_id)
+    if not invoice:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Invoice not found",
+        )
+    return serialize_invoice(invoice)
+
+
+@router.get("/type/{invoice_type}")
 async def list_invoices_by_type(
     invoice_type: str,
     uow: UOW,
@@ -271,7 +287,7 @@ async def list_invoices_by_type(
     page_size: int = Query(10, ge=1, le=100),
     all: bool = Query(False),
 ):
-    """GET /invoice/<type> - List invoices by type"""
+    """GET /invoice/type/<type> - List invoices by type"""
     if all:
         invoices, total = await uow.invoices.get_by_type_with_permissions(
             invoice_type=invoice_type,
@@ -307,22 +323,6 @@ async def list_invoices_by_type(
         "total_items": total,
         "all": False,
     }
-
-
-@router.get("/{invoice_id:int}")
-async def get_invoice(
-    invoice_id: int,
-    uow: UOW,
-    current_user: CurrentUser,
-):
-    """GET /invoice/<id> - Get single invoice with items"""
-    invoice = await uow.invoices.get_with_items(invoice_id)
-    if not invoice:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Invoice not found",
-        )
-    return serialize_invoice(invoice)
 
 
 @router.post("/")

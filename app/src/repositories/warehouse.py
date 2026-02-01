@@ -20,6 +20,12 @@ class WarehouseRepository(BaseRepository[Warehouse]):
         result = await self.session.scalars(stmt)
         return result.first()
 
+    async def get_by_name(self, name: str) -> Warehouse | None:
+        """Get item by exact name"""
+        stmt = select(Warehouse).where(Warehouse.item_name == name)
+        result = await self.session.scalars(stmt)
+        return result.first()
+
     async def get_with_locations(self, id: int) -> Warehouse | None:
         """Get item with locations eagerly loaded"""
         stmt = (

@@ -115,7 +115,7 @@ class Prices(Base):
     # Fields
     quantity: Mapped[int] = mapped_column(Integer)
     unit_price: Mapped[float] = mapped_column(Float)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 
     # Relationships
     invoice: Mapped["Invoice"] = relationship(back_populates="prices")

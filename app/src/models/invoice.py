@@ -24,9 +24,9 @@ class Invoice(Base):
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    type: Mapped[str] = mapped_column(String(50), index=True)
+    type: Mapped[str] = mapped_column(String(50))
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.now, index=True
+        DateTime, default=datetime.now
     )
     client_name: Mapped[str | None] = mapped_column(String(50), nullable=True)
     warehouse_manager: Mapped[str | None] = mapped_column(String(255), nullable=True)
