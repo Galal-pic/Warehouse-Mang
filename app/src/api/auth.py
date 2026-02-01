@@ -11,6 +11,7 @@ from src.schemas.user import (
     UserResponse,
     TokenResponse,
     ChangePasswordRequest,
+    LoginRequest,
 )
 from src.schemas.common import PaginatedResponse, MessageResponse
 from src.models.role import ALL_PERMISSION_CODES
@@ -68,10 +69,33 @@ async def register(
 
 @router.post("/login", response_model=TokenResponse)
 async def login(
+    data: LoginRequest,
+    uow: UOW,
+):
+    """POST /auth/login - Login with username and password (JSON body)"""
+    user = await uow.users.get_by_username_with_roles(data.username)
+
+    if not user or not verify_password(data.password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    access_token = create_access_token(subject=user.id)
+
+    return TokenResponse(
+        access_token=access_token,
+        token_type="bearer",
+    )
+
+
+@router.post("/token", response_model=TokenResponse)
+async def login_form(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     uow: UOW,
 ):
-    """POST /auth/login - Login with username and password"""
+    """POST /auth/token - Login with form data (OAuth2 compatible)"""
     user = await uow.users.get_by_username_with_roles(form_data.username)
 
     if not user or not verify_password(form_data.password, user.password_hash):

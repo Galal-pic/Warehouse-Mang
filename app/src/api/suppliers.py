@@ -5,7 +5,7 @@ from src.schemas.reference import SupplierCreate, SupplierUpdate, SupplierRespon
 from src.schemas.common import PaginatedResponse, MessageResponse
 from src.core.cache import cache
 
-router = APIRouter(prefix="/suppliers", tags=["Suppliers"])
+router = APIRouter(prefix="/supplier", tags=["Suppliers"])
 
 
 @router.get("/")

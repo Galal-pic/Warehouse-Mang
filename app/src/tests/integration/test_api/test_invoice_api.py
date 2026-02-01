@@ -163,7 +163,7 @@ class TestInvoiceAPI:
     @pytest.mark.asyncio
     async def test_list_invoices_by_type(self, authenticated_client: AsyncClient):
         """Test listing invoices by type"""
-        response = await authenticated_client.get("/invoice/type/صرف")
+        response = await authenticated_client.get("/invoice/صرف")
 
         assert response.status_code == 200
         data = response.json()

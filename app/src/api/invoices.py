@@ -278,7 +278,7 @@ async def get_invoice(
     return serialize_invoice(invoice)
 
 
-@router.get("/type/{invoice_type}")
+@router.get("/{invoice_type}")
 async def list_invoices_by_type(
     invoice_type: str,
     uow: UOW,
@@ -287,7 +287,7 @@ async def list_invoices_by_type(
     page_size: int = Query(10, ge=1, le=100),
     all: bool = Query(False),
 ):
-    """GET /invoice/type/<type> - List invoices by type"""
+    """GET /invoice/<type> - List invoices by type"""
     if all:
         invoices, total = await uow.invoices.get_by_type_with_permissions(
             invoice_type=invoice_type,

@@ -5,7 +5,7 @@ from src.schemas.reference import MachineCreate, MachineUpdate, MachineResponse
 from src.schemas.common import PaginatedResponse, MessageResponse
 from src.core.cache import cache
 
-router = APIRouter(prefix="/machines", tags=["Machines"])
+router = APIRouter(prefix="/machine", tags=["Machines"])
 
 
 @router.get("/")

@@ -5,7 +5,7 @@ from src.schemas.reference import MechanismCreate, MechanismUpdate, MechanismRes
 from src.schemas.common import PaginatedResponse, MessageResponse
 from src.core.cache import cache
 
-router = APIRouter(prefix="/mechanisms", tags=["Mechanisms"])
+router = APIRouter(prefix="/mechanism", tags=["Mechanisms"])
 
 
 @router.get("/")

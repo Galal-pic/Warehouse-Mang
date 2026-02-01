@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     DB_POOL_TIMEOUT: int = 10
 
     # JWT
-    SECRET_KEY: str = "your-secret-key-change-in-production"
+    SECRET_KEY: str = "507085e31232051da94ebc20dd008855642cd281c31246de592e459f9bf39b1e"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_HOURS: int = 6
 

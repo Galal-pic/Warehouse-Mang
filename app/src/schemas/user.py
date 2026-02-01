@@ -165,3 +165,10 @@ class ChangePasswordRequest(BaseModel):
 
     old_password: str
     new_password: str
+
+
+class LoginRequest(BaseModel):
+    """Login request schema for JSON body"""
+
+    username: str
+    password: str

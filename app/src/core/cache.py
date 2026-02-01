@@ -108,7 +108,7 @@ class RedisCache:
             return 0
         try:
             keys = []
-            async for key in self.redis.scan_iter(f"{self.prefix}{pattern}"):
+            async for key in self.redis.scan_iter(match=f"{self.prefix}{pattern}"):
                 keys.append(key)
             if keys:
                 return await self.redis.delete(*keys)
