@@ -84,16 +84,23 @@ async def readiness_check():
 
 
 # Include API routers
-# TODO: Add routers as they are created
-# from src.api import auth, invoices, warehouse, rental, machines, mechanisms, suppliers, reports
-# app.include_router(auth.router)
-# app.include_router(invoices.router)
-# app.include_router(warehouse.router)
-# app.include_router(rental.router)
-# app.include_router(machines.router)
-# app.include_router(mechanisms.router)
-# app.include_router(suppliers.router)
-# app.include_router(reports.router)
+from src.api.auth import router as auth_router
+from src.api.invoices import router as invoices_router
+from src.api.warehouse import router as warehouse_router
+from src.api.rental import router as rental_router
+from src.api.machines import router as machines_router
+from src.api.mechanisms import router as mechanisms_router
+from src.api.suppliers import router as suppliers_router
+from src.api.reports import router as reports_router
+
+app.include_router(auth_router)
+app.include_router(invoices_router)
+app.include_router(warehouse_router)
+app.include_router(rental_router)
+app.include_router(machines_router)
+app.include_router(mechanisms_router)
+app.include_router(suppliers_router)
+app.include_router(reports_router)
 
 
 if __name__ == "__main__":
