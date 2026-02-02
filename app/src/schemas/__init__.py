@@ -8,12 +8,17 @@ from src.schemas.common import (
     StatusResponse,
 )
 from src.schemas.user import (
-    UserBase,
+    UserPermissions,
     UserCreate,
     UserUpdate,
     UserResponse,
+    UserListItem,
+    UserListResponse,
     TokenResponse,
     ChangePasswordRequest,
+    LoginRequest,
+    flatten_permissions,
+    build_permissions_from_codes,
 )
 from src.schemas.role import (
     PermissionBase,
@@ -88,12 +93,17 @@ __all__ = [
     "SuccessResponse",
     "StatusResponse",
     # User
-    "UserBase",
+    "UserPermissions",
     "UserCreate",
     "UserUpdate",
     "UserResponse",
+    "UserListItem",
+    "UserListResponse",
     "TokenResponse",
     "ChangePasswordRequest",
+    "LoginRequest",
+    "flatten_permissions",
+    "build_permissions_from_codes",
     # Role
     "PermissionBase",
     "PermissionCreate",

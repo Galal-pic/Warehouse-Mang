@@ -9,12 +9,13 @@ from src.schemas.user import (
     UserCreate,
     UserUpdate,
     UserResponse,
+    UserListResponse,
     TokenResponse,
     ChangePasswordRequest,
     LoginRequest,
+    flatten_permissions,
 )
-from src.schemas.common import PaginatedResponse, MessageResponse
-from src.models.role import ALL_PERMISSION_CODES
+from src.schemas.common import MessageResponse
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -41,18 +42,15 @@ async def register(
     }
     user = await uow.users.create(user_data)
 
-    # Collect permissions from request and create/assign role
-    permissions_to_assign = []
-    for perm_code in ALL_PERMISSION_CODES:
-        if getattr(data, perm_code, False):
-            permissions_to_assign.append(perm_code)
+    # Collect permissions from nested structure
+    permissions_to_assign = flatten_permissions(data.permissions)
 
     if permissions_to_assign:
         # Get permission objects
         perms = await uow.permissions.get_by_codes(permissions_to_assign)
         perm_ids = [p.id for p in perms]
 
-        # Create a custom role for this user or assign existing
+        # Create a custom role for this user
         role_name = f"user_{user.id}_role"
         role = await uow.roles.create_with_permissions(
             {"name": role_name, "description": f"Custom role for {user.username}"},
@@ -113,7 +111,7 @@ async def login_form(
     )
 
 
-@router.get("/users", response_model=PaginatedResponse[UserResponse])
+@router.get("/users", response_model=UserListResponse)
 async def list_users(
     uow: UOW,
     current_user: CurrentUser,
@@ -125,9 +123,8 @@ async def list_users(
     if all:
         users = await uow.users.get_all_with_roles(skip=0, limit=10000)
         total = len(users)
-        items = [u.to_dict_with_permissions() for u in users]
         return {
-            "items": items,
+            "users": [u.to_dict_flat_permissions() for u in users],
             "page": 1,
             "page_size": total,
             "total_pages": 1,
@@ -138,12 +135,10 @@ async def list_users(
     total = await uow.users.count()
     skip = (page - 1) * page_size
     users = await uow.users.get_all_with_roles(skip=skip, limit=page_size)
-
-    items = [u.to_dict_with_permissions() for u in users]
     total_pages = (total + page_size - 1) // page_size
 
     return {
-        "items": items,
+        "users": [u.to_dict_flat_permissions() for u in users],
         "page": page,
         "page_size": page_size,
         "total_pages": total_pages,
@@ -199,29 +194,26 @@ async def update_user(
     if update_data:
         await uow.users.update(user, update_data)
 
-    # Update permissions by updating role
-    permissions_to_assign = []
-    for perm_code in ALL_PERMISSION_CODES:
-        perm_value = getattr(data, perm_code, None)
-        if perm_value is True:
-            permissions_to_assign.append(perm_code)
+    # Update permissions if provided
+    if data.permissions is not None:
+        permissions_to_assign = flatten_permissions(data.permissions)
 
-    # Get permission objects
-    perms = await uow.permissions.get_by_codes(permissions_to_assign)
-    perm_ids = [p.id for p in perms]
+        # Get permission objects
+        perms = await uow.permissions.get_by_codes(permissions_to_assign)
+        perm_ids = [p.id for p in perms]
 
-    # Find or create user's custom role
-    role_name = f"user_{user.id}_role"
-    role = await uow.roles.get_by_name(role_name)
+        # Find or create user's custom role
+        role_name = f"user_{user.id}_role"
+        role = await uow.roles.get_by_name(role_name)
 
-    if role:
-        await uow.roles.assign_permissions(role, perm_ids)
-    else:
-        role = await uow.roles.create_with_permissions(
-            {"name": role_name, "description": f"Custom role for {user.username}"},
-            perm_ids,
-        )
-        await uow.users.assign_roles(user, [role.id])
+        if role:
+            await uow.roles.assign_permissions(role, perm_ids)
+        else:
+            role = await uow.roles.create_with_permissions(
+                {"name": role_name, "description": f"Custom role for {user.username}"},
+                perm_ids,
+            )
+            await uow.users.assign_roles(user, [role.id])
 
     await uow.commit()
 
@@ -237,7 +229,7 @@ async def change_password(
     uow: UOW,
     current_user: CurrentUser,
 ):
-    """POST /auth/user/<id>/change-password - Change user password"""
+    """POST /auth/user/<id>/change-password - Admin changes employee password"""
     user = await uow.users.get(user_id)
     if not user:
         raise HTTPException(
@@ -245,14 +237,7 @@ async def change_password(
             detail="User not found",
         )
 
-    # Verify old password
-    if not verify_password(data.old_password, user.password_hash):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid old password",
-        )
-
-    # Update password
+    # Update password (admin operation, no old password verification)
     await uow.users.update(user, {"password_hash": hash_password(data.new_password)})
     await uow.commit()
 

@@ -4,7 +4,7 @@ from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.models.base import Base, TimestampMixin
-from src.models.role import user_roles, ALL_PERMISSION_CODES
+from src.models.role import user_roles
 
 if TYPE_CHECKING:
     from src.models.role import Role
@@ -67,9 +67,24 @@ class Employee(Base, TimestampMixin):
 
     def to_dict_with_permissions(self) -> dict:
         """
-        Convert to dictionary with all permission fields as booleans.
-        This maintains backward compatibility with the frontend.
+        Convert to dictionary with nested permission structure.
         """
+        from src.schemas.user import build_permissions_from_codes
+
+        result = self.to_dict()
+        user_perms = self.get_all_permissions()
+
+        # Build nested permissions structure
+        result["permissions"] = build_permissions_from_codes(user_perms).model_dump()
+
+        return result
+
+    def to_dict_flat_permissions(self) -> dict:
+        """
+        Convert to dictionary with flat permission fields (for list view).
+        """
+        from src.models.role import ALL_PERMISSION_CODES
+
         result = self.to_dict()
         user_perms = self.get_all_permissions()
 
