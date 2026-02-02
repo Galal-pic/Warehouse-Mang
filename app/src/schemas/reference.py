@@ -86,3 +86,34 @@ class MechanismResponse(MechanismBase):
     id: int
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# List Response Schemas
+class MachineListResponse(BaseModel):
+    """Paginated machine list response"""
+    machines: list[MachineResponse]
+    page: int
+    page_size: int
+    total_pages: int
+    total_items: int
+    all: bool
+
+
+class MechanismListResponse(BaseModel):
+    """Paginated mechanism list response"""
+    mechanisms: list[MechanismResponse]
+    page: int
+    page_size: int
+    total_pages: int
+    total_items: int
+    all: bool
+
+
+class SupplierListResponse(BaseModel):
+    """Paginated supplier list response"""
+    suppliers: list[SupplierResponse]
+    page: int
+    page_size: int
+    total_pages: int
+    total_items: int
+    all: bool

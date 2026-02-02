@@ -1,14 +1,14 @@
 from fastapi import APIRouter, HTTPException, status, Query, UploadFile, File
 
 from src.api.deps import UOW, CurrentUser
-from src.schemas.reference import SupplierCreate, SupplierUpdate, SupplierResponse
-from src.schemas.common import PaginatedResponse, MessageResponse
+from src.schemas.reference import SupplierCreate, SupplierUpdate, SupplierResponse, SupplierListResponse
+from src.schemas.common import MessageResponse
 from src.core.cache import cache
 
 router = APIRouter(prefix="/supplier", tags=["Suppliers"])
 
 
-@router.get("/")
+@router.get("/", response_model=SupplierListResponse)
 async def list_suppliers(
     uow: UOW,
     current_user: CurrentUser,
@@ -26,7 +26,7 @@ async def list_suppliers(
         suppliers = await uow.suppliers.get_all_no_limit()
         total = len(suppliers)
         result = {
-            "items": [s.to_dict() for s in suppliers],
+            "suppliers": [s.to_dict() for s in suppliers],
             "page": 1,
             "page_size": total,
             "total_pages": 1,
@@ -42,7 +42,7 @@ async def list_suppliers(
 
     total_pages = (total + page_size - 1) // page_size
     result = {
-        "items": [s.to_dict() for s in suppliers],
+        "suppliers": [s.to_dict() for s in suppliers],
         "page": page,
         "page_size": page_size,
         "total_pages": total_pages,

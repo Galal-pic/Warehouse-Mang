@@ -5,25 +5,23 @@ from src.schemas.warehouse import (
     WarehouseCreate,
     WarehouseUpdate,
     WarehouseResponse,
+    WarehouseListResponse,
     CacheStatusResponse,
 )
-from src.schemas.common import PaginatedResponse, MessageResponse
+from src.schemas.common import MessageResponse
 from src.core.cache import cache
 
 router = APIRouter(prefix="/warehouse", tags=["Warehouse"])
 
 
 def serialize_warehouse(item) -> dict:
-    """Serialize warehouse item"""
+    """Serialize warehouse item for list view"""
     return {
         "id": item.id,
         "item_name": item.item_name,
         "item_bar": item.item_bar,
-        "created_at": item.created_at.strftime("%Y-%m-%d %H:%M:%S") if item.created_at else None,
-        "updated_at": item.updated_at.strftime("%Y-%m-%d %H:%M:%S") if item.updated_at else None,
         "locations": [
             {
-                "item_id": loc.item_id,
                 "location": loc.location,
                 "quantity": loc.quantity,
             }
@@ -32,7 +30,25 @@ def serialize_warehouse(item) -> dict:
     }
 
 
-@router.get("/")
+def serialize_warehouse_detail(item) -> dict:
+    """Serialize warehouse item with full details"""
+    return {
+        "id": item.id,
+        "item_name": item.item_name,
+        "item_bar": item.item_bar,
+        "created_at": item.created_at.strftime("%Y-%m-%d %H:%M:%S") if item.created_at else None,
+        "updated_at": item.updated_at.strftime("%Y-%m-%d %H:%M:%S") if item.updated_at else None,
+        "locations": [
+            {
+                "location": loc.location,
+                "quantity": loc.quantity,
+            }
+            for loc in item.item_locations
+        ],
+    }
+
+
+@router.get("/", response_model=WarehouseListResponse)
 async def list_warehouse_items(
     uow: UOW,
     current_user: CurrentUser,
@@ -51,7 +67,7 @@ async def list_warehouse_items(
         items = await uow.warehouse.get_all_with_locations(skip=0, limit=10000)
         total = len(items)
         result = {
-            "items": [serialize_warehouse(item) for item in items],
+            "warehouses": [serialize_warehouse(item) for item in items],
             "page": 1,
             "page_size": total,
             "total_pages": 1,
@@ -67,7 +83,7 @@ async def list_warehouse_items(
 
     total_pages = (total + page_size - 1) // page_size
     result = {
-        "items": [serialize_warehouse(item) for item in items],
+        "warehouses": [serialize_warehouse(item) for item in items],
         "page": page,
         "page_size": page_size,
         "total_pages": total_pages,

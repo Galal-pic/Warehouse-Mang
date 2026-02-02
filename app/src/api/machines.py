@@ -1,14 +1,14 @@
 from fastapi import APIRouter, HTTPException, status, Query, UploadFile, File
 
 from src.api.deps import UOW, CurrentUser
-from src.schemas.reference import MachineCreate, MachineUpdate, MachineResponse
-from src.schemas.common import PaginatedResponse, MessageResponse
+from src.schemas.reference import MachineCreate, MachineUpdate, MachineResponse, MachineListResponse
+from src.schemas.common import MessageResponse
 from src.core.cache import cache
 
 router = APIRouter(prefix="/machine", tags=["Machines"])
 
 
-@router.get("/")
+@router.get("/", response_model=MachineListResponse)
 async def list_machines(
     uow: UOW,
     current_user: CurrentUser,
@@ -26,7 +26,7 @@ async def list_machines(
         machines = await uow.machines.get_all_no_limit()
         total = len(machines)
         result = {
-            "items": [m.to_dict() for m in machines],
+            "machines": [m.to_dict() for m in machines],
             "page": 1,
             "page_size": total,
             "total_pages": 1,
@@ -42,7 +42,7 @@ async def list_machines(
 
     total_pages = (total + page_size - 1) // page_size
     result = {
-        "items": [m.to_dict() for m in machines],
+        "machines": [m.to_dict() for m in machines],
         "page": page,
         "page_size": page_size,
         "total_pages": total_pages,

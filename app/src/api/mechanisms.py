@@ -1,14 +1,14 @@
 from fastapi import APIRouter, HTTPException, status, Query, UploadFile, File
 
 from src.api.deps import UOW, CurrentUser
-from src.schemas.reference import MechanismCreate, MechanismUpdate, MechanismResponse
-from src.schemas.common import PaginatedResponse, MessageResponse
+from src.schemas.reference import MechanismCreate, MechanismUpdate, MechanismResponse, MechanismListResponse
+from src.schemas.common import MessageResponse
 from src.core.cache import cache
 
 router = APIRouter(prefix="/mechanism", tags=["Mechanisms"])
 
 
-@router.get("/")
+@router.get("/", response_model=MechanismListResponse)
 async def list_mechanisms(
     uow: UOW,
     current_user: CurrentUser,
@@ -26,7 +26,7 @@ async def list_mechanisms(
         mechanisms = await uow.mechanisms.get_all_no_limit()
         total = len(mechanisms)
         result = {
-            "items": [m.to_dict() for m in mechanisms],
+            "mechanisms": [m.to_dict() for m in mechanisms],
             "page": 1,
             "page_size": total,
             "total_pages": 1,
@@ -42,7 +42,7 @@ async def list_mechanisms(
 
     total_pages = (total + page_size - 1) // page_size
     result = {
-        "items": [m.to_dict() for m in mechanisms],
+        "mechanisms": [m.to_dict() for m in mechanisms],
         "page": page,
         "page_size": page_size,
         "total_pages": total_pages,

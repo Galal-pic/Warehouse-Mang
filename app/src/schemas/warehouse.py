@@ -47,16 +47,26 @@ class WarehouseResponse(WarehouseBase):
     model_config = ConfigDict(from_attributes=True)
 
 
-class WarehouseListResponse(BaseModel):
-    """Warehouse item list response (minimal)"""
+class WarehouseListItem(BaseModel):
+    """Warehouse item for list view"""
 
     id: int
     item_name: str
     item_bar: str
-    created_at: str | None = None
-    updated_at: str | None = None
+    locations: list[dict] = []  # Simple list of {location, quantity}
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class WarehouseListResponse(BaseModel):
+    """Paginated warehouse list response"""
+
+    warehouses: list[WarehouseListItem]
+    page: int
+    page_size: int
+    total_pages: int
+    total_items: int
+    all: bool
 
 
 class PriceBase(BaseModel):
