@@ -5,6 +5,7 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.invoice import Invoice, InvoiceItem, InvoicePriceDetail
+from src.models.warehouse import Warehouse
 from src.models.user import Employee
 from src.repositories.base import BaseRepository
 
@@ -20,7 +21,7 @@ class InvoiceRepository(BaseRepository[Invoice]):
         stmt = (
             select(Invoice)
             .options(
-                selectinload(Invoice.items),
+                selectinload(Invoice.items).selectinload(InvoiceItem.warehouse),
                 selectinload(Invoice.employee),
                 selectinload(Invoice.machine),
                 selectinload(Invoice.mechanism),
@@ -41,7 +42,13 @@ class InvoiceRepository(BaseRepository[Invoice]):
         """Get invoices by type with pagination"""
         stmt = (
             select(Invoice)
-            .options(selectinload(Invoice.items))
+            .options(
+                selectinload(Invoice.items).selectinload(InvoiceItem.warehouse),
+                selectinload(Invoice.machine),
+                selectinload(Invoice.mechanism),
+                selectinload(Invoice.supplier),
+                selectinload(Invoice.price_details),
+            )
             .where(Invoice.type == invoice_type)
             .order_by(Invoice.id.desc())
             .offset(skip)
@@ -61,7 +68,13 @@ class InvoiceRepository(BaseRepository[Invoice]):
         # Build base query
         stmt = (
             select(Invoice)
-            .options(selectinload(Invoice.items))
+            .options(
+                selectinload(Invoice.items).selectinload(InvoiceItem.warehouse),
+                selectinload(Invoice.machine),
+                selectinload(Invoice.mechanism),
+                selectinload(Invoice.supplier),
+                selectinload(Invoice.price_details),
+            )
             .where(Invoice.type == invoice_type)
         )
 
@@ -94,7 +107,13 @@ class InvoiceRepository(BaseRepository[Invoice]):
 
         stmt = (
             select(Invoice)
-            .options(selectinload(Invoice.items))
+            .options(
+                selectinload(Invoice.items).selectinload(InvoiceItem.warehouse),
+                selectinload(Invoice.machine),
+                selectinload(Invoice.mechanism),
+                selectinload(Invoice.supplier),
+                selectinload(Invoice.price_details),
+            )
             .where(or_(*type_conditions))
         )
 
@@ -138,7 +157,13 @@ class InvoiceRepository(BaseRepository[Invoice]):
         """Get invoices by status"""
         stmt = (
             select(Invoice)
-            .options(selectinload(Invoice.items))
+            .options(
+                selectinload(Invoice.items).selectinload(InvoiceItem.warehouse),
+                selectinload(Invoice.machine),
+                selectinload(Invoice.mechanism),
+                selectinload(Invoice.supplier),
+                selectinload(Invoice.price_details),
+            )
             .where(Invoice.status == status)
             .order_by(Invoice.id.desc())
             .offset(skip)
@@ -155,7 +180,13 @@ class InvoiceRepository(BaseRepository[Invoice]):
         """Get sales invoices (صرف)"""
         stmt = (
             select(Invoice)
-            .options(selectinload(Invoice.items))
+            .options(
+                selectinload(Invoice.items).selectinload(InvoiceItem.warehouse),
+                selectinload(Invoice.machine),
+                selectinload(Invoice.mechanism),
+                selectinload(Invoice.supplier),
+                selectinload(Invoice.price_details),
+            )
             .where(Invoice.type == "صرف")
         )
 

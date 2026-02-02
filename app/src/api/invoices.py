@@ -19,7 +19,7 @@ router = APIRouter(prefix="/invoice", tags=["Invoice"])
 
 
 def serialize_invoice(invoice) -> dict:
-    """Serialize invoice to match Flask response exactly"""
+    """Serialize invoice to match desired response structure"""
     suppliers_summary = list(set(
         item.supplier_name
         for item in invoice.items
@@ -29,53 +29,36 @@ def serialize_invoice(invoice) -> dict:
     return {
         "id": invoice.id,
         "type": invoice.type,
+        "created_at": invoice.created_at.strftime("%Y-%m-%d %H:%M:%S") if invoice.created_at else None,
         "client_name": invoice.client_name,
-        "status": invoice.status,
-        "employee_name": invoice.employee_name,
-        "machine_name": invoice.machine.name if invoice.machine else None,
-        "mechanism_name": invoice.mechanism.name if invoice.mechanism else None,
+        "warehouse_manager": invoice.warehouse_manager,
+        "accreditation_manager": invoice.accreditation_manager,
         "total_amount": invoice.total_amount,
         "paid": invoice.paid,
         "residual": invoice.residual,
-        "created_at": invoice.created_at.strftime("%Y-%m-%d %H:%M:%S") if invoice.created_at else None,
         "comment": invoice.comment,
-        "deduction_status": invoice.deduction_status,
-        "warehouse_manager": invoice.warehouse_manager,
-        "accreditation_manager": invoice.accreditation_manager,
-        "payment_method": invoice.payment_method,
-        "custody_person": invoice.custody_person,
+        "status": invoice.status,
+        "employee_name": invoice.employee_name,
+        "machine": invoice.machine.name if invoice.machine else None,
+        "mechanism": invoice.mechanism.name if invoice.mechanism else None,
         "suppliers_summary": suppliers_summary,
-        "items": [serialize_invoice_item(item, invoice) for item in invoice.items],
+        "items": [serialize_invoice_item(item) for item in invoice.items],
+        "return_sales_info": {},
     }
 
 
-def serialize_invoice_item(item, invoice) -> dict:
-    """Serialize invoice item with price details"""
-    # Get price details for this item
-    price_details = [
-        {
-            "source_price_invoice_id": pd.source_price_invoice_id,
-            "quantity": pd.quantity,
-            "unit_price": pd.unit_price,
-            "subtotal": pd.subtotal,
-        }
-        for pd in invoice.price_details
-        if pd.item_id == item.item_id
-    ]
-
+def serialize_invoice_item(item) -> dict:
+    """Serialize invoice item"""
     return {
-        "item_id": item.item_id,
         "item_name": item.warehouse.item_name if item.warehouse else None,
-        "barcode": item.warehouse.item_bar if item.warehouse else None,
-        "quantity": item.quantity,
+        "item_bar": item.warehouse.item_bar if item.warehouse else None,
         "location": item.location,
+        "quantity": item.quantity,
         "unit_price": item.unit_price,
         "total_price": item.total_price,
-        "supplier_id": item.supplier_id,
-        "supplier_name": item.supplier_name,
         "description": item.description,
-        "new_location": item.new_location,
-        "price_details": price_details,
+        "supplier_name": item.supplier_name,
+        "supplier_id": item.supplier_id,
     }
 
 
@@ -92,9 +75,8 @@ async def list_invoices(
         invoices, total = await uow.invoices.get_all_with_permissions(
             user=current_user, skip=0, limit=10000
         )
-        items = [serialize_invoice(inv) for inv in invoices]
         return {
-            "items": items,
+            "invoices": [serialize_invoice(inv) for inv in invoices],
             "page": 1,
             "page_size": total,
             "total_pages": 1,
@@ -108,11 +90,10 @@ async def list_invoices(
         limit=page_size,
     )
 
-    items = [serialize_invoice(inv) for inv in invoices]
     total_pages = (total + page_size - 1) // page_size
 
     return {
-        "items": items,
+        "invoices": [serialize_invoice(inv) for inv in invoices],
         "page": page,
         "page_size": page_size,
         "total_pages": total_pages,
@@ -189,11 +170,10 @@ async def get_sales_invoices(
         limit=page_size,
     )
 
-    items = [serialize_invoice(inv) for inv in invoices]
     total_pages = (total + page_size - 1) // page_size
 
     return {
-        "items": items,
+        "invoices": [serialize_invoice(inv) for inv in invoices],
         "page": page,
         "page_size": page_size,
         "total_pages": total_pages,
@@ -295,9 +275,8 @@ async def list_invoices_by_type(
             skip=0,
             limit=10000,
         )
-        items = [serialize_invoice(inv) for inv in invoices]
         return {
-            "items": items,
+            "invoices": [serialize_invoice(inv) for inv in invoices],
             "page": 1,
             "page_size": total,
             "total_pages": 1,
@@ -312,11 +291,10 @@ async def list_invoices_by_type(
         limit=page_size,
     )
 
-    items = [serialize_invoice(inv) for inv in invoices]
     total_pages = (total + page_size - 1) // page_size
 
     return {
-        "items": items,
+        "invoices": [serialize_invoice(inv) for inv in invoices],
         "page": page,
         "page_size": page_size,
         "total_pages": total_pages,
@@ -332,24 +310,53 @@ async def create_invoice(
     current_user: CurrentUser,
 ):
     """POST /invoice/ - Create new invoice"""
+    # Resolve employee_id from employee_name if provided
+    employee_id = current_user.id
+    employee_name = current_user.username
+    if data.employee_name:
+        user = await uow.users.get_by_username(data.employee_name)
+        if user:
+            employee_id = user.id
+            employee_name = user.username
+
+    # Resolve machine_id from machine_name if provided
+    machine_id = data.machine_id
+    if data.machine_name:
+        machine = await uow.machines.get_by_name(data.machine_name)
+        if machine:
+            machine_id = machine.id
+
+    # Resolve mechanism_id from mechanism_name if provided
+    mechanism_id = data.mechanism_id
+    if data.mechanism_name:
+        mechanism = await uow.mechanisms.get_by_name(data.mechanism_name)
+        if mechanism:
+            mechanism_id = mechanism.id
+
+    # Resolve supplier_id from supplier_name if provided
+    supplier_id = data.supplier_id
+    if data.supplier_name:
+        supplier = await uow.suppliers.get_by_name(data.supplier_name)
+        if supplier:
+            supplier_id = supplier.id
+
     # Create invoice
     invoice_data = {
         "type": data.type,
         "status": "draft",
         "client_name": data.client_name,
         "warehouse_manager": data.warehouse_manager,
-        "accreditation_manager": data.accreditation_manager,
         "total_amount": data.total_amount,
-        "paid": data.paid,
-        "residual": data.residual,
+        "paid": data.paid or data.amount_paid,
+        "residual": data.residual or data.remain_amount,
         "comment": data.comment,
         "payment_method": data.payment_method,
         "custody_person": data.custody_person,
-        "employee_id": current_user.id,
-        "employee_name": current_user.username,
-        "machine_id": data.machine_id,
-        "mechanism_id": data.mechanism_id,
-        "supplier_id": data.supplier_id,
+        "employee_id": employee_id,
+        "employee_name": employee_name,
+        "machine_id": machine_id,
+        "mechanism_id": mechanism_id,
+        "supplier_id": supplier_id,
     }
 
     invoice = await uow.invoices.create(invoice_data)
@@ -357,15 +364,55 @@ async def create_invoice(
     # Create invoice items
     total = 0.0
     for item_data in data.items:
+        # Resolve item_id from item_name + barcode if provided
+        item_id = item_data.item_id
+        if item_data.item_name and item_data.barcode:
+            warehouse_item = await uow.warehouse.get_by_barcode(item_data.barcode)
+            if warehouse_item:
+                item_id = warehouse_item.id
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Warehouse item with barcode '{item_data.barcode}' not found",
+                )
+
+        # Ensure item_id is resolved
+        if not item_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="item_id or (item_name + barcode) must be provided for each item",
+            )
+
+        # Resolve supplier_id from supplier_name if provided
+        item_supplier_id = item_data.supplier_id or 0
+        item_supplier_name = item_data.supplier_name or ""
+
+        # Only lookup supplier if name is provided and not empty
+        if item_data.supplier_name and item_data.supplier_name.strip():
+            supplier = await uow.suppliers.get_by_name(item_data.supplier_name)
+            if supplier:
+                item_supplier_id = supplier.id
+                item_supplier_name = supplier.name
+        else:
+            # Ensure default supplier exists (ID 0)
+            default_supplier = await uow.suppliers.get(0)
+            if not default_supplier:
+                # Create default "No Supplier" record
+                default_supplier = await uow.suppliers.create({
+                    "id": 0,
+                    "name": "بدون مورد",
+                    "description": "Default supplier for items without a supplier"
+                })
+
         item = {
             "invoice_id": invoice.id,
-            "item_id": item_data.item_id,
+            "item_id": item_id,
             "location": item_data.location,
-            "supplier_id": item_data.supplier_id,
+            "supplier_id": item_supplier_id,
             "quantity": item_data.quantity,
             "unit_price": item_data.unit_price,
             "total_price": item_data.total_price,
-            "supplier_name": item_data.supplier_name,
+            "supplier_name": item_supplier_name,
             "description": item_data.description,
             "new_location": item_data.new_location,
         }
@@ -373,9 +420,9 @@ async def create_invoice(
         total += item_data.total_price or 0
 
     # Update total if not provided
-    if data.total_amount is None:
+    if data.total_amount == 0:
         invoice.total_amount = total
-        invoice.residual = total - (data.paid or 0)
+        invoice.residual = total - (data.paid or data.amount_paid or 0)
 
     await uow.commit()
 
@@ -401,7 +448,7 @@ async def update_invoice(
 
     # Update invoice fields
     update_data = {}
-    for field in ["client_name", "warehouse_manager", "accreditation_manager",
+    for field in ["client_name", "warehouse_manager",
                   "total_amount", "paid", "residual", "comment", "payment_method",
                   "custody_person", "machine_id", "mechanism_id", "supplier_id"]:
         value = getattr(data, field, None)
@@ -419,20 +466,64 @@ async def update_invoice(
         # Create new items
         total = 0.0
         for item_data in data.items:
+            # Resolve item_id from item_name + item_bar if provided
+            item_id = getattr(item_data, 'item_id', None)
+            item_name = getattr(item_data, 'item_name', None)
+            item_bar = getattr(item_data, 'item_bar', None)
+
+            if item_name and item_bar:
+                warehouse_item = await uow.warehouse.get_by_barcode(item_bar)
+                if warehouse_item:
+                    item_id = warehouse_item.id
+                else:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=f"Warehouse item with barcode '{item_bar}' not found",
+                    )
+
+            # Ensure item_id is resolved
+            if not item_id:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="item_id or (item_name + item_bar) must be provided for each item",
+                )
+
+            # Resolve supplier_id from supplier_name if provided
+            item_supplier_id = getattr(item_data, 'supplier_id', None) or 0
+            item_supplier_name = getattr(item_data, 'supplier_name', None) or ""
+
+            # Only lookup supplier if name is provided and not empty
+            supplier_name = getattr(item_data, 'supplier_name', None)
+            if supplier_name and supplier_name.strip():
+                supplier = await uow.suppliers.get_by_name(supplier_name)
+                if supplier:
+                    item_supplier_id = supplier.id
+                    item_supplier_name = supplier.name
+            else:
+                # Ensure default supplier exists (ID 0)
+                default_supplier = await uow.suppliers.get(0)
+                if not default_supplier:
+                    # Create default "No Supplier" record
+                    default_supplier = await uow.suppliers.create({
+                        "id": 0,
+                        "name": "بدون مورد",
+                        "description": "Default supplier for items without a supplier"
+                    })
+
             item = {
                 "invoice_id": invoice.id,
-                "item_id": item_data.item_id,
-                "location": item_data.location,
-                "supplier_id": item_data.supplier_id,
-                "quantity": item_data.quantity,
-                "unit_price": item_data.unit_price,
-                "total_price": item_data.total_price,
-                "supplier_name": item_data.supplier_name,
-                "description": item_data.description,
-                "new_location": item_data.new_location,
+                "item_id": item_id,
+                "location": getattr(item_data, 'location', None),
+                "supplier_id": item_supplier_id,
+                "quantity": getattr(item_data, 'quantity', 0),
+                "unit_price": getattr(item_data, 'unit_price', 0),
+                "total_price": getattr(item_data, 'total_price', 0),
+                "supplier_name": item_supplier_name,
+                "description": getattr(item_data, 'description', ''),
+                "new_location": getattr(item_data, 'new_location', None),
             }
             await uow.invoice_items.create(item)
-            total += item_data.total_price or 0
+            total += getattr(item_data, 'total_price', 0) or 0
 
     await uow.commit()
 

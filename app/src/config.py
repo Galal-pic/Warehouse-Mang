@@ -8,8 +8,8 @@ class Settings(BaseSettings):
     DEBUG: bool = True
 
     # Database
-    DATABASE_URI_DEV: str = "postgresql+asyncpg://postgres:mypassword@localhost:5432/cuppi"
-    DATABASE_URI_PROD: str = "postgresql+asyncpg://myuser:mypassword@localhost:5432/cuppi"
+    DATABASE_URI_DEV: str = "postgresql+asyncpg://postgres:mypassword@localhost:5432/cuppi-new"
+    DATABASE_URI_PROD: str = "postgresql+asyncpg://myuser:mypassword@localhost:5432/cuppi-new"
     DB_POOL_SIZE: int = 10
     DB_MAX_OVERFLOW: int = 20
     DB_POOL_RECYCLE: int = 3600

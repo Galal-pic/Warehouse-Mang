@@ -16,10 +16,24 @@ class InvoiceItemBase(BaseModel):
     new_location: str | None = None
 
 
-class InvoiceItemCreate(InvoiceItemBase):
-    """Schema for creating an invoice item"""
+class InvoiceItemCreate(BaseModel):
+    """Schema for creating an invoice item (accepts names or IDs)"""
 
-    pass
+    # Accept either item_id OR item_name + barcode
+    item_id: int | None = None
+    item_name: str | None = None
+    barcode: str | None = None
+
+    location: str
+    new_location: str | None = None
+    quantity: int = 0
+    unit_price: float = 0
+    total_price: float = 0
+    description: str | None = None
+
+    # Accept either supplier_id OR supplier_name
+    supplier_id: int | None = None
+    supplier_name: str | None = None
 
 
 class InvoiceItemUpdate(BaseModel):
@@ -80,10 +94,45 @@ class InvoiceBase(BaseModel):
     supplier_id: int | None = None
 
 
-class InvoiceCreate(InvoiceBase):
-    """Schema for creating an invoice"""
+class InvoiceCreate(BaseModel):
+    """Schema for creating an invoice (accepts names or IDs)"""
+
+    # Optional ID (not used for creation, just for reference)
+    id: int | None = None
+
+    type: str
+    client_name: str | None = None
+    warehouse_manager: str | None = None
+    total_amount: float = 0
+
+    # Accept either employee_id OR employee_name (employee comes from auth token usually)
+    employee_name: str | None = None
+
+    # Accept either machine_id OR machine_name
+    machine_id: int | None = None
+    machine_name: str | None = None
+
+    # Accept either mechanism_id OR mechanism_name
+    mechanism_id: int | None = None
+    mechanism_name: str | None = None
+
+    # Accept either supplier_id OR supplier_name
+    supplier_id: int | None = None
+    supplier_name: str | None = None
 
     items: list[InvoiceItemCreate] = []
+
+    comment: str | None = None
+    payment_method: str | None = None
+    amount_paid: float = 0
+    remain_amount: float = 0
+    custody_person: str | None = None
+    paid: float = 0
+    residual: float = 0
+
+    # Date and time fields
+    date: str | None = None
+    time: str | None = None
 
 
 class InvoiceUpdate(BaseModel):
