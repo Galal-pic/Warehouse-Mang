@@ -10,7 +10,7 @@ from src.repositories import UnitOfWork
 from src.models import Employee
 
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 
 
 async def get_session() -> AsyncGenerator[AsyncSession, None]:

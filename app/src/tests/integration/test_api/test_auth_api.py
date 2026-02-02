@@ -25,7 +25,7 @@ class TestAuthAPI:
         """Test successful login"""
         response = await test_client.post(
             "/auth/login",
-            data={
+            json={
                 "username": test_user.username,
                 "password": "testpassword",
             },
@@ -43,7 +43,7 @@ class TestAuthAPI:
         """Test login with invalid password"""
         response = await test_client.post(
             "/auth/login",
-            data={
+            json={
                 "username": test_user.username,
                 "password": "wrongpassword",
             },
@@ -56,7 +56,7 @@ class TestAuthAPI:
         """Test login with non-existent user"""
         response = await test_client.post(
             "/auth/login",
-            data={
+            json={
                 "username": "nonexistentuser",
                 "password": "password",
             },

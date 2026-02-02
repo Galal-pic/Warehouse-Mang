@@ -165,3 +165,4 @@ migrations/env.py
 migrations/README
 migrations/script.py.mako
 .claude/settings.local.json
+/alembic
