@@ -190,24 +190,12 @@ async def get_inventory_value(uow: UOW, current_user: CurrentUser):
 async def get_sales_invoices(
     uow: UOW,
     current_user: CurrentUser,
-    page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100),
 ):
-    """GET /invoice/sales-invoices - Get sales invoices"""
-    invoices, total = await uow.invoices.get_sales_invoices(
-        skip=(page - 1) * page_size,
-        limit=page_size,
-    )
-
-    total_pages = (total + page_size - 1) // page_size
+    """GET /invoice/sales-invoices - Get sales invoice IDs"""
+    invoices, _ = await uow.invoices.get_sales_invoices(skip=0, limit=10000)
 
     return {
-        "invoices": [serialize_invoice(inv) for inv in invoices],
-        "page": page,
-        "page_size": page_size,
-        "total_pages": total_pages,
-        "total_items": total,
-        "all": False,
+        "sales-invoices": [inv.id for inv in invoices],
     }
 
 
@@ -659,24 +647,30 @@ async def return_warranty(
             detail="Invoice is not a warranty invoice",
         )
 
-    # Process returns
-    for item_data in data.items:
-        # Create warranty return record
-        await uow.warranty_returns.create({
-            "warranty_invoice_id": invoice_id,
-            "item_id": item_data["item_id"],
-            "location": item_data["location"],
-            "returned_quantity": item_data["quantity"],
-            "returned_by_employee_id": current_user.id,
-            "notes": data.notes,
-        })
-
-        # Restore quantity to warehouse
-        await uow.item_locations.add_quantity(
-            item_data["item_id"],
-            item_data["location"],
-            item_data["quantity"],
+    # Resolve itemName to item_id
+    warehouse_item = await uow.warehouse.get_by_name(data.itemName)
+    if not warehouse_item:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Item '{data.itemName}' not found in warehouse",
         )
+
+    # Create warranty return record
+    await uow.warranty_returns.create({
+        "warranty_invoice_id": invoice_id,
+        "item_id": warehouse_item.id,
+        "location": data.location,
+        "returned_quantity": data.quantity,
+        "returned_by_employee_id": current_user.id,
+        "notes": data.notes,
+    })
+
+    # Restore quantity to warehouse
+    await uow.item_locations.add_quantity(
+        warehouse_item.id,
+        data.location,
+        data.quantity,
+    )
 
     await uow.commit()
 

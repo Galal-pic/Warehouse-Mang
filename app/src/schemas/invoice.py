@@ -210,8 +210,9 @@ class LastIdResponse(BaseModel):
 class WarrantyReturnRequest(BaseModel):
     """Warranty return request schema"""
 
-    items: list[dict]
-    return_type: str  # 'full' or 'partial'
+    itemName: str
+    location: str
+    quantity: int
     notes: str | None = None
 
 
