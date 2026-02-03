@@ -148,6 +148,16 @@ class InvoiceRepository(BaseRepository[Invoice]):
         max_id = result.scalar() or 0
         return max_id + 1
 
+    async def count_by_status(self, status: str) -> int:
+        """Count invoices by status"""
+        stmt = (
+            select(func.count())
+            .select_from(Invoice)
+            .where(Invoice.status == status)
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar() or 0
+
     async def get_by_status(
         self,
         status: str,

@@ -40,6 +40,8 @@ def serialize_invoice(invoice) -> dict:
         "comment": invoice.comment,
         "status": invoice.status,
         "employee_name": invoice.employee_name,
+        "payment_method": invoice.payment_method,
+        "custody_person": invoice.custody_person,
         "machine": invoice.machine.name if invoice.machine else None,
         "mechanism": invoice.mechanism.name if invoice.mechanism else None,
         "suppliers_summary": suppliers_summary,
@@ -285,6 +287,14 @@ async def get_invoice(
     return serialize_invoice(invoice)
 
 
+# Status label → DB status value
+STATUS_LABEL_MAP = {
+    "تم": "confirmed",
+    "لم-تراجع": "draft",
+    "لم-تؤكد": "accreditation",
+}
+
+
 @router.get("/{invoice_type}")
 async def list_invoices_by_type(
     invoice_type: str,
@@ -294,39 +304,36 @@ async def list_invoices_by_type(
     page_size: int = Query(10, ge=1, le=100),
     all: bool = Query(False),
 ):
-    """GET /invoice/<type> - List invoices by type"""
-    if all:
+    """GET /invoice/<type|status_label> - List invoices by type or status label"""
+    # Check if the path param is a status label
+    db_status = STATUS_LABEL_MAP.get(invoice_type)
+
+    if db_status:
+        # Filter by status
+        skip = 0 if all else (page - 1) * page_size
+        limit = 10000 if all else page_size
+        invoices = await uow.invoices.get_by_status(db_status, skip=skip, limit=limit)
+        total = await uow.invoices.count_by_status(db_status)
+    else:
+        # Filter by type
+        skip = 0 if all else (page - 1) * page_size
+        limit = 10000 if all else page_size
         invoices, total = await uow.invoices.get_by_type_with_permissions(
             invoice_type=invoice_type,
             user=current_user,
-            skip=0,
-            limit=10000,
+            skip=skip,
+            limit=limit,
         )
-        return {
-            "invoices": [serialize_invoice(inv) for inv in invoices],
-            "page": 1,
-            "page_size": total,
-            "total_pages": 1,
-            "total_items": total,
-            "all": True,
-        }
 
-    invoices, total = await uow.invoices.get_by_type_with_permissions(
-        invoice_type=invoice_type,
-        user=current_user,
-        skip=(page - 1) * page_size,
-        limit=page_size,
-    )
-
-    total_pages = (total + page_size - 1) // page_size
+    total_pages = 1 if all else (total + page_size - 1) // page_size
 
     return {
         "invoices": [serialize_invoice(inv) for inv in invoices],
-        "page": page,
-        "page_size": page_size,
+        "page": 1 if all else page,
+        "page_size": total if all else page_size,
         "total_pages": total_pages,
         "total_items": total,
-        "all": False,
+        "all": all,
     }
 
 
