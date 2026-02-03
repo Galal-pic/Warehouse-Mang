@@ -672,9 +672,37 @@ async def return_warranty(
         data.quantity,
     )
 
+    await uow.session.flush()
+
+    # Build response and check if all items are now fully returned
+    all_fully_returned = True
+    returned_items = []
+    for item in invoice.items:
+        total_returned = await uow.warranty_returns.get_total_returned(
+            invoice_id, item.item_id, item.location
+        )
+        remaining = (item.quantity or 0) - total_returned
+        if remaining > 0:
+            all_fully_returned = False
+        if item.item_id == warehouse_item.id and item.location == data.location:
+            returned_items.append({
+                "item_name": item.warehouse.item_name if item.warehouse else None,
+                "item_bar": item.warehouse.item_bar if item.warehouse else None,
+                "location": item.location,
+                "returned_quantity": data.quantity,
+                "remaining_quantity": remaining,
+            })
+
+    if all_fully_returned:
+        invoice.status = "returned"
+
     await uow.commit()
 
-    return {"status": "success", "message": "Warranty items returned successfully"}
+    return {
+        "message": f"Successfully returned {data.quantity} item(s)",
+        "returned_items": returned_items,
+        "invoice_status": invoice.status,
+    }
 
 
 @router.get("/{invoice_id}/WarrantyReturnStatus")
@@ -691,21 +719,41 @@ async def warranty_return_status(
             detail="Invoice not found",
         )
 
-    results = []
+    items = []
     for item in invoice.items:
-        total_returned = await uow.warranty_returns.get_total_returned(
+        returns = await uow.warranty_returns.get_by_invoice_and_item(
             invoice_id, item.item_id, item.location
         )
-        results.append({
-            "invoice_id": invoice_id,
+        total_returned = sum(r.returned_quantity for r in returns)
+        remaining = (item.quantity or 0) - total_returned
+
+        return_history = [
+            {
+                "returned_quantity": r.returned_quantity,
+                "return_date": r.return_date.isoformat() if r.return_date else None,
+                "returned_by": r.returned_by.username if r.returned_by else None,
+                "notes": r.notes or "",
+            }
+            for r in returns
+        ]
+
+        items.append({
             "item_id": item.item_id,
+            "item_name": item.warehouse.item_name if item.warehouse else None,
+            "item_bar": item.warehouse.item_bar if item.warehouse else None,
             "location": item.location,
             "original_quantity": item.quantity,
-            "returned_quantity": total_returned,
-            "remaining_quantity": (item.quantity or 0) - total_returned,
+            "total_returned": total_returned,
+            "remaining_quantity": remaining,
+            "is_fully_returned": remaining <= 0,
+            "return_history": return_history,
         })
 
-    return results
+    return {
+        "invoice_id": invoice_id,
+        "invoice_status": invoice.status,
+        "items": items,
+    }
 
 
 @router.post("/{invoice_id}/PurchaseRequestConfirmation")

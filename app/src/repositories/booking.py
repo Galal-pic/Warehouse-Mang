@@ -121,11 +121,13 @@ class WarrantyReturnRepository(BaseRepository[WarrantyReturn]):
         """Get returns for specific item in warranty invoice"""
         stmt = (
             select(WarrantyReturn)
+            .options(selectinload(WarrantyReturn.returned_by))
             .where(
                 WarrantyReturn.warranty_invoice_id == warranty_invoice_id,
                 WarrantyReturn.item_id == item_id,
                 WarrantyReturn.location == location,
             )
+            .order_by(WarrantyReturn.return_date.asc())
         )
         result = await self.session.scalars(stmt)
         return result.all()
