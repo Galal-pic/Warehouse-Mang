@@ -84,11 +84,68 @@ class UserCreate(BaseModel):
     permissions: UserPermissions = UserPermissions()
 
 
+PERMISSION_FIELDS = [
+    "create_inventory_operations", "create_additions",
+    "view_additions", "view_withdrawals", "view_deposits", "view_returns",
+    "view_damages", "view_reservations", "view_prices", "view_purchase_requests",
+    "view_reports", "view_transfers", "view_zero_valued", "view_confirmed",
+    "view_unreviewed", "view_unconfirmed", "can_edit", "can_delete",
+    "can_confirm_withdrawal", "can_withdraw", "can_update_prices",
+    "can_recover_deposits", "can_confirm_purchase_requests",
+    "can_change_zero_valued", "can_change_confirmed", "can_change_unreviewed",
+    "can_change_unconfirmed",
+    "items_can_edit", "items_can_delete", "items_can_add",
+    "machines_can_edit", "machines_can_delete", "machines_can_add",
+    "mechanism_can_edit", "mechanism_can_delete", "mechanism_can_add",
+    "suppliers_can_edit", "suppliers_can_delete", "suppliers_can_add",
+]
+
+
 class UserUpdate(BaseModel):
-    """Schema for updating a user"""
+    """Schema for updating a user (flat permission flags)"""
+    username: str | None = None
     phone_number: str | None = None
     job_name: str | None = None
-    permissions: UserPermissions | None = None
+    # Flat permission flags — all default False; only truthy ones get assigned
+    create_inventory_operations: bool = False
+    create_additions: bool = False
+    view_additions: bool = False
+    view_withdrawals: bool = False
+    view_deposits: bool = False
+    view_returns: bool = False
+    view_damages: bool = False
+    view_reservations: bool = False
+    view_prices: bool = False
+    view_purchase_requests: bool = False
+    view_reports: bool = False
+    view_transfers: bool = False
+    view_zero_valued: bool = False
+    view_confirmed: bool = False
+    view_unreviewed: bool = False
+    view_unconfirmed: bool = False
+    can_edit: bool = False
+    can_delete: bool = False
+    can_confirm_withdrawal: bool = False
+    can_withdraw: bool = False
+    can_update_prices: bool = False
+    can_recover_deposits: bool = False
+    can_confirm_purchase_requests: bool = False
+    can_change_zero_valued: bool = False
+    can_change_confirmed: bool = False
+    can_change_unreviewed: bool = False
+    can_change_unconfirmed: bool = False
+    items_can_edit: bool = False
+    items_can_delete: bool = False
+    items_can_add: bool = False
+    machines_can_edit: bool = False
+    machines_can_delete: bool = False
+    machines_can_add: bool = False
+    mechanism_can_edit: bool = False
+    mechanism_can_delete: bool = False
+    mechanism_can_add: bool = False
+    suppliers_can_edit: bool = False
+    suppliers_can_delete: bool = False
+    suppliers_can_add: bool = False
 
 
 class UserResponse(BaseModel):

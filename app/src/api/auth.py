@@ -14,6 +14,7 @@ from src.schemas.user import (
     ChangePasswordRequest,
     LoginRequest,
     flatten_permissions,
+    PERMISSION_FIELDS,
 )
 from src.schemas.common import MessageResponse
 
@@ -194,26 +195,23 @@ async def update_user(
     if update_data:
         await uow.users.update(user, update_data)
 
-    # Update permissions if provided
-    if data.permissions is not None:
-        permissions_to_assign = flatten_permissions(data.permissions)
+    # Update permissions from flat fields
+    permissions_to_assign = [f for f in PERMISSION_FIELDS if getattr(data, f)]
 
-        # Get permission objects
-        perms = await uow.permissions.get_by_codes(permissions_to_assign)
-        perm_ids = [p.id for p in perms]
+    perms = await uow.permissions.get_by_codes(permissions_to_assign)
+    perm_ids = [p.id for p in perms]
 
-        # Find or create user's custom role
-        role_name = f"user_{user.id}_role"
-        role = await uow.roles.get_by_name(role_name)
+    role_name = f"user_{user.id}_role"
+    role = await uow.roles.get_by_name(role_name)
 
-        if role:
-            await uow.roles.assign_permissions(role, perm_ids)
-        else:
-            role = await uow.roles.create_with_permissions(
-                {"name": role_name, "description": f"Custom role for {user.username}"},
-                perm_ids,
-            )
-            await uow.users.assign_roles(user, [role.id])
+    if role:
+        await uow.roles.assign_permissions(role, perm_ids)
+    else:
+        role = await uow.roles.create_with_permissions(
+            {"name": role_name, "description": f"Custom role for {user.username}"},
+            perm_ids,
+        )
+        await uow.users.assign_roles(user, [role.id])
 
     await uow.commit()
 
