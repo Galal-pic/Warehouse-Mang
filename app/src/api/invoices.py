@@ -494,6 +494,7 @@ async def update_invoice(
             total += item_data.total_price or 0
 
     await uow.commit()
+    await cache.delete_pattern("warehouse_list:*")
 
     invoice = await uow.invoices.get_with_items(invoice_id)
     return serialize_invoice(invoice)
@@ -515,6 +516,7 @@ async def delete_invoice(
 
     await uow.invoices.delete(invoice)
     await uow.commit()
+    await cache.delete_pattern("warehouse_list:*")
 
     return MessageResponse(message="Invoice deleted successfully")
 
