@@ -226,19 +226,80 @@ async def get_price_report(
         )
 
     price_details = await uow.price_details.get_by_invoice(invoice_id)
+
+    # Bulk-fetch all source invoices referenced in price_details
+    source_invoice_ids = list({pd.source_price_invoice_id for pd in price_details})
+    source_invoices = {}
+    for src_id in source_invoice_ids:
+        src_inv = await uow.invoices.get(src_id)
+        if src_inv:
+            source_invoices[src_id] = src_inv
+
+    # Group price_details: item_id -> source_invoice_id -> [pd, ...]
+    items_pd_map: dict[int, dict[int, list]] = {}
+    for pd in price_details:
+        items_pd_map.setdefault(pd.item_id, {}).setdefault(pd.source_price_invoice_id, []).append(pd)
+
+    # Build per-item breakdown
+    items = []
+    for item in invoice.items:
+        item_total = item.total_price or 0.0
+        source_map = items_pd_map.get(item.item_id, {})
+
+        price_breakdowns = []
+        for src_inv_id, pds in source_map.items():
+            src_inv = source_invoices.get(src_inv_id)
+            subtotal = sum(pd.subtotal for pd in pds)
+            price_breakdowns.append({
+                "source_invoice_id": src_inv_id,
+                "source_invoice_type": src_inv.type if src_inv else None,
+                "source_invoice_date": src_inv.created_at.strftime("%Y-%m-%d %H:%M:%S") if src_inv and src_inv.created_at else None,
+                "source_client": (src_inv.client_name or "") if src_inv else "",
+                "quantity": sum(pd.quantity for pd in pds),
+                "unit_price": pds[0].unit_price,
+                "subtotal": subtotal,
+                "percentage_of_total": round((subtotal / item_total) * 100, 2) if item_total else 0.0,
+                "entries_consolidated": len(pds),
+            })
+
+        items.append({
+            "item_id": item.item_id,
+            "item_name": item.warehouse.item_name if item.warehouse else None,
+            "barcode": item.warehouse.item_bar if item.warehouse else None,
+            "location": item.location,
+            "quantity": item.quantity,
+            "unit_price": item.unit_price,
+            "total_price": item.total_price,
+            "price_sources": len(source_map),
+            "price_breakdowns": price_breakdowns,
+        })
+
     return {
         "invoice_id": invoice_id,
-        "type": invoice.type,
-        "price_details": [
-            {
-                "item_id": pd.item_id,
-                "source_price_invoice_id": pd.source_price_invoice_id,
-                "quantity": pd.quantity,
-                "unit_price": pd.unit_price,
-                "subtotal": pd.subtotal,
-            }
-            for pd in price_details
-        ],
+        "invoice_type": invoice.type,
+        "invoice_date": invoice.created_at.strftime("%Y-%m-%d %H:%M:%S") if invoice.created_at else None,
+        "client_name": invoice.client_name or "",
+        "status": invoice.status,
+        "employee": {
+            "id": invoice.employee_id,
+            "name": invoice.employee_name,
+        },
+        "machine": {
+            "id": invoice.machine.id if invoice.machine else None,
+            "name": invoice.machine.name if invoice.machine else None,
+        },
+        "mechanism": {
+            "id": invoice.mechanism.id if invoice.mechanism else None,
+            "name": invoice.mechanism.name if invoice.mechanism else None,
+        },
+        "supplier": {
+            "id": invoice.supplier.id if invoice.supplier else None,
+            "name": invoice.supplier.name if invoice.supplier else None,
+        },
+        "total_amount": invoice.total_amount,
+        "paid": invoice.paid or 0.0,
+        "residual": invoice.residual or 0.0,
+        "items": items,
     }
 
 
