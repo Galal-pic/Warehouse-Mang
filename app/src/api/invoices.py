@@ -118,22 +118,45 @@ async def get_fifo_prices(
     location: str | None = Query(None),
 ):
     """GET /invoice/fifo-prices/<item_id> - Get FIFO prices for an item"""
+    warehouse_item = await uow.warehouse.get(item_id)
+    if not warehouse_item:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Warehouse item {item_id} not found",
+        )
+
+    prices = await uow.prices.get_by_item(item_id)
     if location:
-        prices = await uow.prices.get_fifo_prices(item_id, location)
-    else:
-        prices = await uow.prices.get_by_item(item_id)
-    return [
-        {
+        prices = [p for p in prices if p.location == location]
+
+    # Bulk-fetch linked invoices
+    invoice_ids = list({p.invoice_id for p in prices})
+    invoices = {}
+    for inv_id in invoice_ids:
+        inv = await uow.invoices.get(inv_id)
+        if inv:
+            invoices[inv_id] = inv
+
+    price_records = []
+    for idx, p in enumerate(prices, start=1):
+        inv = invoices.get(p.invoice_id)
+        price_records.append({
+            "price_id": idx,
             "invoice_id": p.invoice_id,
-            "item_id": p.item_id,
-            "location": p.location,
-            "supplier_id": p.supplier_id,
+            "invoice_type": inv.type if inv else None,
+            "invoice_date": inv.created_at.strftime("%Y-%m-%d %H:%M:%S") if inv and inv.created_at else None,
             "quantity": p.quantity,
             "unit_price": p.unit_price,
             "created_at": p.created_at.strftime("%Y-%m-%d %H:%M:%S") if p.created_at else None,
-        }
-        for p in prices
-    ]
+            "location": p.location,
+        })
+
+    return {
+        "item_id": item_id,
+        "item_name": warehouse_item.item_name,
+        "item_bar": warehouse_item.item_bar,
+        "price_records": price_records,
+    }
 
 
 @router.get("/inventory-value")

@@ -157,7 +157,7 @@ class InvoiceService(BaseService):
                 booking_deduction_info = None
 
                 if main_available < requested_quantity:
-                    # Try to deduct from booking invoices
+                    # Try to supplement from booking invoices (best-effort)
                     shortage = requested_quantity - main_available
                     deduction_result = await self._deduct_from_bookings(
                         warehouse_item.id,
@@ -166,19 +166,16 @@ class InvoiceService(BaseService):
                         warehouse_item.item_name,
                     )
 
-                    if not deduction_result["success"]:
-                        return ServiceResult.error(deduction_result["message"])
-
-                    borrowed_from_bookings = deduction_result["total_deducted"]
-                    booking_deduction_info = deduction_result["deductions"]
+                    if deduction_result["success"]:
+                        borrowed_from_bookings = deduction_result["total_deducted"]
+                        booking_deduction_info = deduction_result["deductions"]
 
                     total_available = main_available + borrowed_from_bookings
                     if total_available < requested_quantity:
                         return ServiceResult.error(
-                            f"Not enough quantity for item '{item_data['item_name']}' "
+                            f"Not enough quantity for item '{item_data.get('item_name') or item_data.get('item_bar')}' "
                             f"in location '{item_data['location']}'. "
-                            f"Available: {main_available}, From Bookings: {borrowed_from_bookings}, "
-                            f"Requested: {requested_quantity}"
+                            f"Available: {total_available}, Requested: {requested_quantity}"
                         )
 
                 # Deduct from main warehouse
