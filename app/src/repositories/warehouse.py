@@ -110,6 +110,22 @@ class ItemLocationsRepository(BaseRepository[ItemLocations]):
         result = await self.session.scalars(stmt)
         return result.first()
 
+    async def get_by_item_and_quantity(
+        self,
+        item_id: int,
+        quantity: int,
+    ) -> ItemLocations | None:
+        """Get item location by quantity (used for rename detection)"""
+        stmt = (
+            select(ItemLocations)
+            .where(
+                ItemLocations.item_id == item_id,
+                ItemLocations.quantity == quantity,
+            )
+        )
+        result = await self.session.scalars(stmt)
+        return result.first()
+
     async def get_by_item(self, item_id: int) -> Sequence[ItemLocations]:
         """Get all locations for an item"""
         stmt = (

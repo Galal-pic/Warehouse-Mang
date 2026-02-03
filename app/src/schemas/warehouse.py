@@ -34,6 +34,7 @@ class WarehouseUpdate(BaseModel):
 
     item_name: str | None = None
     item_bar: str | None = None
+    locations: list[ItemLocationBase] | None = None
 
 
 class WarehouseResponse(WarehouseBase):

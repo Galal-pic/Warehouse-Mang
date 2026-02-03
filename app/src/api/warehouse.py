@@ -203,6 +203,29 @@ async def update_warehouse_item(
     if update_data:
         await uow.warehouse.update(item, update_data)
 
+    # Rename locations: qty is the stable identifier, location name is the desired new name
+    if data.locations is not None:
+        for loc in data.locations:
+            match = await uow.item_locations.get_by_item_and_quantity(item_id, loc.quantity)
+            if not match:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"No location found with quantity {loc.quantity} for this item",
+                )
+            if match.location == loc.location:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Location '{loc.location}' already exists with quantity {loc.quantity}",
+                )
+            # Rename: delete old row, create new with same quantity
+            await uow.session.delete(match)
+            await uow.session.flush()
+            await uow.item_locations.create({
+                "item_id": item_id,
+                "location": loc.location,
+                "quantity": loc.quantity,
+            })
+
     await uow.commit()
 
     # Clear cache
