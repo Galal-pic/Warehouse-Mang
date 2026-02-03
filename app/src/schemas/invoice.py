@@ -19,10 +19,11 @@ class InvoiceItemBase(BaseModel):
 class InvoiceItemCreate(BaseModel):
     """Schema for creating an invoice item (accepts names or IDs)"""
 
-    # Accept either item_id OR item_name + barcode
+    # Accept either item_id OR item_name + barcode/item_bar
     item_id: int | None = None
     item_name: str | None = None
     barcode: str | None = None
+    item_bar: str | None = None
 
     location: str
     new_location: str | None = None
@@ -149,6 +150,8 @@ class InvoiceUpdate(BaseModel):
     custody_person: str | None = None
     machine_id: int | None = None
     mechanism_id: int | None = None
+    machine: str | None = None
+    mechanism: str | None = None
     supplier_id: int | None = None
     items: list[InvoiceItemCreate] | None = None
 

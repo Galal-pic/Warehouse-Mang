@@ -122,11 +122,16 @@ class InvoiceService(BaseService):
             total_invoice_amount = 0.0
 
             for item_data in data.get("items", []):
-                # Get warehouse item
-                warehouse_item = await self.uow.warehouse.get_by_name(item_data["item_name"])
+                # Get warehouse item (try barcode first, then name)
+                warehouse_item = None
+                barcode = item_data.get("barcode") or item_data.get("item_bar")
+                if barcode:
+                    warehouse_item = await self.uow.warehouse.get_by_barcode(barcode)
+                if not warehouse_item and item_data.get("item_name"):
+                    warehouse_item = await self.uow.warehouse.get_by_name(item_data["item_name"])
                 if not warehouse_item:
                     return ServiceResult.not_found(
-                        f"Item '{item_data['item_name']}' not found in warehouse"
+                        f"Item '{item_data.get('item_name') or barcode}' not found in warehouse"
                     )
 
                 # Get location
