@@ -1,30 +1,82 @@
-# Warehouse Management System
+# CUBII — Warehouse Management System
 
-A full-featured async backend for multi-location inventory management, FIFO costing, invoice workflows, and role-based access control.
+A full-stack warehouse management platform: multi-location inventory, FIFO costing, invoice workflows, role-based access control, and a responsive React frontend with Arabic (RTL) support.
 
 ![Python](https://img.shields.io/badge/Python-3.11%2B-3572A5?style=flat-square)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.100%2B-009688?style=flat-square)
+![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&labelColor=222)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14%2B-336791?style=flat-square)
 ![Redis](https://img.shields.io/badge/Redis-6%2B-D83B00?style=flat-square)
-![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-2.0-d1428a?style=flat-square)
+![Tailwind](https://img.shields.io/badge/Tailwind-CSS-06B6D4?style=flat-square&labelColor=222)
+
+---
+
+## Contributors
+
+| # | GitHub | Commits | Additions | Deletions |
+|---|--------|---------|-----------|-----------|
+| 1 | **EsraaSoliman2003** | 167 | 65,555 | 70,555 |
+| 2 | **AbdulrahmanMonged** | 56 | 11,251 | 3,412 |
+| 3 | **Galal-pic** | 38 | 35,019 | 5,835 |
+
+---
+
+## Project Structure
+
+```
+Warehouse-Mang/
+├── app/                # Backend (FastAPI)
+│   └── src/
+│       ├── api/            # Route handlers
+│       ├── models/         # SQLAlchemy ORM models
+│       ├── repositories/   # Data access layer
+│       ├── services/       # Business logic
+│       ├── schemas/        # Pydantic schemas
+│       ├── core/           # Cache, security, exceptions
+│       └── background/     # Celery tasks
+├── my-app/             # Frontend (React + Vite)
+│   └── src/
+│       ├── features/       # Domain modules (auth, invoices, items, …)
+│       ├── layout/         # Header & main layout
+│       ├── router/         # Routes & permission guards
+│       ├── store/          # Zustand auth store
+│       └── api/            # Axios HTTP client & API modules
+└── README.md
+```
 
 ---
 
 ## Tech Stack
 
+### Backend
+
 | Layer | Technology | Role |
 |---|---|---|
-| **Web Framework** | FastAPI | Async REST API, automatic OpenAPI docs |
-| **ASGI Server** | Uvicorn | Production-grade async server |
-| **Database** | PostgreSQL | Primary relational store |
-| **Driver** | asyncpg | Async PostgreSQL driver |
-| **ORM** | SQLAlchemy 2.0 | Async sessions, migrations via Alembic |
-| **Cache** | Redis | Key-value cache with pattern-based invalidation |
-| **Task Queue** | Celery | Background tasks, broker on Redis |
-| **Validation** | Pydantic v2 | Request/response schemas + pydantic-settings |
-| **Auth** | python-jose + passlib | JWT (HS256) tokens, bcrypt password hashing |
-| **Data Import** | Pandas + OpenPyXL | Excel bulk import for items, suppliers, machines |
-| **Testing** | Pytest + HTTPX | Async integration & unit tests, aiosqlite |
+| Web Framework | FastAPI | Async REST API, automatic OpenAPI docs |
+| ASGI Server | Uvicorn | Production-grade async server |
+| Database | PostgreSQL | Primary relational store |
+| Driver | asyncpg | Async PostgreSQL driver |
+| ORM | SQLAlchemy 2.0 | Async sessions, migrations via Alembic |
+| Cache | Redis | Key-value cache with pattern-based invalidation |
+| Task Queue | Celery | Background tasks, broker on Redis |
+| Validation | Pydantic v2 | Request/response schemas + pydantic-settings |
+| Auth | python-jose + passlib | JWT (HS256) tokens, bcrypt password hashing |
+| Data Import | Pandas + OpenPyXL | Excel bulk import for items, suppliers, machines |
+| Testing | Pytest + HTTPX | Async integration & unit tests, aiosqlite |
+
+### Frontend
+
+| Layer | Technology | Role |
+|---|---|---|
+| Framework | React 19 | Component-based UI |
+| Build Tool | Vite 7 | Fast dev server & production bundler |
+| Routing | React Router v7 | Client-side navigation & nested routes |
+| State | Zustand | Lightweight auth & user state |
+| HTTP | Axios | API client with auto Bearer-token injection |
+| Styling | Tailwind CSS | Utility-first responsive styles |
+| Icons | MUI Icons Material | Material Design icon set |
+| i18n | i18next + react-i18next | Internationalization & Arabic RTL support |
+| Export | xlsx | Excel file generation |
 
 ---
 
@@ -33,7 +85,7 @@ A full-featured async backend for multi-location inventory management, FIFO cost
 ### 📦 Inventory Management
 - Multi-location stock tracking via `item_locations`
 - Barcode-based item identification
-- Excel bulk import
+- Excel bulk import (backend) and in-app item CRUD (frontend)
 - Real-time quantity updates per location
 
 ### 🧾 Invoice Workflows
@@ -41,17 +93,18 @@ A full-featured async backend for multi-location inventory management, FIFO cost
 - Status lifecycle: `draft` → `confirmed` → `accreditation`
 - Multi-item invoices with per-line supplier and pricing
 - Name-to-ID resolution on create and update (accepts names or IDs)
+- Print support via the frontend invoice print hook
 
 ### 💰 FIFO Costing
 - First-In-First-Out price layer tracking in the `prices` table
 - Automatic `unit_price` calculation on sales (صرف) by consuming oldest layers first
 - Per-layer consumption recorded in `invoice_price_detail`
-- FIFO report and per-item price history endpoints
+- FIFO report and per-item price-source modal on the frontend
 
 ### 🔐 Auth & RBAC
 - JWT-based authentication with configurable expiry (default 6 h)
 - Roles with 30+ granular permission codes
-- Per-endpoint permission checks
+- Per-endpoint permission checks (backend) and `PermissionGate` route guards (frontend)
 - Employee CRUD with password management
 
 ### 🚚 Rental Operations
@@ -64,7 +117,7 @@ A full-featured async backend for multi-location inventory management, FIFO cost
 - Invoice filtering by type, status, date range, and multiple parameters
 - Item history across all invoices
 - Inventory valuation endpoint
-- Booking deduction and purchase-request reports
+- Export to Excel from the reports page
 
 ---
 
@@ -72,16 +125,15 @@ A full-featured async backend for multi-location inventory management, FIFO cost
 
 ### Prerequisites
 - Python 3.11+
+- Node.js 18+
 - PostgreSQL 14+
 - Redis 6+
 
-### 1. Clone the repository
-```bash
-git clone <repo-url>
-cd Warehouse-Mang
-```
+---
 
-### 2. Create and activate a virtual environment
+### Backend
+
+#### 1. Create and activate a virtual environment
 ```bash
 cd app
 python -m venv venv
@@ -93,12 +145,12 @@ venv\Scripts\activate
 source venv/bin/activate
 ```
 
-### 3. Install dependencies
+#### 2. Install dependencies
 ```bash
 pip install -r src/requirements.txt
 ```
 
-### 4. Configure environment variables
+#### 3. Configure environment variables
 
 Create a `.env` file in `app/src/` or set variables in your shell:
 
@@ -112,36 +164,90 @@ Create a `.env` file in `app/src/` or set variables in your shell:
 | `CACHE_TTL` | `300` | Redis cache TTL in seconds |
 | `ENV` | `development` | `development` or `production` |
 
-### 5. Run database migrations
+#### 4. Run database migrations
 ```bash
 cd app/src
 alembic upgrade head
 ```
 
-### 6. Seed permissions
+#### 5. Seed permissions
 ```bash
 python -m scripts.seed_permissions
 ```
 Inserts all 30+ permission codes required for RBAC.
 
-### 7. Start Redis
-Ensure Redis is running on the configured host and port before starting the app.
+#### 6. Start Redis
 ```bash
 redis-server
 ```
 
-### 8. Run the backend
+#### 7. Run the backend
 ```bash
 cd app
 python run.py
 ```
 Server starts on `http://localhost:8003`. API docs at `/docs`.
 
-### 9. (Optional) Start Celery worker
+#### 8. (Optional) Start Celery worker
 ```bash
 cd app/src
 celery -A background.celery_app worker --loglevel=info
 ```
+
+---
+
+### Frontend
+
+#### 1. Install dependencies
+```bash
+cd my-app
+npm install
+```
+
+#### 2. Configure environment (optional)
+
+A `.env` file already exists. Default dev API target:
+
+| Variable | Default |
+|---|---|
+| `VITE_API_BASE_URL_DEVELOPMENT` | `http://127.0.0.1:8003` |
+| `VITE_API_BASE_URL_PRODUCTION` | `https://api.cupii.store` |
+
+#### 3. Run the dev server
+```bash
+npm run dev
+```
+Opens at `http://localhost:5173`. Connects to the backend at port 8003.
+
+#### 4. Production build
+```bash
+npm run build          # outputs to dist/
+npm run preview        # preview the build locally
+```
+
+---
+
+## Frontend Pages & Routes
+
+| Path | Page | Permission |
+|---|---|---|
+| `/login` | Login | public |
+| `/register` | Register employee | admin only |
+| `/employee` | Employee management | admin only |
+| `/createinvoice` | Create invoice / PO | `create_inventory_operations` or `create_additions` |
+| `/invoices` | Manage invoices list | `view_additions`, `view_withdrawals`, … |
+| `/reports` | Report filters | `view_reports` |
+| `/reports/search` | Report results | `view_reports` |
+| `/others/items` | Items CRUD | `items_can_edit` / `_delete` / `_add` |
+| `/others/machines` | Machines CRUD | `machines_can_edit` / `_delete` / `_add` |
+| `/others/mechanisms` | Mechanisms CRUD | `mechanism_can_edit` / `_delete` / `_add` |
+| `/others/supliers` | Suppliers CRUD | `suppliers_can_edit` / `_delete` / `_add` |
+
+### Permission system
+Routes are wrapped in `ProtectedRoute` (requires a valid JWT in `localStorage`) and `PermissionGate`, which accepts:
+- `requireAdmin` — admin-only pages
+- `any={[…]}` — at least one of the listed permission codes
+- `all={[…]}` — every listed permission code required
 
 ---
 
