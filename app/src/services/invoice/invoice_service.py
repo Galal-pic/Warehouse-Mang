@@ -830,16 +830,19 @@ class InvoiceService(BaseService):
 
     async def delete_invoice(self, invoice_id: int) -> ServiceResult:
         """Delete an invoice and restore inventory if needed"""
-        invoice = await self.uow.invoices.get_with_items(invoice_id)
+        invoice = await self.uow.invoices.get(invoice_id)
         if not invoice:
             return ServiceResult.not_found("Invoice not found")
+
+        # Load items via repo to avoid stale relationship on cached invoice
+        items = await self.uow.invoice_items.get_by_invoice(invoice_id)
 
         try:
             # Restore inventory based on invoice type
             if invoice.type in self.FIFO_CONSUMER_TYPES:
-                await self._restore_sales_inventory(invoice)
+                await self._restore_sales_inventory(invoice, items)
             elif invoice.type in self.INVENTORY_ADD_TYPES:
-                await self._reverse_purchase_inventory(invoice)
+                await self._reverse_purchase_inventory(invoice, items)
 
             await self.uow.invoices.delete(invoice)
             await self.uow.commit()
@@ -849,7 +852,7 @@ class InvoiceService(BaseService):
             await self.uow.rollback()
             return ServiceResult.error(f"Error deleting invoice: {str(e)}", 500)
 
-    async def _restore_sales_inventory(self, invoice: Invoice) -> None:
+    async def _restore_sales_inventory(self, invoice: Invoice, items: list) -> None:
         """Restore inventory when deleting a sales/void/warranty invoice"""
         # Restore booking deductions
         deductions = await self.uow.booking_deductions.get_by_deducted_invoice(invoice.id)
@@ -862,7 +865,7 @@ class InvoiceService(BaseService):
             await self.uow.booking_deductions.delete(deduction)
 
         # Restore prices and quantities
-        for item in invoice.items:
+        for item in items:
             # Restore quantity to location
             await self.uow.item_locations.add_quantity(
                 item.item_id, item.location, item.quantity
@@ -882,9 +885,9 @@ class InvoiceService(BaseService):
                 if price_entry:
                     price_entry.quantity += detail.quantity
 
-    async def _reverse_purchase_inventory(self, invoice: Invoice) -> None:
+    async def _reverse_purchase_inventory(self, invoice: Invoice, items: list) -> None:
         """Reverse inventory when deleting a purchase/return invoice"""
-        for item in invoice.items:
+        for item in items:
             # Remove quantity from location
             location = await self.uow.item_locations.get_by_item_and_location(
                 item.item_id, item.location

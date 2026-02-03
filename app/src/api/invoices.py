@@ -79,16 +79,18 @@ async def propagate_fifo_price(uow, source_invoice_id: int, item_id: int, locati
 
     # Recalculate total_price/unit_price on affected InvoiceItems, then Invoice totals
     for affected_inv_id in affected_invoice_ids:
-        affected_invoice = await uow.invoices.get_with_items(affected_inv_id)
+        affected_invoice = await uow.invoices.get(affected_inv_id)
         if not affected_invoice:
             continue
-        for inv_item in affected_invoice.items:
+        # Load items via repo to avoid stale relationship on cached invoice
+        inv_items = await uow.invoice_items.get_by_invoice(affected_inv_id)
+        for inv_item in inv_items:
             item_details = await uow.price_details.get_by_invoice_and_item(affected_inv_id, inv_item.item_id)
             if item_details:
                 new_total = sum(pd.subtotal for pd in item_details)
                 inv_item.total_price = new_total
                 inv_item.unit_price = new_total / inv_item.quantity if inv_item.quantity else 0
-        new_invoice_total = sum(item.total_price or 0 for item in affected_invoice.items)
+        new_invoice_total = sum(item.total_price or 0 for item in inv_items)
         affected_invoice.total_amount = new_invoice_total
         affected_invoice.residual = new_invoice_total - (affected_invoice.paid or 0)
 
