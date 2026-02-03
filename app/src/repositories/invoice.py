@@ -330,6 +330,36 @@ class InvoicePriceDetailRepository(BaseRepository[InvoicePriceDetail]):
         result = await self.session.scalars(stmt)
         return result.all()
 
+    async def propagate_price_update(
+        self,
+        source_invoice_id: int,
+        source_item_id: int,
+        source_location: str,
+        source_supplier_id: int,
+        new_unit_price: float,
+    ) -> set[int]:
+        """Update all price details sourced from a Prices layer. Returns affected invoice IDs."""
+        stmt = (
+            select(InvoicePriceDetail)
+            .where(
+                InvoicePriceDetail.source_price_invoice_id == source_invoice_id,
+                InvoicePriceDetail.source_price_item_id == source_item_id,
+                InvoicePriceDetail.source_price_location == source_location,
+                InvoicePriceDetail.source_price_supplier_id == source_supplier_id,
+            )
+        )
+        result = await self.session.scalars(stmt)
+        details = result.all()
+
+        affected_invoice_ids: set[int] = set()
+        for detail in details:
+            detail.unit_price = new_unit_price
+            detail.subtotal = detail.quantity * new_unit_price
+            affected_invoice_ids.add(detail.invoice_id)
+
+        await self.session.flush()
+        return affected_invoice_ids
+
     async def delete_by_invoice(self, invoice_id: int) -> int:
         """Delete all price details for an invoice"""
         stmt = (

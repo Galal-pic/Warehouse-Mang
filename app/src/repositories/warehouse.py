@@ -310,6 +310,21 @@ class PricesRepository(BaseRepository[Prices]):
             return price
         return None
 
+    async def delete_by_invoice_and_item(self, invoice_id: int, item_id: int) -> None:
+        """Delete all price records for a given invoice and item"""
+        stmt = (
+            select(Prices)
+            .where(
+                Prices.invoice_id == invoice_id,
+                Prices.item_id == item_id,
+            )
+        )
+        result = await self.session.scalars(stmt)
+        prices = result.all()
+        for price in prices:
+            await self.session.delete(price)
+        await self.session.flush()
+
     async def get_by_item(self, item_id: int) -> Sequence[Prices]:
         """Get all prices for an item"""
         stmt = (

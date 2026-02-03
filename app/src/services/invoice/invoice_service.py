@@ -868,15 +868,16 @@ class InvoiceService(BaseService):
                 item.item_id, item.location, item.quantity
             )
 
-            # Restore price records
+            # Restore FIFO price layers consumed by this invoice
             price_details = await self.uow.price_details.get_by_invoice_and_item(
                 invoice.id, item.item_id
             )
             for detail in price_details:
-                price_entry = await self.uow.prices.get_by_invoice_item_location(
+                price_entry = await self.uow.prices.get_by_composite_key(
                     detail.source_price_invoice_id,
                     detail.source_price_item_id,
                     detail.source_price_location,
+                    detail.source_price_supplier_id,
                 )
                 if price_entry:
                     price_entry.quantity += detail.quantity

@@ -110,6 +110,22 @@ class RentedItemsRepository(BaseRepository[RentedItems]):
         result = await self.session.scalars(stmt)
         return result.all()
 
+    async def get_by_invoice_and_item(
+        self,
+        invoice_id: int,
+        item_id: int,
+    ) -> RentedItems | None:
+        """Get a rented item by invoice and item ID"""
+        stmt = (
+            select(RentedItems)
+            .where(
+                RentedItems.rental_invoice_id == invoice_id,
+                RentedItems.item_id == item_id,
+            )
+        )
+        result = await self.session.scalars(stmt)
+        return result.first()
+
     async def get_available_for_deduction(
         self,
         item_id: int,

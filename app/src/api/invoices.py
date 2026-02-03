@@ -65,6 +65,34 @@ def serialize_invoice_item(item) -> dict:
     }
 
 
+async def propagate_fifo_price(uow, source_invoice_id: int, item_id: int, location: str, supplier_id: int, new_unit_price: float):
+    """Update Prices layer and propagate unit_price change to all downstream invoices."""
+    price_layer = await uow.prices.get_by_composite_key(source_invoice_id, item_id, location, supplier_id)
+    if not price_layer:
+        return
+    price_layer.unit_price = new_unit_price
+
+    # Propagate to all InvoicePriceDetail rows that consumed from this layer
+    affected_invoice_ids = await uow.price_details.propagate_price_update(
+        source_invoice_id, item_id, location, supplier_id, new_unit_price
+    )
+
+    # Recalculate total_price/unit_price on affected InvoiceItems, then Invoice totals
+    for affected_inv_id in affected_invoice_ids:
+        affected_invoice = await uow.invoices.get_with_items(affected_inv_id)
+        if not affected_invoice:
+            continue
+        for inv_item in affected_invoice.items:
+            item_details = await uow.price_details.get_by_invoice_and_item(affected_inv_id, inv_item.item_id)
+            if item_details:
+                new_total = sum(pd.subtotal for pd in item_details)
+                inv_item.total_price = new_total
+                inv_item.unit_price = new_total / inv_item.quantity if inv_item.quantity else 0
+        new_invoice_total = sum(item.total_price or 0 for item in affected_invoice.items)
+        affected_invoice.total_amount = new_invoice_total
+        affected_invoice.residual = new_invoice_total - (affected_invoice.paid or 0)
+
+
 @router.get("/")
 async def list_invoices(
     uow: UOW,
@@ -572,6 +600,10 @@ async def update_invoice(
             await uow.invoice_items.create(item)
             total += item_data.total_price or 0
 
+            # Sync to Prices and propagate to all downstream invoices
+            if invoice.type == "اضافه":
+                await propagate_fifo_price(uow, invoice_id, item_id, item_data.location, item_supplier_id, item_data.unit_price)
+
     await uow.commit()
     await cache.delete_pattern("warehouse_list:*")
 
@@ -585,18 +617,19 @@ async def delete_invoice(
     uow: UOW,
     current_user: CurrentUser,
 ):
-    """DELETE /invoice/<id> - Delete invoice"""
-    invoice = await uow.invoices.get(invoice_id)
-    if not invoice:
+    """DELETE /invoice/<id> - Delete invoice and restore inventory"""
+    from src.services.invoice.invoice_service import InvoiceService
+
+    service = InvoiceService(uow)
+    result = await service.delete_invoice(invoice_id)
+
+    if not result.success:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Invoice not found",
+            status_code=result.status_code,
+            detail=result.message,
         )
 
-    await uow.invoices.delete(invoice)
-    await uow.commit()
     await cache.delete_pattern("warehouse_list:*")
-
     return MessageResponse(message="Invoice deleted successfully")
 
 
@@ -805,15 +838,20 @@ async def update_price(
 
     # Update item prices
     for item_data in data.items:
+        supplier_id = item_data.get("supplier_id", 0)
         item = await uow.invoice_items.get_by_item_and_location(
             invoice_id,
             item_data["item_id"],
             item_data["location"],
-            item_data.get("supplier_id", 0),
+            supplier_id,
         )
         if item:
             item.unit_price = item_data.get("unit_price", item.unit_price)
             item.total_price = item_data.get("total_price", item.total_price)
+
+            # Sync to Prices and propagate to all downstream invoices
+            if invoice.type == "اضافه" and "unit_price" in item_data:
+                await propagate_fifo_price(uow, invoice_id, item_data["item_id"], item_data["location"], supplier_id, item_data["unit_price"])
 
     # Recalculate total
     invoice = await uow.invoices.get_with_items(invoice_id)
