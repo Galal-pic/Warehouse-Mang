@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, status, Query, UploadFile, File
+from fastapi import APIRouter, HTTPException, status, Query, UploadFile, File, BackgroundTasks
 
 from src.api.deps import UOW, CurrentUser
 from src.schemas.warehouse import (
@@ -261,10 +261,12 @@ async def delete_warehouse_item(
 @router.post("/excel")
 async def import_from_excel(
     file: UploadFile = File(...),
+    background: BackgroundTasks = None,
     current_user: CurrentUser = None,
 ):
     """POST /warehouse/excel - Import items from Excel or CSV via COPY upsert"""
-    from src.core.bulk_import import parse_upload, upsert_warehouse
+    import pandas as pd
+    from src.core.bulk_import import parse_upload, upsert_warehouse, create_addition_invoices_bg
 
     contents = await file.read()
     df = parse_upload(contents, file.filename)
@@ -277,9 +279,46 @@ async def import_from_excel(
     df = df[df["item_name"].ne("") & df["item_bar"].ne("")]
     df = df.drop_duplicates(subset=["item_bar"], keep="last")
 
+    # Normalise price column: accept either unit_price or price_unit
+    # to_numeric coerces non-numeric junk like "-" or "—" to NaN before filling 0
+    if "price_unit" in df.columns and "unit_price" not in df.columns:
+        df.rename(columns={"price_unit": "unit_price"}, inplace=True)
+    if "unit_price" not in df.columns:
+        df["unit_price"] = 0.0
+    df["unit_price"] = pd.to_numeric(df["unit_price"], errors="coerce").fillna(0)
+
+    # Pick up quantity / location from Excel if present, else defaults
+    if "quantity" not in df.columns:
+        df["quantity"] = 1
+    else:
+        df["quantity"] = df["quantity"].fillna(1).astype(int)
+    if "location" not in df.columns:
+        df["location"] = "المخزن"
+    else:
+        df["location"] = df["location"].astype(str).str.strip()
+        df.loc[df["location"] == "", "location"] = "المخزن"
+
+    # Upsert warehouse items (COPY — fast, commits immediately)
     records = list(df[["item_name", "item_bar"]].itertuples(index=False, name=None))
     created, updated = await upsert_warehouse(records)
 
     await cache.delete_pattern("warehouse_*")
+
+    # Schedule اضافه invoices in background — zero impact on response time
+    items_for_invoice = [
+        {
+            "item_bar": row.item_bar,
+            "unit_price": float(row.unit_price),
+            "quantity": int(row.quantity),
+            "location": row.location,
+        }
+        for row in df[["item_bar", "unit_price", "quantity", "location"]].itertuples(index=False)
+    ]
+    background.add_task(
+        create_addition_invoices_bg,
+        items_for_invoice,
+        current_user.id,
+        current_user.username,
+    )
 
     return {"created": created, "updated": updated}

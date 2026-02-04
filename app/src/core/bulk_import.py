@@ -100,6 +100,136 @@ async def upsert_warehouse(records: list[tuple[str, str]]) -> tuple[int, int]:
         await conn.close()
 
 
+async def create_addition_invoices_bg(
+    items: list[dict],
+    employee_id: int,
+    employee_name: str,
+) -> None:
+    """
+    Background task: bulk-create اضافه invoices via asyncpg COPY.
+    10 items per invoice, default supplier (id=0).
+    Single connection, single transaction, ~9 queries total regardless of item count.
+    """
+    from datetime import datetime
+
+    BATCH_SIZE = 10
+    DEFAULT_SUPPLIER_ID = 0
+    DEFAULT_SUPPLIER_NAME = "بدون مورد"
+
+    if not items:
+        return
+
+    conn = await asyncpg.connect(_dsn())
+    try:
+        async with conn.transaction():
+            # 1. Ensure default supplier (idempotent)
+            await conn.execute("""
+                INSERT INTO supplier (id, name, description)
+                VALUES (0, $1, $2)
+                ON CONFLICT (id) DO NOTHING
+            """, DEFAULT_SUPPLIER_NAME, "Default supplier for items without a supplier")
+
+            # 2. Single SELECT: barcode → warehouse.id
+            barcodes = list({item["item_bar"] for item in items})
+            rows = await conn.fetch(
+                "SELECT item_bar, id FROM warehouse WHERE item_bar = ANY($1)",
+                barcodes,
+            )
+            barcode_to_id = {row["item_bar"]: row["id"] for row in rows}
+
+            # Drop barcodes not yet in warehouse (shouldn't happen after upsert)
+            valid_items = [item for item in items if item["item_bar"] in barcode_to_id]
+            if not valid_items:
+                return
+
+            # 3. Reserve all invoice IDs at once from the sequence
+            num_invoices = (len(valid_items) + BATCH_SIZE - 1) // BATCH_SIZE
+            id_rows = await conn.fetch("""
+                SELECT nextval(pg_get_serial_sequence('invoice', 'id')) AS id
+                FROM generate_series(1, $1)
+            """, num_invoices)
+            invoice_ids = [row["id"] for row in id_rows]
+
+            # 4. Build every record in Python — zero per-row round-trips
+            now = datetime.now()
+            invoice_records: list[tuple] = []
+            invoice_item_records: list[tuple] = []
+            price_records: list[tuple] = []
+            location_agg: dict[tuple[int, str], int] = {}  # (item_id, location) -> qty
+
+            for batch_idx in range(num_invoices):
+                inv_id = invoice_ids[batch_idx]
+                batch = valid_items[batch_idx * BATCH_SIZE:(batch_idx + 1) * BATCH_SIZE]
+
+                total_amount = 0.0
+                for item_data in batch:
+                    item_id = barcode_to_id[item_data["item_bar"]]
+                    unit_price = item_data["unit_price"]
+                    quantity = item_data["quantity"]
+                    location = item_data["location"]
+                    total_price = unit_price * quantity
+
+                    invoice_item_records.append((
+                        inv_id, item_id, location, DEFAULT_SUPPLIER_ID,
+                        quantity, total_price, unit_price, DEFAULT_SUPPLIER_NAME,
+                    ))
+                    price_records.append((
+                        inv_id, item_id, location, DEFAULT_SUPPLIER_ID,
+                        quantity, unit_price, now,
+                    ))
+
+                    loc_key = (item_id, location)
+                    location_agg[loc_key] = location_agg.get(loc_key, 0) + quantity
+                    total_amount += total_price
+
+                invoice_records.append((
+                    inv_id, "اضافه", now,
+                    round(total_amount, 3), 0.0, round(total_amount, 3),
+                    "draft", employee_name, employee_id,
+                ))
+
+            # 5. COPY invoices
+            await conn.copy_records_to_table("invoice", columns=[
+                "id", "type", "created_at",
+                "total_amount", "paid", "residual",
+                "status", "employee_name", "employee_id",
+            ], records=invoice_records)
+
+            # 6. COPY invoice line items
+            await conn.copy_records_to_table("invoice_item", columns=[
+                "invoice_id", "item_id", "location", "supplier_id",
+                "quantity", "total_price", "unit_price", "supplier_name",
+            ], records=invoice_item_records)
+
+            # 7. COPY FIFO price layers
+            await conn.copy_records_to_table("prices", columns=[
+                "invoice_id", "item_id", "location", "supplier_id",
+                "quantity", "unit_price", "created_at",
+            ], records=price_records)
+
+            # 8. Upsert item_locations: temp table → INSERT ON CONFLICT adds qty
+            await conn.execute("""
+                CREATE TEMP TABLE _loc_import (
+                    item_id  INTEGER NOT NULL,
+                    location TEXT    NOT NULL,
+                    quantity INTEGER NOT NULL
+                ) ON COMMIT DROP
+            """)
+            await conn.copy_records_to_table(
+                "_loc_import",
+                columns=["item_id", "location", "quantity"],
+                records=[(iid, loc, qty) for (iid, loc), qty in location_agg.items()],
+            )
+            await conn.execute("""
+                INSERT INTO item_locations (item_id, location, quantity)
+                SELECT item_id, location, quantity FROM _loc_import
+                ON CONFLICT (item_id, location)
+                DO UPDATE SET quantity = item_locations.quantity + EXCLUDED.quantity
+            """)
+    finally:
+        await conn.close()
+
+
 async def copy_reference(table: str, existing_names: set[str], records: list[tuple[str, str | None]]) -> int:
     """
     COPY new reference records (supplier / machine / mechanism).
