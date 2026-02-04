@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.config import settings
 from src.database import close_db
 from src.core.cache import cache
+from src.core.bulk_import import close_pool
 from src.middleware.performance import PerformanceMiddleware, get_stats, reset_stats
 
 
@@ -26,6 +27,7 @@ async def lifespan(app: FastAPI):
     yield
 
     # Shutdown
+    await close_pool()
     await cache.disconnect()
     await close_db()
     print("Application shutdown complete")

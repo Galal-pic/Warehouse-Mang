@@ -299,20 +299,15 @@ async def import_from_excel(
         df.loc[df["location"] == "", "location"] = "المخزن"
 
     # Upsert warehouse items (COPY — fast, commits immediately)
-    records = list(df[["item_name", "item_bar"]].itertuples(index=False, name=None))
+    records = list(map(tuple, df[["item_name", "item_bar"]].values))
     created, updated = await upsert_warehouse(records)
 
     await cache.delete_pattern("warehouse_*")
 
     # Schedule اضافه invoices in background — zero impact on response time
     items_for_invoice = [
-        {
-            "item_bar": row.item_bar,
-            "unit_price": float(row.unit_price),
-            "quantity": int(row.quantity),
-            "location": row.location,
-        }
-        for row in df[["item_bar", "unit_price", "quantity", "location"]].itertuples(index=False)
+        {"item_bar": bar, "unit_price": float(price), "quantity": int(qty), "location": loc}
+        for bar, price, qty, loc in df[["item_bar", "unit_price", "quantity", "location"]].values
     ]
     background.add_task(
         create_addition_invoices_bg,

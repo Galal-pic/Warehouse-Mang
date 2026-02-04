@@ -5,6 +5,7 @@ Uses the PostgreSQL COPY protocol directly (bypassing SQLAlchemy ORM)
 for 5-50x faster bulk inserts compared to row-by-row INSERT.
 """
 
+import asyncio
 from typing import TYPE_CHECKING
 
 import asyncpg
@@ -12,6 +13,35 @@ from src.config import settings
 
 if TYPE_CHECKING:
     import pandas as pd
+
+# ── connection pool ──────────────────────────────────────────────────────────
+# Lazy singleton: one pool for the lifetime of the process.  Avoids the
+# ~150 ms TCP-handshake + auth cost that asyncpg.connect() pays on every call.
+_pool: asyncpg.Pool | None = None
+_pool_lock: asyncio.Lock | None = None
+
+
+async def _get_pool() -> asyncpg.Pool:
+    global _pool, _pool_lock
+    if _pool is None:
+        if _pool_lock is None:
+            _pool_lock = asyncio.Lock()
+        async with _pool_lock:
+            if _pool is None:
+                _pool = await asyncpg.create_pool(
+                    _dsn(),
+                    min_size=2,
+                    max_size=10,
+                )
+    return _pool
+
+
+async def close_pool() -> None:
+    """Close the pool on application shutdown."""
+    global _pool
+    if _pool:
+        await _pool.close()
+        _pool = None
 
 
 def parse_upload(contents: bytes, filename: str) -> "pd.DataFrame":
@@ -42,13 +72,11 @@ async def copy_records(table: str, columns: list[str], records: list[tuple]) -> 
     """
     if not records:
         return 0
-    conn = await asyncpg.connect(_dsn())
-    try:
+    pool = await _get_pool()
+    async with pool.acquire() as conn:
         async with conn.transaction():
             await conn.copy_records_to_table(table, columns=columns, records=records)
-        return len(records)
-    finally:
-        await conn.close()
+    return len(records)
 
 
 async def upsert_warehouse(records: list[tuple[str, str]]) -> tuple[int, int]:
@@ -61,8 +89,8 @@ async def upsert_warehouse(records: list[tuple[str, str]]) -> tuple[int, int]:
     if not records:
         return 0, 0
 
-    conn = await asyncpg.connect(_dsn())
-    try:
+    pool = await _get_pool()
+    async with pool.acquire() as conn:
         async with conn.transaction():
             await conn.execute("""
                 CREATE TEMP TABLE _wh_import (
@@ -96,8 +124,6 @@ async def upsert_warehouse(records: list[tuple[str, str]]) -> tuple[int, int]:
 
         created = len(records) - updated
         return created, updated
-    finally:
-        await conn.close()
 
 
 async def create_addition_invoices_bg(
@@ -119,8 +145,8 @@ async def create_addition_invoices_bg(
     if not items:
         return
 
-    conn = await asyncpg.connect(_dsn())
-    try:
+    pool = await _get_pool()
+    async with pool.acquire() as conn:
         async with conn.transaction():
             # 1. Ensure default supplier (idempotent)
             await conn.execute("""
@@ -226,8 +252,6 @@ async def create_addition_invoices_bg(
                 ON CONFLICT (item_id, location)
                 DO UPDATE SET quantity = item_locations.quantity + EXCLUDED.quantity
             """)
-    finally:
-        await conn.close()
 
 
 async def copy_reference(table: str, existing_names: set[str], records: list[tuple[str, str | None]]) -> int:

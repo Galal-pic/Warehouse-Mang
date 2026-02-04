@@ -108,22 +108,21 @@ class PerformanceMiddleware:
 
         start = time.perf_counter()
         status_code = 200
+        response_ms = 0.0  # locked in at http.response.start, before background tasks
 
         async def send_wrapper(message: dict) -> None:
-            nonlocal status_code
+            nonlocal status_code, response_ms
             if message["type"] == "http.response.start":
                 status_code = message.get("status", 200)
-                # Inject X-Process-Time header (value updated after body)
-                elapsed_ms = (time.perf_counter() - start) * 1000
+                response_ms = (time.perf_counter() - start) * 1000
                 headers = list(message.get("headers", []))
-                headers.append((b"x-process-time", f"{elapsed_ms:.2f}".encode()))
+                headers.append((b"x-process-time", f"{response_ms:.2f}".encode()))
                 message["headers"] = headers
             await send(message)
 
         await self.app(scope, receive, send_wrapper)
+        # self.app includes background tasks — use response_ms (pre-background)
 
-        # Record stats after the response is fully sent
-        elapsed_ms = (time.perf_counter() - start) * 1000
         is_error = status_code >= 500
 
         # Prefer the route pattern from FastAPI's routing; fall back to raw path
@@ -137,4 +136,4 @@ class PerformanceMiddleware:
                 _routes[route_path] = _RouteStats()
             route_stats = _routes[route_path]
 
-        route_stats.record(elapsed_ms, is_error)
+        route_stats.record(response_ms, is_error)
