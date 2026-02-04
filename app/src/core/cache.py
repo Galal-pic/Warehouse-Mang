@@ -7,6 +7,21 @@ import redis.asyncio as redis
 from src.config import settings
 
 
+# Lua: SCAN + DEL in a single server-side pass — no Python round-trips per batch
+_LUA_DELETE_PATTERN = """
+local cursor = "0"
+local deleted = 0
+repeat
+    local result = redis.call("SCAN", cursor, "MATCH", KEYS[1], "COUNT", 200)
+    cursor = result[1]
+    if #result[2] > 0 then
+        deleted = deleted + redis.call("DEL", unpack(result[2]))
+    end
+until cursor == "0"
+return deleted
+"""
+
+
 class RedisCache:
     """Async Redis cache manager"""
 
@@ -16,12 +31,21 @@ class RedisCache:
         self.default_ttl = settings.CACHE_TTL
 
     async def connect(self) -> None:
-        """Connect to Redis"""
-        self.redis = await redis.from_url(
+        """Connect to Redis and verify with PING. Sets self.redis = None on failure."""
+        client = redis.from_url(
             settings.REDIS_URL,
             encoding="utf-8",
             decode_responses=True,
+            socket_connect_timeout=2,
         )
+        try:
+            # Verify the connection is actually reachable — from_url is lazy
+            await client.ping()
+            self.redis = client
+        except Exception:
+            await client.close()
+            self.redis = None
+            raise
 
     async def disconnect(self) -> None:
         """Disconnect from Redis"""
@@ -96,7 +120,7 @@ class RedisCache:
 
     async def delete_pattern(self, pattern: str) -> int:
         """
-        Delete all keys matching a pattern.
+        Delete all keys matching a pattern via server-side Lua SCAN+DEL.
 
         Args:
             pattern: Key pattern (e.g., "warehouse_list:*")
@@ -107,12 +131,9 @@ class RedisCache:
         if not self.redis:
             return 0
         try:
-            keys = []
-            async for key in self.redis.scan_iter(match=f"{self.prefix}{pattern}"):
-                keys.append(key)
-            if keys:
-                return await self.redis.delete(*keys)
-            return 0
+            return await self.redis.eval(
+                _LUA_DELETE_PATTERN, 1, f"{self.prefix}{pattern}"
+            )
         except Exception:
             return 0
 

@@ -29,6 +29,7 @@ celery[redis]
 # Excel Processing
 openpyxl
 pandas
+python-calamine
 
 # Testing
 pytest

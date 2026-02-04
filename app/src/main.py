@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.config import settings
 from src.database import close_db
 from src.core.cache import cache
+from src.middleware.performance import PerformanceMiddleware, get_stats, reset_stats
 
 
 @asynccontextmanager
@@ -45,6 +46,23 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Performance middleware — added after CORS so it wraps the inner app
+app.add_middleware(PerformanceMiddleware)
+
+
+# Performance endpoints (unauthenticated — internal/monitoring use)
+@app.get("/perf/stats", tags=["Performance"])
+async def perf_stats():
+    """GET /perf/stats - Per-route latency stats (count, avg/min/max/p50/p95/p99)"""
+    return get_stats()
+
+
+@app.post("/perf/reset", tags=["Performance"])
+async def perf_reset():
+    """POST /perf/reset - Clear all performance stats"""
+    reset_stats()
+    return {"status": "reset"}
 
 
 # Health check endpoints

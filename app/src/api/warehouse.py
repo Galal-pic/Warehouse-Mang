@@ -261,49 +261,25 @@ async def delete_warehouse_item(
 @router.post("/excel")
 async def import_from_excel(
     file: UploadFile = File(...),
-    uow: UOW = None,
     current_user: CurrentUser = None,
 ):
-    """POST /warehouse/excel - Import items from Excel"""
-    import pandas as pd
-    from io import BytesIO
+    """POST /warehouse/excel - Import items from Excel or CSV via COPY upsert"""
+    from src.core.bulk_import import parse_upload, upsert_warehouse
 
-    # Read Excel file
     contents = await file.read()
-    df = pd.read_excel(BytesIO(contents))
+    df = parse_upload(contents, file.filename)
 
-    created_count = 0
-    updated_count = 0
-    errors = []
+    # Normalise column names
+    df.rename(columns={"name": "item_name", "barcode": "item_bar"}, inplace=True)
+    df = df.dropna(subset=["item_name", "item_bar"])
+    df["item_name"] = df["item_name"].astype(str).str.strip()
+    df["item_bar"] = df["item_bar"].astype(str).str.strip()
+    df = df[df["item_name"].ne("") & df["item_bar"].ne("")]
+    df = df.drop_duplicates(subset=["item_bar"], keep="last")
 
-    for _, row in df.iterrows():
-        try:
-            item_name = str(row.get("item_name", row.get("name", "")))
-            item_bar = str(row.get("item_bar", row.get("barcode", "")))
+    records = list(df[["item_name", "item_bar"]].itertuples(index=False, name=None))
+    created, updated = await upsert_warehouse(records)
 
-            if not item_name or not item_bar:
-                continue
-
-            existing = await uow.warehouse.get_by_barcode(item_bar)
-            if existing:
-                await uow.warehouse.update(existing, {"item_name": item_name})
-                updated_count += 1
-            else:
-                await uow.warehouse.create({
-                    "item_name": item_name,
-                    "item_bar": item_bar,
-                })
-                created_count += 1
-        except Exception as e:
-            errors.append(str(e))
-
-    await uow.commit()
-
-    # Clear cache
     await cache.delete_pattern("warehouse_*")
 
-    return {
-        "created": created_count,
-        "updated": updated_count,
-        "errors": errors[:10],  # Limit errors in response
-    }
+    return {"created": created, "updated": updated}

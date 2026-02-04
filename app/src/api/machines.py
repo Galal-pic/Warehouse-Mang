@@ -152,38 +152,29 @@ async def import_from_excel(
     uow: UOW = None,
     current_user: CurrentUser = None,
 ):
-    """POST /machines/excel - Import machines from Excel"""
-    import pandas as pd
-    from io import BytesIO
+    """POST /machines/excel - Import machines from Excel or CSV via COPY"""
+    from sqlalchemy import text
+    from src.core.bulk_import import parse_upload, copy_reference
+    from src.database import async_session_maker
 
     contents = await file.read()
-    df = pd.read_excel(BytesIO(contents))
+    df = parse_upload(contents, file.filename)
 
-    created_count = 0
-    errors = []
+    df = df.dropna(subset=["name"])
+    df["name"] = df["name"].astype(str).str.strip()
+    df = df[df["name"].ne("")]
+    df = df.drop_duplicates(subset=["name"], keep="last")
+    if "description" not in df.columns:
+        df["description"] = None
+    # itertuples turns None back to NaN — force to str or None explicitly
+    df["description"] = [None if x is None or (isinstance(x, float) and x != x) else str(x) for x in df["description"]]
 
-    for _, row in df.iterrows():
-        try:
-            name = str(row.get("name", ""))
-            description = str(row.get("description", "")) if "description" in row else None
+    async with async_session_maker() as session:
+        result = await session.execute(text("SELECT name FROM machine"))
+        existing_names = {row[0] for row in result.fetchall()}
 
-            if not name:
-                continue
+    records = list(df[["name", "description"]].itertuples(index=False, name=None))
+    created = await copy_reference("machine", existing_names, records)
 
-            existing = await uow.machines.get_by_name(name)
-            if not existing:
-                await uow.machines.create({
-                    "name": name,
-                    "description": description,
-                })
-                created_count += 1
-        except Exception as e:
-            errors.append(str(e))
-
-    await uow.commit()
     await cache.delete_pattern("machines_*")
-
-    return {
-        "created": created_count,
-        "errors": errors[:10],
-    }
+    return {"created": created}
