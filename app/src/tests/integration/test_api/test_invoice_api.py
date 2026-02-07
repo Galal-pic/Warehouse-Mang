@@ -17,7 +17,7 @@ class TestInvoiceAPI:
 
         assert response.status_code == 200
         data = response.json()
-        assert "items" in data
+        assert "invoices" in data
         assert "total_items" in data
 
     @pytest.mark.asyncio
@@ -73,7 +73,8 @@ class TestInvoiceAPI:
                 "type": "اضافه",
                 "items": [
                     {
-                        "item_id": sample_warehouse_item.id,
+                        "item_name": sample_warehouse_item.item_name,
+                        "barcode": sample_warehouse_item.item_bar,
                         "location": "MAIN",
                         "quantity": 50,
                         "unit_price": 10.0,
@@ -100,11 +101,12 @@ class TestInvoiceAPI:
             "/invoice/",
             json={
                 "type": "صرف",
-                "machine_id": sample_machine.id,
-                "mechanism_id": sample_mechanism.id,
+                "machine_name": sample_machine.name,
+                "mechanism_name": sample_mechanism.name,
                 "items": [
                     {
-                        "item_id": sample_warehouse_item.id,
+                        "item_name": sample_warehouse_item.item_name,
+                        "barcode": sample_warehouse_item.item_bar,
                         "location": "MAIN",
                         "quantity": 5,
                     }
@@ -167,7 +169,7 @@ class TestInvoiceAPI:
 
         assert response.status_code == 200
         data = response.json()
-        assert "items" in data
+        assert "invoices" in data
 
     @pytest.mark.asyncio
     async def test_get_inventory_value(self, authenticated_client: AsyncClient):
@@ -193,4 +195,6 @@ class TestInvoiceAPI:
 
         assert response.status_code == 200
         data = response.json()
-        assert isinstance(data, list)
+        assert "item_id" in data
+        assert "item_name" in data
+        assert "price_records" in data

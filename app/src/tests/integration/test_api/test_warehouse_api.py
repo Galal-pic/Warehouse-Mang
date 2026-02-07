@@ -17,7 +17,7 @@ class TestWarehouseAPI:
 
         assert response.status_code == 200
         data = response.json()
-        assert "items" in data
+        assert "warehouses" in data
         assert "total_items" in data
         assert "page" in data
 

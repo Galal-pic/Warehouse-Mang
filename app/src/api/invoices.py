@@ -463,14 +463,28 @@ async def create_invoice(
             "supplier_name": item_supplier_name,
         })
 
+    # Resolve machine name from ID if provided
+    machine_name = data.machine_name
+    if data.machine_id and not machine_name:
+        machine = await uow.machines.get(data.machine_id)
+        if machine:
+            machine_name = machine.name
+
+    # Resolve mechanism name from ID if provided
+    mechanism_name = data.mechanism_name
+    if data.mechanism_id and not mechanism_name:
+        mechanism = await uow.mechanisms.get(data.mechanism_id)
+        if mechanism:
+            mechanism_name = mechanism.name
+
     # Build service data dict
     service_data = {
         "type": data.type,
         "client_name": data.client_name,
         "warehouse_manager": data.warehouse_manager,
         "employee_name": data.employee_name or current_user.username,
-        "machine_name": data.machine_name,
-        "mechanism_name": data.mechanism_name,
+        "machine_name": machine_name,
+        "mechanism_name": mechanism_name,
         "comment": data.comment,
         "payment_method": data.payment_method,
         "custody_person": data.custody_person,

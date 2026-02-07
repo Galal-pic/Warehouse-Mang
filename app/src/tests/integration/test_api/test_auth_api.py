@@ -89,7 +89,7 @@ class TestAuthAPI:
 
         assert response.status_code == 200
         data = response.json()
-        assert "items" in data
+        assert "users" in data
         assert "total_items" in data
 
     @pytest.mark.asyncio
@@ -128,12 +128,12 @@ class TestAuthAPI:
     async def test_change_password(
         self, authenticated_client: AsyncClient, test_user: Employee
     ):
-        """Test changing password"""
+        """Test changing password (admin operation - no old password needed)"""
         response = await authenticated_client.post(
             f"/auth/user/{test_user.id}/change-password",
             json={
-                "old_password": "testpassword",
                 "new_password": "newpassword123",
+                "confirm_new_password": "newpassword123",
             },
         )
 
@@ -141,16 +141,16 @@ class TestAuthAPI:
         assert "successfully" in response.json()["message"].lower()
 
     @pytest.mark.asyncio
-    async def test_change_password_wrong_old(
+    async def test_change_password_mismatch(
         self, authenticated_client: AsyncClient, test_user: Employee
     ):
-        """Test changing password with wrong old password"""
+        """Test changing password with mismatched confirmation"""
         response = await authenticated_client.post(
             f"/auth/user/{test_user.id}/change-password",
             json={
-                "old_password": "wrongoldpassword",
                 "new_password": "newpassword123",
+                "confirm_new_password": "differentpassword",
             },
         )
 
-        assert response.status_code == 400
+        assert response.status_code == 422
